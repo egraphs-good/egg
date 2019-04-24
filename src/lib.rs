@@ -1,88 +1,129 @@
-use std::collections::HashSet;
+mod dot;
 
-use ena::unify::{InPlace, UnificationTable};
-use petgraph::prelude::*;
+use std::collections::HashMap;
 
-#[derive(Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Copy)]
-struct Key(u32);
+/// EClass Id
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct Id(usize);
 
-unsafe impl petgraph::graph::IndexType for Key {
-    fn new(x: usize) -> Self {
-        Key(x as u32)
-    }
-    fn index(&self) -> usize {
-        self.0 as usize
-    }
-    fn max() -> Self {
-        Key(std::u32::MAX)
-    }
-}
-
-#[derive(Debug, Clone)]
-struct EClass(HashSet<Key>);
-
-impl ena::unify::UnifyKey for Key {
-    type Value = EClass;
-
-    fn index(&self) -> u32 {
-        self.0
-    }
-    fn from_index(u: u32) -> Self {
-        Key(u)
-    }
-    fn tag() -> &'static str {
-        "Key"
-    }
-}
-
-impl ena::unify::UnifyValue for EClass {
-    type Error = ();
-    fn unify_values(value1: &Self, value2: &Self) -> Result<Self, Self::Error> {
-        let union = value1.0.union(&value2.0);
-        Ok(EClass(union.cloned().collect()))
-    }
-}
-
-#[derive(Debug)]
-pub enum Op {
-    Plus,
-    Times,
-}
-
-#[derive(Debug)]
-pub enum EValue {
-    Op(Op),
-    Const(i32),
+pub enum ENode {
     Var(String),
+    Const(i32),
+    Plus(Id, Id),
+    Times(Id, Id),
 }
 
-type InnerEGraph = Graph<ENode, EEdge, Directed, Key>;
+impl ENode {
+    fn write_label(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            ENode::Var(s) => write!(f, "'{}'", s),
+            ENode::Const(i) => write!(f, "{}", i),
+            ENode::Plus(..) => write!(f, "+"),
+            ENode::Times(..) => write!(f, "*"),
+        }
+    }
+    fn fill_children(&self, vec: &mut Vec<Id>) {
+        assert_eq!(vec.len(), 0);
+        match self {
+            ENode::Var(_) => (),
+            ENode::Const(_) => (),
+            ENode::Plus(l, r) => {
+                vec.push(*l);
+                vec.push(*r);
+            }
+            ENode::Times(l, r) => {
+                vec.push(*l);
+                vec.push(*r);
+            }
+        }
+    }
+}
 
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct EGraph {
-    graph: InnerEGraph,
-    union: UnificationTable<InPlace<Key>>,
+    nodes: Vec<ENode>,
+    leaders: Vec<Id>,
+    classes: HashMap<Id, Vec<Id>>,
 }
 
-#[derive(Debug)]
-struct EEdge;
+impl EGraph {
+    fn check(&self) {
+        assert_eq!(self.nodes.len(), self.leaders.len());
 
-#[derive(Debug)]
-struct ENode {
-    value: EValue,
-}
+        // make sure the classes map contains exactly the unique leaders
+        let mut unique_leaders = self.leaders.clone();
+        unique_leaders.sort();
+        unique_leaders.dedup();
 
-#[derive(Debug)]
-struct Pattern {
-    lhs: InnerEGraph,
-    rhs: InnerEGraph,
-}
+        assert_eq!(unique_leaders.len(), self.classes.len());
+        for ul in &unique_leaders {
+            assert!(self.classes.contains_key(ul));
+        }
 
+        // make sure that total size of classes == all nodes
+        let sum_classes = self.classes.values().map(|c| c.len()).sum();
+        assert_eq!(self.nodes.len(), sum_classes);
+    }
 
+    pub fn len(&self) -> usize {
+        self.nodes.len()
+    }
 
-fn pattern_match(graph: &InnerEGraph, pattern: &Pattern) {
-    let lroot = Key::default();
-    for node in graph.node_indices() {
+    pub fn add(&mut self, enode: ENode) -> Id {
+        self.check();
+
+        // make sure that the enodes children are already in the set
+        if cfg!(debug_assertions) {
+            let mut ids = Vec::new();
+            enode.fill_children(&mut ids);
+            for Id(i) in ids {
+                assert!(i < self.len());
+            }
+        }
+
+        let next_id = Id(self.len());
+        self.nodes.push(enode);
+        self.leaders.push(next_id);
+        self.classes.insert(next_id, vec![next_id]);
+
+        self.check();
+
+        next_id
+    }
+
+    fn union(&mut self, id1: Id, id2: Id) -> Id {
+        self.check();
+
+        let mut leader1 = self.leaders[id1.0];
+        let mut leader2 = self.leaders[id2.0];
+
+        // already unioned
+        if leader1 == leader2 {
+            return leader1;
+        }
+
+        // make leader2 bigger
+        {
+            let class1 = &self.classes[&leader1];
+            let class2 = &self.classes[&leader2];
+            if class1.len() > class2.len() {
+                std::mem::swap(&mut leader1, &mut leader2);
+            }
+        }
+
+        // remove the bigger class, merging into the smaller class
+        let smaller_class = self.classes.remove(&leader1).unwrap();
+        let bigger_class = self.classes.get_mut(&leader2).unwrap();
+
+        bigger_class.reserve(smaller_class.len());
+        for id in smaller_class {
+            // TODO transform the nodes that are merged
+            self.leaders[id.0] = leader2;
+            bigger_class.push(id)
+        }
+
+        self.check();
+        leader2
     }
 }
 
@@ -91,55 +132,32 @@ mod tests {
 
     use super::*;
 
-
-    fn var(s: &str) -> EValue {
-        EValue::Var(s.into())
+    fn var(s: &str) -> ENode {
+        ENode::Var(s.into())
     }
 
-    fn dot(graph: &InnerEGraph, name: &str) {
+    fn dot(egraph: &EGraph, name: &str) {
         use std::fs::File;
         use std::io::prelude::*;
-        use petgraph::dot::{Config, Dot};
+
+        let dot = dot::Dot::new(&egraph);
         let mut file = File::create(format!("{}.dot", name)).unwrap();
-        write!(file, "{:?}", Dot::with_config(&graph, &[Config::EdgeNoLabel])).unwrap();
+        write!(file, "{}", dot).unwrap();
+        println!("{}", dot);
     }
 
     #[test]
-    fn it_works() {
-        let mut graph = InnerEGraph::default();
-        let x = graph.add_node(ENode { value: var("x") });
-        let plus = graph.add_node(ENode {
-            value: EValue::Op(Op::Plus),
-        });
+    fn simple_add() {
+        let mut egraph = EGraph::default();
 
-        graph.add_edge(x, plus, EEdge);
-        graph.add_edge(x, plus, EEdge);
+        let x = egraph.add(var("x"));
+        let plus = egraph.add(ENode::Plus(x, x));
 
-        let lhs = {
-            let mut graph = InnerEGraph::default();
-            let a = graph.add_node(ENode { value: var("a") });
-            let plus = graph.add_node(ENode {
-                value: EValue::Op(Op::Plus),
-            });
-            graph.add_edge(a, plus, EEdge);
-            graph.add_edge(a, plus, EEdge);
-            graph
-        };
+        let y = egraph.add(var("y"));
 
-        let rhs = {
-            let mut graph = InnerEGraph::default();
-            let a = graph.add_node(ENode { value: var("a") });
-            let two = graph.add_node(ENode { value: EValue::Const(2) });
-            let times = graph.add_node(ENode {
-                value: EValue::Op(Op::Times),
-            });
-            graph.add_edge(a, times, EEdge);
-            graph.add_edge(two, times, EEdge);
-            graph
-        };
+        egraph.union(x, y);
 
-        dot(&lhs, "lhs");
-        dot(&rhs, "rhs");
+        dot(&egraph, "foo");
 
         assert_eq!(2 + 2, 4);
     }
