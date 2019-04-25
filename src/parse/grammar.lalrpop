@@ -1,0 +1,15 @@
+use crate::{EGraph, ENode, Id};
+use std::str::FromStr;
+
+grammar(egraph: &mut EGraph);
+
+Num: i32 = r"[0-9]+" => i32::from_str(<>).unwrap();
+Var: String = r"[[:alpha:]][[:word:]]*" => <>.into();
+
+
+pub Term: Id = {
+    Num => egraph.add(ENode::Const(<>)),
+    Var => egraph.add(ENode::Var(<>)),
+    "(" "+" <l:Term> <r:Term>")" => egraph.add(ENode::Plus(l, r)),
+    "(" "*" <l:Term> <r:Term>")" => egraph.add(ENode::Plus(l, r)),
+};
