@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{EGraph, Id};
+use crate::{EGraph};
 
 pub struct Dot<'a> {
     egraph: &'a EGraph,
@@ -22,10 +22,9 @@ impl<'a> fmt::Display for Dot<'a> {
         // define all the nodes, clustered by eclass
         for (leader, class) in &self.egraph.classes {
             write!(f, "  subgraph cluster_{} {{\n", leader.0)?;
-            write!(f, "  style=dotted")?;
-            for id in class {
-                let node = &self.egraph.nodes[id.0];
-                write!(f, "    {}[label = \"", id.0)?;
+            write!(f, "    style=dotted")?;
+            for (i, node) in class.iter().enumerate() {
+                write!(f, "    {}.{}[label = \"", leader.0, i)?;
                 node.write_label(f)?;
                 write!(f, "\"]\n")?;
             }
@@ -33,18 +32,21 @@ impl<'a> fmt::Display for Dot<'a> {
         }
 
         let mut children = Vec::new();
-        for (i, node) in self.egraph.nodes.iter().enumerate() {
-            node.fill_children(&mut children);
-            for child in &children {
-                // write the edge to the child, but clip it to the eclass with lhead
-                let child_leader = self.egraph.leaders[child.0];
-                write!(
-                    f,
-                    "  {} -> {} [lhead = cluster_{}]\n",
-                    i, child.0, child_leader.0
-                )?;
+        for (leader, class) in &self.egraph.classes {
+            for (i, node) in class.iter().enumerate() {
+                node.fill_children(&mut children);
+                for child in &children {
+                    // write the edge to the child, but clip it to the eclass with lhead
+                    let child_leader = self.egraph.leaders[child.0];
+                    write!(
+                        f,
+                        // {}.0 to pick an arbitrary node in the cluster
+                        "  {}.{} -> {}.0 [lhead = cluster_{}]\n",
+                        leader.0, i, child.0, child_leader.0
+                    )?;
+                }
+                children.clear();
             }
-            children.clear();
         }
 
         write!(f, "}}")
