@@ -7,45 +7,46 @@ use log::{info, trace};
 
 /// EClass Id
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Id(usize);
+pub struct EClassId(usize);
+pub type Id = EClassId;
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct OpId(u32);
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub enum ENode {
+pub enum Expr<Id> {
     Var(String),
     Const(i32),
-    Plus(Id, Id),
-    Times(Id, Id),
+    Op2(OpId, Id, Id),
 }
+
+static OP_STRINGS: &[&str] = &["+", "*"];
+
+type ENode = Expr<EClassId>;
 
 impl ENode {
     fn write_label(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            ENode::Var(s) => write!(f, "'{}'", s),
-            ENode::Const(i) => write!(f, "{}", i),
-            ENode::Plus(..) => write!(f, "+"),
-            ENode::Times(..) => write!(f, "*"),
+            Expr::Var(s) => write!(f, "'{}'", s),
+            Expr::Const(i) => write!(f, "{}", i),
+            Expr::Op2(op_id, _, _) => write!(f, "{}", OP_STRINGS[op_id.0 as usize]),
         }
     }
 
-    fn map_ids(&self, mut f: impl FnMut(Id) -> Id) -> ENode {
-        match self {
-            ENode::Var(_) => self.clone(),
-            ENode::Const(_) => self.clone(),
-            ENode::Plus(l, r) => ENode::Plus(f(*l), f(*r)),
-            ENode::Times(l, r) => ENode::Times(f(*l), f(*r)),
+    fn map_ids(&self, mut f: impl FnMut(EClassId) -> EClassId) -> ENode {
+        match *self {
+            Expr::Var(_) => self.clone(),
+            Expr::Const(_) => self.clone(),
+            Expr::Op2(op, l, r) => Expr::Op2(op, f(l), f(r)),
         }
     }
 
-    fn fill_children(&self, vec: &mut Vec<Id>) {
+    fn fill_children(&self, vec: &mut Vec<EClassId>) {
         assert_eq!(vec.len(), 0);
         match self {
-            ENode::Var(_) => (),
-            ENode::Const(_) => (),
-            ENode::Plus(l, r) => {
-                vec.push(*l);
-                vec.push(*r);
-            }
-            ENode::Times(l, r) => {
+            Expr::Var(_) => (),
+            Expr::Const(_) => (),
+            Expr::Op2(_op, l, r) => {
                 vec.push(*l);
                 vec.push(*r);
             }
@@ -55,16 +56,9 @@ impl ENode {
 
 #[derive(Debug, Default, PartialEq)]
 pub struct EGraph {
-    nodes: HashMap<ENode, Id>,
-    leaders: Vec<Id>,
-    classes: HashMap<Id, Vec<ENode>>,
-}
-
-#[derive(Debug, PartialEq)]
-pub struct Pattern {
-    nodes: Vec<ENode>,
-    lhs: Id,
-    rhs: Id,
+    nodes: HashMap<ENode, EClassId>,
+    leaders: Vec<EClassId>,
+    classes: HashMap<EClassId, Vec<ENode>>,
 }
 
 impl EGraph {
@@ -112,7 +106,7 @@ impl EGraph {
         // hash cons
         let id = match self.nodes.get(&enode) {
             None => {
-                let next_id = Id(self.len());
+                let next_id = EClassId(self.len());
                 trace!("Added  {:4}: {:?}", next_id.0, enode);
                 self.leaders.push(next_id);
                 self.classes.insert(next_id, vec![enode.clone()]);
@@ -163,7 +157,7 @@ impl EGraph {
         eclass: Id,
         pattern_node: ENode,
     ) -> Vec<HashMap<String, Id>> {
-        if let ENode::Var(s) = pattern_node {
+        if let Expr::Var(s) = pattern_node {
             match var_mapping.get(&s) {
                 None => {
                     var_mapping.insert(s, eclass);
@@ -181,10 +175,10 @@ impl EGraph {
         let mut new_mappings = Vec::new();
 
         for class_node in self.get_eclass(eclass) {
-            use ENode::*;
+            use Expr::*;
             match (&pattern_node, class_node) {
                 (Var(_), _) => panic!("pattern isn't a var at this point"),
-                (Plus(pl, pr), Plus(nl, nr)) => {
+                (Op2(po, pl, pr), Op2(no, nl, nr)) if po == no => {
                     let left_mappings = self.match_node_against_eclass(
                         var_mapping.clone(),
                         pattern,
@@ -201,7 +195,6 @@ impl EGraph {
                         ))
                     }
                 }
-                (Times(_pl, _pr), Times(_nl, _nr)) => unimplemented!(),
                 _ => (),
             }
         }
@@ -278,6 +271,41 @@ impl EGraph {
         }
         leader2
     }
+
+    fn add_pattern(
+        &mut self,
+        root_enode: EClassId,
+        map: &HashMap<String, Id>,
+        pattern: &Pattern,
+    ) -> EClassId {
+        let start = pattern.nodes[pattern.rhs.0].clone();
+        let pattern_root = self.add_pattern_node(map, pattern, start);
+        self.union(root_enode, pattern_root)
+    }
+
+    fn add_pattern_node(
+        &mut self,
+        map: &HashMap<String, Id>,
+        pattern: &Pattern,
+        node: ENode,
+    ) -> EClassId {
+        match node {
+            Expr::Const(_) => self.add(node),
+            Expr::Var(s) => map[&s],
+            Expr::Op2(op, l, r) => {
+                let ll = self.add_pattern_node(map, pattern, pattern.nodes[l.0].clone());
+                let rr = self.add_pattern_node(map, pattern, pattern.nodes[r.0].clone());
+                self.add(Expr::Op2(op, ll, rr))
+            }
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Pattern {
+    nodes: Vec<ENode>,
+    lhs: Id,
+    rhs: Id,
 }
 
 #[cfg(test)]
@@ -291,7 +319,11 @@ mod tests {
     use super::*;
 
     fn var(s: &str) -> ENode {
-        ENode::Var(s.into())
+        Expr::Var(s.into())
+    }
+
+    fn mk_plus(l: EClassId, r: EClassId) -> ENode {
+        Expr::Op2(OpId(0), l, r)
     }
 
     fn dot(egraph: &EGraph, name: &str) {
@@ -311,7 +343,7 @@ mod tests {
 
         let x = egraph.add(var("x"));
         let x2 = egraph.add(var("x"));
-        let plus = egraph.add(ENode::Plus(x, x2));
+        let plus = egraph.add(mk_plus(x, x2));
 
         let y = egraph.add(var("y"));
 
@@ -330,11 +362,11 @@ mod tests {
 
         let x = egraph.add(var("x"));
         let y = egraph.add(var("y"));
-        let plus = egraph.add(ENode::Plus(x, y));
+        let plus = egraph.add(mk_plus(x, y));
 
         let z = egraph.add(var("z"));
         let w = egraph.add(var("w"));
-        let plus2 = egraph.add(ENode::Plus(z, w));
+        let plus2 = egraph.add(mk_plus(z, w));
 
         egraph.union(plus, plus2);
         egraph.rebuild();
@@ -343,11 +375,11 @@ mod tests {
             nodes: vec![
                 var("a"),
                 var("b"),
-                ENode::Plus(Id(0), Id(1)),
-                ENode::Plus(Id(1), Id(0)),
+                mk_plus(EClassId(0), EClassId(1)),
+                mk_plus(EClassId(1), EClassId(0)),
             ],
-            lhs: Id(2),
-            rhs: Id(3),
+            lhs: EClassId(2),
+            rhs: EClassId(3),
         };
 
         let mappings = egraph.match_node_against_eclass(
@@ -369,8 +401,16 @@ mod tests {
         assert_eq!(expected_mappings, mappings);
 
         info!("Here are the mappings!");
-        for m in mappings {
+        for m in &mappings {
             info!("mappings: {:?}", m);
         }
+
+        for m in &mappings {
+            let enode = egraph.leaders[plus.0];
+            egraph.add_pattern(enode, m, &commute_plus);
+        }
+        egraph.rebuild();
+
+        dot(&egraph, "simple-match");
     }
 }
