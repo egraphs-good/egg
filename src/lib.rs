@@ -36,11 +36,11 @@ impl ENode {
         }
     }
 
-    fn map_ids(&self, mut f: impl FnMut(EClassId) -> EClassId) -> ENode {
+    fn update_ids(&self, uf: &mut UnionFind) -> ENode {
         match *self {
             Expr::Var(_) => self.clone(),
             Expr::Const(_) => self.clone(),
-            Expr::Op2(op, l, r) => Expr::Op2(op, f(l), f(r)),
+            Expr::Op2(op, l, r) => Expr::Op2(op, find(uf, l), find(uf, r)),
         }
     }
 
@@ -62,6 +62,11 @@ pub struct EGraph {
     nodes: HashMap<ENode, EClassId>,
     leaders: UnionFind,
     classes: HashMap<EClassId, Vec<ENode>>,
+}
+
+// helper function that doens't require mut on the whole egraph
+pub fn find(uf: &mut UnionFind, id: EClassId) -> EClassId {
+    EClassId(uf.find(id.0))
 }
 
 impl EGraph {
@@ -117,6 +122,10 @@ impl EGraph {
 
         self.check();
         id
+    }
+
+    pub fn just_find(&self, id: EClassId) -> EClassId {
+        EClassId(self.leaders.just_find(id.0))
     }
 
     // pub fn pattern_match(&mut self, pattern: &Pattern) -> EGraph {
@@ -203,10 +212,10 @@ impl EGraph {
         let mut new_classes = HashMap::new();
 
         for (leader, class) in self.classes.iter() {
-            let new_nodes: Vec<_> = class
-                .iter()
-                .map(|node| node.map_ids(|id| EClassId(self.leaders.just_find(id.0))))
-                .collect();
+            let mut new_nodes = Vec::with_capacity(class.len());
+            for node in class {
+                new_nodes.push(node.update_ids(&mut self.leaders));
+            }
 
             new_classes.insert(*leader, new_nodes);
         }
@@ -369,7 +378,7 @@ mod tests {
         let mappings = egraph.match_node_against_eclass(
             HashMap::new(),
             &commute_plus,
-            EClassId(egraph.leaders.just_find(plus.0)),
+            egraph.just_find(plus),
             commute_plus.nodes[commute_plus.lhs.0 as usize].clone(),
         );
 
