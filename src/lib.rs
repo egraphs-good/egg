@@ -1,10 +1,11 @@
-mod dot;
-mod parse;
 mod unionfind;
+
+pub mod dot;
+pub mod parse;
 
 use std::collections::HashMap;
 
-use log::{info, trace};
+use log::*;
 
 use unionfind::{UnionFind, UnionResult};
 
@@ -155,7 +156,7 @@ impl EGraph {
             .unwrap_or_else(|| panic!("Couldn't find eclass {:?}", eclass_id))
     }
 
-    fn match_node_against_eclass(
+    pub fn match_node_against_eclass(
         &self,
         mut var_mapping: HashMap<String, Id>,
         pattern: &Pattern,
@@ -207,7 +208,7 @@ impl EGraph {
         new_mappings
     }
 
-    fn rebuild(&mut self) {
+    pub fn rebuild(&mut self) {
         // TODO don't copy so much
         let mut new_classes = HashMap::new();
 
@@ -229,7 +230,7 @@ impl EGraph {
         }
     }
 
-    fn union(&mut self, id1: Id, id2: Id) -> Id {
+    pub fn union(&mut self, id1: Id, id2: Id) -> Id {
         self.check();
 
         trace!("Unioning {} and {}", id1.0, id2.0);
@@ -245,11 +246,7 @@ impl EGraph {
 
         let mut new_nodes = Vec::with_capacity(from_class.len() + to_class.len());
         for node in from_class.into_iter().chain(to_class) {
-            let old_leader = self.nodes[&node];
-            // let new_node = node.map_ids(|id| self.leaders[id.0]);
-            // new_nodes.push(new_node);
-            new_nodes.push(node);
-            trace!("{:?}", new_nodes);
+            new_nodes.push(node.update_ids(&mut self.leaders));
         }
 
         self.classes.insert(to, new_nodes);
@@ -263,6 +260,7 @@ impl EGraph {
         to
     }
 
+    #[cfg(test)]
     fn add_pattern(
         &mut self,
         root_enode: EClassId,
@@ -274,6 +272,7 @@ impl EGraph {
         self.union(root_enode, pattern_root)
     }
 
+    #[cfg(test)]
     fn add_pattern_node(
         &mut self,
         map: &HashMap<String, Id>,
@@ -336,7 +335,7 @@ mod tests {
 
         let x = egraph.add(var("x"));
         let x2 = egraph.add(var("x"));
-        let plus = egraph.add(mk_plus(x, x2));
+        let _plus = egraph.add(mk_plus(x, x2));
 
         let y = egraph.add(var("y"));
 
