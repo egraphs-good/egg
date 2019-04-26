@@ -1,13 +1,16 @@
 mod dot;
 mod parse;
+mod unionfind;
 
 use std::collections::HashMap;
 
 use log::{info, trace};
 
+use unionfind::{UnionFind, UnionResult};
+
 /// EClass Id
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct EClassId(usize);
+pub struct EClassId(u32);
 pub type Id = EClassId;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -54,10 +57,10 @@ impl ENode {
     }
 }
 
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, Default)]
 pub struct EGraph {
     nodes: HashMap<ENode, EClassId>,
-    leaders: Vec<EClassId>,
+    leaders: UnionFind,
     classes: HashMap<EClassId, Vec<ENode>>,
 }
 
@@ -66,23 +69,17 @@ impl EGraph {
         assert_eq!(self.nodes.len(), self.leaders.len());
 
         // make sure the classes map contains exactly the unique leaders
-        let mut unique_leaders = self.leaders.clone();
-        unique_leaders.sort();
-        unique_leaders.dedup();
+        let sets = self.leaders.build_sets();
 
-        assert_eq!(unique_leaders.len(), self.classes.len());
-        for ul in &unique_leaders {
-            assert!(self.classes.contains_key(ul));
+        assert_eq!(sets.len(), self.classes.len());
+        for l in sets.keys() {
+            let id = EClassId(*l);
+            assert!(self.classes.contains_key(&id));
         }
 
         // make sure that total size of classes == all nodes
         let sum_classes = self.classes.values().map(|c| c.len()).sum();
         assert_eq!(self.nodes.len(), sum_classes);
-
-        // make sure that all values of the union find are leaders
-        for leader in &self.leaders {
-            assert_eq!(leader, &self.leaders[leader.0]);
-        }
     }
 
     pub fn len(&self) -> usize {
@@ -99,16 +96,15 @@ impl EGraph {
             let mut ids = Vec::new();
             enode.fill_children(&mut ids);
             for id in ids {
-                assert!(id.0 < self.len());
+                assert!(id.0 < self.len() as u32);
             }
         }
 
         // hash cons
         let id = match self.nodes.get(&enode) {
             None => {
-                let next_id = EClassId(self.len());
+                let next_id = EClassId(self.leaders.make_set());
                 trace!("Added  {:4}: {:?}", next_id.0, enode);
-                self.leaders.push(next_id);
                 self.classes.insert(next_id, vec![enode.clone()]);
                 self.nodes.insert(enode, next_id);
                 next_id
@@ -183,7 +179,7 @@ impl EGraph {
                         var_mapping.clone(),
                         pattern,
                         *nl,
-                        pattern.nodes[pl.0].clone(),
+                        pattern.nodes[pl.0 as usize].clone(),
                     );
 
                     for vm in left_mappings {
@@ -191,7 +187,7 @@ impl EGraph {
                             vm,
                             pattern,
                             *nr,
-                            pattern.nodes[pr.0].clone(),
+                            pattern.nodes[pr.0 as usize].clone(),
                         ))
                     }
                 }
@@ -209,7 +205,7 @@ impl EGraph {
         for (leader, class) in self.classes.iter() {
             let new_nodes: Vec<_> = class
                 .iter()
-                .map(|node| node.map_ids(|id| self.leaders[id.0]))
+                .map(|node| node.map_ids(|id| EClassId(self.leaders.just_find(id.0))))
                 .collect();
 
             new_classes.insert(*leader, new_nodes);
@@ -229,47 +225,33 @@ impl EGraph {
 
         trace!("Unioning {} and {}", id1.0, id2.0);
 
-        let mut leader1 = self.leaders[id1.0];
-        let mut leader2 = self.leaders[id2.0];
-
-        // already unioned
-        if leader1 == leader2 {
-            trace!("Already unioned...");
-            return leader1;
-        }
-
-        // make leader2 bigger
-        {
-            let class1 = &self.classes[&leader1];
-            let class2 = &self.classes[&leader2];
-            if class1.len() > class2.len() {
-                std::mem::swap(&mut leader1, &mut leader2);
-            }
-        }
+        let (from, to) = match self.leaders.union(id1.0, id2.0) {
+            UnionResult::SameSet(leader) => return EClassId(leader),
+            UnionResult::Unioned { from, to } => (EClassId(from), EClassId(to)),
+        };
 
         // remove the smaller class, merging into the bigger class
-        let smaller_class = self.classes.remove(&leader1).unwrap();
-        let bigger_class = self.classes.remove(&leader2).unwrap();
+        let from_class = self.classes.remove(&from).unwrap();
+        let to_class = self.classes.remove(&to).unwrap();
 
-        let mut new_nodes = Vec::with_capacity(smaller_class.len() + bigger_class.len());
-        for node in smaller_class.into_iter().chain(bigger_class) {
+        let mut new_nodes = Vec::with_capacity(from_class.len() + to_class.len());
+        for node in from_class.into_iter().chain(to_class) {
             let old_leader = self.nodes[&node];
-            self.leaders[old_leader.0] = leader2;
             // let new_node = node.map_ids(|id| self.leaders[id.0]);
             // new_nodes.push(new_node);
             new_nodes.push(node);
             trace!("{:?}", new_nodes);
         }
 
-        self.classes.insert(leader2, new_nodes);
+        self.classes.insert(to, new_nodes);
 
         self.check();
-        trace!("Unioned {} -> {}", leader1.0, leader2.0);
+        trace!("Unioned {} -> {}", from.0, to.0);
         trace!("Leaders: {:?}", self.leaders);
         for (leader, class) in &self.classes {
             trace!("  {:?}: {:?}", leader, class);
         }
-        leader2
+        to
     }
 
     fn add_pattern(
@@ -278,7 +260,7 @@ impl EGraph {
         map: &HashMap<String, Id>,
         pattern: &Pattern,
     ) -> EClassId {
-        let start = pattern.nodes[pattern.rhs.0].clone();
+        let start = pattern.nodes[pattern.rhs.0 as usize].clone();
         let pattern_root = self.add_pattern_node(map, pattern, start);
         self.union(root_enode, pattern_root)
     }
@@ -293,8 +275,8 @@ impl EGraph {
             Expr::Const(_) => self.add(node),
             Expr::Var(s) => map[&s],
             Expr::Op2(op, l, r) => {
-                let ll = self.add_pattern_node(map, pattern, pattern.nodes[l.0].clone());
-                let rr = self.add_pattern_node(map, pattern, pattern.nodes[r.0].clone());
+                let ll = self.add_pattern_node(map, pattern, pattern.nodes[l.0 as usize].clone());
+                let rr = self.add_pattern_node(map, pattern, pattern.nodes[r.0 as usize].clone());
                 self.add(Expr::Op2(op, ll, rr))
             }
         }
@@ -317,6 +299,8 @@ fn init_logger() {
 mod tests {
 
     use super::*;
+
+    use maplit::hashmap;
 
     fn var(s: &str) -> ENode {
         Expr::Var(s.into())
@@ -385,20 +369,21 @@ mod tests {
         let mappings = egraph.match_node_against_eclass(
             HashMap::new(),
             &commute_plus,
-            egraph.leaders[plus.0],
-            commute_plus.nodes[commute_plus.lhs.0].clone(),
+            EClassId(egraph.leaders.just_find(plus.0)),
+            commute_plus.nodes[commute_plus.lhs.0 as usize].clone(),
         );
 
-        let mut expected1 = HashMap::new();
-        expected1.insert("a".into(), x);
-        expected1.insert("b".into(), y);
+        let expected_mappings = vec![
+            hashmap! {"a".into() => x, "b".into() => y},
+            hashmap! {"a".into() => z, "b".into() => w},
+        ];
 
-        let mut expected2 = HashMap::new();
-        expected2.insert("a".into(), z);
-        expected2.insert("b".into(), w);
-
-        let expected_mappings = vec![expected1, expected2];
-        assert_eq!(expected_mappings, mappings);
+        // for now, I have to check mappings both ways
+        if mappings != expected_mappings {
+            let e0 = expected_mappings[0].clone();
+            let e1 = expected_mappings[1].clone();
+            assert_eq!(mappings, vec![e1, e0])
+        }
 
         info!("Here are the mappings!");
         for m in &mappings {
@@ -406,8 +391,8 @@ mod tests {
         }
 
         for m in &mappings {
-            let enode = egraph.leaders[plus.0];
-            egraph.add_pattern(enode, m, &commute_plus);
+            let eclassid = EClassId(egraph.leaders.find(plus.0));
+            egraph.add_pattern(eclassid, m, &commute_plus);
         }
         egraph.rebuild();
 

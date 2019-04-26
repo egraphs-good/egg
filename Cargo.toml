@@ -11,6 +11,7 @@ log = "0.4.0"
 
 [dev-dependencies]
 env_logger = "0.6.1"
+maplit = "1"
 
 # Add a build-time dependency on the lalrpop library:
 [build-dependencies]

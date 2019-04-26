@@ -39,12 +39,12 @@ impl<'a> fmt::Display for Dot<'a> {
                 node.fill_children(&mut children);
                 for (child, pos) in children.iter().zip(positions) {
                     // write the edge to the child, but clip it to the eclass with lhead
-                    let child_leader = self.egraph.leaders[child.0];
+                    let child_leader = self.egraph.leaders.just_find(child.0);
                     write!(
                         f,
                         // {}.0 to pick an arbitrary node in the cluster
                         "  {}.{} -> {}.0 [lhead = cluster_{}, tailport = {}]\n",
-                        leader.0, i, child.0, child_leader.0, pos
+                        leader.0, i, child.0, child_leader, pos
                     )?;
                 }
                 children.clear();

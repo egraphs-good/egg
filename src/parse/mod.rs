@@ -28,6 +28,6 @@ mod tests {
 
         let egraph2 = parse("(+ x x)");
 
-        assert_eq!(egraph1, egraph2);
+        assert_eq!(egraph1.nodes, egraph2.nodes);
     }
 }
