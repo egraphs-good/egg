@@ -11,8 +11,7 @@ use unionfind::{UnionFind, UnionResult};
 
 /// EClass Id
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct EClassId(u32);
-pub type Id = EClassId;
+pub struct Id(u32);
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct OpId(u32);
@@ -26,7 +25,7 @@ pub enum Expr<Id> {
 
 static OP_STRINGS: &[&str] = &["+", "*"];
 
-type ENode = Expr<EClassId>;
+type ENode = Expr<Id>;
 
 type VarMap = HashMap<String, Id>;
 
@@ -47,7 +46,7 @@ impl ENode {
         }
     }
 
-    fn fill_children(&self, vec: &mut Vec<EClassId>) {
+    fn fill_children(&self, vec: &mut Vec<Id>) {
         assert_eq!(vec.len(), 0);
         match self {
             Expr::Var(_) => (),
@@ -62,14 +61,14 @@ impl ENode {
 
 #[derive(Debug, Default)]
 pub struct EGraph {
-    nodes: HashMap<ENode, EClassId>,
+    nodes: HashMap<ENode, Id>,
     leaders: UnionFind,
-    classes: HashMap<EClassId, Vec<ENode>>,
+    classes: HashMap<Id, Vec<ENode>>,
 }
 
 // helper function that doens't require mut on the whole egraph
-pub fn find(uf: &mut UnionFind, id: EClassId) -> EClassId {
-    EClassId(uf.find(id.0))
+pub fn find(uf: &mut UnionFind, id: Id) -> Id {
+    Id(uf.find(id.0))
 }
 
 impl EGraph {
@@ -81,7 +80,7 @@ impl EGraph {
 
         assert_eq!(sets.len(), self.classes.len());
         for l in sets.keys() {
-            let id = EClassId(*l);
+            let id = Id(*l);
             assert!(self.classes.contains_key(&id));
         }
 
@@ -111,7 +110,7 @@ impl EGraph {
         // hash cons
         let id = match self.nodes.get(&enode) {
             None => {
-                let next_id = EClassId(self.leaders.make_set());
+                let next_id = Id(self.leaders.make_set());
                 trace!("Added  {:4}: {:?}", next_id.0, enode);
                 self.classes.insert(next_id, vec![enode.clone()]);
                 self.nodes.insert(enode, next_id);
@@ -127,22 +126,18 @@ impl EGraph {
         id
     }
 
-    pub fn just_find(&self, id: EClassId) -> EClassId {
-        EClassId(self.leaders.just_find(id.0))
+    pub fn just_find(&self, id: Id) -> Id {
+        Id(self.leaders.just_find(id.0))
     }
 
-    pub fn pattern_match_eclass(
-        &mut self,
-        pattern: &Pattern,
-        eclass: EClassId,
-    ) -> Vec<VarMap> {
+    pub fn pattern_match_eclass(&mut self, pattern: &Pattern, eclass: Id) -> Vec<VarMap> {
         let start = &pattern.nodes[pattern.lhs.0 as usize];
         let initial_mapping = HashMap::new();
         let mappings =
             self.match_node_against_eclass(initial_mapping, pattern, eclass, start.clone());
 
         for m in &mappings {
-            self.add_pattern(eclass, m, &pattern);
+            self.subst_and_add_pattern(eclass, m, &pattern);
         }
 
         mappings
@@ -234,8 +229,8 @@ impl EGraph {
         trace!("Unioning {} and {}", id1.0, id2.0);
 
         let (from, to) = match self.leaders.union(id1.0, id2.0) {
-            UnionResult::SameSet(leader) => return EClassId(leader),
-            UnionResult::Unioned { from, to } => (EClassId(from), EClassId(to)),
+            UnionResult::SameSet(leader) => return Id(leader),
+            UnionResult::Unioned { from, to } => (Id(from), Id(to)),
         };
 
         // remove the smaller class, merging into the bigger class
@@ -258,29 +253,37 @@ impl EGraph {
         to
     }
 
-    fn add_pattern(
+    fn subst_and_add_pattern(
         &mut self,
-        root_enode: EClassId,
+        root_enode: Id,
         map: &HashMap<String, Id>,
         pattern: &Pattern,
-    ) -> EClassId {
+    ) -> Id {
         let start = pattern.nodes[pattern.rhs.0 as usize].clone();
-        let pattern_root = self.add_pattern_node(map, pattern, start);
+        let pattern_root = self.subst_and_add_pattern_node(map, pattern, start);
         self.union(root_enode, pattern_root)
     }
 
-    fn add_pattern_node(
+    fn subst_and_add_pattern_node(
         &mut self,
         map: &HashMap<String, Id>,
         pattern: &Pattern,
         node: ENode,
-    ) -> EClassId {
+    ) -> Id {
         match node {
             Expr::Const(_) => self.add(node),
             Expr::Var(s) => map[&s],
             Expr::Op2(op, l, r) => {
-                let ll = self.add_pattern_node(map, pattern, pattern.nodes[l.0 as usize].clone());
-                let rr = self.add_pattern_node(map, pattern, pattern.nodes[r.0 as usize].clone());
+                let ll = self.subst_and_add_pattern_node(
+                    map,
+                    pattern,
+                    pattern.nodes[l.0 as usize].clone(),
+                );
+                let rr = self.subst_and_add_pattern_node(
+                    map,
+                    pattern,
+                    pattern.nodes[r.0 as usize].clone(),
+                );
                 self.add(Expr::Op2(op, ll, rr))
             }
         }
@@ -310,7 +313,7 @@ mod tests {
         Expr::Var(s.into())
     }
 
-    fn mk_plus(l: EClassId, r: EClassId) -> ENode {
+    fn mk_plus(l: Id, r: Id) -> ENode {
         Expr::Op2(OpId(0), l, r)
     }
 
@@ -363,11 +366,11 @@ mod tests {
             nodes: vec![
                 var("a"),
                 var("b"),
-                mk_plus(EClassId(0), EClassId(1)),
-                mk_plus(EClassId(1), EClassId(0)),
+                mk_plus(Id(0), Id(1)),
+                mk_plus(Id(1), Id(0)),
             ],
-            lhs: EClassId(2),
-            rhs: EClassId(3),
+            lhs: Id(2),
+            rhs: Id(3),
         };
 
         let mappings = egraph.pattern_match_eclass(&commute_plus, egraph.just_find(plus));
