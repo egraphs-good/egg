@@ -28,6 +28,8 @@ static OP_STRINGS: &[&str] = &["+", "*"];
 
 type ENode = Expr<EClassId>;
 
+type VarMap = HashMap<String, Id>;
+
 impl ENode {
     fn write_label(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
@@ -129,26 +131,22 @@ impl EGraph {
         EClassId(self.leaders.just_find(id.0))
     }
 
-    // pub fn pattern_match(&mut self, pattern: &Pattern) -> EGraph {
-    //     // stores (PatternId, EClassId) matches
-    //     let mut database = HashSet::new();
+    pub fn pattern_match_eclass(
+        &mut self,
+        pattern: &Pattern,
+        eclass: EClassId,
+    ) -> Vec<VarMap> {
+        let start = &pattern.nodes[pattern.lhs.0 as usize];
+        let initial_mapping = HashMap::new();
+        let mappings =
+            self.match_node_against_eclass(initial_mapping, pattern, eclass, start.clone());
 
-    //     for (leader, class) in self.classes.iter() {
-    //         let mut stack = Vec::new();
-    //         stack.push((start, node));
+        for m in &mappings {
+            self.add_pattern(eclass, m, &pattern);
+        }
 
-    //         while let Some((p, n)) = stack.pop() {
-    //             use ENode::*;
-    //             match (p, n) {
-    //                 (Var(s), _) => (),
-    //                 (Plus(pl, pr), Plus(nl, nr)) => {
-    //                     stack.push((pl, nl));
-    //                     stack.push((pr, nr));
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
+        mappings
+    }
 
     fn get_eclass(&self, eclass_id: Id) -> &[ENode] {
         self.classes
@@ -156,13 +154,13 @@ impl EGraph {
             .unwrap_or_else(|| panic!("Couldn't find eclass {:?}", eclass_id))
     }
 
-    pub fn match_node_against_eclass(
+    fn match_node_against_eclass(
         &self,
-        mut var_mapping: HashMap<String, Id>,
+        mut var_mapping: VarMap,
         pattern: &Pattern,
         eclass: Id,
         pattern_node: ENode,
-    ) -> Vec<HashMap<String, Id>> {
+    ) -> Vec<VarMap> {
         if let Expr::Var(s) = pattern_node {
             match var_mapping.get(&s) {
                 None => {
@@ -260,7 +258,6 @@ impl EGraph {
         to
     }
 
-    #[cfg(test)]
     fn add_pattern(
         &mut self,
         root_enode: EClassId,
@@ -272,7 +269,6 @@ impl EGraph {
         self.union(root_enode, pattern_root)
     }
 
-    #[cfg(test)]
     fn add_pattern_node(
         &mut self,
         map: &HashMap<String, Id>,
@@ -374,12 +370,8 @@ mod tests {
             rhs: EClassId(3),
         };
 
-        let mappings = egraph.match_node_against_eclass(
-            HashMap::new(),
-            &commute_plus,
-            egraph.just_find(plus),
-            commute_plus.nodes[commute_plus.lhs.0 as usize].clone(),
-        );
+        let mappings = egraph.pattern_match_eclass(&commute_plus, egraph.just_find(plus));
+        egraph.rebuild();
 
         let expected_mappings = vec![
             hashmap! {"a".into() => x, "b".into() => y},
@@ -397,12 +389,6 @@ mod tests {
         for m in &mappings {
             info!("mappings: {:?}", m);
         }
-
-        for m in &mappings {
-            let eclassid = EClassId(egraph.leaders.find(plus.0));
-            egraph.add_pattern(eclassid, m, &commute_plus);
-        }
-        egraph.rebuild();
 
         dot(&egraph, "simple-match");
     }
