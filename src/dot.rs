@@ -22,7 +22,7 @@ impl<'a> fmt::Display for Dot<'a> {
         // define all the nodes, clustered by eclass
         for (leader, class) in &self.egraph.classes {
             write!(f, "  subgraph cluster_{} {{\n", leader.0)?;
-            write!(f, "    style=dotted")?;
+            write!(f, "    style=dotted\n")?;
             for (i, node) in class.iter().enumerate() {
                 write!(f, "    {}.{}[label = \"", leader.0, i)?;
                 node.write_label(f)?;
