@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::EGraph;
+use crate::egraph::EGraph;
 
 pub struct Dot<'a> {
     egraph: &'a EGraph,
@@ -33,11 +33,9 @@ impl<'a> fmt::Display for Dot<'a> {
 
         let positions = &["sw", "se"];
 
-        let mut children = Vec::new();
         for (leader, class) in &self.egraph.classes {
             for (i, node) in class.iter().enumerate() {
-                node.fill_children(&mut children);
-                for (child, pos) in children.iter().zip(positions) {
+                for (child, pos) in node.children().iter().zip(positions) {
                     // write the edge to the child, but clip it to the eclass with lhead
                     let child_leader = self.egraph.leaders.just_find(child.0);
                     write!(
@@ -47,7 +45,6 @@ impl<'a> fmt::Display for Dot<'a> {
                         leader.0, i, child.0, child_leader, pos
                     )?;
                 }
-                children.clear();
             }
         }
 

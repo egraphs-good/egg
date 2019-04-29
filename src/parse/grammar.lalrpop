@@ -1,15 +1,12 @@
-use crate::{EGraph, Expr, Id, OpId};
 use std::str::FromStr;
+use crate::expr::{SimpleExpr, Expr, VarId, OpId, ConstId};
 
-grammar(egraph: &mut EGraph);
+grammar(expr: &mut SimpleExpr);
 
-Num: i32 = r"[0-9]+" => i32::from_str(<>).unwrap();
-Var: String = r"[[:alpha:]][[:word:]]*" => <>.into();
+Num: u32 = r"[0-9]+" => u32::from_str(<>).unwrap();
 
-
-pub Term: Id = {
-    Num => egraph.add(Expr::Const(<>)).id,
-    Var => egraph.add(Expr::Var(<>)).id,
-    "(" "+" <l:Term> <r:Term>")" => egraph.add(Expr::Op2(OpId(0), l, r)).id,
-    "(" "*" <l:Term> <r:Term>")" => egraph.add(Expr::Op2(OpId(1), l, r)).id,
+pub Term: u32 = {
+    "v" <Num> => expr.add(Expr::Var(VarId(<>))),
+    "c" <Num> => expr.add(Expr::Const(ConstId(<>))),
+    "(" "o" <op:Num> <args:Term*> ")" => expr.add(Expr::Op(OpId(op), args)),
 };

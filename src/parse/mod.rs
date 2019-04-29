@@ -1,14 +1,14 @@
 use lalrpop_util::lalrpop_mod;
 
-use crate::EGraph;
+use crate::expr::SimpleExpr;
 
 lalrpop_mod!(pub grammar, "/parse/grammar.rs");
 
-pub fn parse(s: &str) -> EGraph {
-    let mut egraph = EGraph::default();
+pub fn parse(s: &str) -> SimpleExpr {
+    let mut expr = SimpleExpr::default();
     let parser = grammar::TermParser::new();
-    let _root_id = parser.parse(&mut egraph, s).unwrap();
-    egraph
+    let _root_id = parser.parse(&mut expr, s).unwrap();
+    expr
 }
 
 #[cfg(test)]
@@ -16,17 +16,20 @@ mod tests {
 
     use super::*;
 
-    use crate::{Expr, OpId};
+    use crate::expr::{op, var};
 
     #[test]
     fn simple_parse() {
-        let mut egraph1 = EGraph::default();
+        let mut expr = SimpleExpr::default();
 
-        let x = egraph1.add(Expr::Var("x".into())).id;
-        let _plus = egraph1.add(Expr::Op2(OpId(0), x, x)).id;
+        // SimpleExpr doesn't do hashcons
+        let a = expr.add(var(1));
+        let b = expr.add(var(1));
 
-        let egraph2 = parse("(+ x x)");
+        expr.add(op(32, vec![a, b]));
 
-        assert_eq!(egraph1.nodes, egraph2.nodes);
+        let expr2 = parse("(o32 v1 v1)");
+
+        assert_eq!(expr, expr2);
     }
 }
