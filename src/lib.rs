@@ -8,7 +8,6 @@ use std::collections::HashMap;
 
 use log::*;
 
-use pattern::{Pattern, VarMap};
 use unionfind::{UnionFind, UnionResult};
 
 /// EClass Id
@@ -147,16 +146,6 @@ impl EGraph {
         Id(self.leaders.just_find(id.0))
     }
 
-    pub fn pattern_match(&self, pattern: &Pattern) -> Vec<VarMap> {
-        let mut matches = Vec::new();
-        for eclass in self.classes.keys() {
-            let ctx = pattern.make_match_context(self);
-            matches.extend(ctx.pattern_match_eclass(*eclass))
-        }
-
-        matches
-    }
-
     pub fn rebuild(&mut self) {
         // TODO don't copy so much
         let mut new_classes = HashMap::new();
@@ -207,48 +196,6 @@ impl EGraph {
             trace!("  {:?}: {:?}", leader, class);
         }
         to
-    }
-
-    pub fn subst_and_add_pattern(
-        &mut self,
-        root_enode: Id,
-        map: &HashMap<String, Id>,
-        pattern: &Pattern,
-    ) -> Id {
-        let start = pattern.nodes[pattern.rhs.0 as usize].clone();
-        let pattern_root = self.subst_and_add_pattern_node(map, pattern, start);
-        if !pattern_root.was_there {
-            self.union(root_enode, pattern_root.id);
-        }
-        pattern_root.id
-    }
-
-    pub fn subst_and_add_pattern_node(
-        &mut self,
-        map: &HashMap<String, Id>,
-        pattern: &Pattern,
-        node: ENode,
-    ) -> AddResult {
-        match node {
-            Expr::Const(_) => self.add(node),
-            Expr::Var(s) => AddResult {
-                was_there: true,
-                id: map[&s],
-            },
-            Expr::Op2(op, l, r) => {
-                let ll = self.subst_and_add_pattern_node(
-                    map,
-                    pattern,
-                    pattern.nodes[l.0 as usize].clone(),
-                );
-                let rr = self.subst_and_add_pattern_node(
-                    map,
-                    pattern,
-                    pattern.nodes[r.0 as usize].clone(),
-                );
-                self.add(Expr::Op2(op, ll.id, rr.id))
-            }
-        }
     }
 }
 
@@ -317,7 +264,7 @@ mod tests {
         egraph.union(plus, plus2);
         egraph.rebuild();
 
-        let commute_plus = Pattern {
+        let commute_plus = pattern::Pattern {
             nodes: vec![
                 var("a"),
                 var("b"),
@@ -328,8 +275,8 @@ mod tests {
             rhs: Id(3),
         };
 
-        let match_ctx = commute_plus.make_match_context(&egraph);
-        let mappings = match_ctx.pattern_match_eclass(egraph.just_find(plus));
+        let match_ctx = commute_plus.make_search_context(&egraph);
+        let matches = match_ctx.search_eclass(egraph.just_find(plus)).unwrap();
         egraph.rebuild();
 
         let expected_mappings = vec![
@@ -338,14 +285,14 @@ mod tests {
         ];
 
         // for now, I have to check mappings both ways
-        if mappings != expected_mappings {
+        if matches.mappings != expected_mappings {
             let e0 = expected_mappings[0].clone();
             let e1 = expected_mappings[1].clone();
-            assert_eq!(mappings, vec![e1, e0])
+            assert_eq!(matches.mappings, vec![e1, e0])
         }
 
         info!("Here are the mappings!");
-        for m in &mappings {
+        for m in &matches.mappings {
             info!("mappings: {:?}", m);
         }
 
