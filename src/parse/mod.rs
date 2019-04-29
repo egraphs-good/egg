@@ -22,8 +22,8 @@ mod tests {
     fn simple_parse() {
         let mut egraph1 = EGraph::default();
 
-        let x = egraph1.add(Expr::Var("x".into()));
-        let _plus = egraph1.add(Expr::Op2(OpId(0), x, x));
+        let x = egraph1.add(Expr::Var("x".into())).id;
+        let _plus = egraph1.add(Expr::Op2(OpId(0), x, x)).id;
 
         let egraph2 = parse("(+ x x)");
 
