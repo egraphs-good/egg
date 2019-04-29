@@ -31,18 +31,16 @@ impl<'a> fmt::Display for Dot<'a> {
             write!(f, "  }}\n")?;
         }
 
-        let positions = &["sw", "se"];
-
         for (leader, class) in &self.egraph.classes {
-            for (i, node) in class.iter().enumerate() {
-                for (child, pos) in node.children().iter().zip(positions) {
+            for (i_in_class, node) in class.iter().enumerate() {
+                for (arg_i, child) in node.children().iter().enumerate() {
                     // write the edge to the child, but clip it to the eclass with lhead
                     let child_leader = self.egraph.leaders.just_find(child.0);
                     write!(
                         f,
                         // {}.0 to pick an arbitrary node in the cluster
-                        "  {}.{} -> {}.0 [lhead = cluster_{}, tailport = {}]\n",
-                        leader.0, i, child.0, child_leader, pos
+                        "  {}.{} -> {}.0 [lhead = cluster_{}, label = {}]\n",
+                        leader.0, i_in_class, child.0, child_leader, arg_i
                     )?;
                 }
             }
