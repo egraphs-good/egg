@@ -1,12 +1,13 @@
-use std::str::FromStr;
-use crate::expr::{SimpleExpr, Expr, VarId, OpId, ConstId};
+use crate::expr::{Expr, Id, tests::{TestNode, Name}};
 
-grammar(expr: &mut SimpleExpr);
+grammar(expr: &mut Expr<TestNode>);
 
-Num: u32 = r"[0-9]+" => u32::from_str(<>).unwrap();
+Ident: Name = r"[a-zA-Z]+" => <>.into();
+Symbol: Name = r"[+=\-*^&$%@!]+" => <>.into();
 
-pub Term: u32 = {
-    "v" <Num> => expr.add(Expr::Var(VarId(<>))),
-    "c" <Num> => expr.add(Expr::Const(ConstId(<>))),
-    "(" "o" <op:Num> <args:Term*> ")" => expr.add(Expr::Op(OpId(op), args)),
+pub Term: Id = {
+    Ident => expr.add(TestNode::Var(<>.into())),
+    r"[0-9]+" => expr.add(TestNode::Const(<>.into())),
+    "(" <op:Ident> <args:Term*> ")" => expr.add(TestNode::Op(op.into(), args)),
+    "(" <op:Symbol> <args:Term*> ")" => expr.add(TestNode::Op(op.into(), args)),
 };

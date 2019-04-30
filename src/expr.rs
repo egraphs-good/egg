@@ -1,72 +1,128 @@
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct VarId(pub u32);
+use std::fmt::Debug;
+use std::hash::Hash;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct ConstId(pub u32);
+pub type Id = u32;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct OpId(pub u32);
+pub trait Node: Debug + PartialEq + Eq + Hash + Clone {
+    type Constant: Debug + PartialEq;
+    type Variable: Debug + PartialEq + Eq + Hash + Clone;
+    type Operator: Debug + PartialEq;
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub enum Expr<Id> {
-    Var(VarId),
-    Const(ConstId),
-    Op(OpId, Vec<Id>),
+    fn map_children(self, f: impl FnMut(Id) -> Id) -> Self;
+    fn children(&self) -> &[Id];
+    fn get_variable(&self) -> Option<&Self::Variable>;
+    fn get_operator(&self) -> Option<&Self::Operator>;
+    fn get_constant(&self) -> Option<&Self::Constant>;
 }
 
-impl<Id> Expr<Id> {
-    pub fn map_ids<Id2>(&self, mut f: impl FnMut(Id) -> Id2) -> Expr<Id2>
-    where
-        Id: Clone,
-    {
-        match self {
-            Expr::Var(v) => Expr::Var(*v),
-            Expr::Const(c) => Expr::Const(*c),
-            Expr::Op(o, args) => {
-                let args2 = args.iter().map(|id| f(id.clone())).collect();
-                Expr::Op(*o, args2)
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub struct Expr<N> {
+    pub root: Id,
+    pub nodes: Vec<N>,
+}
+
+impl<N> Default for Expr<N> {
+    fn default() -> Self {
+        Expr {
+            root: 0,
+            nodes: Vec::new(),
+        }
+    }
+}
+
+impl<N> Expr<N> {
+    pub fn add(&mut self, n: N) -> Id {
+        let id = self.nodes.len() as Id;
+        self.nodes.push(n);
+        id
+    }
+
+    #[inline(always)]
+    pub fn get_node(&self, i: Id) -> &N {
+        &self.nodes[i as usize]
+    }
+}
+
+#[cfg(test)]
+pub mod tests {
+
+    use super::*;
+    use std::rc::Rc;
+
+    pub type Name = Rc<str>;
+
+    #[derive(Debug, PartialEq, Eq, Hash, Clone)]
+    pub enum TestNode {
+        Const(Name),
+        Var(Name),
+        Op(Name, Vec<Id>),
+    }
+
+    use TestNode::*;
+
+    impl Node for TestNode {
+        type Constant = Name;
+        type Variable = Name;
+        type Operator = Name;
+
+        fn get_variable(&self) -> Option<&Self::Variable> {
+            match self {
+                Var(v) => Some(v),
+                _ => None,
+            }
+        }
+
+        fn get_operator(&self) -> Option<&Self::Operator> {
+            match self {
+                Op(o, _) => Some(o),
+                _ => None,
+            }
+        }
+
+        fn get_constant(&self) -> Option<&Self::Constant> {
+            match self {
+                Const(c) => Some(c),
+                _ => None,
+            }
+        }
+
+        fn map_children(self, mut f: impl FnMut(Id) -> Id) -> Self {
+            match self {
+                Var(v) => Var(v),
+                Const(c) => Const(c),
+                Op(o, args) => {
+                    let args2 = args.iter().map(|id| f(*id)).collect();
+                    TestNode::Op(o, args2)
+                }
+            }
+        }
+
+        fn children(&self) -> &[Id] {
+            match self {
+                Var(_) => &[],
+                Const(_) => &[],
+                Op(_, args) => &args,
             }
         }
     }
 
-    pub fn convert_atom<Id2>(&self) -> Expr<Id2> {
-        match self {
-            Expr::Var(v) => Expr::Var(*v),
-            Expr::Const(c) => Expr::Const(*c),
-            Expr::Op(_, _) => panic!("Tried to convert_atom an op"),
+    use std::fmt::{Display, Formatter, Result};
+
+    impl Display for TestNode {
+        fn fmt(&self, f: &mut Formatter) -> Result {
+            match self {
+                Var(v) => write!(f, "{}", v),
+                Const(c) => write!(f, "{}", c),
+                Op(o, _) => write!(f, "{}", o),
+            }
         }
     }
 
-    pub fn children(&self) -> &[Id] {
-        match self {
-            Expr::Var(_) => &[],
-            Expr::Const(_) => &[],
-            Expr::Op(_op, args) => &args,
-        }
+    pub fn var(v: &str) -> TestNode {
+        TestNode::Var(v.into())
     }
-}
 
-pub type SimpleNode = Expr<u32>;
-
-#[derive(Debug, Default, PartialEq, Eq, Hash, Clone)]
-pub struct SimpleExpr {
-    pub nodes: Vec<SimpleNode>,
-}
-
-impl SimpleExpr {
-    pub fn add(&mut self, node: SimpleNode) -> u32 {
-        let id = self.nodes.len() as u32;
-        self.nodes.push(node);
-        id
+    pub fn op(o: &str, args: Vec<Id>) -> TestNode {
+        TestNode::Op(o.into(), args)
     }
-}
-
-#[cfg(test)]
-pub fn var<Id>(vid: u32) -> Expr<Id> {
-    Expr::Var(VarId(vid))
-}
-
-#[cfg(test)]
-pub fn op<Id>(oid: u32, args: Vec<Id>) -> Expr<Id> {
-    Expr::Op(OpId(oid), args)
 }

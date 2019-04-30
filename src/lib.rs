@@ -3,8 +3,10 @@ mod unionfind;
 pub mod dot;
 pub mod egraph;
 pub mod expr;
-pub mod parse;
 pub mod pattern;
+
+#[cfg(test)]
+pub mod parse;
 
 #[cfg(test)]
 fn init_logger() {

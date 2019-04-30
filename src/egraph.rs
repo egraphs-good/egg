@@ -2,44 +2,39 @@ use log::*;
 use std::collections::HashMap;
 
 use crate::{
-    expr::Expr,
+    expr::{Id, Node},
     unionfind::{UnionFind, UnionResult},
 };
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-// TODO no pub u32
-pub struct Eid(pub u32);
-pub type ENode = Expr<Eid>;
+#[derive(Debug)]
+pub struct EGraph<N: Node> {
+    // TODO no pub
+    nodes: HashMap<N, Id>,
+    pub leaders: UnionFind,
+    pub classes: HashMap<Id, Vec<N>>,
+}
 
-impl ENode {
-    pub fn write_label(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            Expr::Var(s) => write!(f, "v{}", s.0),
-            Expr::Const(i) => write!(f, "c{}", i.0),
-            Expr::Op(op, _) => write!(f, "o{}", op.0),
+impl<N: Node> Default for EGraph<N> {
+    fn default() -> EGraph<N> {
+        EGraph {
+            nodes: HashMap::default(),
+            leaders: UnionFind::default(),
+            classes: HashMap::default(),
         }
     }
 }
 
-#[derive(Debug, Default)]
-pub struct EGraph {
-    // TODO no pub
-    nodes: HashMap<ENode, Eid>,
-    pub leaders: UnionFind,
-    pub classes: HashMap<Eid, Vec<ENode>>,
-}
-
 pub struct AddResult {
     pub was_there: bool,
-    pub id: Eid,
+    pub id: Id,
 }
 
 // helper function that doens't require mut on the whole egraph
-pub fn find(uf: &mut UnionFind, id: Eid) -> Eid {
-    Eid(uf.find(id.0))
+pub fn find(uf: &mut UnionFind, id: Id) -> Id {
+    uf.find(id)
 }
 
-impl EGraph {
+impl<N: Node> EGraph<N> {
     fn check(&self) {
         assert_eq!(self.nodes.len(), self.leaders.len());
 
@@ -48,8 +43,7 @@ impl EGraph {
 
         assert_eq!(sets.len(), self.classes.len());
         for l in sets.keys() {
-            let id = Eid(*l);
-            assert!(self.classes.contains_key(&id));
+            assert!(self.classes.contains_key(&l));
         }
 
         // make sure that total size of classes == all nodes
@@ -61,29 +55,29 @@ impl EGraph {
         self.nodes.len()
     }
 
-    pub fn get_eclass(&self, eclass_id: Eid) -> &[ENode] {
+    pub fn get_eclass(&self, eclass_id: Id) -> &[N] {
         self.classes
             .get(&eclass_id)
             .unwrap_or_else(|| panic!("Couldn't find eclass {:?}", eclass_id))
     }
 
-    pub fn add(&mut self, enode: ENode) -> AddResult {
+    pub fn add(&mut self, enode: N) -> AddResult {
         self.check();
 
         trace!("Adding       {:?}", enode);
 
         // make sure that the enodes children are already in the set
         if cfg!(debug_assertions) {
-            for id in enode.children() {
-                assert!(id.0 < self.len() as u32);
+            for &id in enode.children() {
+                assert!(id < self.len() as u32);
             }
         }
 
         // hash cons
         let result = match self.nodes.get(&enode) {
             None => {
-                let next_id = Eid(self.leaders.make_set());
-                trace!("Added  {:4}: {:?}", next_id.0, enode);
+                let next_id = self.leaders.make_set();
+                trace!("Added  {:4}: {:?}", next_id, enode);
                 self.classes.insert(next_id, vec![enode.clone()]);
                 self.nodes.insert(enode, next_id);
                 AddResult {
@@ -92,7 +86,7 @@ impl EGraph {
                 }
             }
             Some(id) => {
-                trace!("Added *{:4}: {:?}", id.0, enode);
+                trace!("Added *{:4}: {:?}", id, enode);
                 AddResult {
                     was_there: true,
                     id: *id,
@@ -104,8 +98,8 @@ impl EGraph {
         result
     }
 
-    pub fn just_find(&self, id: Eid) -> Eid {
-        Eid(self.leaders.just_find(id.0))
+    pub fn just_find(&self, id: Id) -> Id {
+        self.leaders.just_find(id)
     }
 
     pub fn rebuild(&mut self) {
@@ -115,7 +109,8 @@ impl EGraph {
         for (leader, class) in self.classes.iter() {
             let mut new_nodes = Vec::with_capacity(class.len());
             for node in class {
-                new_nodes.push(node.map_ids(|id| Eid(self.leaders.just_find(id.0))));
+                let n = node.clone().map_children(|id| self.leaders.just_find(id));
+                new_nodes.push(n);
             }
 
             new_classes.insert(*leader, new_nodes);
@@ -130,14 +125,14 @@ impl EGraph {
         }
     }
 
-    pub fn union(&mut self, id1: Eid, id2: Eid) -> Eid {
+    pub fn union(&mut self, id1: Id, id2: Id) -> Id {
         self.check();
 
-        trace!("Unioning {} and {}", id1.0, id2.0);
+        trace!("Unioning {} and {}", id1, id2);
 
-        let (from, to) = match self.leaders.union(id1.0, id2.0) {
-            UnionResult::SameSet(leader) => return Eid(leader),
-            UnionResult::Unioned { from, to } => (Eid(from), Eid(to)),
+        let (from, to) = match self.leaders.union(id1, id2) {
+            UnionResult::SameSet(leader) => return leader,
+            UnionResult::Unioned { from, to } => (from, to),
         };
 
         // remove the smaller class, merging into the bigger class
@@ -146,13 +141,13 @@ impl EGraph {
 
         let mut new_nodes = Vec::with_capacity(from_class.len() + to_class.len());
         for node in from_class.into_iter().chain(to_class) {
-            new_nodes.push(node.map_ids(|id| Eid(self.leaders.find(id.0))));
+            new_nodes.push(node.map_children(|id| self.leaders.find(id)));
         }
 
         self.classes.insert(to, new_nodes);
 
         self.check();
-        trace!("Unioned {} -> {}", from.0, to.0);
+        trace!("Unioned {} -> {}", from, to);
         trace!("Leaders: {:?}", self.leaders);
         for (leader, class) in &self.classes {
             trace!("  {:?}: {:?}", leader, class);
@@ -160,7 +155,10 @@ impl EGraph {
         to
     }
 
-    pub fn dot(&self, filename: &str) {
+    pub fn dot(&self, filename: &str)
+    where
+        N: std::fmt::Display,
+    {
         use std::fs::File;
         use std::io::prelude::*;
 
@@ -176,18 +174,18 @@ mod tests {
 
     use super::*;
 
-    use crate::expr::{op, var};
+    use crate::expr::tests::{op, var};
 
     #[test]
     fn simple_add() {
         crate::init_logger();
         let mut egraph = EGraph::default();
 
-        let x = egraph.add(var(0)).id;
-        let x2 = egraph.add(var(0)).id;
-        let _plus = egraph.add(op(0, vec![x, x2])).id;
+        let x = egraph.add(var("x")).id;
+        let x2 = egraph.add(var("x")).id;
+        let _plus = egraph.add(op("+", vec![x, x2])).id;
 
-        let y = egraph.add(var(1)).id;
+        let y = egraph.add(var("y")).id;
 
         egraph.union(x, y);
         egraph.rebuild();

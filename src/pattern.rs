@@ -2,34 +2,28 @@ use log::*;
 use std::collections::HashMap;
 
 use crate::{
-    egraph::{AddResult, EGraph, Eid},
-    expr::{Expr, VarId},
+    egraph::{AddResult, EGraph},
+    expr::{Expr, Id, Node},
 };
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Pid(pub u32);
-pub type PNode = Expr<Pid>;
-
 #[derive(Debug, PartialEq)]
-pub struct Pattern {
-    // TODO make these private
-    pub nodes: Vec<PNode>,
-    pub lhs: Pid,
-    pub rhs: Pid,
+pub struct Pattern<N> {
+    pub lhs: Expr<N>,
+    pub rhs: Expr<N>,
 }
 
-impl Pattern {
+impl<N: Node> Pattern<N> {
     pub fn make_search_context<'p, 'e>(
         &'p self,
-        egraph: &'e EGraph,
-    ) -> PatternSearchContext<'p, 'e> {
+        egraph: &'e EGraph<N>,
+    ) -> PatternSearchContext<'p, 'e, N> {
         PatternSearchContext {
             pattern: &self,
             egraph,
         }
     }
 
-    pub fn match_against_egraph(&self, egraph: &EGraph) -> Vec<PatternMatches> {
+    pub fn match_against_egraph(&self, egraph: &EGraph<N>) -> Vec<PatternMatches<N>> {
         let ctx = self.make_search_context(egraph);
         let matches: Vec<_> = egraph
             .classes
@@ -39,23 +33,19 @@ impl Pattern {
         info!("Found {} matches", matches.len());
         matches
     }
-
-    fn get_node(&self, id: Pid) -> PNode {
-        self.nodes[id.0 as usize].clone()
-    }
 }
 
-pub type VarMap = HashMap<VarId, Eid>;
+pub type VarMap<N> = HashMap<<N as Node>::Variable, Id>;
 
-pub struct PatternSearchContext<'p, 'e> {
-    pattern: &'p Pattern,
-    egraph: &'e EGraph,
+pub struct PatternSearchContext<'p, 'e, N: Node> {
+    pattern: &'p Pattern<N>,
+    egraph: &'e EGraph<N>,
 }
 
-impl<'p, 'e> PatternSearchContext<'p, 'e> {
-    pub fn search_eclass(&self, eclass: Eid) -> Option<PatternMatches<'p>> {
+impl<'p, 'e, N: Node> PatternSearchContext<'p, 'e, N> {
+    pub fn search_eclass(&self, eclass: Id) -> Option<PatternMatches<'p, N>> {
         let initial_mapping = HashMap::new();
-        let mappings = self.search_pat(initial_mapping, eclass, self.pattern.lhs);
+        let mappings = self.search_pat(initial_mapping, eclass, self.pattern.lhs.root);
         if mappings.len() > 0 {
             Some(PatternMatches {
                 pattern: self.pattern,
@@ -67,13 +57,13 @@ impl<'p, 'e> PatternSearchContext<'p, 'e> {
         }
     }
 
-    fn search_pat(&self, mut var_mapping: VarMap, eid: Eid, pid: Pid) -> Vec<VarMap> {
-        let pattern_node = self.pattern.get_node(pid);
+    fn search_pat(&self, mut var_mapping: VarMap<N>, eid: Id, pid: Id) -> Vec<VarMap<N>> {
+        let pn = self.pattern.lhs.get_node(pid);
 
-        if let Expr::Var(s) = pattern_node {
-            match var_mapping.get(&s) {
+        if let Some(v) = pn.get_variable() {
+            match var_mapping.get(&v) {
                 None => {
-                    var_mapping.insert(s, eid);
+                    var_mapping.insert(v.clone(), eid);
                 }
                 Some(&prev_mapped_eclass) => {
                     if eid != prev_mapped_eclass {
@@ -87,26 +77,32 @@ impl<'p, 'e> PatternSearchContext<'p, 'e> {
 
         let mut new_mappings = Vec::new();
 
-        for class_node in self.egraph.get_eclass(eid) {
-            use Expr::*;
-            match (&pattern_node, class_node) {
-                (Var(_), _) => panic!("pattern isn't a var at this point"),
-                (Op(po, pargs), Op(eo, eargs)) if po == eo => {
-                    assert_eq!(pargs.len(), eargs.len());
+        for en in self.egraph.get_eclass(eid) {
+            debug_assert_eq!(pn.get_variable(), None);
 
-                    let mut mappings1 = vec![];
-                    let mut mappings2 = vec![var_mapping.clone()];
-
-                    for (pa, ea) in pargs.iter().zip(eargs) {
-                        std::mem::swap(&mut mappings1, &mut mappings2);
-                        for m in mappings1.drain(..) {
-                            mappings2.extend(self.search_pat(m, *ea, *pa));
-                        }
-                    }
-
-                    new_mappings.extend(mappings2);
+            if let (Some(pc), Some(ec)) = (pn.get_constant(), en.get_constant()) {
+                if pc == ec {
+                    new_mappings.push(var_mapping.clone())
                 }
-                _ => (),
+            }
+            if let (Some(po), Some(eo)) = (pn.get_operator(), en.get_operator()) {
+                if po != eo {
+                    continue;
+                }
+
+                assert_eq!(pn.children().len(), en.children().len());
+
+                let mut mappings1 = vec![];
+                let mut mappings2 = vec![var_mapping.clone()];
+
+                for (pa, ea) in pn.children().iter().zip(en.children()) {
+                    std::mem::swap(&mut mappings1, &mut mappings2);
+                    for m in mappings1.drain(..) {
+                        mappings2.extend(self.search_pat(m, *ea, *pa));
+                    }
+                }
+
+                new_mappings.extend(mappings2);
             }
         }
 
@@ -114,18 +110,18 @@ impl<'p, 'e> PatternSearchContext<'p, 'e> {
     }
 }
 
-pub struct PatternMatches<'p> {
-    pub pattern: &'p Pattern,
-    pub eclass: Eid,
-    pub mappings: Vec<VarMap>,
+pub struct PatternMatches<'p, N: Node> {
+    pub pattern: &'p Pattern<N>,
+    pub eclass: Id,
+    pub mappings: Vec<VarMap<N>>,
 }
 
-impl<'p> PatternMatches<'p> {
-    pub fn apply(&self, egraph: &mut EGraph) -> Vec<Eid> {
+impl<'p, N: Node> PatternMatches<'p, N> {
+    pub fn apply(&self, egraph: &mut EGraph<N>) -> Vec<Id> {
         self.mappings
             .iter()
             .filter_map(|mapping| {
-                let pattern_root = self.apply_rec(egraph, mapping, self.pattern.rhs);
+                let pattern_root = self.apply_rec(egraph, mapping, self.pattern.rhs.root);
                 if !pattern_root.was_there {
                     Some(egraph.union(self.eclass, pattern_root.id))
                 } else {
@@ -135,21 +131,23 @@ impl<'p> PatternMatches<'p> {
             .collect()
     }
 
-    fn apply_rec(&self, egraph: &mut EGraph, mapping: &VarMap, pid: Pid) -> AddResult {
-        let pattern_node = self.pattern.get_node(pid);
-        match pattern_node {
-            Expr::Const(_) => egraph.add(pattern_node.convert_atom()),
-            Expr::Var(s) => AddResult {
+    fn apply_rec(&self, egraph: &mut EGraph<N>, mapping: &VarMap<N>, pid: Id) -> AddResult {
+        let pattern_node = self.pattern.rhs.get_node(pid);
+
+        if let Some(_) = pattern_node.get_constant() {
+            egraph.add(pattern_node.clone())
+        } else if let Some(v) = pattern_node.get_variable() {
+            AddResult {
                 was_there: true,
-                id: mapping[&s],
-            },
-            Expr::Op(op, args) => {
-                let args2 = args
-                    .iter()
-                    .map(|a| self.apply_rec(egraph, mapping, *a).id)
-                    .collect();
-                egraph.add(Expr::Op(op, args2))
+                id: mapping[v],
             }
+        } else if let Some(_) = pattern_node.get_operator() {
+            let n = pattern_node
+                .clone()
+                .map_children(|arg| self.apply_rec(egraph, mapping, arg).id);
+            egraph.add(n)
+        } else {
+            unreachable!()
         }
     }
 }
@@ -159,9 +157,9 @@ mod tests {
 
     use super::*;
 
-    use crate::{
-        expr::{op, var, VarId},
-        pattern::Pid,
+    use crate::expr::{
+        tests::{op, var},
+        Expr,
     };
 
     use maplit::hashmap;
@@ -171,26 +169,26 @@ mod tests {
         crate::init_logger();
         let mut egraph = EGraph::default();
 
-        let x = egraph.add(var(0)).id;
-        let y = egraph.add(var(1)).id;
-        let plus = egraph.add(op(0, vec![x, y])).id;
+        let x = egraph.add(var("x")).id;
+        let y = egraph.add(var("y")).id;
+        let plus = egraph.add(op("+", vec![x, y])).id;
 
-        let z = egraph.add(var(2)).id;
-        let w = egraph.add(var(3)).id;
-        let plus2 = egraph.add(op(0, vec![z, w])).id;
+        let z = egraph.add(var("z")).id;
+        let w = egraph.add(var("w")).id;
+        let plus2 = egraph.add(op("+", vec![z, w])).id;
 
         egraph.union(plus, plus2);
         egraph.rebuild();
 
         let commute_plus = crate::pattern::Pattern {
-            nodes: vec![
-                var(0),
-                var(1),
-                op(0, vec![Pid(0), Pid(1)]),
-                op(0, vec![Pid(1), Pid(0)]),
-            ],
-            lhs: Pid(2),
-            rhs: Pid(3),
+            lhs: Expr {
+                root: 0,
+                nodes: vec![op("+", vec![1, 2]), var("a"), var("b")],
+            },
+            rhs: Expr {
+                root: 0,
+                nodes: vec![op("+", vec![1, 2]), var("b"), var("a")],
+            },
         };
 
         // explictly borrow to make sure that it doesn't mutate
@@ -203,8 +201,8 @@ mod tests {
         assert_eq!(applications.len(), 2);
 
         let expected_mappings = vec![
-            hashmap! {VarId(0) => x, VarId(1) => y},
-            hashmap! {VarId(0) => z, VarId(1) => w},
+            hashmap! {"a".into() => x, "b".into() => y},
+            hashmap! {"a".into() => z, "b".into() => w},
         ];
 
         // for now, I have to check mappings both ways
