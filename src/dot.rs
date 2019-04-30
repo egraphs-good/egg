@@ -24,9 +24,9 @@ impl<'a, N: Node + Display> Display for Dot<'a, N> where {
             write!(f, "  subgraph cluster_{} {{\n", leader)?;
             write!(f, "    style=dotted\n")?;
             for (i, node) in class.iter().enumerate() {
-                write!(f, r#"    {}.{}[label = "{}"]"#, leader, i, node)?;
+                write!(f, "    {}.{}[label = \"{}\"]\n", leader, i, node)?;
             }
-            write!(f, "\n  }}\n")?;
+            write!(f, "  }}\n")?;
         }
 
         for (leader, class) in &self.egraph.classes {

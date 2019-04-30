@@ -29,11 +29,6 @@ pub struct AddResult {
     pub id: Id,
 }
 
-// helper function that doens't require mut on the whole egraph
-pub fn find(uf: &mut UnionFind, id: Id) -> Id {
-    uf.find(id)
-}
-
 impl<N: Node> EGraph<N> {
     fn check(&self) {
         assert_eq!(self.nodes.len(), self.leaders.len());
