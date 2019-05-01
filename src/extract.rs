@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{
     egraph::EGraph,
-    expr::{Expr, Id, Node},
+    expr::{Expr, Id, Node, NodeExt},
 };
 
 pub type Cost = u64;

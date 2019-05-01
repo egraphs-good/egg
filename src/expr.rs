@@ -3,18 +3,59 @@ use std::hash::Hash;
 
 pub type Id = u32;
 
+// TODO if NodeEnum is public, I could just make it my representation
+// It being generic over the traitbound would allow me to just have a public enum
+// (without to/from_enum) at the cost of just fixing my representation
+
+pub enum NodeEnum<'a, N: Node, Child> {
+    Constant(&'a N::Constant),
+    Variable(&'a N::Variable),
+    Operator(&'a N::Operator, &'a [Child]),
+}
+
+impl<'a, N: Node> NodeEnum<'a, N, Id> {
+    #[inline(always)]
+    fn to_node(self) -> N {
+        N::from_enum(self)
+    }
+}
+
 pub trait Node: Debug + PartialEq + Eq + Hash + Clone {
     type Constant: Debug + PartialEq;
     type Variable: Debug + PartialEq + Eq + Hash + Clone;
-    type Operator: Debug + PartialEq;
+    type Operator: Debug + PartialEq + Clone;
 
     fn cost(&self) -> u64;
-    fn map_children(self, f: impl FnMut(Id) -> Id) -> Self;
-    fn children(&self) -> &[Id];
-    fn get_variable(&self) -> Option<&Self::Variable>;
-    fn get_operator(&self) -> Option<&Self::Operator>;
-    fn get_constant(&self) -> Option<&Self::Constant>;
+
+    #[inline(always)]
+    fn to_enum(&self) -> NodeEnum<Self, Id>;
+
+    #[inline(always)]
+    fn from_enum(node_enum: NodeEnum<Self, Id>) -> Self;
 }
+
+pub(crate) trait NodeExt: Node {
+    fn map_children(&self, f: impl FnMut(Id) -> Id) -> Self {
+        use NodeEnum::*;
+        match self.to_enum() {
+            Constant(c) => Constant(c).to_node(),
+            Variable(v) => Variable(v).to_node(),
+            Operator(op, args) => {
+                let args2: Vec<_> = args.iter().cloned().map(f).collect();
+                Operator(op, &args2).to_node()
+            }
+        }
+    }
+    fn children(&self) -> &[Id] {
+        match self.to_enum() {
+            NodeEnum::Constant(_) => &[],
+            NodeEnum::Variable(_) => &[],
+            NodeEnum::Operator(_, args) => args,
+        }
+    }
+}
+
+impl<N: Node> NodeExt for N {}
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct Expr<N> {
@@ -79,43 +120,19 @@ pub mod tests {
             }
         }
 
-        fn get_variable(&self) -> Option<&Self::Variable> {
+        fn to_enum(&self) -> NodeEnum<Self, Id> {
             match self {
-                Var(v) => Some(v),
-                _ => None,
+                Var(v) => NodeEnum::Variable(v),
+                Const(c) => NodeEnum::Constant(c),
+                Op(o, args) => NodeEnum::Operator(o, args),
             }
         }
 
-        fn get_operator(&self) -> Option<&Self::Operator> {
-            match self {
-                Op(o, _) => Some(o),
-                _ => None,
-            }
-        }
-
-        fn get_constant(&self) -> Option<&Self::Constant> {
-            match self {
-                Const(c) => Some(c),
-                _ => None,
-            }
-        }
-
-        fn map_children(self, mut f: impl FnMut(Id) -> Id) -> Self {
-            match self {
-                Var(v) => Var(v),
-                Const(c) => Const(c),
-                Op(o, args) => {
-                    let args2 = args.iter().map(|id| f(*id)).collect();
-                    TestNode::Op(o, args2)
-                }
-            }
-        }
-
-        fn children(&self) -> &[Id] {
-            match self {
-                Var(_) => &[],
-                Const(_) => &[],
-                Op(_, args) => &args,
+        fn from_enum(node_enum: NodeEnum<Self, Id>) -> Self {
+            match node_enum {
+                NodeEnum::Variable(v) => Var(Rc::clone(v)),
+                NodeEnum::Constant(c) => Const(Rc::clone(c)),
+                NodeEnum::Operator(o, args) => Op(Rc::clone(o), args.to_vec()),
             }
         }
     }

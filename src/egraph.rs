@@ -2,7 +2,7 @@ use log::*;
 use std::collections::HashMap;
 
 use crate::{
-    expr::{Id, Node},
+    expr::{Id, Node, NodeExt},
     unionfind::{UnionFind, UnionResult},
 };
 

@@ -1,6 +1,9 @@
 use std::fmt::{Display, Formatter, Result};
 
-use crate::{egraph::EGraph, expr::Node};
+use crate::{
+    egraph::EGraph,
+    expr::{Node, NodeExt},
+};
 
 pub struct Dot<'a, N: Node> {
     egraph: &'a EGraph<N>,

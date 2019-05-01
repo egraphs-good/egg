@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use crate::{
     egraph::{AddResult, EGraph},
-    expr::{Expr, Id, Node},
+    expr::{Expr, Id, Node, NodeEnum, NodeExt},
 };
 
 #[derive(Debug, PartialEq)]
@@ -60,7 +60,7 @@ impl<'p, 'e, N: Node> PatternSearchContext<'p, 'e, N> {
     fn search_pat(&self, mut var_mapping: VarMap<N>, eid: Id, pid: Id) -> Vec<VarMap<N>> {
         let pn = self.pattern.lhs.get_node(pid);
 
-        if let Some(v) = pn.get_variable() {
+        if let NodeEnum::Variable(v) = pn.to_enum() {
             match var_mapping.get(&v) {
                 None => {
                     var_mapping.insert(v.clone(), eid);
@@ -78,31 +78,32 @@ impl<'p, 'e, N: Node> PatternSearchContext<'p, 'e, N> {
         let mut new_mappings = Vec::new();
 
         for en in self.egraph.get_eclass(eid) {
-            debug_assert_eq!(pn.get_variable(), None);
-
-            if let (Some(pc), Some(ec)) = (pn.get_constant(), en.get_constant()) {
-                if pc == ec {
-                    new_mappings.push(var_mapping.clone())
-                }
-            }
-            if let (Some(po), Some(eo)) = (pn.get_operator(), en.get_operator()) {
-                if po != eo {
-                    continue;
-                }
-
-                assert_eq!(pn.children().len(), en.children().len());
-
-                let mut mappings1 = vec![];
-                let mut mappings2 = vec![var_mapping.clone()];
-
-                for (pa, ea) in pn.children().iter().zip(en.children()) {
-                    std::mem::swap(&mut mappings1, &mut mappings2);
-                    for m in mappings1.drain(..) {
-                        mappings2.extend(self.search_pat(m, *ea, *pa));
+            use NodeEnum::*;
+            match (pn.to_enum(), en.to_enum()) {
+                (Variable(_), _) => unreachable!("shouldn't be variable"),
+                (Constant(pc), Constant(ec)) => {
+                    if pc == ec {
+                        new_mappings.push(var_mapping.clone())
                     }
                 }
+                (Operator(po, pargs), Operator(eo, eargs)) => {
+                    if po != eo {
+                        continue;
+                    }
+                    assert_eq!(pn.children().len(), en.children().len());
 
-                new_mappings.extend(mappings2);
+                    let mut mappings1 = vec![];
+                    let mut mappings2 = vec![var_mapping.clone()];
+
+                    for (pa, ea) in pargs.into_iter().zip(eargs) {
+                        std::mem::swap(&mut mappings1, &mut mappings2);
+                        for m in mappings1.drain(..) {
+                            mappings2.extend(self.search_pat(m, *ea, *pa));
+                        }
+                    }
+                    new_mappings.extend(mappings2);
+                }
+                _ => (),
             }
         }
 
@@ -134,20 +135,18 @@ impl<'p, N: Node> PatternMatches<'p, N> {
     fn apply_rec(&self, egraph: &mut EGraph<N>, mapping: &VarMap<N>, pid: Id) -> AddResult {
         let pattern_node = self.pattern.rhs.get_node(pid);
 
-        if let Some(_) = pattern_node.get_constant() {
-            egraph.add(pattern_node.clone())
-        } else if let Some(v) = pattern_node.get_variable() {
-            AddResult {
+        match pattern_node.to_enum() {
+            NodeEnum::Constant(_) => egraph.add(pattern_node.clone()),
+            NodeEnum::Variable(v) => AddResult {
                 was_there: true,
-                id: mapping[v],
+                id: mapping[&v],
+            },
+            NodeEnum::Operator(_, _) => {
+                let n = pattern_node
+                    .clone()
+                    .map_children(|arg| self.apply_rec(egraph, mapping, arg).id);
+                egraph.add(n)
             }
-        } else if let Some(_) = pattern_node.get_operator() {
-            let n = pattern_node
-                .clone()
-                .map_children(|arg| self.apply_rec(egraph, mapping, arg).id);
-            egraph.add(n)
-        } else {
-            unreachable!()
         }
     }
 }
