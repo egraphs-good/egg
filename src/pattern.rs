@@ -218,5 +218,12 @@ mod tests {
         }
 
         egraph.dot("simple-match.dot");
+
+        use crate::extract::Extractor;
+
+        let ext = Extractor::new(&egraph);
+
+        let best = ext.find_best(2);
+        eprintln!("Best: {:#?}", best);
     }
 }

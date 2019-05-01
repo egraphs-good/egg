@@ -8,6 +8,7 @@ pub trait Node: Debug + PartialEq + Eq + Hash + Clone {
     type Variable: Debug + PartialEq + Eq + Hash + Clone;
     type Operator: Debug + PartialEq;
 
+    fn cost(&self) -> u64;
     fn map_children(self, f: impl FnMut(Id) -> Id) -> Self;
     fn children(&self) -> &[Id];
     fn get_variable(&self) -> Option<&Self::Variable>;
@@ -64,6 +65,19 @@ pub mod tests {
         type Constant = Name;
         type Variable = Name;
         type Operator = Name;
+
+        fn cost(&self) -> u64 {
+            match self {
+                Var(_) => 1,
+                Const(_) => 1,
+                Op(op, _) => match op.as_ref() {
+                    "+" => 5,
+                    "*" => 50,
+                    "/" => 150,
+                    _ => 10,
+                },
+            }
+        }
 
         fn get_variable(&self) -> Option<&Self::Variable> {
             match self {
