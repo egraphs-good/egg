@@ -2,18 +2,18 @@ use std::collections::HashMap;
 
 use crate::{
     egraph::EGraph,
-    expr::{Expr, Id, Node, NodeLike},
+    expr::{Expr, FlatExpr, Id, Language},
 };
 
 pub type Cost = u64;
 
-pub struct Extractor<'a, N: NodeLike> {
+pub struct Extractor<'a, L: Language> {
     costs: HashMap<Id, Cost>,
-    egraph: &'a EGraph<N>,
+    egraph: &'a EGraph<L>,
 }
 
-impl<'a, N: NodeLike> Extractor<'a, N> {
-    pub fn new(egraph: &'a EGraph<N>) -> Self {
+impl<'a, L: Language> Extractor<'a, L> {
+    pub fn new(egraph: &'a EGraph<L>) -> Self {
         // initialize costs with the maximum value
         let mut costs = HashMap::new();
         for id in egraph.classes.keys() {
@@ -26,13 +26,13 @@ impl<'a, N: NodeLike> Extractor<'a, N> {
         extractor
     }
 
-    pub fn find_best(&self, eclass: Id) -> Expr<N> {
-        let mut expr = Expr::default();
+    pub fn find_best(&self, eclass: Id) -> FlatExpr<L> {
+        let mut expr = FlatExpr::default();
         expr.root = self.find_best_rec(eclass, &mut expr);
         expr
     }
 
-    fn find_best_rec(&self, eclass: Id, expr: &mut Expr<N>) -> Id {
+    fn find_best_rec(&self, eclass: Id, expr: &mut FlatExpr<L>) -> Id {
         let best_node = self
             .egraph
             .get_eclass(eclass)
@@ -48,8 +48,8 @@ impl<'a, N: NodeLike> Extractor<'a, N> {
         expr.add(best_transformed)
     }
 
-    fn node_total_cost(&self, node: &Node<N, Id>) -> Cost {
-        let mut cost = N::cost(&node);
+    fn node_total_cost(&self, node: &Expr<L, Id>) -> Cost {
+        let mut cost = L::cost(&node);
         for child in node.children() {
             let class = self.egraph.just_find(*child);
             cost = cost.saturating_add(self.costs[&class])
@@ -72,7 +72,7 @@ impl<'a, N: NodeLike> Extractor<'a, N> {
         }
     }
 
-    fn make_pass(&self, eclass: &[Node<N, Id>]) -> Cost {
+    fn make_pass(&self, eclass: &[Expr<L, Id>]) -> Cost {
         eclass
             .iter()
             .map(|n| self.node_total_cost(n))

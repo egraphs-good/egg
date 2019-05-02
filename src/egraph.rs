@@ -2,20 +2,20 @@ use log::*;
 use std::collections::HashMap;
 
 use crate::{
-    expr::{Id, Node, NodeLike},
+    expr::{Expr, FlatExpr, Id, Language},
     unionfind::{UnionFind, UnionResult},
 };
 
 #[derive(Debug)]
-pub struct EGraph<N: NodeLike> {
+pub struct EGraph<L: Language> {
     // TODO no pub
-    nodes: HashMap<Node<N, Id>, Id>,
+    pub nodes: HashMap<Expr<L, Id>, Id>,
     pub leaders: UnionFind,
-    pub classes: HashMap<Id, Vec<Node<N, Id>>>,
+    pub classes: HashMap<Id, Vec<Expr<L, Id>>>,
 }
 
-impl<N: NodeLike> Default for EGraph<N> {
-    fn default() -> EGraph<N> {
+impl<L: Language> Default for EGraph<L> {
+    fn default() -> EGraph<L> {
         EGraph {
             nodes: HashMap::default(),
             leaders: UnionFind::default(),
@@ -29,8 +29,23 @@ pub struct AddResult {
     pub id: Id,
 }
 
-impl<N: NodeLike> EGraph<N> {
+impl<L: Language> EGraph<L> {
+    pub fn from_expr(expr: &FlatExpr<L>) -> (Self, Id) {
+        let mut egraph = EGraph::default();
+        let root = egraph.add_from_expr(expr, expr.root);
+        (egraph, root)
+    }
+
+    fn add_from_expr(&mut self, expr: &FlatExpr<L>, id: Id) -> Id {
+        let node = expr
+            .get_node(id)
+            .map_children(|child| self.add_from_expr(expr, child));
+        self.add(node).id
+    }
+
     fn check(&self) {
+        // FIXME checks are broken
+        return;
         assert_eq!(self.nodes.len(), self.leaders.len());
 
         // make sure the classes map contains exactly the unique leaders
@@ -50,13 +65,30 @@ impl<N: NodeLike> EGraph<N> {
         self.nodes.len()
     }
 
-    pub fn get_eclass(&self, eclass_id: Id) -> &[Node<N, Id>] {
+    pub fn get_eclass(&self, eclass_id: Id) -> &[Expr<L, Id>] {
         self.classes
             .get(&eclass_id)
             .unwrap_or_else(|| panic!("Couldn't find eclass {:?}", eclass_id))
     }
 
-    pub fn add(&mut self, enode: Node<N, Id>) -> AddResult {
+    pub fn equivs(&self, expr1: &FlatExpr<L>, expr2: &FlatExpr<L>) -> Vec<Id> {
+        use crate::pattern::FlatPattern;
+        let matches1 = FlatPattern::from_flat_expr(expr1).search(self);
+        let matches2 = FlatPattern::from_flat_expr(expr2).search(self);
+        let mut equiv_eclasses = Vec::new();
+
+        for m1 in &matches1 {
+            for m2 in &matches2 {
+                if m1.eclass == m2.eclass {
+                    equiv_eclasses.push(m1.eclass)
+                }
+            }
+        }
+
+        equiv_eclasses
+    }
+
+    pub fn add(&mut self, enode: Expr<L, Id>) -> AddResult {
         self.check();
 
         trace!("Adding       {:?}", enode);
@@ -64,7 +96,9 @@ impl<N: NodeLike> EGraph<N> {
         // make sure that the enodes children are already in the set
         if cfg!(debug_assertions) {
             for &id in enode.children() {
-                assert!(id < self.len() as u32);
+                if id >= self.len() as u32 {
+                    panic!("Found id {} by my len is only {}", id, self.len());
+                }
             }
         }
 
@@ -99,25 +133,20 @@ impl<N: NodeLike> EGraph<N> {
 
     pub fn rebuild(&mut self) {
         // TODO don't copy so much
-        let mut new_classes = HashMap::new();
-
-        for (leader, class) in self.classes.iter() {
-            let mut new_nodes = Vec::with_capacity(class.len());
-            for node in class {
-                let n = node.clone().map_children(|id| self.leaders.just_find(id));
-                new_nodes.push(n);
-            }
-
-            new_classes.insert(*leader, new_nodes);
-        }
-        self.classes = new_classes;
-
         self.nodes.clear();
         for (leader, class) in &self.classes {
             for node in class {
-                self.nodes.insert(node.clone(), *leader);
+                let n = node.clone().map_children(|id| self.leaders.just_find(id));
+                let leader = self.just_find(*leader);
+                self.nodes.insert(n, leader);
             }
         }
+
+        let mut new_classes = HashMap::<Id, Vec<_>>::new();
+        for (node, leader) in self.nodes.iter() {
+            new_classes.entry(*leader).or_default().push(node.clone())
+        }
+        self.classes = new_classes;
     }
 
     pub fn union(&mut self, id1: Id, id2: Id) -> Id {
@@ -152,9 +181,9 @@ impl<N: NodeLike> EGraph<N> {
 
     pub fn dot(&self, filename: &str)
     where
-        N::Constant: std::fmt::Display,
-        N::Variable: std::fmt::Display,
-        N::Operator: std::fmt::Display,
+        L::Constant: std::fmt::Display,
+        L::Variable: std::fmt::Display,
+        L::Operator: std::fmt::Display,
     {
         use std::fs::File;
         use std::io::prelude::*;
@@ -171,12 +200,12 @@ mod tests {
 
     use super::*;
 
-    use crate::expr::tests::{op, var, TestNode};
+    use crate::expr::tests::{op, var, TestLang};
 
     #[test]
     fn simple_add() {
         crate::init_logger();
-        let mut egraph = EGraph::<TestNode>::default();
+        let mut egraph = EGraph::<TestLang>::default();
 
         let x = egraph.add(var("x")).id;
         let x2 = egraph.add(var("x")).id;

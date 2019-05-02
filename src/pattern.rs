@@ -3,52 +3,92 @@ use std::collections::HashMap;
 
 use crate::{
     egraph::{AddResult, EGraph},
-    expr::{Expr, Id, Node, NodeLike},
+    expr::{Expr, Flat, FlatExpr, Id, Language},
 };
 
-#[derive(Debug, PartialEq)]
-pub struct Pattern<N: NodeLike> {
-    pub lhs: Expr<N>,
-    pub rhs: Expr<N>,
+#[derive(Debug, PartialEq, Clone)]
+pub enum Pattern<L: Language> {
+    Expr(Expr<L, Id>),
+    Wildcard(L::Wildcard),
 }
 
-impl<N: NodeLike> Pattern<N> {
-    pub fn make_search_context<'p, 'e>(
-        &'p self,
-        egraph: &'e EGraph<N>,
-    ) -> PatternSearchContext<'p, 'e, N> {
-        PatternSearchContext {
-            pattern: &self,
-            egraph,
+pub type FlatPattern<L> = Flat<Pattern<L>>;
+
+impl<L: Language> FlatPattern<L> {
+    pub fn from_flat_expr(e: &FlatExpr<L>) -> Self {
+        FlatPattern {
+            root: e.root,
+            nodes: e.nodes.iter().cloned().map(Pattern::Expr).collect(),
         }
     }
 
-    pub fn match_against_egraph(&self, egraph: &EGraph<N>) -> Vec<PatternMatches<N>> {
-        let ctx = self.make_search_context(egraph);
-        let matches: Vec<_> = egraph
-            .classes
-            .keys()
-            .filter_map(|eclass| ctx.search_eclass(*eclass))
-            .collect();
-        info!("Found {} matches", matches.len());
-        matches
+    pub fn search(&self, egraph: &EGraph<L>) -> Vec<PatternMatches<L>> {
+        self.make_search_context(egraph).search()
+    }
+
+    pub fn search_eclass(&self, egraph: &EGraph<L>, eclass: Id) -> Option<PatternMatches<L>> {
+        self.make_search_context(egraph).search_eclass(eclass)
+    }
+
+    pub fn make_search_context<'p, 'e>(
+        &'p self,
+        egraph: &'e EGraph<L>,
+    ) -> PatternSearchContext<'p, 'e, L> {
+        PatternSearchContext {
+            pattern: self,
+            egraph: egraph,
+        }
     }
 }
 
-pub type VarMap<N> = HashMap<<N as NodeLike>::Variable, Id>;
-
-pub struct PatternSearchContext<'p, 'e, N: NodeLike> {
-    pattern: &'p Pattern<N>,
-    egraph: &'e EGraph<N>,
+#[derive(Debug, PartialEq, Clone)]
+pub struct Rewrite<L: Language> {
+    pub lhs: FlatPattern<L>,
+    pub rhs: FlatPattern<L>,
 }
 
-impl<'p, 'e, N: NodeLike> PatternSearchContext<'p, 'e, N> {
-    pub fn search_eclass(&self, eclass: Id) -> Option<PatternMatches<'p, N>> {
+impl<L: Language> Rewrite<L> {
+    pub fn flip(&self) -> Self {
+        Rewrite {
+            lhs: self.rhs.clone(),
+            rhs: self.lhs.clone(),
+        }
+    }
+
+    pub fn run(&self, egraph: &mut EGraph<L>) {
+        let ctx = self.lhs.make_search_context(&egraph);
+        let matches = ctx.search();
+
+        for m in matches {
+            m.apply(&self.rhs, egraph);
+        }
+
+        egraph.rebuild();
+    }
+}
+
+pub type WildMap<L> = HashMap<<L as Language>::Wildcard, Id>;
+
+// TODO can probably get rid of this type
+pub struct PatternSearchContext<'p, 'e, L: Language> {
+    pattern: &'p FlatPattern<L>,
+    egraph: &'e EGraph<L>,
+}
+
+impl<'p, 'e, L: Language> PatternSearchContext<'p, 'e, L> {
+    pub fn search(&self) -> Vec<PatternMatches<L>> {
+        self.egraph
+            .classes
+            .keys()
+            .filter_map(|&eclass_id| self.search_eclass(eclass_id))
+            .collect()
+    }
+
+    pub fn search_eclass(&self, eclass: Id) -> Option<PatternMatches<L>> {
         let initial_mapping = HashMap::new();
-        let mappings = self.search_pat(initial_mapping, eclass, self.pattern.lhs.root);
+        let mappings = self.search_pat(initial_mapping, eclass, self.pattern.root);
         if mappings.len() > 0 {
             Some(PatternMatches {
-                pattern: self.pattern,
                 eclass: eclass,
                 mappings: mappings,
             })
@@ -57,30 +97,37 @@ impl<'p, 'e, N: NodeLike> PatternSearchContext<'p, 'e, N> {
         }
     }
 
-    fn search_pat(&self, mut var_mapping: VarMap<N>, eid: Id, pid: Id) -> Vec<VarMap<N>> {
-        let pn = self.pattern.lhs.get_node(pid);
+    fn search_pat(&self, mut var_mapping: WildMap<L>, eid: Id, pid: Id) -> Vec<WildMap<L>> {
+        let pn = self.pattern.get_node(pid);
 
-        if let Node::Variable(v) = pn {
-            match var_mapping.get(&v) {
-                None => {
-                    var_mapping.insert(v.clone(), eid);
-                }
-                Some(&prev_mapped_eclass) => {
-                    if eid != prev_mapped_eclass {
-                        return vec![];
+        let pn = match pn {
+            Pattern::Wildcard(w) => {
+                match var_mapping.get(&w) {
+                    None => {
+                        var_mapping.insert(w.clone(), eid);
+                    }
+                    Some(&prev_mapped_eclass) => {
+                        if eid != prev_mapped_eclass {
+                            return vec![];
+                        }
                     }
                 }
-            }
 
-            return vec![var_mapping];
-        }
+                return vec![var_mapping];
+            }
+            Pattern::Expr(e) => e,
+        };
 
         let mut new_mappings = Vec::new();
 
         for en in self.egraph.get_eclass(eid) {
-            use Node::*;
+            use Expr::*;
             match (pn, en) {
-                (Variable(_), _) => unreachable!("shouldn't be variable"),
+                (Variable(pv), Variable(ev)) => {
+                    if pv == ev {
+                        new_mappings.push(var_mapping.clone())
+                    }
+                }
                 (Constant(pc), Constant(ec)) => {
                     if pc == ec {
                         new_mappings.push(var_mapping.clone())
@@ -111,18 +158,18 @@ impl<'p, 'e, N: NodeLike> PatternSearchContext<'p, 'e, N> {
     }
 }
 
-pub struct PatternMatches<'p, N: NodeLike> {
-    pub pattern: &'p Pattern<N>,
+pub struct PatternMatches<L: Language> {
     pub eclass: Id,
-    pub mappings: Vec<VarMap<N>>,
+    pub mappings: Vec<WildMap<L>>,
 }
 
-impl<'p, N: NodeLike> PatternMatches<'p, N> {
-    pub fn apply(&self, egraph: &mut EGraph<N>) -> Vec<Id> {
+impl<L: Language> PatternMatches<L> {
+    pub fn apply(&self, pattern: &FlatPattern<L>, egraph: &mut EGraph<L>) -> Vec<Id> {
+        assert_ne!(self.mappings.len(), 0);
         self.mappings
             .iter()
             .filter_map(|mapping| {
-                let pattern_root = self.apply_rec(egraph, mapping, self.pattern.rhs.root);
+                let pattern_root = self.apply_rec(pattern, egraph, mapping, pattern.root);
                 if !pattern_root.was_there {
                     Some(egraph.union(self.eclass, pattern_root.id))
                 } else {
@@ -132,21 +179,32 @@ impl<'p, N: NodeLike> PatternMatches<'p, N> {
             .collect()
     }
 
-    fn apply_rec(&self, egraph: &mut EGraph<N>, mapping: &VarMap<N>, pid: Id) -> AddResult {
-        let pattern_node = self.pattern.rhs.get_node(pid);
+    fn apply_rec(
+        &self,
+        pattern: &FlatPattern<L>,
+        egraph: &mut EGraph<L>,
+        mapping: &WildMap<L>,
+        pid: Id,
+    ) -> AddResult {
+        let pattern_node = pattern.get_node(pid);
+
+        trace!("apply_rec {:?}", pattern_node);
 
         match pattern_node {
-            Node::Constant(_) => egraph.add(pattern_node.clone()),
-            Node::Variable(v) => AddResult {
+            Pattern::Wildcard(w) => AddResult {
                 was_there: true,
-                id: mapping[&v],
+                id: mapping[&w],
             },
-            Node::Operator(_, _) => {
-                let n = pattern_node
-                    .clone()
-                    .map_children(|arg| self.apply_rec(egraph, mapping, arg).id);
-                egraph.add(n)
-            }
+            Pattern::Expr(e) => match e {
+                Expr::Constant(_) => egraph.add(e.clone()),
+                Expr::Variable(_) => egraph.add(e.clone()),
+                Expr::Operator(_, _) => {
+                    let n = e
+                        .clone()
+                        .map_children(|arg| self.apply_rec(pattern, egraph, mapping, arg).id);
+                    egraph.add(n)
+                }
+            },
         }
     }
 }
@@ -158,7 +216,7 @@ mod tests {
 
     use crate::expr::{
         tests::{op, var},
-        Expr,
+        QuestionMarkName,
     };
 
     use maplit::hashmap;
@@ -179,29 +237,39 @@ mod tests {
         egraph.union(plus, plus2);
         egraph.rebuild();
 
-        let commute_plus = crate::pattern::Pattern {
-            lhs: Expr {
+        let a: QuestionMarkName = "?a".parse().unwrap();
+        let b: QuestionMarkName = "?b".parse().unwrap();
+
+        let commute_plus = crate::pattern::Rewrite {
+            lhs: FlatPattern {
                 root: 0,
-                nodes: vec![op("+", vec![1, 2]), var("a"), var("b")],
+                nodes: vec![
+                    Pattern::Expr(op("+", vec![1, 2])),
+                    Pattern::Wildcard(a.clone()),
+                    Pattern::Wildcard(b.clone()),
+                ],
             },
-            rhs: Expr {
+            rhs: FlatPattern {
                 root: 0,
-                nodes: vec![op("+", vec![1, 2]), var("b"), var("a")],
+                nodes: vec![
+                    Pattern::Expr(op("+", vec![1, 2])),
+                    Pattern::Wildcard(b.clone()),
+                    Pattern::Wildcard(a.clone()),
+                ],
             },
         };
 
-        // explictly borrow to make sure that it doesn't mutate
-        let match_ctx = commute_plus.make_search_context(&egraph);
-        let matches = match_ctx.search_eclass((&egraph).just_find(plus)).unwrap();
+        let eclass = egraph.just_find(plus);
+        let matches = commute_plus.lhs.search_eclass(&egraph, eclass).unwrap();
         assert_eq!(matches.mappings.len(), 2);
 
-        let applications = matches.apply(&mut egraph);
+        let applications = matches.apply(&commute_plus.rhs, &mut egraph);
         egraph.rebuild();
         assert_eq!(applications.len(), 2);
 
         let expected_mappings = vec![
-            hashmap! {"a".into() => x, "b".into() => y},
-            hashmap! {"a".into() => z, "b".into() => w},
+            hashmap! {a.clone() => x, b.clone() => y},
+            hashmap! {a.clone() => z, b.clone() => w},
         ];
 
         // for now, I have to check mappings both ways

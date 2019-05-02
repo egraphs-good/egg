@@ -1,22 +1,22 @@
 use std::fmt::{Display, Formatter, Result};
 
-use crate::{egraph::EGraph, expr::NodeLike};
+use crate::{egraph::EGraph, expr::Language};
 
-pub struct Dot<'a, N: NodeLike> {
-    egraph: &'a EGraph<N>,
+pub struct Dot<'a, L: Language> {
+    egraph: &'a EGraph<L>,
 }
 
-impl<'a, N: NodeLike> Dot<'a, N> {
-    pub fn new(egraph: &EGraph<N>) -> Dot<N> {
+impl<'a, L: Language> Dot<'a, L> {
+    pub fn new(egraph: &EGraph<L>) -> Dot<L> {
         Dot { egraph }
     }
 }
 
-impl<'a, N: NodeLike> Display for Dot<'a, N>
+impl<'a, L: Language> Display for Dot<'a, L>
 where
-    N::Constant: Display,
-    N::Variable: Display,
-    N::Operator: Display,
+    L::Constant: Display,
+    L::Variable: Display,
+    L::Operator: Display,
 {
     fn fmt(&self, f: &mut Formatter) -> Result {
         write!(f, "digraph {{\n")?;
