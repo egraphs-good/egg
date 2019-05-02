@@ -2,20 +2,25 @@ use std::fmt::{Display, Formatter, Result};
 
 use crate::{
     egraph::EGraph,
-    expr::{Node, NodeExt},
+    expr::{NodeLike},
 };
 
-pub struct Dot<'a, N: Node> {
+pub struct Dot<'a, N: NodeLike> {
     egraph: &'a EGraph<N>,
 }
 
-impl<'a, N: Node> Dot<'a, N> {
+impl<'a, N: NodeLike> Dot<'a, N> {
     pub fn new(egraph: &EGraph<N>) -> Dot<N> {
         Dot { egraph }
     }
 }
 
-impl<'a, N: Node + Display> Display for Dot<'a, N> where {
+impl<'a, N: NodeLike> Display for Dot<'a, N>
+where
+    N::Constant: Display,
+    N::Variable: Display,
+    N::Operator: Display,
+{
     fn fmt(&self, f: &mut Formatter) -> Result {
         write!(f, "digraph {{\n")?;
 
@@ -27,7 +32,7 @@ impl<'a, N: Node + Display> Display for Dot<'a, N> where {
             write!(f, "  subgraph cluster_{} {{\n", leader)?;
             write!(f, "    style=dotted\n")?;
             for (i, node) in class.iter().enumerate() {
-                write!(f, "    {}.{}[label = \"{}\"]\n", leader, i, node)?;
+                write!(f, "    {}.{}[label = \"{}\"]\n", leader, i, node.symbol())?;
             }
             write!(f, "  }}\n")?;
         }

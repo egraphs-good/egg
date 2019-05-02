@@ -1,4 +1,4 @@
-use crate::expr::{Expr, Id, tests::{TestNode, Name}};
+use crate::expr::{Expr, Id, Node, tests::{Name, TestNode}};
 
 grammar(expr: &mut Expr<TestNode>);
 
@@ -6,8 +6,8 @@ Ident: Name = r"[a-zA-Z]+" => <>.into();
 Symbol: Name = r"[+=\-*^&$%@!]+" => <>.into();
 
 pub Term: Id = {
-    Ident => expr.add(TestNode::Var(<>.into())),
-    r"[0-9]+" => expr.add(TestNode::Const(<>.into())),
-    "(" <op:Ident> <args:Term*> ")" => expr.add(TestNode::Op(op.into(), args)),
-    "(" <op:Symbol> <args:Term*> ")" => expr.add(TestNode::Op(op.into(), args)),
+    Ident => expr.add(Node::Variable(<>.into())),
+    r"[0-9]+" => expr.add(Node::Constant(<>.into())),
+    "(" <op:Ident> <args:Term*> ")" => expr.add(Node::Operator(op.into(), args)),
+    "(" <op:Symbol> <args:Term*> ")" => expr.add(Node::Operator(op.into(), args)),
 };

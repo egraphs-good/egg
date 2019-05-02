@@ -2,19 +2,19 @@ use log::*;
 use std::collections::HashMap;
 
 use crate::{
-    expr::{Id, Node, NodeExt},
+    expr::{Id, Node, NodeLike},
     unionfind::{UnionFind, UnionResult},
 };
 
 #[derive(Debug)]
-pub struct EGraph<N: Node> {
+pub struct EGraph<N: NodeLike> {
     // TODO no pub
-    nodes: HashMap<N, Id>,
+    nodes: HashMap<Node<N, Id>, Id>,
     pub leaders: UnionFind,
-    pub classes: HashMap<Id, Vec<N>>,
+    pub classes: HashMap<Id, Vec<Node<N, Id>>>,
 }
 
-impl<N: Node> Default for EGraph<N> {
+impl<N: NodeLike> Default for EGraph<N> {
     fn default() -> EGraph<N> {
         EGraph {
             nodes: HashMap::default(),
@@ -29,7 +29,8 @@ pub struct AddResult {
     pub id: Id,
 }
 
-impl<N: Node> EGraph<N> {
+impl<N: NodeLike> EGraph<N> {
+
     fn check(&self) {
         assert_eq!(self.nodes.len(), self.leaders.len());
 
@@ -50,13 +51,13 @@ impl<N: Node> EGraph<N> {
         self.nodes.len()
     }
 
-    pub fn get_eclass(&self, eclass_id: Id) -> &[N] {
+    pub fn get_eclass(&self, eclass_id: Id) -> &[Node<N, Id>] {
         self.classes
             .get(&eclass_id)
             .unwrap_or_else(|| panic!("Couldn't find eclass {:?}", eclass_id))
     }
 
-    pub fn add(&mut self, enode: N) -> AddResult {
+    pub fn add(&mut self, enode: Node<N, Id>) -> AddResult {
         self.check();
 
         trace!("Adding       {:?}", enode);
@@ -152,7 +153,9 @@ impl<N: Node> EGraph<N> {
 
     pub fn dot(&self, filename: &str)
     where
-        N: std::fmt::Display,
+        N::Constant: std::fmt::Display,
+        N::Variable: std::fmt::Display,
+        N::Operator: std::fmt::Display,
     {
         use std::fs::File;
         use std::io::prelude::*;
@@ -169,12 +172,12 @@ mod tests {
 
     use super::*;
 
-    use crate::expr::tests::{op, var};
+    use crate::expr::tests::{TestNode, op, var};
 
     #[test]
     fn simple_add() {
         crate::init_logger();
-        let mut egraph = EGraph::default();
+        let mut egraph = EGraph::<TestNode>::default();
 
         let x = egraph.add(var("x")).id;
         let x2 = egraph.add(var("x")).id;

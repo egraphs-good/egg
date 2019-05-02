@@ -3,16 +3,16 @@ use std::collections::HashMap;
 
 use crate::{
     egraph::{AddResult, EGraph},
-    expr::{Expr, Id, Node, NodeEnum, NodeExt},
+    expr::{Expr, Id, Node, IdNode, NodeLike},
 };
 
 #[derive(Debug, PartialEq)]
-pub struct Pattern<N> {
+pub struct Pattern<N: NodeLike> {
     pub lhs: Expr<N>,
     pub rhs: Expr<N>,
 }
 
-impl<N: Node> Pattern<N> {
+impl<N: NodeLike> Pattern<N> {
     pub fn make_search_context<'p, 'e>(
         &'p self,
         egraph: &'e EGraph<N>,
@@ -35,14 +35,14 @@ impl<N: Node> Pattern<N> {
     }
 }
 
-pub type VarMap<N> = HashMap<<N as Node>::Variable, Id>;
+pub type VarMap<N> = HashMap<<N as NodeLike>::Variable, Id>;
 
-pub struct PatternSearchContext<'p, 'e, N: Node> {
+pub struct PatternSearchContext<'p, 'e, N: NodeLike> {
     pattern: &'p Pattern<N>,
     egraph: &'e EGraph<N>,
 }
 
-impl<'p, 'e, N: Node> PatternSearchContext<'p, 'e, N> {
+impl<'p, 'e, N: NodeLike> PatternSearchContext<'p, 'e, N> {
     pub fn search_eclass(&self, eclass: Id) -> Option<PatternMatches<'p, N>> {
         let initial_mapping = HashMap::new();
         let mappings = self.search_pat(initial_mapping, eclass, self.pattern.lhs.root);
@@ -60,7 +60,7 @@ impl<'p, 'e, N: Node> PatternSearchContext<'p, 'e, N> {
     fn search_pat(&self, mut var_mapping: VarMap<N>, eid: Id, pid: Id) -> Vec<VarMap<N>> {
         let pn = self.pattern.lhs.get_node(pid);
 
-        if let NodeEnum::Variable(v) = pn.to_enum() {
+        if let Node::Variable(v) = pn {
             match var_mapping.get(&v) {
                 None => {
                     var_mapping.insert(v.clone(), eid);
@@ -78,8 +78,8 @@ impl<'p, 'e, N: Node> PatternSearchContext<'p, 'e, N> {
         let mut new_mappings = Vec::new();
 
         for en in self.egraph.get_eclass(eid) {
-            use NodeEnum::*;
-            match (pn.to_enum(), en.to_enum()) {
+            use Node::*;
+            match (pn, en) {
                 (Variable(_), _) => unreachable!("shouldn't be variable"),
                 (Constant(pc), Constant(ec)) => {
                     if pc == ec {
@@ -111,13 +111,13 @@ impl<'p, 'e, N: Node> PatternSearchContext<'p, 'e, N> {
     }
 }
 
-pub struct PatternMatches<'p, N: Node> {
+pub struct PatternMatches<'p, N: NodeLike> {
     pub pattern: &'p Pattern<N>,
     pub eclass: Id,
     pub mappings: Vec<VarMap<N>>,
 }
 
-impl<'p, N: Node> PatternMatches<'p, N> {
+impl<'p, N: NodeLike> PatternMatches<'p, N> {
     pub fn apply(&self, egraph: &mut EGraph<N>) -> Vec<Id> {
         self.mappings
             .iter()
@@ -135,13 +135,13 @@ impl<'p, N: Node> PatternMatches<'p, N> {
     fn apply_rec(&self, egraph: &mut EGraph<N>, mapping: &VarMap<N>, pid: Id) -> AddResult {
         let pattern_node = self.pattern.rhs.get_node(pid);
 
-        match pattern_node.to_enum() {
-            NodeEnum::Constant(_) => egraph.add(pattern_node.clone()),
-            NodeEnum::Variable(v) => AddResult {
+        match pattern_node {
+            Node::Constant(_) => egraph.add(pattern_node.clone()),
+            Node::Variable(v) => AddResult {
                 was_there: true,
                 id: mapping[&v],
             },
-            NodeEnum::Operator(_, _) => {
+            Node::Operator(_, _) => {
                 let n = pattern_node
                     .clone()
                     .map_children(|arg| self.apply_rec(egraph, mapping, arg).id);

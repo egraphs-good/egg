@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::fmt::{self, Debug};
 use std::hash::Hash;
 
 pub type Id = u32;
@@ -7,63 +7,78 @@ pub type Id = u32;
 // It being generic over the traitbound would allow me to just have a public enum
 // (without to/from_enum) at the cost of just fixing my representation
 
-pub enum NodeEnum<'a, N: Node, Child> {
-    Constant(&'a N::Constant),
-    Variable(&'a N::Variable),
-    Operator(&'a N::Operator, &'a [Child]),
+pub type IdNode<N> = Node<N, Id>;
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub enum Node<N: NodeLike, Child> {
+    Constant(N::Constant),
+    Variable(N::Variable),
+    Operator(N::Operator, Vec<Child>),
 }
 
-impl<'a, N: Node> NodeEnum<'a, N, Id> {
-    #[inline(always)]
-    fn to_node(self) -> N {
-        N::from_enum(self)
-    }
-}
-
-pub trait Node: Debug + PartialEq + Eq + Hash + Clone {
-    type Constant: Debug + PartialEq;
-    type Variable: Debug + PartialEq + Eq + Hash + Clone;
-    type Operator: Debug + PartialEq + Clone;
-
-    fn cost(&self) -> u64;
-
-    #[inline(always)]
-    fn to_enum(&self) -> NodeEnum<Self, Id>;
-
-    #[inline(always)]
-    fn from_enum(node_enum: NodeEnum<Self, Id>) -> Self;
-}
-
-pub(crate) trait NodeExt: Node {
-    fn map_children(&self, f: impl FnMut(Id) -> Id) -> Self {
-        use NodeEnum::*;
-        match self.to_enum() {
-            Constant(c) => Constant(c).to_node(),
-            Variable(v) => Variable(v).to_node(),
+impl<N: NodeLike, Child> Node<N, Child> {
+    pub fn map_children<Child2>(&self, f: impl FnMut(Child) -> Child2) -> Node<N, Child2>
+    where
+        Child: Clone,
+    {
+        use Node::*;
+        match self {
+            Constant(c) => Constant(c.clone()),
+            Variable(v) => Variable(v.clone()),
             Operator(op, args) => {
-                let args2: Vec<_> = args.iter().cloned().map(f).collect();
-                Operator(op, &args2).to_node()
+                let args2 = args.iter().cloned().map(f).collect();
+                Operator(op.clone(), args2)
             }
         }
     }
-    fn children(&self) -> &[Id] {
-        match self.to_enum() {
-            NodeEnum::Constant(_) => &[],
-            NodeEnum::Variable(_) => &[],
-            NodeEnum::Operator(_, args) => args,
+
+    pub fn children(&self) -> &[Child] {
+        match self {
+            Node::Constant(_) => &[],
+            Node::Variable(_) => &[],
+            Node::Operator(_, args) => args,
+        }
+    }
+
+    pub fn symbol(&self) -> Symbol<N, Child> {
+        Symbol { node: self }
+    }
+}
+
+pub struct Symbol<'a, N: NodeLike, Child> {
+    node: &'a Node<N, Child>,
+}
+
+impl<'a, N: NodeLike, Child> fmt::Display for Symbol<'a, N, Child>
+where
+    N::Constant: fmt::Display,
+    N::Variable: fmt::Display,
+    N::Operator: fmt::Display,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self.node {
+            Node::Variable(v) => write!(f, "{}", v),
+            Node::Constant(c) => write!(f, "{}", c),
+            Node::Operator(op, _) => write!(f, "{}", op),
         }
     }
 }
 
-impl<N: Node> NodeExt for N {}
+pub trait NodeLike: Debug + PartialEq + Eq + Hash + Clone {
+    type Constant: Debug + PartialEq + Eq + Hash + Clone;
+    type Variable: Debug + PartialEq + Eq + Hash + Clone;
+    type Operator: Debug + PartialEq + Eq + Hash + Clone;
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub struct Expr<N> {
-    pub root: Id,
-    pub nodes: Vec<N>,
+    fn cost(node: &Node<Self, Id>) -> u64;
 }
 
-impl<N> Default for Expr<N> {
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub struct Expr<N: NodeLike> {
+    pub root: Id,
+    pub nodes: Vec<Node<N, Id>>,
+}
+
+impl<N: NodeLike> Default for Expr<N> {
     fn default() -> Self {
         Expr {
             root: 0,
@@ -72,15 +87,15 @@ impl<N> Default for Expr<N> {
     }
 }
 
-impl<N> Expr<N> {
-    pub fn add(&mut self, n: N) -> Id {
+impl<N: NodeLike> Expr<N> {
+    pub fn add(&mut self, n: Node<N, Id>) -> Id {
         let id = self.nodes.len() as Id;
         self.nodes.push(n);
         id
     }
 
     #[inline(always)]
-    pub fn get_node(&self, i: Id) -> &N {
+    pub fn get_node(&self, i: Id) -> &Node<N, Id> {
         &self.nodes[i as usize]
     }
 }
@@ -94,24 +109,18 @@ pub mod tests {
     pub type Name = Rc<str>;
 
     #[derive(Debug, PartialEq, Eq, Hash, Clone)]
-    pub enum TestNode {
-        Const(Name),
-        Var(Name),
-        Op(Name, Vec<Id>),
-    }
+    pub enum TestNode {}
 
-    use TestNode::*;
-
-    impl Node for TestNode {
+    impl NodeLike for TestNode {
         type Constant = Name;
         type Variable = Name;
         type Operator = Name;
 
-        fn cost(&self) -> u64 {
-            match self {
-                Var(_) => 1,
-                Const(_) => 1,
-                Op(op, _) => match op.as_ref() {
+        fn cost(node: &Node<Self, Id>) -> u64 {
+            match node {
+                Node::Variable(_) => 1,
+                Node::Constant(_) => 1,
+                Node::Operator(op, _) => match op.as_ref() {
                     "+" => 5,
                     "*" => 50,
                     "/" => 150,
@@ -119,41 +128,13 @@ pub mod tests {
                 },
             }
         }
-
-        fn to_enum(&self) -> NodeEnum<Self, Id> {
-            match self {
-                Var(v) => NodeEnum::Variable(v),
-                Const(c) => NodeEnum::Constant(c),
-                Op(o, args) => NodeEnum::Operator(o, args),
-            }
-        }
-
-        fn from_enum(node_enum: NodeEnum<Self, Id>) -> Self {
-            match node_enum {
-                NodeEnum::Variable(v) => Var(Rc::clone(v)),
-                NodeEnum::Constant(c) => Const(Rc::clone(c)),
-                NodeEnum::Operator(o, args) => Op(Rc::clone(o), args.to_vec()),
-            }
-        }
     }
 
-    use std::fmt::{Display, Formatter, Result};
-
-    impl Display for TestNode {
-        fn fmt(&self, f: &mut Formatter) -> Result {
-            match self {
-                Var(v) => write!(f, "{}", v),
-                Const(c) => write!(f, "{}", c),
-                Op(o, _) => write!(f, "{}", o),
-            }
-        }
+    pub fn var(v: &str) -> Node<TestNode, Id> {
+        Node::Variable(v.into())
     }
 
-    pub fn var(v: &str) -> TestNode {
-        TestNode::Var(v.into())
-    }
-
-    pub fn op(o: &str, args: Vec<Id>) -> TestNode {
-        TestNode::Op(o.into(), args)
+    pub fn op<Child>(o: &str, args: Vec<Child>) -> Node<TestNode, Child> {
+        Node::Operator(o.into(), args)
     }
 }
