@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use crate::{
     egraph::{AddResult, EGraph},
-    expr::{Expr, Id, Node, IdNode, NodeLike},
+    expr::{Expr, Id, Node, NodeLike},
 };
 
 #[derive(Debug, PartialEq)]

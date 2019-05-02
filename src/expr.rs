@@ -72,6 +72,19 @@ pub trait NodeLike: Debug + PartialEq + Eq + Hash + Clone {
     fn cost(node: &Node<Self, Id>) -> u64;
 }
 
+use std::rc::Rc;
+type RecNodeInner<N> = Node<N, Rc<RecNode<N>>>;
+pub struct RecNode<N: NodeLike> {
+    inner: Rc<RecNodeInner<N>>,
+}
+
+impl<N: NodeLike> From<RecNodeInner<N>> for RecNode<N> {
+    fn from(node: RecNodeInner<N>) -> Self {
+        let inner = Rc::new(node);
+        RecNode { inner }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct Expr<N: NodeLike> {
     pub root: Id,
@@ -88,6 +101,25 @@ impl<N: NodeLike> Default for Expr<N> {
 }
 
 impl<N: NodeLike> Expr<N> {
+    pub fn from_rec_node(r: &RecNode<N>) -> Self {
+        let mut expr = Expr::default();
+        expr.root = expr.add_rec_node(r);
+        expr
+    }
+
+    fn add_rec_node(&mut self, r: &RecNode<N>) -> Id {
+        use Node::*;
+        let node = match r.inner.as_ref() {
+            Constant(c) => Constant(c.clone()),
+            Variable(v) => Variable(v.clone()),
+            Operator(op, args) => {
+                let args = args.into_iter().map(|a| self.add_rec_node(a)).collect();
+                Operator(op.clone(), args)
+            }
+        };
+        self.add(node)
+    }
+
     pub fn add(&mut self, n: Node<N, Id>) -> Id {
         let id = self.nodes.len() as Id;
         self.nodes.push(n);
@@ -106,13 +138,40 @@ pub mod tests {
     use super::*;
     use std::rc::Rc;
 
-    pub type Name = Rc<str>;
+    #[derive(Debug, PartialEq, Eq, Hash, Clone)]
+    pub struct Name(Rc<str>);
+
+    impl<S: Into<Rc<str>>> From<S> for Name {
+        fn from(s: S) -> Self {
+            Name(s.into())
+        }
+    }
+
+    impl std::str::FromStr for Name {
+        type Err = std::convert::Infallible;
+
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            Ok(s.into())
+        }
+    }
+
+    impl fmt::Display for Name {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            write!(f, "{}", self.0)
+        }
+    }
+
+    impl AsRef<str> for Name {
+        fn as_ref(&self) -> &str {
+            &self.0
+        }
+    }
 
     #[derive(Debug, PartialEq, Eq, Hash, Clone)]
     pub enum TestNode {}
 
     impl NodeLike for TestNode {
-        type Constant = Name;
+        type Constant = i32;
         type Variable = Name;
         type Operator = Name;
 

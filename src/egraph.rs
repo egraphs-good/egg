@@ -30,7 +30,6 @@ pub struct AddResult {
 }
 
 impl<N: NodeLike> EGraph<N> {
-
     fn check(&self) {
         assert_eq!(self.nodes.len(), self.leaders.len());
 
@@ -172,7 +171,7 @@ mod tests {
 
     use super::*;
 
-    use crate::expr::tests::{TestNode, op, var};
+    use crate::expr::tests::{op, var, TestNode};
 
     #[test]
     fn simple_add() {

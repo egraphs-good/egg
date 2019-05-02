@@ -1,13 +1,41 @@
-use crate::expr::{Expr, Id, Node, tests::{Name, TestNode}};
+use std::rc::Rc;
+use std::str::FromStr;
+use crate::expr::{RecNode, Node, NodeLike};
+use lalrpop_util::ParseError;
 
-grammar(expr: &mut Expr<TestNode>);
+grammar<N>()
+where
+    N: NodeLike,
+    N::Constant: FromStr,
+    N::Variable: FromStr,
+    N::Operator: FromStr
+;
 
-Ident: Name = r"[a-zA-Z]+" => <>.into();
-Symbol: Name = r"[+=\-*^&$%@!]+" => <>.into();
+extern {
+    type Error = String;
+}
 
-pub Term: Id = {
-    Ident => expr.add(Node::Variable(<>.into())),
-    r"[0-9]+" => expr.add(Node::Constant(<>.into())),
-    "(" <op:Ident> <args:Term*> ")" => expr.add(Node::Operator(op.into(), args)),
-    "(" <op:Symbol> <args:Term*> ")" => expr.add(Node::Operator(op.into(), args)),
+
+Ident: String = r"[a-zA-Z0-9+=\-*^&$%@!]+" => <>.into();
+
+pub Term: RecNode<N> = {
+    <name:Ident> =>? {
+        let c = name.parse::<N::Constant>().map(Node::Constant);
+        let v = name.parse::<N::Variable>().map(Node::Variable);
+        c.or(v)
+            .map(RecNode::from)
+            .map_err(|_| ParseError::User {
+                error: format!("{} is neither constant or variable", name)
+            })
+    },
+    "(" <op:Ident> <args:Term*> ")" =>? {
+        op.parse::<N::Operator>()
+            .map_err(|_| ParseError::User{
+                error: format!("{} is not an operator", op)
+            })
+            .map(|op| {
+                let args = args.into_iter().map(RecNode::from).map(Rc::new).collect();
+                Node::Operator(op, args).into()
+            })
+    },
 };
