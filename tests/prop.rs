@@ -68,14 +68,16 @@ fn prove_something(name: &str, start: &str, goal: &str, rewrites: &[Rewrite<Prop
     let goal_expr = Prop.parse_expr(goal).unwrap();
 
     let (mut egraph, _old_root) = EGraph::from_expr(&start_expr);
-    egraph.dot(&format!("{}-1.dot", name));
+
+    std::fs::create_dir_all("dots").unwrap();
+    egraph.dot(&format!("dots/{}-1.dot", name));
 
     for _ in 0..20 {
         for rw in rewrites {
             rw.run(&mut egraph);
         }
     }
-    egraph.dot(&format!("{}-2.dot", name));
+    egraph.dot(&format!("dots/{}-2.dot", name));
 
     // eprintln!("{:#?}", egraph.nodes);
 
