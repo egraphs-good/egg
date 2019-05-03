@@ -179,7 +179,7 @@ impl<L: Language> EGraph<L> {
         to
     }
 
-    pub fn dot(&self, filename: &str)
+    pub fn dump_dot(&self, filename: &str)
     where
         L::Constant: std::fmt::Display,
         L::Variable: std::fmt::Display,
@@ -188,8 +188,11 @@ impl<L: Language> EGraph<L> {
         use std::fs::File;
         use std::io::prelude::*;
 
+        let filename = format!("dots/{}", filename);
+        std::fs::create_dir_all("dots").unwrap();
+
         let dot = crate::dot::Dot::new(self);
-        let mut file = File::create(filename).unwrap();
+        let mut file = File::create(&filename).unwrap();
         write!(file, "{}", dot).unwrap();
         info!("Writing {}...\n{}", filename, dot);
     }
@@ -216,7 +219,7 @@ mod tests {
         egraph.union(x, y);
         egraph.rebuild();
 
-        egraph.dot("foo.dot");
+        egraph.dump_dot("foo.dot");
 
         assert_eq!(2 + 2, 4);
     }

@@ -282,7 +282,7 @@ mod tests {
             info!("mappings: {:?}", m);
         }
 
-        egraph.dot("simple-match.dot");
+        egraph.dump_dot("simple-match.dot");
 
         use crate::extract::Extractor;
 
