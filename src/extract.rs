@@ -1,8 +1,7 @@
-use std::collections::HashMap;
-
 use crate::{
     egraph::EGraph,
     expr::{Expr, FlatExpr, Id, Language},
+    util::HashMap,
 };
 
 pub type Cost = u64;
@@ -15,7 +14,7 @@ pub struct Extractor<'a, L: Language> {
 impl<'a, L: Language> Extractor<'a, L> {
     pub fn new(egraph: &'a EGraph<L>) -> Self {
         // initialize costs with the maximum value
-        let mut costs = HashMap::new();
+        let mut costs = HashMap::default();
         for id in egraph.classes.keys() {
             costs.insert(*id, Cost::max_value());
         }

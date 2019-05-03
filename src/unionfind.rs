@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use crate::util::{HashMap, HashSet};
 
 #[derive(Debug, Default)]
 pub struct UnionFind {
@@ -85,7 +85,7 @@ impl UnionFind {
     }
 
     pub fn build_sets(&self) -> HashMap<u32, HashSet<u32>> {
-        let mut map: HashMap<u32, HashSet<u32>> = HashMap::new();
+        let mut map: HashMap<u32, HashSet<u32>> = HashMap::default();
 
         for i in 0..self.len() {
             let i = i as u32;
@@ -103,7 +103,7 @@ mod tests {
 
     use super::*;
 
-    use maplit::{hashmap, hashset};
+    use crate::util::{hashmap, hashset};
 
     fn make_union_find(n: u32) -> UnionFind {
         let mut uf = UnionFind::new();
@@ -127,7 +127,9 @@ mod tests {
         }
 
         // make sure build_sets works
-        let expected_sets = (0..n).map(|i| (i, hashset![i])).collect::<HashMap<_, _>>();
+        let expected_sets = (0..n)
+            .map(|i| (i, hashset(&[i])))
+            .collect::<HashMap<_, _>>();
         assert_eq!(uf.build_sets(), expected_sets);
 
         use UnionResult::*;
@@ -148,12 +150,12 @@ mod tests {
         assert_eq!(uf.union(7, 8), SameSet(6));
 
         // check set structure
-        let expected_sets = hashmap! {
-            0 => hashset![0, 1, 2, 3],
-            4 => hashset![4],
-            5 => hashset![5],
-            6 => hashset![6, 7, 8, 9],
-        };
+        let expected_sets = hashmap(&[
+            (0, hashset(&[0, 1, 2, 3])),
+            (4, hashset(&[4])),
+            (5, hashset(&[5])),
+            (6, hashset(&[6, 7, 8, 9])),
+        ]);
         assert_eq!(uf.build_sets(), expected_sets);
 
         // make sure that the set sizes are right

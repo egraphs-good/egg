@@ -1,9 +1,9 @@
 use log::*;
-use std::collections::HashMap;
 
 use crate::{
     egraph::{AddResult, EGraph},
     expr::{Expr, Flat, FlatExpr, Id, Language},
+    util::HashMap,
 };
 
 #[derive(Debug, PartialEq, Clone)]
@@ -85,7 +85,7 @@ impl<'p, 'e, L: Language> PatternSearchContext<'p, 'e, L> {
     }
 
     pub fn search_eclass(&self, eclass: Id) -> Option<PatternMatches<L>> {
-        let initial_mapping = HashMap::new();
+        let initial_mapping = HashMap::default();
         let mappings = self.search_pat(initial_mapping, eclass, self.pattern.root);
         if mappings.len() > 0 {
             Some(PatternMatches {
@@ -214,12 +214,13 @@ mod tests {
 
     use super::*;
 
-    use crate::expr::{
-        tests::{op, var},
-        QuestionMarkName,
+    use crate::{
+        expr::{
+            tests::{op, var},
+            QuestionMarkName,
+        },
+        util::hashmap,
     };
-
-    use maplit::hashmap;
 
     #[test]
     fn simple_match() {
@@ -267,10 +268,7 @@ mod tests {
         egraph.rebuild();
         assert_eq!(applications.len(), 2);
 
-        let expected_mappings = vec![
-            hashmap! {a.clone() => x, b.clone() => y},
-            hashmap! {a.clone() => z, b.clone() => w},
-        ];
+        let expected_mappings = vec![hashmap(&[(&a, x), (&b, y)]), hashmap(&[(&a, z), (&b, w)])];
 
         // for now, I have to check mappings both ways
         if matches.mappings != expected_mappings {

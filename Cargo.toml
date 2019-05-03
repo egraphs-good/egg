@@ -7,9 +7,9 @@ edition = "2018"
 [dependencies]
 symbolic_expressions = "5.0.3"
 log = "0.4.0"
+fxhash = "0.2.1" # fast, deterministic hashing
 
 [dev-dependencies]
 env_logger = "0.6.1"
-maplit = "1"
 strum = "0.15"
 strum_macros = "0.15"

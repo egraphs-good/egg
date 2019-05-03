@@ -1,9 +1,9 @@
 use log::*;
-use std::collections::HashMap;
 
 use crate::{
     expr::{Expr, FlatExpr, Id, Language},
     unionfind::{UnionFind, UnionResult},
+    util::HashMap,
 };
 
 #[derive(Debug)]
@@ -142,7 +142,7 @@ impl<L: Language> EGraph<L> {
             }
         }
 
-        let mut new_classes = HashMap::<Id, Vec<_>>::new();
+        let mut new_classes = HashMap::<Id, Vec<_>>::default();
         for (node, leader) in self.nodes.iter() {
             new_classes.entry(*leader).or_default().push(node.clone())
         }
