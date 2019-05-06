@@ -96,8 +96,9 @@ where
         Ok(parser.pattern)
     }
 
-    fn parse_rewrite(&self, lhs: &str, rhs: &str) -> Result<Rewrite<Self>> {
+    fn parse_rewrite(&self, name: &str, lhs: &str, rhs: &str) -> Result<Rewrite<Self>> {
         Ok(Rewrite {
+            name: name.into(),
             lhs: self.parse_pattern(lhs)?,
             rhs: self.parse_pattern(rhs)?,
         })

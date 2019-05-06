@@ -1,9 +1,10 @@
 use log::*;
+use std::time::Instant;
 
 use crate::{
     expr::{Expr, FlatExpr, Id, Language},
     unionfind::{UnionFind, UnionResult},
-    util::HashMap,
+    util::{HashMap, HashSet},
 };
 
 #[derive(Debug)]
@@ -24,6 +25,7 @@ impl<L: Language> Default for EGraph<L> {
     }
 }
 
+#[derive(Debug)]
 pub struct AddResult {
     pub was_there: bool,
     pub id: Id,
@@ -67,14 +69,18 @@ impl<L: Language> EGraph<L> {
 
     pub fn get_eclass(&self, eclass_id: Id) -> &[Expr<L, Id>] {
         self.classes
-            .get(&eclass_id)
+            .get(&self.just_find(eclass_id))
             .unwrap_or_else(|| panic!("Couldn't find eclass {:?}", eclass_id))
     }
 
     pub fn equivs(&self, expr1: &FlatExpr<L>, expr2: &FlatExpr<L>) -> Vec<Id> {
         use crate::pattern::FlatPattern;
         let matches1 = FlatPattern::from_flat_expr(expr1).search(self);
+        info!("Matches1: {:?}", matches1);
+
         let matches2 = FlatPattern::from_flat_expr(expr2).search(self);
+        info!("Matches2: {:?}", matches2);
+
         let mut equiv_eclasses = Vec::new();
 
         for m1 in &matches1 {
@@ -96,8 +102,13 @@ impl<L: Language> EGraph<L> {
         // make sure that the enodes children are already in the set
         if cfg!(debug_assertions) {
             for &id in enode.children() {
-                if id >= self.len() as u32 {
-                    panic!("Found id {} by my len is only {}", id, self.len());
+                if id >= self.leaders.len() as u32 {
+                    panic!(
+                        "Expr: {:?}\n  Found id {} but leaders.len() = {}",
+                        enode,
+                        id,
+                        self.leaders.len()
+                    );
                 }
             }
         }
@@ -108,7 +119,8 @@ impl<L: Language> EGraph<L> {
                 let next_id = self.leaders.make_set();
                 trace!("Added  {:4}: {:?}", next_id, enode);
                 self.classes.insert(next_id, vec![enode.clone()]);
-                self.nodes.insert(enode, next_id);
+                let old = self.nodes.insert(enode, next_id);
+                assert_eq!(old, None);
                 AddResult {
                     was_there: false,
                     id: next_id,
@@ -131,22 +143,80 @@ impl<L: Language> EGraph<L> {
         self.leaders.just_find(id)
     }
 
-    pub fn rebuild(&mut self) {
-        // TODO don't copy so much
-        self.nodes.clear();
-        for (leader, class) in &self.classes {
+    fn rebuild_once(&mut self) -> u32 {
+        let mut new_nodes = HashMap::default();
+        let mut n_unions = 0;
+        // TODO clone here is iffy
+        for (&leader, class) in self.classes.clone().iter() {
             for node in class {
                 let n = node.clone().map_children(|id| self.leaders.just_find(id));
-                let leader = self.just_find(*leader);
-                self.nodes.insert(n, leader);
+
+                if let Some(old_leader) = new_nodes.insert(n, leader) {
+                    if old_leader != leader {
+                        self.union(leader, old_leader);
+                        n_unions += 1;
+                    }
+                }
+            }
+        }
+        self.nodes = new_nodes;
+        n_unions
+    }
+
+    fn rebuild_classes(&mut self) -> usize {
+        let mut trimmed = 0;
+        let mut new_classes = HashMap::<Id, Vec<_>>::default();
+        for (&leader, class) in self.classes.iter() {
+            let mut new_class = HashSet::default();
+            for node in class {
+                new_class.insert(node.clone().map_children(|id| self.leaders.just_find(id)));
+            }
+            trimmed += class.len() - new_class.len();
+            new_classes.insert(leader, new_class.into_iter().collect());
+        }
+
+        self.classes = new_classes;
+        trimmed
+    }
+
+    pub fn rebuild(&mut self) {
+        let old_hc_size = self.nodes.len();
+        let old_n_eclasses = self.classes.len();
+        let mut n_rebuilds = 0;
+        let mut n_unions = 0;
+
+        let start = Instant::now();
+
+        loop {
+            let u = self.rebuild_once();
+            n_unions += u;
+            n_rebuilds += 1;
+            if u == 0 {
+                break;
             }
         }
 
-        let mut new_classes = HashMap::<Id, Vec<_>>::default();
-        for (node, leader) in self.nodes.iter() {
-            new_classes.entry(*leader).or_default().push(node.clone())
-        }
-        self.classes = new_classes;
+        let trimmed_nodes = self.rebuild_classes();
+
+        let elapsed = start.elapsed();
+
+        info!(
+            concat!(
+                "REBUILT! {} times in {}.{:03}s\n",
+                "  Old: hc size {}, eclasses: {}\n",
+                "  New: hc size {}, eclasses: {}\n",
+                "  unions: {}, trimmed nodes: {}"
+            ),
+            n_rebuilds,
+            elapsed.as_secs(),
+            elapsed.subsec_millis(),
+            old_hc_size,
+            old_n_eclasses,
+            self.nodes.len(),
+            self.classes.len(),
+            n_unions,
+            trimmed_nodes,
+        );
     }
 
     pub fn union(&mut self, id1: Id, id2: Id) -> Id {
@@ -194,7 +264,7 @@ impl<L: Language> EGraph<L> {
         let dot = crate::dot::Dot::new(self);
         let mut file = File::create(&filename).unwrap();
         write!(file, "{}", dot).unwrap();
-        info!("Writing {}...\n{}", filename, dot);
+        trace!("Writing {}...\n{}", filename, dot);
     }
 }
 

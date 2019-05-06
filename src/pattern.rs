@@ -43,6 +43,7 @@ impl<L: Language> FlatPattern<L> {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Rewrite<L: Language> {
+    pub name: String,
     pub lhs: FlatPattern<L>,
     pub rhs: FlatPattern<L>,
 }
@@ -50,20 +51,25 @@ pub struct Rewrite<L: Language> {
 impl<L: Language> Rewrite<L> {
     pub fn flip(&self) -> Self {
         Rewrite {
+            name: format!("{}-flipped", self.name),
             lhs: self.rhs.clone(),
             rhs: self.lhs.clone(),
         }
     }
 
     pub fn run(&self, egraph: &mut EGraph<L>) {
+        debug!("Running rewrite '{}'", self.name);
         let ctx = self.lhs.make_search_context(&egraph);
         let matches = ctx.search();
 
+        debug!(
+            "Ran the rewrite '{}', found {} matches",
+            self.name,
+            matches.len()
+        );
         for m in matches {
             m.apply(&self.rhs, egraph);
         }
-
-        egraph.rebuild();
     }
 }
 
@@ -86,7 +92,7 @@ impl<'p, 'e, L: Language> PatternSearchContext<'p, 'e, L> {
 
     pub fn search_eclass(&self, eclass: Id) -> Option<PatternMatches<L>> {
         let initial_mapping = HashMap::default();
-        let mappings = self.search_pat(initial_mapping, eclass, self.pattern.root);
+        let mappings = self.search_pat(0, initial_mapping, eclass, self.pattern.root);
         if mappings.len() > 0 {
             Some(PatternMatches {
                 eclass: eclass,
@@ -97,8 +103,18 @@ impl<'p, 'e, L: Language> PatternSearchContext<'p, 'e, L> {
         }
     }
 
-    fn search_pat(&self, mut var_mapping: WildMap<L>, eid: Id, pid: Id) -> Vec<WildMap<L>> {
+    fn search_pat(
+        &self,
+        depth: usize,
+        mut var_mapping: WildMap<L>,
+        eid: Id,
+        pid: Id,
+    ) -> Vec<WildMap<L>> {
+        let indent = "    ".repeat(depth);
         let pn = self.pattern.get_node(pid);
+
+        trace!("{}search_pat {:2?} -> {}", indent, pn, eid);
+        trace!("{} class: {:?}", indent, self.egraph.get_eclass(eid));
 
         let pn = match pn {
             Pattern::Wildcard(w) => {
@@ -108,11 +124,13 @@ impl<'p, 'e, L: Language> PatternSearchContext<'p, 'e, L> {
                     }
                     Some(&prev_mapped_eclass) => {
                         if eid != prev_mapped_eclass {
+                            trace!("{} Failed to bind wildcard {:?}", indent, w);
                             return vec![];
                         }
                     }
                 }
 
+                trace!("{} Bound wildcard {:?} to {}", indent, w, eid);
                 return vec![var_mapping];
             }
             Pattern::Expr(e) => e,
@@ -145,7 +163,7 @@ impl<'p, 'e, L: Language> PatternSearchContext<'p, 'e, L> {
                     for (pa, ea) in pargs.into_iter().zip(eargs) {
                         std::mem::swap(&mut mappings1, &mut mappings2);
                         for m in mappings1.drain(..) {
-                            mappings2.extend(self.search_pat(m, *ea, *pa));
+                            mappings2.extend(self.search_pat(depth + 1, m, *ea, *pa));
                         }
                     }
                     new_mappings.extend(mappings2);
@@ -154,10 +172,12 @@ impl<'p, 'e, L: Language> PatternSearchContext<'p, 'e, L> {
             }
         }
 
+        trace!("{} Found {} mappings", indent, new_mappings.len());
         new_mappings
     }
 }
 
+#[derive(Debug)]
 pub struct PatternMatches<L: Language> {
     pub eclass: Id,
     pub mappings: Vec<WildMap<L>>,
@@ -169,10 +189,17 @@ impl<L: Language> PatternMatches<L> {
         self.mappings
             .iter()
             .filter_map(|mapping| {
-                let pattern_root = self.apply_rec(pattern, egraph, mapping, pattern.root);
+                let before_size = egraph.len();
+                let pattern_root = self.apply_rec(0, pattern, egraph, mapping, pattern.root);
+                let leader = egraph.union(self.eclass, pattern_root.id);
                 if !pattern_root.was_there {
-                    Some(egraph.union(self.eclass, pattern_root.id))
+                    Some(leader)
                 } else {
+                    // if the pattern root `was_there`, then nothing
+                    // was actually done in this application (it was
+                    // already in the egraph), so we can check to make
+                    // sure the egraph isn't any bigger
+                    assert_eq!(before_size, egraph.len());
                     None
                 }
             })
@@ -181,6 +208,7 @@ impl<L: Language> PatternMatches<L> {
 
     fn apply_rec(
         &self,
+        depth: usize,
         pattern: &FlatPattern<L>,
         egraph: &mut EGraph<L>,
         mapping: &WildMap<L>,
@@ -188,9 +216,9 @@ impl<L: Language> PatternMatches<L> {
     ) -> AddResult {
         let pattern_node = pattern.get_node(pid);
 
-        trace!("apply_rec {:?}", pattern_node);
+        trace!("{}apply_rec {:2?}", "    ".repeat(depth), pattern_node);
 
-        match pattern_node {
+        let result = match pattern_node {
             Pattern::Wildcard(w) => AddResult {
                 was_there: true,
                 id: mapping[&w],
@@ -199,13 +227,25 @@ impl<L: Language> PatternMatches<L> {
                 Expr::Constant(_) => egraph.add(e.clone()),
                 Expr::Variable(_) => egraph.add(e.clone()),
                 Expr::Operator(_, _) => {
-                    let n = e
-                        .clone()
-                        .map_children(|arg| self.apply_rec(pattern, egraph, mapping, arg).id);
-                    egraph.add(n)
+                    // use the `was_there` field to keep track if we
+                    // ever added anything to the egraph during this
+                    // application
+                    let mut everything_was_there = true;
+                    let n = e.clone().map_children(|arg| {
+                        let add = self.apply_rec(depth + 1, pattern, egraph, mapping, arg);
+                        everything_was_there &= add.was_there;
+                        add.id
+                    });
+                    trace!("{}adding: {:?}", "    ".repeat(depth), n);
+                    let mut op_add = egraph.add(n);
+                    op_add.was_there &= everything_was_there;
+                    op_add
                 }
             },
-        }
+        };
+
+        trace!("{}result: {:?}", "    ".repeat(depth), result);
+        result
     }
 }
 
@@ -242,6 +282,7 @@ mod tests {
         let b: QuestionMarkName = "?b".parse().unwrap();
 
         let commute_plus = crate::pattern::Rewrite {
+            name: "commute_plus".into(),
             lhs: FlatPattern {
                 root: 0,
                 nodes: vec![

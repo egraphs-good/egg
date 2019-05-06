@@ -44,13 +44,15 @@ impl Language for Prop {
 
 macro_rules! rule {
     ($name:ident, $left:expr, $right:expr) => {
+        #[allow(dead_code)]
         fn $name() -> Rewrite<Prop> {
             trace!(
                 "Building rule {} ==> {}",
                 stringify!($left),
                 stringify!($right)
             );
-            Prop.parse_rewrite($left, $right).unwrap()
+            Prop.parse_rewrite(stringify!($name), $left, $right)
+                .unwrap()
         }
     };
 }
@@ -59,13 +61,20 @@ rule! {def_imply,   "(-> ?a ?b)",       "(| (~ ?a) ?b)"          }
 rule! {double_neg,  "(~ (~ ?a))",       "?a"                     }
 rule! {assoc_or,    "(| ?a (| ?b ?c))", "(| (| ?a ?b) ?c)"       }
 rule! {dist_and_or, "(& ?a (| ?b ?c))", "(| (& ?a ?b) (& ?a ?c))"}
+rule! {dist_or_and, "(| ?a (& ?b ?c))", "(& (| ?a ?b) (| ?a ?c))"}
 rule! {comm_or,     "(| ?a ?b)",        "(| ?b ?a)"              }
+rule! {comm_and,    "(& ?a ?b)",        "(& ?b ?a)"              }
+rule! {lem,         "(| ?a (~ ?a))",    "T"                      }
+rule! {or_true,     "(| ?a T)",         "T"                      }
+rule! {and_true,    "(& ?a T)",         "?a"                     }
+rule! {contrapositive, "(-> ?a ?b)",    "(-> (~ ?b) (~ ?a))"     }
+rule! {lem_imply, "(& (-> ?a ?b) (-> (~ ?a) ?c))", "(| ?b ?c)"}
 
-fn prove_something(name: &str, start: &str, goal: &str, rewrites: &[Rewrite<Prop>]) {
+fn prove_something(name: &str, start: &str, rewrites: &[Rewrite<Prop>], goals: &[&str]) {
     let _ = env_logger::builder().is_test(true).try_init();
 
     let start_expr = Prop.parse_expr(start).unwrap();
-    let goal_expr = Prop.parse_expr(goal).unwrap();
+    let goal_exprs: Vec<_> = goals.iter().map(|g| Prop.parse_expr(g).unwrap()).collect();
 
     let (mut egraph, _old_root) = EGraph::from_expr(&start_expr);
 
@@ -75,43 +84,66 @@ fn prove_something(name: &str, start: &str, goal: &str, rewrites: &[Rewrite<Prop
         for rw in rewrites {
             rw.run(&mut egraph);
         }
+        egraph.rebuild();
     }
     egraph.dump_dot(&format!("{}-2.dot", name));
 
-    // eprintln!("{:#?}", egraph.nodes);
-
-    let equivs = egraph.equivs(&start_expr, &goal_expr);
-    assert!(equivs.len() > 0);
+    for (i, (goal_expr, goal_str)) in goal_exprs.iter().zip(goals).enumerate() {
+        info!("Trying to prove goal {}: {}", i, goal_str);
+        let equivs = egraph.equivs(&start_expr, &goal_expr);
+        if equivs.len() == 0 {
+            panic!("Couldn't prove goal {}: {}", i, goal_str);
+        }
+    }
 }
 
 #[test]
 fn prove_contrapositive() {
-    // a -> b
-    // ~a | b
-    // ~a | ~~b
-    // ~~b | ~a
-    // ~b -> ~a
+    let _ = env_logger::builder().is_test(true).try_init();
     let rules = &[
         def_imply(),
         def_imply().flip(),
-        double_neg(),
         double_neg().flip(),
         comm_or(),
     ];
-    prove_something("contrapositive", "(-> x y)", "(-> (~ y) (~ x))", rules);
+    prove_something(
+        "contrapositive",
+        "(-> x y)",
+        rules,
+        &[
+            "(-> x y)",
+            "(| (~ x) y)",
+            "(| (~ x) (~ (~ y)))",
+            "(| (~ (~ y)) (~ x))",
+            "(-> (~ y) (~ x))",
+        ],
+    );
 }
 
-#[ignore = "failing"]
 #[test]
 fn prove_chain() {
+    let _ = env_logger::builder().is_test(true).try_init();
     let rules = &[
+        // rules needed for contrapositive
         def_imply(),
         def_imply().flip(),
-        double_neg(),
         double_neg().flip(),
         comm_or(),
-        assoc_or(),
-        dist_and_or(),
+        // and some others
+        comm_and(),
+        lem_imply(),
     ];
-    prove_something("chain", "(& (-> x y) (-> y z))", "(-> y z)", rules);
+    prove_something(
+        "chain",
+        "(& (-> x y) (-> y z))",
+        rules,
+        &[
+            "(& (-> x y) (-> y z))",
+            "(& (-> (~ y) (~ x)) (-> y z))",
+            "(& (-> y z)         (-> (~ y) (~ x)))",
+            "(| z (~ x))",
+            "(| (~ x) z)",
+            "(-> x z)",
+        ],
+    );
 }
