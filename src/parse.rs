@@ -54,13 +54,18 @@ where
 
     fn parse_term(&mut self, sexp: &Sexp) -> Result<Id> {
         match sexp {
-            Sexp::String(s) => s
-                .parse::<L::Wildcard>()
-                .map(Pattern::Wildcard)
-                .or_else(|_| s.parse().map(|c| Pattern::Expr(Expr::Constant(c))))
-                .or_else(|_| s.parse().map(|v| Pattern::Expr(Expr::Variable(v))))
-                .map(|p| self.pattern.add(p))
-                .map_err(|_| ParseError("bad".into())),
+            Sexp::String(s) => {
+                if s.trim() != s || s.is_empty() {
+                    panic!("There's whitespace!")
+                }
+                s.parse::<L::Wildcard>()
+                    .map(Pattern::Wildcard)
+                    .or_else(|_| s.parse().map(|c| Pattern::Expr(Expr::Constant(c))))
+                    .or_else(|_| s.parse().map(|v| Pattern::Expr(Expr::Variable(v))))
+                    .map(|p| self.pattern.add(p))
+                    .map_err(|_| ParseError("bad".into()))
+            }
+
             Sexp::List(vec) => {
                 assert!(vec.len() > 0);
                 let mut sexps = vec.iter();
@@ -68,7 +73,7 @@ where
                 let op = match sexps.next().unwrap() {
                     Sexp::String(s) => s
                         .parse::<L::Operator>()
-                        .map_err(|_| ParseError("bad op".into()))?,
+                        .map_err(|_| ParseError(format!("bad op: {}", s)))?,
                     op_sexp => return Err(ParseError(format!("expected op, got {}", op_sexp))),
                 };
 
@@ -90,9 +95,10 @@ where
     Self::Wildcard: FromStr,
 {
     fn parse_pattern(&self, s: &str) -> Result<FlatPattern<Self>> {
-        let sexp = parse_str(s)?;
+        let sexp = parse_str(s.trim())?;
         let mut parser = Parser::new();
         parser.pattern.root = parser.parse_term(&sexp)?;
+        assert!(parser.pattern.nodes.len() > 0);
         Ok(parser.pattern)
     }
 
