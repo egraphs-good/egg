@@ -13,3 +13,11 @@ fxhash = "0.2.1" # fast, deterministic hashing
 env_logger = "0.6.1"
 strum = "0.15"
 strum_macros = "0.15"
+ordered-float = "1"
+
+[profile.test]
+debug = true
+opt-level = 1
+
+[profile.release]
+debug = true

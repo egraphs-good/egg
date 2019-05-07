@@ -91,7 +91,6 @@ pub struct PatternSearchContext<'p, 'e, L: Language> {
 }
 
 impl<'p, 'e, L: Language> PatternSearchContext<'p, 'e, L> {
-
     pub fn search(&self) -> Vec<PatternMatches<L>> {
         self.egraph
             .classes
@@ -102,7 +101,8 @@ impl<'p, 'e, L: Language> PatternSearchContext<'p, 'e, L> {
 
     pub fn search_with_name(&self, _name: &str) -> Vec<PatternMatches<L>> {
         // let mut skips = 0;
-        let matches = self.egraph
+        let matches = self
+            .egraph
             .classes
             .keys()
             .filter_map(|eclass_id| {
@@ -196,8 +196,7 @@ impl<'p, 'e, L: Language> PatternSearchContext<'p, 'e, L> {
                                 "  exp: {:?}\n",
                                 "  pat: {:?}"
                             ),
-                            en,
-                            pn
+                            en, pn
                         );
                     }
 

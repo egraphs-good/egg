@@ -12,7 +12,7 @@ fn init_logger() {
     let _ = env_logger::builder().is_test(true).try_init();
 }
 
-pub(crate) mod util {
+pub mod util {
     pub type HashMap<K, V> = fxhash::FxHashMap<K, V>;
     pub type HashSet<K> = fxhash::FxHashSet<K>;
 

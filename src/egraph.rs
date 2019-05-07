@@ -1,6 +1,6 @@
 use log::*;
-use std::time::Instant;
 use std::cell::RefCell;
+use std::time::Instant;
 
 use crate::{
     expr::{Expr, FlatExpr, Id, Language},
@@ -45,7 +45,11 @@ pub struct EClass<L: Language> {
 impl<L: Language> EClass<L> {
     fn new(id: Id, nodes: Vec<Expr<L, Id>>) -> Self {
         let done_rules = RefCell::new(HashSet::default());
-        EClass { id, nodes, done_rules }
+        EClass {
+            id,
+            nodes,
+            done_rules,
+        }
     }
     pub fn len(&self) -> usize {
         self.nodes.len()
@@ -64,7 +68,6 @@ impl<L: Language> EClass<L> {
     }
 
     pub fn combine(self, other: Self, id: Id) -> Self {
-
         let mut less_nodes = self.nodes;
         let mut more_nodes = other.nodes;
 
@@ -92,7 +95,6 @@ impl<L: Language> EClass<L> {
             nodes: more_nodes,
             done_rules: more_rules,
         }
-
     }
 }
 

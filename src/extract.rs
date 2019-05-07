@@ -1,5 +1,5 @@
 use crate::{
-    egraph::{EGraph, EClass},
+    egraph::{EClass, EGraph},
     expr::{Expr, FlatExpr, Id, Language},
     util::HashMap,
 };
