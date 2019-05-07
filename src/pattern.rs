@@ -1,4 +1,5 @@
 use log::*;
+use std::time::Instant;
 
 use crate::{
     egraph::{AddResult, EGraph},
@@ -60,16 +61,24 @@ impl<L: Language> Rewrite<L> {
     pub fn run(&self, egraph: &mut EGraph<L>) {
         debug!("Running rewrite '{}'", self.name);
         let ctx = self.lhs.make_search_context(&egraph);
-        let matches = ctx.search();
-
+        let matches = ctx.search_with_name(&self.name);
         debug!(
             "Ran the rewrite '{}', found {} matches",
             self.name,
             matches.len()
         );
+
+        let start = Instant::now();
         for m in matches {
             m.apply(&self.rhs, egraph);
         }
+        let elapsed = start.elapsed();
+        debug!(
+            "Applied rewrite {} in {}.{:03}",
+            self.name,
+            elapsed.as_secs(),
+            elapsed.subsec_millis()
+        );
     }
 }
 
@@ -82,12 +91,35 @@ pub struct PatternSearchContext<'p, 'e, L: Language> {
 }
 
 impl<'p, 'e, L: Language> PatternSearchContext<'p, 'e, L> {
+
     pub fn search(&self) -> Vec<PatternMatches<L>> {
         self.egraph
             .classes
             .keys()
             .filter_map(|&eclass_id| self.search_eclass(eclass_id))
             .collect()
+    }
+
+    pub fn search_with_name(&self, name: &str) -> Vec<PatternMatches<L>> {
+        let mut skips = 0;
+        let matches = self.egraph
+            .classes
+            .keys()
+            .filter_map(|eclass_id| {
+                let eclass = &self.egraph.classes[&eclass_id];
+                if eclass.is_done(name) {
+                    skips += 1;
+                    None
+                } else {
+                    eclass.mark_as_done(name);
+                    self.search_eclass(*eclass_id)
+                }
+            })
+            .collect();
+        if skips > 0 {
+            warn!("Skipped searching {} eclasses", skips);
+        }
+        matches
     }
 
     pub fn search_eclass(&self, eclass: Id) -> Option<PatternMatches<L>> {
@@ -138,7 +170,7 @@ impl<'p, 'e, L: Language> PatternSearchContext<'p, 'e, L> {
 
         let mut new_mappings = Vec::new();
 
-        for en in self.egraph.get_eclass(eid) {
+        for en in self.egraph.get_eclass(eid).iter() {
             use Expr::*;
             match (pn, en) {
                 (Variable(pv), Variable(ev)) => {
@@ -155,7 +187,17 @@ impl<'p, 'e, L: Language> PatternSearchContext<'p, 'e, L> {
                     if po != eo {
                         continue;
                     }
-                    assert_eq!(pn.children().len(), en.children().len());
+                    if pn.children().len() != en.children().len() {
+                        panic!(
+                            concat!(
+                                "Different length children in pattern and expr\n",
+                                "  exp: {:?}\n",
+                                "  pat: {:?}"
+                            ),
+                            en,
+                            pn
+                        );
+                    }
 
                     let mut mappings1 = vec![];
                     let mut mappings2 = vec![var_mapping.clone()];

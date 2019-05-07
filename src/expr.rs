@@ -2,6 +2,8 @@ use std::fmt::{self, Debug};
 use std::hash::Hash;
 use std::rc::Rc;
 
+use crate::unionfind::UnionFind;
+
 pub type Id = u32;
 
 pub type IdNode<L> = Expr<L, Id>;
@@ -39,6 +41,12 @@ impl<L: Language, Child> Expr<L, Child> {
 
     pub fn symbol(&self) -> Symbol<L, Child> {
         Symbol { node: self }
+    }
+}
+
+impl<L: Language> Expr<L, Id> {
+    pub fn update_ids(&self, unionfind: &UnionFind) -> Self {
+        self.map_children(|id| unionfind.just_find(id))
     }
 }
 

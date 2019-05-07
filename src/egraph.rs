@@ -1,5 +1,6 @@
 use log::*;
 use std::time::Instant;
+use std::cell::RefCell;
 
 use crate::{
     expr::{Expr, FlatExpr, Id, Language},
@@ -12,7 +13,8 @@ pub struct EGraph<L: Language> {
     // TODO no pub
     pub nodes: HashMap<Expr<L, Id>, Id>,
     pub leaders: UnionFind,
-    pub classes: HashMap<Id, Vec<Expr<L, Id>>>,
+    pub classes: HashMap<Id, EClass<L>>,
+    unions_since_rebuild: usize,
 }
 
 impl<L: Language> Default for EGraph<L> {
@@ -21,6 +23,7 @@ impl<L: Language> Default for EGraph<L> {
             nodes: HashMap::default(),
             leaders: UnionFind::default(),
             classes: HashMap::default(),
+            unions_since_rebuild: 0,
         }
     }
 }
@@ -29,6 +32,68 @@ impl<L: Language> Default for EGraph<L> {
 pub struct AddResult {
     pub was_there: bool,
     pub id: Id,
+}
+
+#[derive(Debug, Clone)]
+pub struct EClass<L: Language> {
+    id: Id,
+    nodes: Vec<Expr<L, Id>>,
+    // refcell because, conceptually, this doesn't modify the egraph
+    done_rules: RefCell<HashSet<String>>,
+}
+
+impl<L: Language> EClass<L> {
+    fn new(id: Id, nodes: Vec<Expr<L, Id>>) -> Self {
+        let done_rules = RefCell::new(HashSet::default());
+        EClass { id, nodes, done_rules }
+    }
+    pub fn len(&self) -> usize {
+        self.nodes.len()
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &Expr<L, Id>> {
+        self.nodes.iter()
+    }
+
+    pub fn mark_as_done(&self, s: &str) {
+        self.done_rules.borrow_mut().insert(s.into());
+    }
+
+    pub fn is_done(&self, s: &str) -> bool {
+        self.done_rules.borrow_mut().contains(s)
+    }
+
+    pub fn combine(self, other: Self, id: Id) -> Self {
+
+        let mut less_nodes = self.nodes;
+        let mut more_nodes = other.nodes;
+
+        // make sure less nodes is actually smaller
+        if more_nodes.len() < less_nodes.len() {
+            std::mem::swap(&mut less_nodes, &mut more_nodes);
+        }
+
+        more_nodes.extend(less_nodes);
+
+        let mut less_rules = self.done_rules;
+        let mut more_rules = other.done_rules;
+
+        // same with rules to perform the intersection
+        if more_rules.borrow().len() < less_rules.borrow().len() {
+            std::mem::swap(&mut less_rules, &mut more_rules);
+        }
+
+        for rule in less_rules.borrow().iter() {
+            more_rules.borrow_mut().remove(rule);
+        }
+
+        EClass {
+            id: id,
+            nodes: more_nodes,
+            done_rules: more_rules,
+        }
+
+    }
 }
 
 impl<L: Language> EGraph<L> {
@@ -67,7 +132,7 @@ impl<L: Language> EGraph<L> {
         self.nodes.len()
     }
 
-    pub fn get_eclass(&self, eclass_id: Id) -> &[Expr<L, Id>] {
+    pub fn get_eclass(&self, eclass_id: Id) -> &EClass<L> {
         self.classes
             .get(&self.just_find(eclass_id))
             .unwrap_or_else(|| panic!("Couldn't find eclass {:?}", eclass_id))
@@ -118,7 +183,8 @@ impl<L: Language> EGraph<L> {
             None => {
                 let next_id = self.leaders.make_set();
                 trace!("Added  {:4}: {:?}", next_id, enode);
-                self.classes.insert(next_id, vec![enode.clone()]);
+                self.classes
+                    .insert(next_id, EClass::new(next_id, vec![enode.clone()]));
                 let old = self.nodes.insert(enode, next_id);
                 assert_eq!(old, None);
                 AddResult {
@@ -143,21 +209,25 @@ impl<L: Language> EGraph<L> {
         self.leaders.just_find(id)
     }
 
-    fn rebuild_once(&mut self) -> u32 {
+    fn rebuild_once(&mut self) -> usize {
         let mut new_nodes = HashMap::default();
-        let mut n_unions = 0;
-        // TODO clone here is iffy
-        for (&leader, class) in self.classes.clone().iter() {
-            for node in class {
-                let n = node.clone().map_children(|id| self.leaders.just_find(id));
+        let mut to_union = Vec::new();
+
+        for (&leader, class) in self.classes.iter() {
+            for node in &class.nodes {
+                let n = node.update_ids(&self.leaders);
 
                 if let Some(old_leader) = new_nodes.insert(n, leader) {
                     if old_leader != leader {
-                        self.union(leader, old_leader);
-                        n_unions += 1;
+                        to_union.push((leader, old_leader));
                     }
                 }
             }
+        }
+
+        let n_unions = to_union.len();
+        for (id1, id2) in to_union {
+            self.union(id1, id2);
         }
         self.nodes = new_nodes;
         n_unions
@@ -165,14 +235,16 @@ impl<L: Language> EGraph<L> {
 
     fn rebuild_classes(&mut self) -> usize {
         let mut trimmed = 0;
-        let mut new_classes = HashMap::<Id, Vec<_>>::default();
-        for (&leader, class) in self.classes.iter() {
-            let mut new_class = HashSet::default();
-            for node in class {
-                new_class.insert(node.clone().map_children(|id| self.leaders.just_find(id)));
+        let mut new_classes = HashMap::default();
+        for (leader, class) in self.classes.drain() {
+            let mut new_nodes = HashSet::default();
+            for node in class.nodes.iter() {
+                new_nodes.insert(node.update_ids(&self.leaders));
             }
-            trimmed += class.len() - new_class.len();
-            new_classes.insert(leader, new_class.into_iter().collect());
+            trimmed += class.len() - new_nodes.len();
+            let mut new_class = EClass::new(leader, new_nodes.into_iter().collect());
+            new_class.done_rules = class.done_rules;
+            new_classes.insert(leader, new_class);
         }
 
         self.classes = new_classes;
@@ -180,6 +252,13 @@ impl<L: Language> EGraph<L> {
     }
 
     pub fn rebuild(&mut self) {
+        if self.unions_since_rebuild == 0 {
+            info!("Skipping rebuild!");
+            return;
+        }
+
+        self.unions_since_rebuild = 0;
+
         let old_hc_size = self.nodes.len();
         let old_n_eclasses = self.classes.len();
         let mut n_rebuilds = 0;
@@ -229,16 +308,12 @@ impl<L: Language> EGraph<L> {
             UnionResult::Unioned { from, to } => (from, to),
         };
 
-        // remove the smaller class, merging into the bigger class
+        self.unions_since_rebuild += 1;
+
         let from_class = self.classes.remove(&from).unwrap();
         let to_class = self.classes.remove(&to).unwrap();
 
-        let mut new_nodes = Vec::with_capacity(from_class.len() + to_class.len());
-        for node in from_class.into_iter().chain(to_class) {
-            new_nodes.push(node.map_children(|id| self.leaders.find(id)));
-        }
-
-        self.classes.insert(to, new_nodes);
+        self.classes.insert(to, from_class.combine(to_class, to));
 
         self.check();
         trace!("Unioned {} -> {}", from, to);

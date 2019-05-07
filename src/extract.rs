@@ -1,5 +1,5 @@
 use crate::{
-    egraph::EGraph,
+    egraph::{EGraph, EClass},
     expr::{Expr, FlatExpr, Id, Language},
     util::HashMap,
 };
@@ -71,7 +71,7 @@ impl<'a, L: Language> Extractor<'a, L> {
         }
     }
 
-    fn make_pass(&self, eclass: &[Expr<L, Id>]) -> Cost {
+    fn make_pass(&self, eclass: &EClass<L>) -> Cost {
         eclass
             .iter()
             .map(|n| self.node_total_cost(n))
