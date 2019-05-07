@@ -62,23 +62,6 @@ impl<'a, L: Language> Extractor<'a, L> {
         &self.costs[&eclass]
     }
 
-    // fn find_best_rec(&self, eclass: Id, expr: &mut FlatExpr<L>) -> Id {
-    //     unimplemented!()
-    //     let best_node = self
-    //         .egraph
-    //         .get_eclass(eclass)
-    //         .iter()
-    //         .min_by_key(|n| self.node_total_cost(n))
-    //         .expect("eclass shouldn't be empty");
-
-    //     // let best_transformed = best_node.clone().map_children(|child| {
-    //     //     let class = self.egraph.just_find(child);
-    //     //     self.find_best_rec(class, expr)
-    //     // });
-
-    //     // expr.add(best_transformed)
-    // }
-
     fn build_expr(&self, root: &Expr<L, Id>) -> Option<FlatExpr<L>> {
         let children: Option<Vec<_>> = root
             .children()
