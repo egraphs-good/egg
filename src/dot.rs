@@ -12,12 +12,7 @@ impl<'a, L: Language> Dot<'a, L> {
     }
 }
 
-impl<'a, L: Language> Display for Dot<'a, L>
-where
-    L::Constant: Display,
-    L::Variable: Display,
-    L::Operator: Display,
-{
+impl<'a, L: Language> Display for Dot<'a, L> {
     fn fmt(&self, f: &mut Formatter) -> Result {
         write!(f, "digraph {{\n")?;
 

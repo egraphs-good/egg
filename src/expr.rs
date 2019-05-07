@@ -2,6 +2,8 @@ use std::fmt::{self, Debug};
 use std::hash::Hash;
 use std::rc::Rc;
 
+use symbolic_expressions::Sexp;
+
 use crate::unionfind::UnionFind;
 
 pub type Id = u32;
@@ -54,12 +56,7 @@ pub struct Symbol<'a, L: Language, Child> {
     node: &'a Expr<L, Child>,
 }
 
-impl<'a, L: Language, Child> fmt::Display for Symbol<'a, L, Child>
-where
-    L::Constant: fmt::Display,
-    L::Variable: fmt::Display,
-    L::Operator: fmt::Display,
-{
+impl<'a, L: Language, Child> fmt::Display for Symbol<'a, L, Child> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.node {
             Expr::Variable(v) => write!(f, "{}", v),
@@ -72,9 +69,9 @@ where
 // TODO I think I can remove the requirements on Language itself if I
 // manually derive these things for Expr
 pub trait Language: Debug + PartialEq + Eq + Hash + Clone {
-    type Constant: Debug + PartialEq + Eq + Hash + Clone;
-    type Variable: Debug + PartialEq + Eq + Hash + Clone;
-    type Operator: Debug + PartialEq + Eq + Hash + Clone;
+    type Constant: Debug + PartialEq + Eq + Hash + Clone + fmt::Display;
+    type Variable: Debug + PartialEq + Eq + Hash + Clone + fmt::Display;
+    type Operator: Debug + PartialEq + Eq + Hash + Clone + fmt::Display;
     type Wildcard: Debug + PartialEq + Eq + Hash + Clone;
 
     fn cost(node: &Expr<Self, Id>) -> u64;
@@ -114,6 +111,24 @@ impl<T> Flat<T> {
     #[inline(always)]
     pub fn get_node(&self, i: Id) -> &T {
         &self.nodes[i as usize]
+    }
+}
+
+impl<L: Language> FlatExpr<L> {
+    pub fn to_sexp(&self) -> Sexp {
+        self.to_sexp_id(self.root)
+    }
+
+    fn to_sexp_id(&self, id: Id) -> Sexp {
+        match self.get_node(id) {
+            Expr::Constant(c) => Sexp::String(c.to_string()),
+            Expr::Variable(v) => Sexp::String(v.to_string()),
+            Expr::Operator(op, args) => {
+                let mut vec: Vec<_> = args.iter().map(|&id| self.to_sexp_id(id)).collect();
+                vec.insert(0, Sexp::String(op.to_string()));
+                Sexp::List(vec)
+            }
+        }
     }
 }
 
