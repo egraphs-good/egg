@@ -100,25 +100,27 @@ impl<'p, 'e, L: Language> PatternSearchContext<'p, 'e, L> {
             .collect()
     }
 
-    pub fn search_with_name(&self, name: &str) -> Vec<PatternMatches<L>> {
-        let mut skips = 0;
+    pub fn search_with_name(&self, _name: &str) -> Vec<PatternMatches<L>> {
+        // let mut skips = 0;
         let matches = self.egraph
             .classes
             .keys()
             .filter_map(|eclass_id| {
-                let eclass = &self.egraph.classes[&eclass_id];
-                if eclass.is_done(name) {
-                    skips += 1;
-                    None
-                } else {
-                    eclass.mark_as_done(name);
-                    self.search_eclass(*eclass_id)
-                }
+                // let eclass = &self.egraph.classes[&eclass_id];
+                self.search_eclass(*eclass_id)
+                // NOTE: skipping is incomplete, so I'm temporarily removing it
+                // if eclass.is_done(name) {
+                //     skips += 1;
+                //     None
+                // } else {
+                //     eclass.mark_as_done(name);
+                //     self.search_eclass(*eclass_id)
+                // }
             })
             .collect();
-        if skips > 0 {
-            warn!("Skipped searching {} eclasses", skips);
-        }
+        // if skips > 0 {
+        //     warn!("Skipped searching {} eclasses", skips);
+        // }
         matches
     }
 
