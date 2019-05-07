@@ -211,6 +211,30 @@ impl<L: Language> EGraph<L> {
         self.leaders.just_find(id)
     }
 
+    pub fn prune(&mut self) -> usize {
+        let mut pruned = 0;
+        for class in self.classes.values_mut() {
+            let mut new_nodes = Vec::new();
+            for node in &class.nodes {
+                match node {
+                    Expr::Variable(_) | Expr::Constant(_) => new_nodes.push(node.clone()),
+                    _ => (),
+                }
+            }
+
+            if new_nodes.len() > 0 {
+                pruned += class.len() - new_nodes.len();
+                class.nodes = new_nodes;
+            }
+        }
+
+        if pruned > 0 {
+            info!("Pruned {} nodes", pruned);
+        }
+
+        pruned
+    }
+
     fn rebuild_once(&mut self) -> usize {
         let mut new_nodes = HashMap::default();
         let mut to_union = Vec::new();
