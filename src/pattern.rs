@@ -373,6 +373,6 @@ mod tests {
         let ext = Extractor::new(&egraph);
 
         let best = ext.find_best(2);
-        eprintln!("Best: {:#?}", best);
+        eprintln!("Best: {:#?}", best.expr);
     }
 }
