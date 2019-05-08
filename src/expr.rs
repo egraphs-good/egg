@@ -182,7 +182,6 @@ impl AsRef<str> for QuestionMarkName {
     }
 }
 
-#[cfg(test)]
 pub mod tests {
 
     use super::*;

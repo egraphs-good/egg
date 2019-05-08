@@ -1,12 +1,42 @@
+//! EGraph visualization with [GraphViz]
+//!
+//! Use the `Dot` struct to visualize an [`EGraph`]
+//!
+//! ```
+//! use ears::{
+//!   expr::tests::{TestLang, var, op},
+//!   egraph::EGraph,
+//!   dot::Dot,
+//! };
+//!
+//! // make an egraph
+//! let mut egraph = EGraph::<TestLang>::default();
+//! let x = egraph.add(var("x"));
+//! let y = egraph.add(var("y"));
+//! egraph.add(op("+", vec![x.id, y.id]));
+//!
+//! // create a `Dot` so we can visualize it
+//! let dot = Dot::new(&egraph);
+//! let output = format!("{}", dot);
+//! ```
+//!
+//! [`EGraph`]: ../egraph/struct.EGraph.html
+//! [GraphViz]: https://graphviz.gitlab.io/
+
 use std::fmt::{Display, Formatter, Result};
 
 use crate::{egraph::EGraph, expr::Language};
 
+/// A wrapper for an [`EGraph`] that implements `Display` so you can
+/// print it.
+///
+/// [`EGraph`]: ../egraph/struct.EGraph.html
 pub struct Dot<'a, L: Language> {
     egraph: &'a EGraph<L>,
 }
 
 impl<'a, L: Language> Dot<'a, L> {
+    /// Given a reference to an `EGraph`, makes a `Dot`.
     pub fn new(egraph: &EGraph<L>) -> Dot<L> {
         Dot { egraph }
     }
