@@ -3,7 +3,7 @@
 //! Use the `Dot` struct to visualize an [`EGraph`]
 //!
 //! ```
-//! use ears::{
+//! use egg::{
 //!   expr::tests::{TestLang, var, op},
 //!   egraph::EGraph,
 //!   dot::Dot,

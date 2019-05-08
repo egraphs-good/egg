@@ -1,4 +1,4 @@
-use ears::{
+use egg::{
     egraph::EGraph,
     expr::{Expr, Id, Language, Name, QuestionMarkName},
     extract::{calculate_cost, Extractor},
