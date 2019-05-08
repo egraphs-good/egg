@@ -3,3 +3,7 @@
 Cargo.lock
 
 dots/
+
+# nix stuff
+.envrc
+default.nix
