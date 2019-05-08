@@ -448,23 +448,13 @@ fn rules() -> HashMap<&'static str, Vec<Rewrite<Math>>> {
     m
 }
 
-fn all_rules() -> Vec<Rewrite<Math>> {
-    let rules = rules();
-    let mut vec = Vec::new();
-    for category in rules.values() {
-        for rule in category {
-            vec.push(rule.clone())
-        }
-    }
-    vec
-}
 #[test]
 fn associate_adds() {
     let _ = env_logger::builder().is_test(true).try_init();
     let start = "(+ 1 (+ 2 (+ 3 (+ 4 (+ 5 (+ 6 7))))))";
     let start_expr = Math.parse_expr(start).unwrap();
 
-    let (mut egraph, root) = EGraph::from_expr(&start_expr);
+    let (mut egraph, _root) = EGraph::from_expr(&start_expr);
 
     let rules = {
         let all = rules();
@@ -522,7 +512,7 @@ fn do_something() {
 
     let start_time = Instant::now();
 
-    for _ in 0..3 {
+    for _ in 0..2 {
         let mut matches = Vec::new();
         for (_name, list) in rules.iter() {
             for rule in list {
