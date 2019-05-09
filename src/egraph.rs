@@ -1,5 +1,4 @@
 use log::*;
-use std::cell::RefCell;
 use std::time::Instant;
 
 use crate::{
@@ -38,18 +37,11 @@ pub struct AddResult {
 pub struct EClass<L: Language> {
     id: Id,
     nodes: Vec<Expr<L, Id>>,
-    // refcell because, conceptually, this doesn't modify the egraph
-    done_rules: RefCell<HashSet<String>>,
 }
 
 impl<L: Language> EClass<L> {
     fn new(id: Id, nodes: Vec<Expr<L, Id>>) -> Self {
-        let done_rules = RefCell::new(HashSet::default());
-        EClass {
-            id,
-            nodes,
-            done_rules,
-        }
+        EClass { id, nodes }
     }
     pub fn len(&self) -> usize {
         self.nodes.len()
@@ -57,14 +49,6 @@ impl<L: Language> EClass<L> {
 
     pub fn iter(&self) -> impl Iterator<Item = &Expr<L, Id>> {
         self.nodes.iter()
-    }
-
-    pub fn mark_as_done(&self, s: &str) {
-        self.done_rules.borrow_mut().insert(s.into());
-    }
-
-    pub fn is_done(&self, s: &str) -> bool {
-        self.done_rules.borrow_mut().contains(s)
     }
 
     pub fn combine(self, other: Self, id: Id) -> Self {
@@ -78,22 +62,9 @@ impl<L: Language> EClass<L> {
 
         more_nodes.extend(less_nodes);
 
-        let mut less_rules = self.done_rules;
-        let mut more_rules = other.done_rules;
-
-        // same with rules to perform the intersection
-        if more_rules.borrow().len() < less_rules.borrow().len() {
-            std::mem::swap(&mut less_rules, &mut more_rules);
-        }
-
-        for rule in less_rules.borrow().iter() {
-            more_rules.borrow_mut().remove(rule);
-        }
-
         EClass {
             id: id,
             nodes: more_nodes,
-            done_rules: more_rules,
         }
     }
 }
@@ -266,8 +237,7 @@ impl<L: Language> EGraph<L> {
                 new_nodes.insert(node.update_ids(&self.leaders));
             }
             trimmed += class.len() - new_nodes.len();
-            let mut new_class = EClass::new(leader, new_nodes.into_iter().collect());
-            new_class.done_rules = class.done_rules;
+            let new_class = EClass::new(leader, new_nodes.into_iter().collect());
             new_classes.insert(leader, new_class);
         }
 
