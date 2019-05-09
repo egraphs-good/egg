@@ -17,20 +17,70 @@ pub enum Expr<L: Language, Child> {
     Operator(L::Operator, Vec<Child>),
 }
 
+type Inner<L> = Expr<L, RecExpr<L>>;
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub struct RecExpr<L: Language> {
+    rc: Rc<Inner<L>>,
+}
+
+impl<L: Language> From<Inner<L>> for RecExpr<L> {
+    fn from(inner: Inner<L>) -> Self {
+        let rc = Rc::new(inner);
+        RecExpr { rc }
+    }
+}
+
+impl<L: Language> std::borrow::Borrow<Inner<L>> for RecExpr<L> {
+    fn borrow(&self) -> &Inner<L> {
+        &self.rc
+    }
+}
+
+impl<L: Language> AsRef<Inner<L>> for RecExpr<L> {
+    fn as_ref(&self) -> &Inner<L> {
+        &self.rc
+    }
+}
+
+impl<L: Language> RecExpr<L> {
+    pub fn to_sexp(&self) -> Sexp {
+        match self.as_ref() {
+            Expr::Constant(c) => Sexp::String(c.to_string()),
+            Expr::Variable(v) => Sexp::String(v.to_string()),
+            Expr::Operator(op, args) => {
+                let mut vec: Vec<_> = args.iter().map(|e| e.to_sexp()).collect();
+                vec.insert(0, Sexp::String(op.to_string()));
+                Sexp::List(vec)
+            }
+        }
+    }
+}
+
 impl<L: Language, Child> Expr<L, Child> {
-    pub fn map_children<Child2>(&self, f: impl FnMut(Child) -> Child2) -> Expr<L, Child2>
+    pub fn map_children_result<Child2, F, Error>(&self, f: F) -> Result<Expr<L, Child2>, Error>
     where
         Child: Clone,
+        F: FnMut(Child) -> Result<Child2, Error>,
     {
         use Expr::*;
-        match self {
+        Ok(match self {
             Constant(c) => Constant(c.clone()),
             Variable(v) => Variable(v.clone()),
             Operator(op, args) => {
-                let args2 = args.iter().cloned().map(f).collect();
-                Operator(op.clone(), args2)
+                let args2: Result<Vec<_>, Error> = args.iter().cloned().map(f).collect();
+                Operator(op.clone(), args2?)
             }
-        }
+        })
+    }
+
+    pub fn map_children<Child2, F>(&self, mut f: F) -> Expr<L, Child2>
+    where
+        Child: Clone,
+        F: FnMut(Child) -> Child2,
+    {
+        let some_f = |child| Result::<Child2, std::convert::Infallible>::Ok(f(child));
+        self.map_children_result(some_f).unwrap()
     }
 
     pub fn children(&self) -> &[Child] {
@@ -74,62 +124,7 @@ pub trait Language: Debug + PartialEq + Eq + Hash + Clone {
     type Operator: Debug + PartialEq + Eq + Hash + Clone + fmt::Display;
     type Wildcard: Debug + PartialEq + Eq + Hash + Clone;
 
-    fn cost(node: &Expr<Self, Id>) -> u64;
-}
-
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub struct Flat<T> {
-    pub root: Id,
-    pub nodes: Vec<T>,
-}
-
-pub type FlatExpr<L> = Flat<Expr<L, Id>>;
-
-impl<T> Default for Flat<T> {
-    fn default() -> Self {
-        Flat {
-            root: 0,
-            nodes: Vec::new(),
-        }
-    }
-}
-
-impl<T> Flat<T> {
-    pub fn inner_into<T2: From<T>>(self) -> Flat<T2> {
-        Flat {
-            root: self.root,
-            nodes: self.nodes.into_iter().map(T2::from).collect(),
-        }
-    }
-
-    pub fn add(&mut self, t: T) -> Id {
-        let id = self.nodes.len() as Id;
-        self.nodes.push(t);
-        id
-    }
-
-    #[inline(always)]
-    pub fn get_node(&self, i: Id) -> &T {
-        &self.nodes[i as usize]
-    }
-}
-
-impl<L: Language> FlatExpr<L> {
-    pub fn to_sexp(&self) -> Sexp {
-        self.to_sexp_id(self.root)
-    }
-
-    fn to_sexp_id(&self, id: Id) -> Sexp {
-        match self.get_node(id) {
-            Expr::Constant(c) => Sexp::String(c.to_string()),
-            Expr::Variable(v) => Sexp::String(v.to_string()),
-            Expr::Operator(op, args) => {
-                let mut vec: Vec<_> = args.iter().map(|&id| self.to_sexp_id(id)).collect();
-                vec.insert(0, Sexp::String(op.to_string()));
-                Sexp::List(vec)
-            }
-        }
-    }
+    fn cost(node: &Expr<Self, u64>) -> u64;
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
@@ -195,21 +190,24 @@ pub mod tests {
         type Operator = Name;
         type Wildcard = QuestionMarkName;
 
-        fn cost(node: &Expr<Self, Id>) -> u64 {
+        fn cost(node: &Expr<Self, u64>) -> u64 {
             match node {
                 Expr::Variable(_) => 1,
                 Expr::Constant(_) => 1,
-                Expr::Operator(op, _) => match op.as_ref() {
-                    "+" => 5,
-                    "*" => 50,
-                    "/" => 150,
-                    _ => 10,
-                },
+                Expr::Operator(op, costs) => {
+                    let my_costs = match op.as_ref() {
+                        "+" => 5,
+                        "*" => 50,
+                        "/" => 150,
+                        _ => 10,
+                    };
+                    my_costs + costs.iter().sum::<u64>()
+                }
             }
         }
     }
 
-    pub fn var(v: &str) -> Expr<TestLang, Id> {
+    pub fn var<T>(v: &str) -> Expr<TestLang, T> {
         Expr::Variable(v.parse().unwrap())
     }
 

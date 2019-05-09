@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use std::time::Instant;
 
 use crate::{
-    expr::{Expr, FlatExpr, Id, Language},
+    expr::{Expr, Id, Language, RecExpr},
     unionfind::{UnionFind, UnionResult},
     util::{HashMap, HashSet},
 };
@@ -99,17 +99,15 @@ impl<L: Language> EClass<L> {
 }
 
 impl<L: Language> EGraph<L> {
-    pub fn from_expr(expr: &FlatExpr<L>) -> (Self, Id) {
+    pub fn from_expr(expr: &RecExpr<L>) -> (Self, Id) {
         let mut egraph = EGraph::default();
-        let root = egraph.add_from_expr(expr, expr.root);
+        let root = egraph.add_expr(expr);
         (egraph, root)
     }
 
-    fn add_from_expr(&mut self, expr: &FlatExpr<L>, id: Id) -> Id {
-        let node = expr
-            .get_node(id)
-            .map_children(|child| self.add_from_expr(expr, child));
-        self.add(node).id
+    pub fn add_expr(&mut self, expr: &RecExpr<L>) -> Id {
+        let e = expr.as_ref().map_children(|child| self.add_expr(&child));
+        self.add(e).id
     }
 
     fn check(&self) {
@@ -140,12 +138,12 @@ impl<L: Language> EGraph<L> {
             .unwrap_or_else(|| panic!("Couldn't find eclass {:?}", eclass_id))
     }
 
-    pub fn equivs(&self, expr1: &FlatExpr<L>, expr2: &FlatExpr<L>) -> Vec<Id> {
-        use crate::pattern::FlatPattern;
-        let matches1 = FlatPattern::from_flat_expr(expr1).search(self);
+    pub fn equivs(&self, expr1: &RecExpr<L>, expr2: &RecExpr<L>) -> Vec<Id> {
+        use crate::pattern::Pattern;
+        let matches1 = Pattern::from_expr(expr1).search(self);
         info!("Matches1: {:?}", matches1);
 
-        let matches2 = FlatPattern::from_flat_expr(expr2).search(self);
+        let matches2 = Pattern::from_expr(expr2).search(self);
         info!("Matches2: {:?}", matches2);
 
         let mut equiv_eclasses = Vec::new();

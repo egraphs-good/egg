@@ -1,6 +1,6 @@
 use egg::{
     egraph::EGraph,
-    expr::{Expr, Id, Language, Name, QuestionMarkName},
+    expr::{Expr, Language, Name, QuestionMarkName},
     extract::{calculate_cost, Extractor},
     parse::ParsableLanguage,
     pattern::Rewrite,
@@ -45,21 +45,24 @@ impl Language for Math {
     type Variable = Name;
     type Wildcard = QuestionMarkName;
 
-    fn cost(node: &Expr<Math, Id>) -> u64 {
+    fn cost(node: &Expr<Math, u64>) -> u64 {
         match node {
             Expr::Constant(_) | Expr::Variable(_) => 1,
-            Expr::Operator(op, _) => match op {
-                Op::Add => 40,
-                Op::Sub => 40,
-                Op::Mul => 40,
-                Op::Div => 40,
-                Op::Pow => 210,
-                Op::Exp => 70,
-                Op::Log => 70,
-                Op::Sqrt => 40,
-                Op::Cbrt => 80,
-                Op::Fabs => 40,
-            },
+            Expr::Operator(op, child_costs) => {
+                let cost = match op {
+                    Op::Add => 40,
+                    Op::Sub => 40,
+                    Op::Mul => 40,
+                    Op::Div => 40,
+                    Op::Pow => 210,
+                    Op::Exp => 70,
+                    Op::Log => 70,
+                    Op::Sqrt => 40,
+                    Op::Cbrt => 80,
+                    Op::Fabs => 40,
+                };
+                cost + child_costs.iter().sum::<u64>()
+            }
         }
     }
 }

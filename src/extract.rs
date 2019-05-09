@@ -1,6 +1,6 @@
 use crate::{
     egraph::EGraph,
-    expr::{Expr, FlatExpr, Id, Language},
+    expr::{Expr, Id, Language, RecExpr},
     util::HashMap,
 };
 
@@ -8,38 +8,28 @@ use log::*;
 
 pub type Cost = u64;
 
-fn calculate_cost_rec<L: Language>(
-    map: &mut HashMap<Expr<L, Id>, Id>,
-    expr: &FlatExpr<L>,
-    id: Id,
-) -> (Cost, Id) {
-    let node = expr.get_node(id);
-    let mut cost = L::cost(&node);
-
-    let node = node.map_children(|child| {
-        let (child_cost, child_id) = calculate_cost_rec(map, expr, child);
-        cost += child_cost;
-        child_id
-    });
-
-    if let Some(id) = map.get(&node) {
-        return (1, *id);
+fn calculate_cost_rec<L: Language>(map: &mut HashMap<RecExpr<L>, Cost>, expr: &RecExpr<L>) -> Cost {
+    if map.contains_key(expr) {
+        return 1;
     }
 
-    map.insert(node.clone(), id);
-    (cost, id)
+    let child_cost_expr = expr.as_ref().map_children(|e| calculate_cost_rec(map, &e));
+    let cost = L::cost(&child_cost_expr);
+
+    map.insert(expr.clone(), cost);
+    cost
 }
 
-pub fn calculate_cost<L: Language>(expr: &FlatExpr<L>) -> Cost {
+pub fn calculate_cost<L: Language>(expr: &RecExpr<L>) -> Cost {
     let mut map = HashMap::default();
-    let (cost, _) = calculate_cost_rec(&mut map, expr, expr.root);
+    let cost = calculate_cost_rec(&mut map, expr);
     // trace!("Found cost to be {}\n  {}", cost, expr.to_sexp());
     cost
 }
 
 pub struct CostExpr<L: Language> {
     pub cost: Cost,
-    pub expr: FlatExpr<L>,
+    pub expr: RecExpr<L>,
 }
 
 pub struct Extractor<'a, L: Language> {
@@ -62,29 +52,16 @@ impl<'a, L: Language> Extractor<'a, L> {
         &self.costs[&eclass]
     }
 
-    fn build_expr(&self, root: &Expr<L, Id>) -> Option<FlatExpr<L>> {
-        let children: Option<Vec<_>> = root
-            .children()
-            .iter()
-            .map(|id| self.costs.get(id).map(|ce| &ce.expr))
-            .collect();
-        let mut children_roots = Vec::new();
-        let mut offset = 0;
-        let mut expr = FlatExpr::default();
-        for child_expr in children? {
-            for node in &child_expr.nodes {
-                expr.nodes.push(node.map_children(|id| id + offset));
-            }
-            children_roots.push(child_expr.root + offset);
-            offset += child_expr.nodes.len() as u32;
-        }
-
-        expr.root = expr.add(match root {
-            Expr::Variable(_) | Expr::Constant(_) => root.clone(),
-            Expr::Operator(op, _) => Expr::Operator(op.clone(), children_roots),
-        });
-
-        Some(expr)
+    fn build_expr(&self, root: &Expr<L, Id>) -> Option<RecExpr<L>> {
+        let expr = root
+            .map_children_result(|id| {
+                self.costs
+                    .get(&id)
+                    .map(|cost_expr| cost_expr.expr.clone())
+                    .ok_or(())
+            })
+            .ok()?;
+        Some(expr.into())
     }
 
     fn node_total_cost(&self, node: &Expr<L, Id>) -> Option<CostExpr<L>> {

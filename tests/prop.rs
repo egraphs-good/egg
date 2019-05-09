@@ -1,6 +1,6 @@
 use egg::{
     egraph::EGraph,
-    expr::{Expr, Id, Language, Name, QuestionMarkName},
+    expr::{Expr, Language, Name, QuestionMarkName},
     parse::ParsableLanguage,
     pattern::Rewrite,
 };
@@ -37,7 +37,7 @@ impl Language for Prop {
     type Variable = Name;
     type Wildcard = QuestionMarkName;
 
-    fn cost(_node: &Expr<Prop, Id>) -> u64 {
+    fn cost(_node: &Expr<Prop, u64>) -> u64 {
         unimplemented!()
     }
 }
