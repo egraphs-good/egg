@@ -51,8 +51,8 @@ impl<L: Language> EClass<L> {
         self.nodes.iter()
     }
 
-    pub fn combine(self, other: Self, id: Id) -> Self {
-        let mut less_nodes = self.nodes;
+    pub fn combine(&mut self, other: Self, id: Id) {
+        let mut less_nodes = std::mem::replace(&mut self.nodes, vec![]);
         let mut more_nodes = other.nodes;
 
         // make sure less nodes is actually smaller
@@ -62,10 +62,8 @@ impl<L: Language> EClass<L> {
 
         more_nodes.extend(less_nodes);
 
-        EClass {
-            id: id,
-            nodes: more_nodes,
-        }
+        self.id = id;
+        self.nodes = more_nodes;
     }
 }
 
@@ -305,9 +303,7 @@ impl<L: Language> EGraph<L> {
         self.unions_since_rebuild += 1;
 
         let from_class = self.classes.remove(&from).unwrap();
-        let to_class = self.classes.remove(&to).unwrap();
-
-        self.classes.insert(to, from_class.combine(to_class, to));
+        self.classes.get_mut(&to).unwrap().combine(from_class, to);
 
         self.check();
         if log_enabled!(Level::Trace) {
