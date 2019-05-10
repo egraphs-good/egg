@@ -310,10 +310,12 @@ impl<L: Language> EGraph<L> {
         self.classes.insert(to, from_class.combine(to_class, to));
 
         self.check();
-        trace!("Unioned {} -> {}", from, to);
-        trace!("Leaders: {:?}", self.leaders);
-        for (leader, class) in &self.classes {
-            trace!("  {:?}: {:?}", leader, class);
+        if log_enabled!(Level::Trace) {
+            trace!("Unioned {} -> {}", from, to);
+            trace!("Leaders: {:?}", self.leaders);
+            for (leader, class) in &self.classes {
+                trace!("  {:?}: {:?}", leader, class);
+            }
         }
         to
     }
