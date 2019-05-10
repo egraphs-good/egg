@@ -516,6 +516,9 @@ fn do_something() {
     let start_time = Instant::now();
 
     for _ in 0..2 {
+        let mut applied = 0;
+        let mut total_matches = 0;
+        let mut last_total_matches = 0;
         let mut matches = Vec::new();
         for (_name, list) in rules.iter() {
             for rule in list {
@@ -528,9 +531,27 @@ fn do_something() {
             }
         }
 
+        let match_time = Instant::now();
+
         for (rhs, ms) in matches {
             for m in ms {
-                m.apply(rhs, &mut egraph);
+                let actually_matched = m.apply(rhs, &mut egraph);
+                applied += actually_matched.len();
+                total_matches += m.mappings.len();
+
+                // log the growth of the egraph
+                if total_matches - last_total_matches > 1000 {
+                    last_total_matches = total_matches;
+                    let elapsed = match_time.elapsed();
+                    debug!(
+                        "nodes: {}, eclasses: {}, actual: {}, total: {}, us per match: {}",
+                        egraph.len(),
+                        egraph.classes.len(),
+                        applied,
+                        total_matches,
+                        elapsed.as_micros() / total_matches as u128
+                    );
+                }
             }
         }
         egraph.rebuild();
