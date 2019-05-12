@@ -1,6 +1,6 @@
 use egg::{
     egraph::EGraph,
-    expr::{Expr, Language, Name, QuestionMarkName},
+    expr::{Expr, RecExpr, Language, Name, QuestionMarkName},
     extract::{calculate_cost, Extractor},
     parse::ParsableLanguage,
     pattern::Rewrite,
@@ -64,6 +64,10 @@ impl Language for Math {
                 cost + child_costs.iter().sum::<u64>()
             }
         }
+    }
+
+    fn eval(e: &RecExpr<Math>) -> Self::Constant {
+        unimplemented!()
     }
 }
 

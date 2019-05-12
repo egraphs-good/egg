@@ -202,6 +202,54 @@ impl<L: Language> EGraph<L> {
         pruned
     }
 
+    fn get_children(ns: &Vec<Expr<L,Id>>) -> Vec<RecExpr<L>> {
+        let mut new_ns = Vec::new();
+        for n in ns {
+            if let Expr::Constant(c) = n {
+                let st : RecExpr<L> = RecExpr::from(Expr::Constant(c.clone()));
+                new_ns.push(st);
+            } else {
+                panic!("impossible")
+            }
+        }
+        new_ns
+    }
+
+    pub fn fold_constants(&mut self) -> usize {
+        let mut folded = 0;
+        for class in self.classes.values_mut() {
+            let mut new_nodes = Vec::new();
+            for node in &class.nodes {
+                match node {
+                    Expr::Operator(op, nids) =>
+                        if nids.iter().all(|x| true) {
+                            let ns = Vec::new();
+                            for nid in nids {
+                                // TODO
+                            }
+                            let ne = Expr::Operator(op.clone(), Self::get_children(ns));
+                            let nre = RecExpr::from(ne);
+                            let v = L::eval(&nre);
+                            new_nodes.push(Expr::Constant(v));
+                        } else {()},
+                    _ => (),
+                }
+            }
+
+            if new_nodes.len() > 0 {
+                folded += class.len() - new_nodes.len();
+                class.nodes = new_nodes;
+            }
+        }
+
+        if folded > 0 {
+            info!("Folded {} nodes", folded);
+        }
+
+        folded
+    }
+
+
     fn rebuild_once(&mut self) -> usize {
         let mut new_nodes = HashMap::default();
         let mut to_union = Vec::new();

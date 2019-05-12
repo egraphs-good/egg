@@ -125,6 +125,7 @@ pub trait Language: Debug + PartialEq + Eq + Hash + Clone {
     type Wildcard: Debug + PartialEq + Eq + Hash + Clone;
 
     fn cost(node: &Expr<Self, u64>) -> u64;
+    fn eval(node: &RecExpr<Self>) -> Self::Constant;
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
@@ -204,6 +205,10 @@ pub mod tests {
                     my_costs + costs.iter().sum::<u64>()
                 }
             }
+        }
+
+        fn eval(node: &RecExpr<Self>) -> Self::Constant {
+            unimplemented!()
         }
     }
 
