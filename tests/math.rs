@@ -1,6 +1,6 @@
 use egg::{
     egraph::EGraph,
-    expr::{Expr, RecExpr, Language, Name, QuestionMarkName},
+    expr::{Expr, Language, Name, QuestionMarkName, RecExpr},
     extract::{calculate_cost, Extractor},
     parse::ParsableLanguage,
     pattern::Rewrite,
@@ -66,7 +66,7 @@ impl Language for Math {
         }
     }
 
-    fn eval(e: &RecExpr<Math>) -> Self::Constant {
+    fn eval(_: &RecExpr<Math>) -> Self::Constant {
         unimplemented!()
     }
 }

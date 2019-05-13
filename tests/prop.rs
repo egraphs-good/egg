@@ -1,6 +1,6 @@
 use egg::{
     egraph::EGraph,
-    expr::{Expr, RecExpr, Language, Name, QuestionMarkName},
+    expr::{Expr, Language, Name, QuestionMarkName, RecExpr},
     parse::ParsableLanguage,
     pattern::Rewrite,
 };
@@ -19,20 +19,18 @@ enum Bool {
     False,
 }
 
-fn conjoin(x:Bool, y:Bool) -> Bool {
+fn conjoin(x: Bool, y: Bool) -> Bool {
     if (x == Bool::True) && (y == Bool::True) {
         Bool::True
-    }
-    else {
+    } else {
         Bool::False
     }
 }
 
-fn disjoin(x:Bool, y:Bool) -> Bool {
+fn disjoin(x: Bool, y: Bool) -> Bool {
     if (x == Bool::True) || (y == Bool::True) {
         Bool::True
-    }
-    else {
+    } else {
         Bool::False
     }
 }
@@ -61,17 +59,15 @@ impl Language for Prop {
     fn eval(e: &RecExpr<Prop>) -> Bool {
         match e.as_ref() {
             Expr::Variable(_) => Bool::False, // TODO handle exception
-            Expr::Constant(c) => c.clone(), // TODO should this be clone?
-            Expr::Operator(op, ns) =>
-                match op {
-                    Op::And => ns.iter().map(Self::eval).fold(Bool::True, conjoin),
-                    Op::Or => ns.iter().map(Self::eval).fold(Bool::False, disjoin),
-                    _ => Bool::False, // TODO handle exception
-                }
+            Expr::Constant(c) => c.clone(),   // TODO should this be clone?
+            Expr::Operator(op, ns) => match op {
+                Op::And => ns.iter().map(Self::eval).fold(Bool::True, conjoin),
+                Op::Or => ns.iter().map(Self::eval).fold(Bool::False, disjoin),
+                _ => Bool::False, // TODO handle exception
+            },
         }
     }
 }
-
 
 macro_rules! rule {
     ($name:ident, $left:expr, $right:expr) => {
@@ -183,7 +179,7 @@ fn prove_chain() {
 fn evaluate() {
     let start = "(| (& F T) (& T F))";
     let start_expr = Prop.parse_expr(start).unwrap();
-    assert_eq! (Prop::eval(&start_expr), Bool::False);
+    assert_eq!(Prop::eval(&start_expr), Bool::False);
 }
 
 #[test]
