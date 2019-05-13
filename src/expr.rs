@@ -207,7 +207,7 @@ pub mod tests {
             }
         }
 
-        fn eval(node: &RecExpr<Self>) -> Self::Constant {
+        fn eval(_: &RecExpr<Self>) -> Self::Constant {
             unimplemented!()
         }
     }

@@ -65,6 +65,20 @@ impl<L: Language> EClass<L> {
         self.id = id;
         self.nodes = more_nodes;
     }
+
+    pub fn get_constant(&self) -> Option<RecExpr<L>> {
+        let mut res = None;
+        for n in &self.nodes {
+            match n {
+                Expr::Constant(c) => {
+                    res = Some(RecExpr::from(Expr::Constant(c.clone())));
+                    break;
+                },
+                _ => continue,
+            }
+        }
+        res
+    }
 }
 
 impl<L: Language> EGraph<L> {
@@ -202,48 +216,46 @@ impl<L: Language> EGraph<L> {
         pruned
     }
 
-    fn get_children(ns: &Vec<Expr<L,Id>>) -> Vec<RecExpr<L>> {
-        let mut new_ns = Vec::new();
-        for n in ns {
-            if let Expr::Constant(c) = n {
-                let st : RecExpr<L> = RecExpr::from(Expr::Constant(c.clone()));
-                new_ns.push(st);
-            } else {
-                panic!("impossible")
-            }
-        }
-        new_ns
-    }
-
     pub fn fold_constants(&mut self) -> usize {
         let mut folded = 0;
-        for class in self.classes.values_mut() {
-            let mut new_nodes = Vec::new();
+        let mut class_new_node = HashMap::default();
+        // finds a foldable expression for each class.
+        // if any, evalute it and add to map
+        for (id, class) in &self.classes {
+            // scan the nodes for foldable expr.
             for node in &class.nodes {
                 match node {
-                    Expr::Operator(op, nids) =>
-                        if nids.iter().all(|x| true) {
-                            let ns = Vec::new();
-                            for nid in nids {
-                                // TODO
+                    Expr::Operator(op, cids) => {
+                        let mut consts = Vec::new();
+                        let mut all_consts = true;
+                        // check if each child is a constant
+                        for cid in cids {
+                            let c = &self.get_eclass(*cid);
+                            if let Some(const_e) = c.get_constant() {
+                                consts.push(const_e);
+                            } else {
+                                all_consts = false;
+                                break;
                             }
-                            let ne = Expr::Operator(op.clone(), Self::get_children(ns));
-                            let nre = RecExpr::from(ne);
-                            let v = L::eval(&nre);
-                            new_nodes.push(Expr::Constant(v));
-                        } else {()},
-                    _ => (),
+                        }
+                        // evaluate if all children are constant
+                        if all_consts {
+                            let ne = Expr::Operator(op.clone(), consts);
+                            let v = L::eval(&RecExpr::from(ne));
+                            let const_e = Expr::Constant(v);
+                            class_new_node.insert(*id, const_e);
+                            break;
+                        }
+                    },
+                    _ => {},
                 }
             }
-
-            if new_nodes.len() > 0 {
-                folded += class.len() - new_nodes.len();
-                class.nodes = new_nodes;
-            }
         }
-
-        if folded > 0 {
-            info!("Folded {} nodes", folded);
+        // add and merge the new folded constants
+        for (cid, new_node) in class_new_node {
+            let aid = self.add(new_node).id;
+            self.union(cid, aid);
+            folded += 1;
         }
 
         folded
