@@ -73,7 +73,7 @@ impl<L: Language> EClass<L> {
                 Expr::Constant(c) => {
                     res = Some(RecExpr::from(Expr::Constant(c.clone())));
                     break;
-                },
+                }
                 _ => continue,
             }
         }
@@ -246,8 +246,8 @@ impl<L: Language> EGraph<L> {
                             class_new_node.insert(*id, const_e);
                             break;
                         }
-                    },
-                    _ => {},
+                    }
+                    _ => {}
                 }
             }
         }
@@ -260,7 +260,6 @@ impl<L: Language> EGraph<L> {
 
         folded
     }
-
 
     fn rebuild_once(&mut self) -> usize {
         let mut new_nodes = HashMap::default();

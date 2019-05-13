@@ -125,6 +125,7 @@ pub trait Language: Debug + PartialEq + Eq + Hash + Clone {
     type Wildcard: Debug + PartialEq + Eq + Hash + Clone;
 
     fn cost(node: &Expr<Self, u64>) -> u64;
+    // TODO change to return an Option, or just an Expr
     fn eval(node: &RecExpr<Self>) -> Self::Constant;
 }
 
