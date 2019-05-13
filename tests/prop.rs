@@ -185,3 +185,16 @@ fn evaluate() {
     let start_expr = Prop.parse_expr(start).unwrap();
     assert_eq! (Prop::eval(&start_expr), Bool::False);
 }
+
+#[test]
+fn const_fold() {
+    let start = "(| (& F T) (& T F))";
+    let start_expr = Prop.parse_expr(start).unwrap();
+    let (mut eg, _) = EGraph::from_expr(&start_expr);
+    for n in 1..4 {
+        eg.dump_dot(&format!("constant_folding{}.dot", n));
+        eg.fold_constants();
+        eg.prune();
+        eg.rebuild();
+    }
+}

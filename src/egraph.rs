@@ -243,7 +243,9 @@ impl<L: Language> EGraph<L> {
                             let ne = Expr::Operator(op.clone(), consts);
                             let v = L::eval(&RecExpr::from(ne));
                             let const_e = Expr::Constant(v);
+                            println!("{:#?}", id);
                             class_new_node.insert(*id, const_e);
+                            println!("{:#?}",class_new_node);
                             break;
                         }
                     },
