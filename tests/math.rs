@@ -475,7 +475,7 @@ fn associate_adds() {
     }
 
     // there are exactly 127 ways to add 7 things
-    assert_eq!(egraph.classes.len(), 127);
+    assert_eq!(egraph.classes().len(), 127);
 
     egraph.dump_dot("associate.dot");
 }
@@ -546,7 +546,7 @@ fn do_something() {
                     debug!(
                         "nodes: {}, eclasses: {}, actual: {}, total: {}, us per match: {}",
                         egraph.len(),
-                        egraph.classes.len(),
+                        egraph.classes().len(),
                         applied,
                         total_matches,
                         elapsed.as_micros() / total_matches as u128
