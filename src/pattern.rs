@@ -71,11 +71,8 @@ impl<L: Language> Pattern<L> {
     pub fn search_eclass(&self, egraph: &EGraph<L>, eclass: Id) -> Option<PatternMatches<L>> {
         let initial_mapping = HashMap::default();
         let mappings = self.search_pat(0, initial_mapping, egraph, eclass);
-        if mappings.len() > 0 {
-            Some(PatternMatches {
-                eclass: eclass,
-                mappings: mappings,
-            })
+        if !mappings.is_empty() {
+            Some(PatternMatches { eclass, mappings })
         } else {
             None
         }
@@ -145,7 +142,7 @@ impl<L: Language> Pattern<L> {
                     let mut mappings1 = vec![];
                     let mut mappings2 = vec![var_mapping.clone()];
 
-                    for (pa, ea) in pargs.into_iter().zip(eargs) {
+                    for (pa, ea) in pargs.iter().zip(eargs) {
                         std::mem::swap(&mut mappings1, &mut mappings2);
                         for m in mappings1.drain(..) {
                             mappings2.extend(pa.search_pat(depth + 1, m, egraph, *ea));
