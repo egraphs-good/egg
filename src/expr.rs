@@ -126,7 +126,7 @@ pub trait Language: Debug + PartialEq + Eq + Hash + Clone {
 
     fn cost(node: &Expr<Self, u64>) -> u64;
     // TODO change to return an Option, or just an Expr
-    fn eval(node: &Expr<Self, Self::Constant>) -> Self::Constant;
+    fn eval(op: Self::Operator, args: &[Self::Constant]) -> Self::Constant;
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
@@ -208,7 +208,7 @@ pub mod tests {
             }
         }
 
-        fn eval(_: &Expr<Self, Self::Constant>) -> Self::Constant {
+        fn eval(_op: Self::Operator, _args: &[Self::Constant]) -> Self::Constant {
             unimplemented!()
         }
     }

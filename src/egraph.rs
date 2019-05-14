@@ -226,8 +226,7 @@ impl<L: Language> EGraph<L> {
                         .map(|id| constant_nodes.get(id).cloned()).collect();
                     // evaluate expression to constant
                     if let Some(consts) = children {
-                        let e = Expr::Operator(op.clone(), consts);
-                        let const_e = Expr::Constant(L::eval(&e));
+                        let const_e = Expr::Constant(L::eval(op.clone(), &consts));
                         let old_val = to_add.insert(*id, const_e.clone());
                         if let Some(old_const) = old_val {
                             assert_eq!(old_const, const_e,
@@ -241,8 +240,9 @@ impl<L: Language> EGraph<L> {
         let mut folded = 0;
         for (cid, new_node) in to_add {
             let add_result = self.add(new_node);
+            let old_size = &self.get_eclass(cid).len();
             self.union(cid, add_result.id);
-            if !add_result.was_there {
+            if &self.get_eclass(cid).len() > old_size {
                 folded += 1;
             }
         }
