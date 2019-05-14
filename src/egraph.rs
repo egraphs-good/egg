@@ -65,20 +65,6 @@ impl<L: Language> EClass<L> {
         self.id = id;
         self.nodes = more_nodes;
     }
-
-    pub fn get_constant(&self) -> Option<L::Constant> {
-        let mut res = None;
-        for n in &self.nodes {
-            match n {
-                Expr::Constant(c) => {
-                    res = Some(c.clone());
-                    break;
-                }
-                _ => continue,
-            }
-        }
-        res
-    }
 }
 
 impl<L: Language> EGraph<L> {
@@ -219,31 +205,40 @@ impl<L: Language> EGraph<L> {
     pub fn fold_constants(&mut self) -> usize {
         let mut folded = 0;
         let mut to_add = HashMap::default();
+        // keep track of constants in each class to save some scanning
         let mut constant_nodes = HashMap::default();
 
+        // look for constants in each class
         for (id, class) in &self.classes {
             for node in &class.nodes {
-                // TODO refactor this ugly code
+                if let Expr::Constant(c) = node {
+                    constant_nodes.insert(*id, c.clone());
+                }
+            }
+        }
+
+        // evaluate foldable expressions
+        for (id, class) in &self.classes {
+            for node in &class.nodes {
                 if let Expr::Operator(op, cids) = node {
+                    // get children if they are all constant
                     let children: Option<Vec<_>> = cids.iter().map(|id| {
-                        if let Some(const_e) = constant_nodes.get(id) {
-                            let result : &L::Constant = const_e;
-                            return Some(result.clone());
+                        if let Some(c) = constant_nodes.get(id) {
+                            Some(c.clone())
                         } else {
                             let class = self.get_eclass(*id);
-                            let const_e = class.get_constant();
-                            if let Some(res) = &const_e {
-                                constant_nodes.insert(*id, res.clone());
+                            for n in &class.nodes {
+                                if let Expr::Constant(c) = n {
+                                    return Some(c.clone());
+                                }
                             }
-                            return const_e;
+                            None
                         }
                     }).collect();
-
-                    // evaluate if all children are constant
+                    // evaluate expression to constant
                     if let Some(consts) = children {
-                        let ne = Expr::Operator(op.clone(), consts);
-                        let v = L::eval(&ne);
-                        let const_e = Expr::Constant(v);
+                        let e = Expr::Operator(op.clone(), consts);
+                        let const_e = Expr::Constant(L::eval(&e));
                         to_add.insert(*id, const_e);
                         break;
                     }
