@@ -55,7 +55,7 @@ where
         }
 
         Sexp::List(vec) => {
-            assert!(vec.len() > 0);
+            assert!(!vec.is_empty());
             let mut sexps = vec.iter();
 
             let op = match sexps.next().unwrap() {
