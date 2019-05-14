@@ -66,7 +66,7 @@ impl Language for Math {
         }
     }
 
-    fn eval(_: &RecExpr<Math>) -> Self::Constant {
+    fn eval(_op: Self::Operator, _args: &[Self::Constant]) -> Self::Constant {
         unimplemented!()
     }
 }

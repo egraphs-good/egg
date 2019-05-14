@@ -49,7 +49,7 @@ impl<L: Language> RecExpr<L> {
             Expr::Constant(c) => Sexp::String(c.to_string()),
             Expr::Variable(v) => Sexp::String(v.to_string()),
             Expr::Operator(op, args) => {
-                let mut vec: Vec<_> = args.iter().map(|e| e.to_sexp()).collect();
+                let mut vec: Vec<_> = args.iter().map(RecExpr::to_sexp).collect();
                 vec.insert(0, Sexp::String(op.to_string()));
                 Sexp::List(vec)
             }
@@ -126,7 +126,7 @@ pub trait Language: Debug + PartialEq + Eq + Hash + Clone {
 
     fn cost(node: &Expr<Self, u64>) -> u64;
     // TODO change to return an Option, or just an Expr
-    fn eval(node: &Expr<Self, Self::Constant>) -> Self::Constant;
+    fn eval(op: Self::Operator, args: &[Self::Constant]) -> Self::Constant;
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
@@ -208,7 +208,7 @@ pub mod tests {
             }
         }
 
-        fn eval(_: &Expr<Self, Self::Constant>) -> Self::Constant {
+        fn eval(_op: Self::Operator, _args: &[Self::Constant]) -> Self::Constant {
             unimplemented!()
         }
     }
