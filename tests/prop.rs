@@ -77,6 +77,7 @@ fn prove_something(name: &str, start: &str, rewrites: &[Rewrite<Prop>], goals: &
     let goal_exprs: Vec<_> = goals.iter().map(|g| Prop.parse_expr(g).unwrap()).collect();
 
     let (mut egraph, _old_root) = EGraph::from_expr(&start_expr);
+    egraph.debug(true);
 
     egraph.dump_dot(&format!("{}-1.dot", name));
 
