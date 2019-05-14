@@ -15,6 +15,7 @@ pub struct EGraph<L: Language> {
     leaders: UnionFind,
     classes: HashMap<Id, EClass<L>>,
     unions_since_rebuild: usize,
+    debug: bool,
 }
 
 impl<L: Language> Default for EGraph<L> {
@@ -24,6 +25,7 @@ impl<L: Language> Default for EGraph<L> {
             leaders: UnionFind::default(),
             classes: HashMap::default(),
             unions_since_rebuild: 0,
+            debug: false,
         }
     }
 }
@@ -108,11 +110,18 @@ impl<L: Language> EGraph<L> {
         self.classes.values()
     }
 
-    fn check(&self) {
-        // FIXME checks are broken
-        return;
-        assert_eq!(self.nodes.len(), self.leaders.len());
+    /// Turn on debug checking for this egraph
+    ///
+    /// This will check some invariants very frequently in the EGraph,
+    /// so it'll make things very slow.
+    pub fn debug(&mut self, should_debug: bool) {
+        self.debug = should_debug;
+    }
 
+    fn check(&self) {
+        if !self.debug {
+            return;
+        }
         // make sure the classes map contains exactly the unique leaders
         let sets = self.leaders.build_sets();
 
@@ -121,9 +130,13 @@ impl<L: Language> EGraph<L> {
             assert!(self.classes.contains_key(&l));
         }
 
-        // make sure that total size of classes == all nodes
-        let sum_classes = self.classes.values().map(EClass::len).sum();
-        assert_eq!(self.nodes.len(), sum_classes);
+        // make sure the hashcons has everything and points to the right leader
+        for class in self.classes() {
+            for node in class.iter() {
+                let id = self.nodes.get(node).map(|&id| self.just_find(id));
+                assert_eq!(id, Some(class.id));
+            }
+        }
     }
 
     pub fn is_empty(&self) -> bool {
