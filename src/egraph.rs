@@ -70,10 +70,6 @@ impl<L: Language> EClass<L> {
         self.nodes.len()
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
     pub fn iter(&self) -> impl ExactSizeIterator<Item = &Expr<L, Id>> {
         self.nodes.iter()
     }
