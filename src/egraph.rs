@@ -1,4 +1,5 @@
 use log::*;
+use std::iter::ExactSizeIterator;
 use std::time::Instant;
 
 use crate::{
@@ -7,12 +8,12 @@ use crate::{
     util::{HashMap, HashSet},
 };
 
+/// Data structure to keep track of equalities between expressions
 #[derive(Debug)]
 pub struct EGraph<L: Language> {
-    // TODO no pub
-    pub nodes: HashMap<Expr<L, Id>, Id>,
-    pub leaders: UnionFind,
-    pub classes: HashMap<Id, EClass<L>>,
+    nodes: HashMap<Expr<L, Id>, Id>,
+    leaders: UnionFind,
+    classes: HashMap<Id, EClass<L>>,
     unions_since_rebuild: usize,
 }
 
@@ -27,6 +28,21 @@ impl<L: Language> Default for EGraph<L> {
     }
 }
 
+/// Struct that tells you whether or not an [`add`] modified the EGraph
+///
+/// ```
+/// # use egg::egraph::EGraph;
+/// # use egg::expr::tests::*;
+/// let mut egraph = EGraph::<TestLang>::default();
+/// let x1 = egraph.add(var("x"));
+/// let x2 = egraph.add(var("x"));
+///
+/// assert_eq!(x1.id, x2.id);
+/// assert!(!x1.was_there);
+/// assert!(x2.was_there);
+/// ```
+///
+/// [`add`]: struct.EGraph.html#method.add
 #[derive(Debug)]
 pub struct AddResult {
     pub was_there: bool,
@@ -35,7 +51,7 @@ pub struct AddResult {
 
 #[derive(Debug, Clone)]
 pub struct EClass<L: Language> {
-    id: Id,
+    pub id: Id,
     nodes: Vec<Expr<L, Id>>,
 }
 
@@ -43,6 +59,7 @@ impl<L: Language> EClass<L> {
     fn new(id: Id, nodes: Vec<Expr<L, Id>>) -> Self {
         EClass { id, nodes }
     }
+
     pub fn len(&self) -> usize {
         self.nodes.len()
     }
@@ -51,7 +68,7 @@ impl<L: Language> EClass<L> {
         self.len() == 0
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &Expr<L, Id>> {
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = &Expr<L, Id>> {
         self.nodes.iter()
     }
 
@@ -83,6 +100,10 @@ impl<L: Language> EGraph<L> {
         self.add(e).id
     }
 
+    pub fn classes(&self) -> impl ExactSizeIterator<Item = &EClass<L>> {
+        self.classes.values()
+    }
+
     fn check(&self) {
         // FIXME checks are broken
         return;
@@ -101,6 +122,20 @@ impl<L: Language> EGraph<L> {
         assert_eq!(self.nodes.len(), sum_classes);
     }
 
+    /// Returns the number of nodes in the EGraph.
+    ///
+    /// Actually returns the size of the hash cons index.
+    /// ```
+    /// # use egg::egraph::EGraph;
+    /// # use egg::expr::tests::*;
+    /// let mut egraph = EGraph::<TestLang>::default();
+    /// let x = egraph.add(var("x"));
+    /// let y = egraph.add(var("y"));
+    /// // only one eclass
+    /// egraph.union(x.id, y.id);
+    ///
+    /// assert_eq!(egraph.len(), 2);
+    /// ```
     pub fn len(&self) -> usize {
         self.nodes.len()
     }
@@ -186,6 +221,29 @@ impl<L: Language> EGraph<L> {
         self.leaders.just_find(id)
     }
 
+    /// Trims down eclasses that have variables or constants in them.
+    ///
+    /// If an eclass has a variable or consant in it, this will
+    /// remove everything else from that eclass except those
+    /// variables/constants.
+    /// ```
+    /// # use egg::egraph::EGraph;
+    /// # use egg::expr::tests::*;
+    /// # use egg::parse::ParsableLanguage;
+    /// let expr = TestLang.parse_expr("(+ x y)").unwrap();
+    /// let (mut egraph, root) = EGraph::<TestLang>::from_expr(&expr);
+    /// let z = egraph.add(var("z"));
+    /// let eclass = egraph.union(root, z.id);
+    /// // eclass has z and + in it
+    /// assert_eq!(egraph.get_eclass(eclass).len(), 2);
+    /// // pruning will remove the +, returning how many nodes were removed
+    /// assert_eq!(egraph.prune(), 1);
+    /// // eclass is now smaller
+    /// assert_eq!(egraph.get_eclass(eclass).len(), 1);
+    /// // for now, its not actually removed from the egraph
+    /// assert_eq!(egraph.len(), 4);
+    /// ```
+    ///
     pub fn prune(&mut self) -> usize {
         let mut pruned = 0;
         for class in self.classes.values_mut() {

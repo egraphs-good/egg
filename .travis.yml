@@ -1,0 +1,8 @@
+language: rust
+rust:
+  - 1.34.2
+cache: cargo
+before_script:
+  - rustup component add rustfmt
+  - cargo install cargo-deadlinks || echo "cargo-deadlinks already installed"
+script: ./check.sh

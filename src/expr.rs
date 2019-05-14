@@ -116,8 +116,15 @@ impl<'a, L: Language, Child> fmt::Display for Symbol<'a, L, Child> {
     }
 }
 
-// TODO I think I can remove the requirements on Language itself if I
-// manually derive these things for Expr
+/// Trait that wraps up information from the client about the langauge
+/// we're working with.
+///
+/// [`TestLang`] is provided as a simple implementation.
+///
+/// TODO I think I can remove the requirements on Language itself if I
+/// manually derive these things for Expr
+///
+/// [`TestLang`]: tests/struct.TestLang.html
 pub trait Language: Debug + PartialEq + Eq + Hash + Clone {
     type Constant: Debug + PartialEq + Eq + Hash + Clone + fmt::Display;
     type Variable: Debug + PartialEq + Eq + Hash + Clone + fmt::Display;

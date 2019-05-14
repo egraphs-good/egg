@@ -1,3 +1,17 @@
+//!
+//! [`EGraph`]s (and almost everything else in this crate) are
+//! parameterized over the language given by the user (by implementing
+//! the [`Language`] trait).
+//!
+//! A typically usage would either implement [`Language`] or use the
+//! provided [`TestLang`]. From there, you can use the functionality
+//! from the [`ParsableLanguage`] trait module to create expressions
+//! and add them to the EGraph.
+//!
+//! [`EGraph`]: egraph/struct.EGraph.html
+//! [`Language`]: expr/trait.Language.html
+//! [`TestLang`]: expr/tests/struct.TestLang.html
+//! [`ParsableLanguage`]: parse/trait.ParsableLanguage.html
 mod unionfind;
 
 pub mod dot;
