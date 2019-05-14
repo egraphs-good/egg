@@ -66,12 +66,12 @@ impl<L: Language> EClass<L> {
         self.nodes = more_nodes;
     }
 
-    pub fn get_constant(&self) -> Option<RecExpr<L>> {
+    pub fn get_constant(&self) -> Option<L::Constant> {
         let mut res = None;
         for n in &self.nodes {
             match n {
                 Expr::Constant(c) => {
-                    res = Some(RecExpr::from(Expr::Constant(c.clone())));
+                    res = Some(c.clone());
                     break;
                 }
                 _ => continue,
@@ -225,9 +225,9 @@ impl<L: Language> EGraph<L> {
             for node in &class.nodes {
                 // TODO refactor this ugly code
                 if let Expr::Operator(op, cids) = node {
-                    let children: Option<Vec<RecExpr<L>>> = cids.iter().map(|id| {
+                    let children: Option<Vec<_>> = cids.iter().map(|id| {
                         if let Some(const_e) = constant_nodes.get(id) {
-                            let result : &RecExpr<L> = const_e;
+                            let result : &L::Constant = const_e;
                             return Some(result.clone());
                         } else {
                             let class = self.get_eclass(*id);
@@ -235,14 +235,14 @@ impl<L: Language> EGraph<L> {
                             if let Some(res) = &const_e {
                                 constant_nodes.insert(*id, res.clone());
                             }
-                            const_e
+                            return const_e;
                         }
                     }).collect();
 
                     // evaluate if all children are constant
                     if let Some(consts) = children {
                         let ne = Expr::Operator(op.clone(), consts);
-                        let v = L::eval(&RecExpr::from(ne));
+                        let v = L::eval(&ne);
                         let const_e = Expr::Constant(v);
                         to_add.insert(*id, const_e);
                         break;
