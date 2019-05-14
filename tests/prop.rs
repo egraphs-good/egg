@@ -232,14 +232,15 @@ fn evaluate() {
 fn const_fold() {
     let start = "(| (& F T) (& T F))";
     let start_expr = Prop.parse_expr(start).unwrap();
+    let end = "F";
+    let end_expr = Prop.parse_expr(end).unwrap();
     let (mut eg, _) = EGraph::from_expr(&start_expr);
     eg.dump_dot("constant_folding0.dot");
     assert_eq!(eg.fold_constants(), 2);
-    eg.prune();
     eg.rebuild();
     eg.dump_dot("constant_folding1.dot");
     assert_eq!(eg.fold_constants(), 1);
-    eg.prune();
     eg.rebuild();
     eg.dump_dot("constant_folding2.dot");
+    assert!(!eg.equivs(&start_expr, &end_expr).is_empty());
 }

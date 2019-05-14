@@ -157,10 +157,6 @@ impl<L: Language> EGraph<L> {
         self.nodes.len()
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
     pub fn get_eclass(&self, eclass_id: Id) -> &EClass<L> {
         self.classes
             .get(&self.just_find(eclass_id))
