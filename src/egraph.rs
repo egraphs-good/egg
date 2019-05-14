@@ -1,4 +1,5 @@
 use log::*;
+use std::iter::ExactSizeIterator;
 use std::time::Instant;
 
 use crate::{
@@ -10,10 +11,9 @@ use crate::{
 /// Data structure to keep track of equalities between expressions
 #[derive(Debug)]
 pub struct EGraph<L: Language> {
-    // TODO no pub
-    pub nodes: HashMap<Expr<L, Id>, Id>,
-    pub leaders: UnionFind,
-    pub classes: HashMap<Id, EClass<L>>,
+    nodes: HashMap<Expr<L, Id>, Id>,
+    leaders: UnionFind,
+    classes: HashMap<Id, EClass<L>>,
     unions_since_rebuild: usize,
 }
 
@@ -51,7 +51,7 @@ pub struct AddResult {
 
 #[derive(Debug, Clone)]
 pub struct EClass<L: Language> {
-    id: Id,
+    pub id: Id,
     nodes: Vec<Expr<L, Id>>,
 }
 
@@ -59,6 +59,7 @@ impl<L: Language> EClass<L> {
     fn new(id: Id, nodes: Vec<Expr<L, Id>>) -> Self {
         EClass { id, nodes }
     }
+
     pub fn len(&self) -> usize {
         self.nodes.len()
     }
@@ -67,7 +68,7 @@ impl<L: Language> EClass<L> {
         self.len() == 0
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &Expr<L, Id>> {
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = &Expr<L, Id>> {
         self.nodes.iter()
     }
 
@@ -97,6 +98,10 @@ impl<L: Language> EGraph<L> {
     pub fn add_expr(&mut self, expr: &RecExpr<L>) -> Id {
         let e = expr.as_ref().map_children(|child| self.add_expr(&child));
         self.add(e).id
+    }
+
+    pub fn classes(&self) -> impl ExactSizeIterator<Item = &EClass<L>> {
+        self.classes.values()
     }
 
     fn check(&self) {

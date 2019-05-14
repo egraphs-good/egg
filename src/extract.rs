@@ -1,5 +1,5 @@
 use crate::{
-    egraph::EGraph,
+    egraph::{EClass, EGraph},
     expr::{Expr, Id, Language, RecExpr},
     util::HashMap,
 };
@@ -76,8 +76,8 @@ impl<'a, L: Language> Extractor<'a, L> {
         while did_something {
             did_something = false;
 
-            for id in self.egraph.classes.keys() {
-                did_something |= self.make_pass(*id);
+            for class in self.egraph.classes() {
+                did_something |= self.make_pass(class);
             }
 
             loops += 1;
@@ -86,10 +86,8 @@ impl<'a, L: Language> Extractor<'a, L> {
         info!("Took {} loops to find costs", loops);
     }
 
-    fn make_pass(&mut self, id: Id) -> bool {
-        let new = self
-            .egraph
-            .get_eclass(id)
+    fn make_pass(&mut self, class: &EClass<L>) -> bool {
+        let new = class
             .iter()
             .filter_map(|n| self.node_total_cost(n))
             .min_by_key(|ce| ce.cost);
@@ -99,15 +97,15 @@ impl<'a, L: Language> Extractor<'a, L> {
             None => return true,
         };
 
-        if let Some(old) = self.costs.get(&id) {
+        if let Some(old) = self.costs.get(&class.id) {
             if new.cost < old.cost {
-                self.costs.insert(id, new);
+                self.costs.insert(class.id, new);
                 true
             } else {
                 false
             }
         } else {
-            self.costs.insert(id, new);
+            self.costs.insert(class.id, new);
             true
         }
     }

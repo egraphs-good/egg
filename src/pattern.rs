@@ -63,9 +63,8 @@ pub type WildMap<L> = HashMap<<L as Language>::Wildcard, Id>;
 impl<L: Language> Pattern<L> {
     pub fn search(&self, egraph: &EGraph<L>) -> Vec<PatternMatches<L>> {
         egraph
-            .classes
-            .keys()
-            .filter_map(|&eclass_id| self.search_eclass(egraph, eclass_id))
+            .classes()
+            .filter_map(|class| self.search_eclass(egraph, class.id))
             .collect()
     }
 
