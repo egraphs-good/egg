@@ -4,5 +4,6 @@ rust:
 cache: cargo
 before_script:
   - rustup component add rustfmt
+  - rustup component add clippy
   - cargo install cargo-deadlinks || echo "cargo-deadlinks already installed"
 script: ./check.sh
