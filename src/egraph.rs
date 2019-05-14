@@ -240,7 +240,6 @@ impl<L: Language> EGraph<L> {
                         let e = Expr::Operator(op.clone(), consts);
                         let const_e = Expr::Constant(L::eval(&e));
                         to_add.insert(*id, const_e);
-                        break;
                     }
                 }
             }
