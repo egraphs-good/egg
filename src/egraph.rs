@@ -322,9 +322,9 @@ impl<L: Language> EGraph<L> {
         let mut folded = 0;
         for (cid, new_node) in to_add {
             let add_result = self.add(new_node);
-            let old_size = &self.get_eclass(cid).len();
+            let old_size = self.get_eclass(cid).len();
             self.union(cid, add_result.id);
-            if self.get_eclass(cid).len() > *old_size {
+            if self.get_eclass(cid).len() > old_size {
                 folded += 1;
             }
         }
