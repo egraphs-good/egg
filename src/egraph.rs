@@ -47,6 +47,10 @@ impl<L: Language> EClass<L> {
         self.nodes.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = &Expr<L, Id>> {
         self.nodes.iter()
     }
@@ -93,12 +97,16 @@ impl<L: Language> EGraph<L> {
         }
 
         // make sure that total size of classes == all nodes
-        let sum_classes = self.classes.values().map(|c| c.len()).sum();
+        let sum_classes = self.classes.values().map(EClass::len).sum();
         assert_eq!(self.nodes.len(), sum_classes);
     }
 
     pub fn len(&self) -> usize {
         self.nodes.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     pub fn get_eclass(&self, eclass_id: Id) -> &EClass<L> {
@@ -189,7 +197,7 @@ impl<L: Language> EGraph<L> {
                 }
             }
 
-            if new_nodes.len() > 0 {
+            if !new_nodes.is_empty() {
                 pruned += class.len() - new_nodes.len();
                 class.nodes = new_nodes;
             }
@@ -211,8 +219,7 @@ impl<L: Language> EGraph<L> {
             for node in &class.nodes {
                 if let Expr::Constant(c) = node {
                     let old_val = constant_nodes.insert(*id, c.clone());
-                    assert_eq!(old_val, None,
-                               "more than one constants in a class");
+                    assert_eq!(old_val, None, "more than one constants in a class");
                 }
             }
         }
@@ -222,15 +229,19 @@ impl<L: Language> EGraph<L> {
             for node in &class.nodes {
                 if let Expr::Operator(op, cids) = node {
                     // get children if they are all constant
-                    let children: Option<Vec<_>> = cids.iter()
-                        .map(|id| constant_nodes.get(id).cloned()).collect();
+                    let children: Option<Vec<_>> = cids
+                        .iter()
+                        .map(|id| constant_nodes.get(id).cloned())
+                        .collect();
                     // evaluate expression to constant
                     if let Some(consts) = children {
                         let const_e = Expr::Constant(L::eval(op.clone(), &consts));
                         let old_val = to_add.insert(*id, const_e.clone());
                         if let Some(old_const) = old_val {
-                            assert_eq!(old_const, const_e,
-                                       "nodes in the same class differ in values");
+                            assert_eq!(
+                                old_const, const_e,
+                                "nodes in the same class differ in values"
+                            );
                         }
                     }
                 }
@@ -242,7 +253,7 @@ impl<L: Language> EGraph<L> {
             let add_result = self.add(new_node);
             let old_size = &self.get_eclass(cid).len();
             self.union(cid, add_result.id);
-            if &self.get_eclass(cid).len() > old_size {
+            if self.get_eclass(cid).len() > *old_size {
                 folded += 1;
             }
         }

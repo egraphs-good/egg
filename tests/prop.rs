@@ -196,17 +196,32 @@ fn evaluate() {
     assert_eq!(Prop::eval(Op::And, &[Bool::True, Bool::True]), Bool::True);
     assert_eq!(Prop::eval(Op::And, &[Bool::True, Bool::False]), Bool::False);
     assert_eq!(Prop::eval(Op::And, &[Bool::False, Bool::True]), Bool::False);
-    assert_eq!(Prop::eval(Op::And, &[Bool::False, Bool::False]), Bool::False);
+    assert_eq!(
+        Prop::eval(Op::And, &[Bool::False, Bool::False]),
+        Bool::False
+    );
 
     assert_eq!(Prop::eval(Op::Or, &[Bool::True, Bool::True]), Bool::True);
     assert_eq!(Prop::eval(Op::Or, &[Bool::True, Bool::False]), Bool::True);
     assert_eq!(Prop::eval(Op::Or, &[Bool::False, Bool::True]), Bool::True);
     assert_eq!(Prop::eval(Op::Or, &[Bool::False, Bool::False]), Bool::False);
 
-    assert_eq!(Prop::eval(Op::Implies, &[Bool::True, Bool::False]), Bool::False);
-    assert_eq!(Prop::eval(Op::Implies, &[Bool::True, Bool::True]), Bool::True);
-    assert_eq!(Prop::eval(Op::Implies, &[Bool::False, Bool::True]), Bool::True);
-    assert_eq!(Prop::eval(Op::Implies, &[Bool::False, Bool::True]), Bool::True);
+    assert_eq!(
+        Prop::eval(Op::Implies, &[Bool::True, Bool::False]),
+        Bool::False
+    );
+    assert_eq!(
+        Prop::eval(Op::Implies, &[Bool::True, Bool::True]),
+        Bool::True
+    );
+    assert_eq!(
+        Prop::eval(Op::Implies, &[Bool::False, Bool::True]),
+        Bool::True
+    );
+    assert_eq!(
+        Prop::eval(Op::Implies, &[Bool::False, Bool::True]),
+        Bool::True
+    );
 
     assert_eq!(Prop::eval(Op::Not, &[Bool::True]), Bool::False);
     assert_eq!(Prop::eval(Op::Not, &[Bool::False]), Bool::True);
