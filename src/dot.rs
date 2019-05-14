@@ -44,19 +44,19 @@ impl<'a, L: Language> Dot<'a, L> {
 
 impl<'a, L: Language> Display for Dot<'a, L> {
     fn fmt(&self, f: &mut Formatter) -> Result {
-        write!(f, "digraph {{\n")?;
+        writeln!(f, "digraph {{")?;
 
         // set compound=true to enable edges to clusters
-        write!(f, "  compound=true\n")?;
+        writeln!(f, "  compound=true")?;
 
         // define all the nodes, clustered by eclass
         for class in self.egraph.classes() {
-            write!(f, "  subgraph cluster_{} {{\n", class.id)?;
-            write!(f, "    style=dotted\n")?;
+            writeln!(f, "  subgraph cluster_{} {{", class.id)?;
+            writeln!(f, "    style=dotted")?;
             for (i, node) in class.iter().enumerate() {
-                write!(f, "    {}.{}[label = \"{}\"]\n", class.id, i, node.symbol())?;
+                writeln!(f, "    {}.{}[label = \"{}\"]", class.id, i, node.symbol())?;
             }
-            write!(f, "  }}\n")?;
+            writeln!(f, "  }}")?;
         }
 
         for class in self.egraph.classes() {
@@ -64,10 +64,10 @@ impl<'a, L: Language> Display for Dot<'a, L> {
                 for (arg_i, child) in node.children().iter().enumerate() {
                     // write the edge to the child, but clip it to the eclass with lhead
                     let child_leader = self.egraph.just_find(*child);
-                    write!(
+                    writeln!(
                         f,
                         // {}.0 to pick an arbitrary node in the cluster
-                        "  {}.{} -> {}.0 [lhead = cluster_{}, label = {}]\n",
+                        "  {}.{} -> {}.0 [lhead = cluster_{}, label = {}]",
                         class.id, i_in_class, child, child_leader, arg_i
                     )?;
                 }

@@ -49,7 +49,7 @@ impl<L: Language> RecExpr<L> {
             Expr::Constant(c) => Sexp::String(c.to_string()),
             Expr::Variable(v) => Sexp::String(v.to_string()),
             Expr::Operator(op, args) => {
-                let mut vec: Vec<_> = args.iter().map(RecExpr::to_sexp).collect();
+                let mut vec: Vec<_> = args.iter().map(Self::to_sexp).collect();
                 vec.insert(0, Sexp::String(op.to_string()));
                 Sexp::List(vec)
             }

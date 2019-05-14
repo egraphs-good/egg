@@ -60,6 +60,10 @@ impl<L: Language> EClass<L> {
         EClass { id, nodes }
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.nodes.is_empty()
+    }
+
     pub fn len(&self) -> usize {
         self.nodes.len()
     }
@@ -120,6 +124,10 @@ impl<L: Language> EGraph<L> {
         // make sure that total size of classes == all nodes
         let sum_classes = self.classes.values().map(EClass::len).sum();
         assert_eq!(self.nodes.len(), sum_classes);
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.nodes.is_empty()
     }
 
     /// Returns the number of nodes in the EGraph.

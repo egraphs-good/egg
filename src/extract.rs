@@ -23,7 +23,7 @@ fn calculate_cost_rec<L: Language>(map: &mut HashMap<RecExpr<L>, Cost>, expr: &R
 pub fn calculate_cost<L: Language>(expr: &RecExpr<L>) -> Cost {
     let mut map = HashMap::default();
     let cost = calculate_cost_rec(&mut map, expr);
-    // trace!("Found cost to be {}\n  {}", cost, expr.to_sexp());
+    trace!("Found cost to be {}\n  {}", cost, expr.to_sexp());
     cost
 }
 
