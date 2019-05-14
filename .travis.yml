@@ -4,5 +4,5 @@ rust:
 cache: cargo
 before_script:
   - rustup component add rustfmt
-  - cargo install cargo-deadlinks
+  - cargo install cargo-deadlinks || echo "cargo-deadlinks already installed"
 script: ./check.sh

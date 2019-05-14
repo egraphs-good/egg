@@ -1,6 +1,6 @@
 use egg::{
     egraph::EGraph,
-    expr::{Expr, Language, Name, QuestionMarkName, RecExpr},
+    expr::{Expr, Language, Name, QuestionMarkName},
     extract::{calculate_cost, Extractor},
     parse::ParsableLanguage,
     pattern::Rewrite,
