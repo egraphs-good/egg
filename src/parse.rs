@@ -83,6 +83,13 @@ fn pat_to_expr<L: Language>(pat: Pattern<L>) -> Result<RecExpr<L>> {
     }
 }
 
+/// A trait to parse stuff from a `Langauge`.
+///
+/// This is blanket-impled for any `Langauge` whose domains all
+/// implement [`FromStr`]. [`TestLang`] is a parsable langauge.
+///
+/// [`FromStr`]: https://doc.rust-lang.org/std/str/trait.FromStr.html
+/// [`TestLang`]: ../expr/tests/struct.TestLang.html
 pub trait ParsableLanguage: Language
 where
     Self::Constant: FromStr,
