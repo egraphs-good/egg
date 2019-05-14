@@ -203,16 +203,16 @@ impl<L: Language> EGraph<L> {
     }
 
     pub fn fold_constants(&mut self) -> usize {
-        let mut folded = 0;
         let mut to_add = HashMap::default();
-        // keep track of constants in each class to save some scanning
         let mut constant_nodes = HashMap::default();
 
         // look for constants in each class
         for (id, class) in &self.classes {
             for node in &class.nodes {
                 if let Expr::Constant(c) = node {
-                    constant_nodes.insert(*id, c.clone());
+                    let old_val = constant_nodes.insert(*id, c.clone());
+                    assert_eq!(old_val, None,
+                               "more than one constants in a class");
                 }
             }
         }
@@ -222,35 +222,30 @@ impl<L: Language> EGraph<L> {
             for node in &class.nodes {
                 if let Expr::Operator(op, cids) = node {
                     // get children if they are all constant
-                    let children: Option<Vec<_>> = cids.iter().map(|id| {
-                        if let Some(c) = constant_nodes.get(id) {
-                            Some(c.clone())
-                        } else {
-                            let class = self.get_eclass(*id);
-                            for n in &class.nodes {
-                                if let Expr::Constant(c) = n {
-                                    return Some(c.clone());
-                                }
-                            }
-                            None
-                        }
-                    }).collect();
+                    let children: Option<Vec<_>> = cids.iter()
+                        .map(|id| constant_nodes.get(id).cloned()).collect();
                     // evaluate expression to constant
                     if let Some(consts) = children {
                         let e = Expr::Operator(op.clone(), consts);
                         let const_e = Expr::Constant(L::eval(&e));
-                        to_add.insert(*id, const_e);
+                        let old_val = to_add.insert(*id, const_e.clone());
+                        if let Some(old_const) = old_val {
+                            assert_eq!(old_const, const_e,
+                                       "nodes in the same class differ in values");
+                        }
                     }
                 }
             }
         }
         // add and merge the new folded constants
+        let mut folded = 0;
         for (cid, new_node) in to_add {
-            let aid = self.add(new_node).id;
-            self.union(cid, aid);
-            folded += 1;
+            let add_result = self.add(new_node);
+            self.union(cid, add_result.id);
+            if !add_result.was_there {
+                folded += 1;
+            }
         }
-
         folded
     }
 
