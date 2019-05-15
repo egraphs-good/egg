@@ -478,7 +478,7 @@ fn associate_adds() {
         }
     }
 
-    // there are exactly 127 ways to add 7 things
+    // there are exactly 127 non-empty subsets of 7 things
     assert_eq!(egraph.classes().len(), 127);
 
     egraph.dump_dot("associate.dot");
