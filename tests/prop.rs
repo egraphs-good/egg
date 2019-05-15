@@ -19,6 +19,34 @@ enum Bool {
     False,
 }
 
+fn conjoin(x: Bool, y: Bool) -> Bool {
+    if (x == Bool::True) && (y == Bool::True) {
+        Bool::True
+    } else {
+        Bool::False
+    }
+}
+
+fn disjoin(x: Bool, y: Bool) -> Bool {
+    if (x == Bool::True) || (y == Bool::True) {
+        Bool::True
+    } else {
+        Bool::False
+    }
+}
+
+fn negate(x: Bool) -> Bool {
+    if x == Bool::True {
+        Bool::False
+    } else {
+        Bool::True
+    }
+}
+
+fn implies(x: Bool, y: Bool) -> Bool {
+    disjoin(y, negate(x))
+}
+
 #[derive(Debug, PartialEq, Eq, Hash, Clone, EnumString, Display)]
 enum Op {
     #[strum(serialize = "&")]
@@ -39,6 +67,21 @@ impl Language for Prop {
 
     fn cost(_node: &Expr<Prop, u64>) -> u64 {
         unimplemented!()
+    }
+
+    fn eval(op: Op, args: &[Bool]) -> Bool {
+        match op {
+            Op::And => args.iter().fold(Bool::True, |x, y| conjoin(x, y.clone())),
+            Op::Or => args.iter().fold(Bool::False, |x, y| disjoin(x, y.clone())),
+            Op::Not => {
+                assert_eq!(args.len(), 1);
+                negate(args[0].clone())
+            }
+            Op::Implies => {
+                assert_eq!(args.len(), 2);
+                implies(args[0].clone(), args[1].clone())
+            }
+        }
     }
 }
 
@@ -147,4 +190,57 @@ fn prove_chain() {
             "(-> x z)",
         ],
     );
+}
+
+#[test]
+fn evaluate() {
+    assert_eq!(Prop::eval(Op::And, &[Bool::True, Bool::True]), Bool::True);
+    assert_eq!(Prop::eval(Op::And, &[Bool::True, Bool::False]), Bool::False);
+    assert_eq!(Prop::eval(Op::And, &[Bool::False, Bool::True]), Bool::False);
+    assert_eq!(
+        Prop::eval(Op::And, &[Bool::False, Bool::False]),
+        Bool::False
+    );
+
+    assert_eq!(Prop::eval(Op::Or, &[Bool::True, Bool::True]), Bool::True);
+    assert_eq!(Prop::eval(Op::Or, &[Bool::True, Bool::False]), Bool::True);
+    assert_eq!(Prop::eval(Op::Or, &[Bool::False, Bool::True]), Bool::True);
+    assert_eq!(Prop::eval(Op::Or, &[Bool::False, Bool::False]), Bool::False);
+
+    assert_eq!(
+        Prop::eval(Op::Implies, &[Bool::True, Bool::False]),
+        Bool::False
+    );
+    assert_eq!(
+        Prop::eval(Op::Implies, &[Bool::True, Bool::True]),
+        Bool::True
+    );
+    assert_eq!(
+        Prop::eval(Op::Implies, &[Bool::False, Bool::True]),
+        Bool::True
+    );
+    assert_eq!(
+        Prop::eval(Op::Implies, &[Bool::False, Bool::True]),
+        Bool::True
+    );
+
+    assert_eq!(Prop::eval(Op::Not, &[Bool::True]), Bool::False);
+    assert_eq!(Prop::eval(Op::Not, &[Bool::False]), Bool::True);
+}
+
+#[test]
+fn const_fold() {
+    let start = "(| (& F T) (& T F))";
+    let start_expr = Prop.parse_expr(start).unwrap();
+    let end = "F";
+    let end_expr = Prop.parse_expr(end).unwrap();
+    let (mut eg, _) = EGraph::from_expr(&start_expr);
+    eg.dump_dot("constant_folding0.dot");
+    assert_eq!(eg.fold_constants(), 2);
+    eg.rebuild();
+    eg.dump_dot("constant_folding1.dot");
+    assert_eq!(eg.fold_constants(), 1);
+    eg.rebuild();
+    eg.dump_dot("constant_folding2.dot");
+    assert!(!eg.equivs(&start_expr, &end_expr).is_empty());
 }

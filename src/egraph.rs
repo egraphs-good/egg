@@ -281,6 +281,56 @@ impl<L: Language> EGraph<L> {
         pruned
     }
 
+    pub fn fold_constants(&mut self) -> usize {
+        let mut to_add = HashMap::default();
+        let mut constant_nodes = HashMap::default();
+
+        // look for constants in each class
+        for (id, class) in &self.classes {
+            for node in &class.nodes {
+                if let Expr::Constant(c) = node {
+                    let old_val = constant_nodes.insert(*id, c.clone());
+                    assert_eq!(old_val, None, "more than one constants in a class");
+                }
+            }
+        }
+
+        // evaluate foldable expressions
+        for (id, class) in &self.classes {
+            for node in &class.nodes {
+                if let Expr::Operator(op, cids) = node {
+                    // get children if they are all constant
+                    let children: Option<Vec<_>> = cids
+                        .iter()
+                        .map(|id| constant_nodes.get(id).cloned())
+                        .collect();
+                    // evaluate expression to constant
+                    if let Some(consts) = children {
+                        let const_e = Expr::Constant(L::eval(op.clone(), &consts));
+                        let old_val = to_add.insert(*id, const_e.clone());
+                        if let Some(old_const) = old_val {
+                            assert_eq!(
+                                old_const, const_e,
+                                "nodes in the same class differ in values"
+                            );
+                        }
+                    }
+                }
+            }
+        }
+        // add and merge the new folded constants
+        let mut folded = 0;
+        for (cid, new_node) in to_add {
+            let add_result = self.add(new_node);
+            let old_size = self.get_eclass(cid).len();
+            self.union(cid, add_result.id);
+            if self.get_eclass(cid).len() > old_size {
+                folded += 1;
+            }
+        }
+        folded
+    }
+
     fn rebuild_once(&mut self) -> usize {
         let mut new_nodes = HashMap::default();
         let mut to_union = Vec::new();
