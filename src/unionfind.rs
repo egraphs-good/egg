@@ -164,7 +164,7 @@ mod tests {
         }
 
         // make sure that at least one set isn't flat
-        assert!((0..n).any(|i| { uf.parents[i as usize] != uf.just_find(i) }));
+        assert!((0..n).any(|i| uf.parents[i as usize] != uf.just_find(i)));
 
         // compress all paths
         for i in 0..n {

@@ -135,7 +135,7 @@ fn prove_something(name: &str, start: &str, rewrites: &[Rewrite<Prop>], goals: &
     for (i, (goal_expr, goal_str)) in goal_exprs.iter().zip(goals).enumerate() {
         info!("Trying to prove goal {}: {}", i, goal_str);
         let equivs = egraph.equivs(&start_expr, &goal_expr);
-        if equivs.len() == 0 {
+        if equivs.is_empty() {
             panic!("Couldn't prove goal {}: {}", i, goal_str);
         }
     }

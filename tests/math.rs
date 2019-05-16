@@ -528,7 +528,7 @@ fn do_something() {
         for (_name, list) in rules.iter() {
             for rule in list {
                 let ms = rule.lhs.search(&egraph);
-                if ms.len() > 0 {
+                if !ms.is_empty() {
                     matches.push((&rule.rhs, ms));
                 }
                 // rule.run(&mut egraph);
