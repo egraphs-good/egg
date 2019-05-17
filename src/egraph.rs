@@ -11,7 +11,7 @@ use crate::{
 /// Data structure to keep track of equalities between expressions
 #[derive(Debug)]
 pub struct EGraph<L: Language> {
-    nodes: HashMap<Expr<L, Id>, Id>,
+    memo: HashMap<Expr<L, Id>, Id>,
     classes: UnionFind<Id, EClass<L>>,
     unions_since_rebuild: usize,
 }
@@ -19,7 +19,7 @@ pub struct EGraph<L: Language> {
 impl<L: Language> Default for EGraph<L> {
     fn default() -> EGraph<L> {
         EGraph {
-            nodes: HashMap::default(),
+            memo: HashMap::default(),
             classes: UnionFind::default(),
             unions_since_rebuild: 0,
         }
@@ -110,7 +110,7 @@ impl<L: Language> EGraph<L> {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.nodes.is_empty()
+        self.memo.is_empty()
     }
 
     /// Returns the number of nodes in the EGraph.
@@ -128,7 +128,7 @@ impl<L: Language> EGraph<L> {
     /// assert_eq!(egraph.total_size(), 2);
     /// ```
     pub fn total_size(&self) -> usize {
-        self.nodes.len()
+        self.memo.len()
     }
 
     pub fn number_of_classes(&self) -> usize {
@@ -178,13 +178,13 @@ impl<L: Language> EGraph<L> {
         }
 
         // hash cons
-        match self.nodes.get(&enode) {
+        match self.memo.get(&enode) {
             None => {
                 // HACK knowing the next key like this is pretty bad
                 let class = EClass::new(self.classes.total_size() as Id, vec![enode.clone()]);
                 let next_id = self.classes.make_set(class);
                 trace!("Added  {:4}: {:?}", next_id, enode);
-                let old = self.nodes.insert(enode, next_id);
+                let old = self.memo.insert(enode, next_id);
                 assert_eq!(old, None);
                 AddResult {
                     was_there: false,
@@ -303,14 +303,14 @@ impl<L: Language> EGraph<L> {
     }
 
     fn rebuild_once(&mut self) -> usize {
-        let mut new_nodes = HashMap::default();
+        let mut new_memo = HashMap::default();
         let mut to_union = Vec::new();
 
         for (leader, class) in self.classes.iter() {
             for node in &class.nodes {
                 let n = node.update_ids(&self.classes);
 
-                if let Some(old_leader) = new_nodes.insert(n, leader) {
+                if let Some(old_leader) = new_memo.insert(n, leader) {
                     if old_leader != leader {
                         to_union.push((leader, old_leader));
                     }
@@ -322,7 +322,7 @@ impl<L: Language> EGraph<L> {
         for (id1, id2) in to_union {
             self.union(id1, id2);
         }
-        self.nodes = new_nodes;
+        self.memo = new_memo;
         n_unions
     }
 
@@ -355,7 +355,7 @@ impl<L: Language> EGraph<L> {
 
         self.unions_since_rebuild = 0;
 
-        let old_hc_size = self.nodes.len();
+        let old_hc_size = self.memo.len();
         let old_n_eclasses = self.classes.number_of_classes();
         let mut n_rebuilds = 0;
         let mut n_unions = 0;
@@ -387,7 +387,7 @@ impl<L: Language> EGraph<L> {
             elapsed.subsec_millis(),
             old_hc_size,
             old_n_eclasses,
-            self.nodes.len(),
+            self.memo.len(),
             self.classes.number_of_classes(),
             n_unions,
             trimmed_nodes,
