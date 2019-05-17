@@ -1,36 +1,87 @@
 use crate::util::{HashMap, HashSet};
+use std::fmt::Debug;
+use std::hash::Hash;
 
-#[derive(Debug, Default)]
-pub struct UnionFind {
-    parents: Vec<u32>,
+#[derive(Debug)]
+pub struct UnionFind<K, V> {
+    parents: Vec<K>,
     sizes: Vec<u32>,
+    values: Vec<Option<V>>,
+    n_leaders: usize,
 }
 
-#[derive(Debug, PartialEq)]
-pub enum UnionResult {
-    Unioned { from: u32, to: u32 },
-    SameSet(u32),
+impl<K, V> Default for UnionFind<K, V> {
+    fn default() -> Self {
+        UnionFind {
+            parents: Vec::new(),
+            sizes: Vec::new(),
+            values: Vec::new(),
+            n_leaders: 0,
+        }
+    }
 }
 
-impl UnionFind {
-    pub fn new() -> UnionFind {
-        UnionFind::default()
+pub trait Key: Copy + PartialEq {
+    fn index(&self) -> usize;
+    fn from_index(index: usize) -> Self;
+}
+
+impl Key for u32 {
+    fn index(&self) -> usize {
+        *self as usize
+    }
+    fn from_index(index: usize) -> Self {
+        index as Self
+    }
+}
+
+pub trait Value: Sized {
+    type Error: Debug;
+    fn merge<K>(
+        unionfind: &mut UnionFind<K, Self>,
+        value1: Self,
+        value2: Self,
+    ) -> Result<Self, Self::Error>;
+}
+
+impl Value for () {
+    type Error = std::convert::Infallible;
+    fn merge<K>(
+        _: &mut UnionFind<K, Self>,
+        _value1: Self,
+        _value2: Self,
+    ) -> Result<Self, Self::Error> {
+        Ok(())
+    }
+}
+
+impl<K: Key, V> UnionFind<K, V> {
+    pub fn new() -> Self {
+        Self::default()
     }
 
-    pub fn len(&self) -> usize {
+    pub fn total_size(&self) -> usize {
+        debug_assert_eq!(self.parents.len(), self.sizes.len());
+        debug_assert_eq!(self.parents.len(), self.values.len());
         self.parents.len()
     }
 
-    pub fn make_set(&mut self) -> u32 {
-        let new = self.len() as u32;
+    pub fn number_of_classes(&self) -> usize {
+        self.n_leaders
+    }
+
+    pub fn make_set(&mut self, value: V) -> K {
+        let new = Key::from_index(self.total_size());
         self.parents.push(new);
         self.sizes.push(1);
+        self.values.push(Some(value));
+        self.n_leaders += 1;
         new
     }
 
     #[inline(always)]
-    fn parent(&self, query: u32) -> Option<u32> {
-        let parent = self.parents[query as usize];
+    fn parent(&self, query: K) -> Option<K> {
+        let parent = self.parents[query.index()];
         if query == parent {
             None
         } else {
@@ -38,7 +89,7 @@ impl UnionFind {
         }
     }
 
-    pub fn just_find(&self, query: u32) -> u32 {
+    pub fn just_find(&self, query: K) -> K {
         let mut current = query;
         while let Some(parent) = self.parent(current) {
             current = parent;
@@ -46,49 +97,81 @@ impl UnionFind {
         current
     }
 
-    pub fn find(&mut self, query: u32) -> u32 {
+    pub fn find(&mut self, query: K) -> K {
         let root = self.just_find(query);
 
         // do simple path compression with another loop
         let mut current = query;
         while let Some(parent) = self.parent(current) {
-            self.parents[current as usize] = root;
+            self.parents[current.index()] = root;
             current = parent;
         }
 
         current
     }
 
-    pub fn union(&mut self, set1: u32, set2: u32) -> UnionResult {
+    pub fn get(&self, query: K) -> &V {
+        let leader = self.just_find(query);
+        self.values[leader.index()].as_ref().unwrap()
+    }
+
+    pub fn get_mut(&mut self, query: K) -> &mut V {
+        let leader = self.find(query);
+        self.values[leader.index()].as_mut().unwrap()
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (K, &V)> {
+        self.values
+            .iter()
+            .enumerate()
+            .filter_map(|(i, v)| v.as_ref().map(|v| (K::from_index(i), v)))
+    }
+
+    pub fn values(&self) -> impl Iterator<Item = &V> {
+        self.values.iter().filter_map(Option::as_ref)
+    }
+
+    pub fn values_mut(&mut self) -> impl Iterator<Item = &mut V> {
+        self.values.iter_mut().filter_map(Option::as_mut)
+    }
+}
+
+impl<K: Key, V: Value> UnionFind<K, V> {
+    pub fn union(&mut self, set1: K, set2: K) -> Result<K, V::Error> {
         let mut root1 = self.find(set1);
         let mut root2 = self.find(set2);
 
         if root1 == root2 {
-            return UnionResult::SameSet(root1);
+            return Ok(root1);
         }
 
         // make root1 the bigger one, then union into that one
-        let size1 = self.sizes[root1 as usize];
-        let size2 = self.sizes[root2 as usize];
+        let size1 = self.sizes[root1.index()];
+        let size2 = self.sizes[root2.index()];
         if size1 < size2 {
             // don't need to swap sizes, we just add them
             std::mem::swap(&mut root1, &mut root2)
         }
 
-        self.parents[root2 as usize] = root1;
-        self.sizes[root1 as usize] = size1 + size2;
+        let value1 = self.values[root1.index()].take().unwrap();
+        let value2 = self.values[root2.index()].take().unwrap();
 
-        UnionResult::Unioned {
-            from: root2,
-            to: root1,
-        }
+        let value = Value::merge(self, value1, value2);
+        self.n_leaders -= 1;
+        self.values[root1.index()] = Some(value?);
+
+        self.parents[root2.index()] = root1;
+        self.sizes[root1.index()] = size1 + size2;
+
+        Ok(root1)
     }
+}
 
-    pub fn build_sets(&self) -> HashMap<u32, HashSet<u32>> {
-        let mut map: HashMap<u32, HashSet<u32>> = HashMap::default();
+impl<K: Key + Eq + Hash, V> UnionFind<K, V> {
+    pub fn build_sets(&self) -> HashMap<K, HashSet<K>> {
+        let mut map: HashMap<K, HashSet<K>> = HashMap::default();
 
-        for i in 0..self.len() {
-            let i = i as u32;
+        for i in (0..self.total_size()).map(Key::from_index) {
             let leader = self.just_find(i);
             let actual_set = map.entry(leader).or_default();
             actual_set.insert(i);
@@ -105,10 +188,10 @@ mod tests {
 
     use crate::util::{hashmap, hashset};
 
-    fn make_union_find(n: u32) -> UnionFind {
+    fn make_union_find(n: u32) -> UnionFind<u32, ()> {
         let mut uf = UnionFind::new();
         for _ in 0..n {
-            uf.make_set();
+            uf.make_set(());
         }
         uf
     }
@@ -132,22 +215,20 @@ mod tests {
             .collect::<HashMap<_, _>>();
         assert_eq!(uf.build_sets(), expected_sets);
 
-        use UnionResult::*;
-
         // these should all merge into 0, because it's the largest class
         // after the first merge
-        assert_eq!(uf.union(0, 1), Unioned { from: 1, to: 0 });
-        assert_eq!(uf.union(1, 2), Unioned { from: 2, to: 0 });
-        assert_eq!(uf.union(3, 2), Unioned { from: 3, to: 0 });
+        assert_eq!(uf.union(0, 1), Ok(0));
+        assert_eq!(uf.union(1, 2), Ok(0));
+        assert_eq!(uf.union(3, 2), Ok(0));
 
         // build up another set
-        assert_eq!(uf.union(6, 7), Unioned { from: 7, to: 6 });
-        assert_eq!(uf.union(8, 9), Unioned { from: 9, to: 8 });
-        assert_eq!(uf.union(7, 9), Unioned { from: 8, to: 6 });
+        assert_eq!(uf.union(6, 7), Ok(6));
+        assert_eq!(uf.union(8, 9), Ok(8));
+        assert_eq!(uf.union(7, 9), Ok(6));
 
         // make sure union on same set returns leader
-        assert_eq!(uf.union(1, 3), SameSet(0));
-        assert_eq!(uf.union(7, 8), SameSet(6));
+        assert_eq!(uf.union(1, 3), Ok(0));
+        assert_eq!(uf.union(7, 8), Ok(6));
 
         // check set structure
         let expected_sets = hashmap(&[

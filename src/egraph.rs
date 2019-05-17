@@ -4,7 +4,7 @@ use std::time::Instant;
 
 use crate::{
     expr::{Expr, Id, Language, RecExpr},
-    unionfind::{UnionFind, UnionResult},
+    unionfind::{UnionFind, Value},
     util::{HashMap, HashSet},
 };
 
@@ -12,8 +12,7 @@ use crate::{
 #[derive(Debug)]
 pub struct EGraph<L: Language> {
     nodes: HashMap<Expr<L, Id>, Id>,
-    leaders: UnionFind,
-    classes: HashMap<Id, EClass<L>>,
+    classes: UnionFind<Id, EClass<L>>,
     unions_since_rebuild: usize,
     debug: bool,
 }
@@ -22,8 +21,7 @@ impl<L: Language> Default for EGraph<L> {
     fn default() -> EGraph<L> {
         EGraph {
             nodes: HashMap::default(),
-            leaders: UnionFind::default(),
-            classes: HashMap::default(),
+            classes: UnionFind::default(),
             unions_since_rebuild: 0,
             debug: false,
         }
@@ -73,20 +71,27 @@ impl<L: Language> EClass<L> {
     pub fn iter(&self) -> impl ExactSizeIterator<Item = &Expr<L, Id>> {
         self.nodes.iter()
     }
+}
 
-    pub fn combine(&mut self, other: Self, id: Id) {
-        let mut less_nodes = std::mem::replace(&mut self.nodes, vec![]);
-        let mut more_nodes = other.nodes;
+impl<L: Language> Value for EClass<L> {
+    type Error = std::convert::Infallible;
+    fn merge<K>(
+        _unionfind: &mut UnionFind<K, Self>,
+        to: Self,
+        from: Self,
+    ) -> Result<Self, Self::Error> {
+        let to_id = to.id;
+        let mut less = to;
+        let mut more = from;
 
-        // make sure less nodes is actually smaller
-        if more_nodes.len() < less_nodes.len() {
-            std::mem::swap(&mut less_nodes, &mut more_nodes);
+        // make sure less is actually smaller
+        if more.len() < less.len() {
+            std::mem::swap(&mut less, &mut more);
         }
 
-        more_nodes.extend(less_nodes);
-
-        self.id = id;
-        self.nodes = more_nodes;
+        more.nodes.extend(less.nodes);
+        more.id = to_id;
+        Ok(more)
     }
 }
 
@@ -102,7 +107,7 @@ impl<L: Language> EGraph<L> {
         self.add(e).id
     }
 
-    pub fn classes(&self) -> impl ExactSizeIterator<Item = &EClass<L>> {
+    pub fn classes(&self) -> impl Iterator<Item = &EClass<L>> {
         self.classes.values()
     }
 
@@ -118,12 +123,11 @@ impl<L: Language> EGraph<L> {
         if !self.debug {
             return;
         }
-        // make sure the classes map contains exactly the unique leaders
-        let sets = self.leaders.build_sets();
+        // make sure the classes map contains exactly the unique classes
+        let sets = self.classes.build_sets();
 
-        assert_eq!(sets.len(), self.classes.len());
-        for l in sets.keys() {
-            assert!(self.classes.contains_key(&l));
+        for &l in sets.keys() {
+            assert_eq!(self.classes.just_find(l), l)
         }
 
         // make sure the hashcons has everything and points to the right leader
@@ -151,16 +155,18 @@ impl<L: Language> EGraph<L> {
     /// // only one eclass
     /// egraph.union(x.id, y.id);
     ///
-    /// assert_eq!(egraph.len(), 2);
+    /// assert_eq!(egraph.total_size(), 2);
     /// ```
-    pub fn len(&self) -> usize {
+    pub fn total_size(&self) -> usize {
         self.nodes.len()
     }
 
+    pub fn number_of_classes(&self) -> usize {
+        self.classes.number_of_classes()
+    }
+
     pub fn get_eclass(&self, eclass_id: Id) -> &EClass<L> {
-        self.classes
-            .get(&self.just_find(eclass_id))
-            .unwrap_or_else(|| panic!("Couldn't find eclass {:?}", eclass_id))
+        self.classes.get(eclass_id)
     }
 
     pub fn equivs(&self, expr1: &RecExpr<L>, expr2: &RecExpr<L>) -> Vec<Id> {
@@ -192,12 +198,12 @@ impl<L: Language> EGraph<L> {
         // make sure that the enodes children are already in the set
         if cfg!(debug_assertions) {
             for &id in enode.children() {
-                if id >= self.leaders.len() as u32 {
+                if id >= self.classes.total_size() as u32 {
                     panic!(
-                        "Expr: {:?}\n  Found id {} but leaders.len() = {}",
+                        "Expr: {:?}\n  Found id {} but classes.len() = {}",
                         enode,
                         id,
-                        self.leaders.len()
+                        self.classes.total_size()
                     );
                 }
             }
@@ -206,10 +212,10 @@ impl<L: Language> EGraph<L> {
         // hash cons
         let result = match self.nodes.get(&enode) {
             None => {
-                let next_id = self.leaders.make_set();
+                // HACK knowing the next key like this is pretty bad
+                let class = EClass::new(self.classes.total_size() as Id, vec![enode.clone()]);
+                let next_id = self.classes.make_set(class);
                 trace!("Added  {:4}: {:?}", next_id, enode);
-                self.classes
-                    .insert(next_id, EClass::new(next_id, vec![enode.clone()]));
                 let old = self.nodes.insert(enode, next_id);
                 assert_eq!(old, None);
                 AddResult {
@@ -231,7 +237,7 @@ impl<L: Language> EGraph<L> {
     }
 
     pub fn just_find(&self, id: Id) -> Id {
-        self.leaders.just_find(id)
+        self.classes.just_find(id)
     }
 
     /// Trims down eclasses that have variables or constants in them.
@@ -254,7 +260,7 @@ impl<L: Language> EGraph<L> {
     /// // eclass is now smaller
     /// assert_eq!(egraph.get_eclass(eclass).len(), 1);
     /// // for now, its not actually removed from the egraph
-    /// assert_eq!(egraph.len(), 4);
+    /// assert_eq!(egraph.total_size(), 4);
     /// ```
     ///
     pub fn prune(&mut self) -> usize {
@@ -286,17 +292,17 @@ impl<L: Language> EGraph<L> {
         let mut constant_nodes = HashMap::default();
 
         // look for constants in each class
-        for (id, class) in &self.classes {
+        for (id, class) in self.classes.iter() {
             for node in &class.nodes {
                 if let Expr::Constant(c) = node {
-                    let old_val = constant_nodes.insert(*id, c.clone());
+                    let old_val = constant_nodes.insert(id, c.clone());
                     assert_eq!(old_val, None, "more than one constants in a class");
                 }
             }
         }
 
         // evaluate foldable expressions
-        for (id, class) in &self.classes {
+        for (id, class) in self.classes.iter() {
             for node in &class.nodes {
                 if let Expr::Operator(op, cids) = node {
                     // get children if they are all constant
@@ -307,7 +313,7 @@ impl<L: Language> EGraph<L> {
                     // evaluate expression to constant
                     if let Some(consts) = children {
                         let const_e = Expr::Constant(L::eval(op.clone(), &consts));
-                        let old_val = to_add.insert(*id, const_e.clone());
+                        let old_val = to_add.insert(id, const_e.clone());
                         if let Some(old_const) = old_val {
                             assert_eq!(
                                 old_const, const_e,
@@ -335,9 +341,9 @@ impl<L: Language> EGraph<L> {
         let mut new_nodes = HashMap::default();
         let mut to_union = Vec::new();
 
-        for (&leader, class) in self.classes.iter() {
+        for (leader, class) in self.classes.iter() {
             for node in &class.nodes {
-                let n = node.update_ids(&self.leaders);
+                let n = node.update_ids(&self.classes);
 
                 if let Some(old_leader) = new_nodes.insert(n, leader) {
                     if old_leader != leader {
@@ -357,18 +363,22 @@ impl<L: Language> EGraph<L> {
 
     fn rebuild_classes(&mut self) -> usize {
         let mut trimmed = 0;
-        let mut new_classes = HashMap::default();
-        for (leader, class) in self.classes.drain() {
+        let mut new_classes = Vec::new();
+        for class in self.classes.values() {
             let mut new_nodes = HashSet::default();
             for node in class.nodes.iter() {
-                new_nodes.insert(node.update_ids(&self.leaders));
+                new_nodes.insert(node.update_ids(&self.classes));
             }
             trimmed += class.len() - new_nodes.len();
-            let new_class = EClass::new(leader, new_nodes.into_iter().collect());
-            new_classes.insert(leader, new_class);
+            let new_class = EClass::new(class.id, new_nodes.into_iter().collect());
+            new_classes.push(new_class);
         }
 
-        self.classes = new_classes;
+        for class in new_classes {
+            let spot = self.classes.get_mut(class.id);
+            *spot = class;
+        }
+
         trimmed
     }
 
@@ -381,7 +391,7 @@ impl<L: Language> EGraph<L> {
         self.unions_since_rebuild = 0;
 
         let old_hc_size = self.nodes.len();
-        let old_n_eclasses = self.classes.len();
+        let old_n_eclasses = self.classes.number_of_classes();
         let mut n_rebuilds = 0;
         let mut n_unions = 0;
 
@@ -413,7 +423,7 @@ impl<L: Language> EGraph<L> {
             old_hc_size,
             old_n_eclasses,
             self.nodes.len(),
-            self.classes.len(),
+            self.classes.number_of_classes(),
             n_unions,
             trimmed_nodes,
         );
@@ -424,21 +434,15 @@ impl<L: Language> EGraph<L> {
 
         trace!("Unioning {} and {}", id1, id2);
 
-        let (from, to) = match self.leaders.union(id1, id2) {
-            UnionResult::SameSet(leader) => return leader,
-            UnionResult::Unioned { from, to } => (from, to),
-        };
-
+        let to = self.classes.union(id1, id2).unwrap();
         self.unions_since_rebuild += 1;
-
-        let from_class = self.classes.remove(&from).unwrap();
-        self.classes.get_mut(&to).unwrap().combine(from_class, to);
 
         self.check();
         if log_enabled!(Level::Trace) {
+            let from = if to == id1 { id2 } else { id1 };
             trace!("Unioned {} -> {}", from, to);
-            trace!("Leaders: {:?}", self.leaders);
-            for (leader, class) in &self.classes {
+            trace!("Classes: {:?}", self.classes);
+            for (leader, class) in self.classes.iter() {
                 trace!("  {:?}: {:?}", leader, class);
             }
         }

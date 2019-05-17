@@ -171,7 +171,7 @@ impl<L: Language> PatternMatches<L> {
         self.mappings
             .iter()
             .filter_map(|mapping| {
-                let before_size = egraph.len();
+                let before_size = egraph.total_size();
                 let pattern_root = self.apply_rec(0, pattern, egraph, mapping);
                 let leader = egraph.union(self.eclass, pattern_root.id);
                 if !pattern_root.was_there {
@@ -181,7 +181,8 @@ impl<L: Language> PatternMatches<L> {
                     // was actually done in this application (it was
                     // already in the egraph), so we can check to make
                     // sure the egraph isn't any bigger
-                    assert_eq!(before_size, egraph.len());
+                    let after_size = egraph.total_size();
+                    assert_eq!(before_size, after_size);
                     None
                 }
             })

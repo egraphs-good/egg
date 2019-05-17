@@ -479,7 +479,7 @@ fn associate_adds() {
     }
 
     // there are exactly 127 non-empty subsets of 7 things
-    assert_eq!(egraph.classes().len(), 127);
+    assert_eq!(egraph.number_of_classes(), 127);
 
     egraph.dump_dot("associate.dot");
 }
@@ -550,8 +550,8 @@ fn do_something() {
                     let elapsed = match_time.elapsed();
                     debug!(
                         "nodes: {}, eclasses: {}, actual: {}, total: {}, us per match: {}",
-                        egraph.len(),
-                        egraph.classes().len(),
+                        egraph.total_size(),
+                        egraph.number_of_classes(),
                         applied,
                         total_matches,
                         elapsed.as_micros() / total_matches as u128
