@@ -2,7 +2,7 @@ use log::*;
 use std::time::Instant;
 
 use crate::{
-    egraph::{AddResult, EGraph},
+    egraph::{AddResult, EGraph, Metadata},
     expr::{Expr, Id, Language, RecExpr},
     util::HashMap,
 };
@@ -35,7 +35,7 @@ impl<L: Language> Rewrite<L> {
         }
     }
 
-    pub fn run(&self, egraph: &mut EGraph<L>) {
+    pub fn run<M: Metadata<L>>(&self, egraph: &mut EGraph<L, M>) {
         debug!("Running rewrite '{}'", self.name);
         let matches = self.lhs.search(&egraph);
         debug!(
@@ -61,14 +61,14 @@ impl<L: Language> Rewrite<L> {
 pub type WildMap<L> = HashMap<<L as Language>::Wildcard, Id>;
 
 impl<L: Language> Pattern<L> {
-    pub fn search(&self, egraph: &EGraph<L>) -> Vec<PatternMatches<L>> {
+    pub fn search<M>(&self, egraph: &EGraph<L, M>) -> Vec<PatternMatches<L>> {
         egraph
             .classes()
             .filter_map(|class| self.search_eclass(egraph, class.id))
             .collect()
     }
 
-    pub fn search_eclass(&self, egraph: &EGraph<L>, eclass: Id) -> Option<PatternMatches<L>> {
+    pub fn search_eclass<M>(&self, egraph: &EGraph<L, M>, eclass: Id) -> Option<PatternMatches<L>> {
         let initial_mapping = HashMap::default();
         let mappings = self.search_pat(0, initial_mapping, egraph, eclass);
         if !mappings.is_empty() {
@@ -78,16 +78,14 @@ impl<L: Language> Pattern<L> {
         }
     }
 
-    fn search_pat(
+    fn search_pat<M>(
         &self,
         depth: usize,
         mut var_mapping: WildMap<L>,
-        egraph: &EGraph<L>,
+        egraph: &EGraph<L, M>,
         eclass: Id,
     ) -> Vec<WildMap<L>> {
         let indent = "    ".repeat(depth);
-
-        trace!("{} class: {:?}", indent, egraph.get_eclass(eclass));
 
         let pat_expr = match self {
             Pattern::Wildcard(w) => {
@@ -166,7 +164,11 @@ pub struct PatternMatches<L: Language> {
 }
 
 impl<L: Language> PatternMatches<L> {
-    pub fn apply(&self, pattern: &Pattern<L>, egraph: &mut EGraph<L>) -> Vec<Id> {
+    pub fn apply<M: Metadata<L>>(
+        &self,
+        pattern: &Pattern<L>,
+        egraph: &mut EGraph<L, M>,
+    ) -> Vec<Id> {
         assert_ne!(self.mappings.len(), 0);
         self.mappings
             .iter()
@@ -189,11 +191,11 @@ impl<L: Language> PatternMatches<L> {
             .collect()
     }
 
-    fn apply_rec(
+    fn apply_rec<M: Metadata<L>>(
         &self,
         depth: usize,
         pattern: &Pattern<L>,
-        egraph: &mut EGraph<L>,
+        egraph: &mut EGraph<L, M>,
         mapping: &WildMap<L>,
     ) -> AddResult {
         trace!("{}apply_rec {:2?}", "    ".repeat(depth), pattern);
@@ -236,7 +238,7 @@ mod tests {
 
     use crate::{
         expr::{
-            tests::{op, var},
+            tests::{op, var, TestLang},
             QuestionMarkName,
         },
         util::hashmap,
@@ -245,7 +247,7 @@ mod tests {
     #[test]
     fn simple_match() {
         crate::init_logger();
-        let mut egraph = EGraph::default();
+        let mut egraph = EGraph::<TestLang, ()>::default();
 
         let x = egraph.add(var("x")).id;
         let y = egraph.add(var("y")).id;

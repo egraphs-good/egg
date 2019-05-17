@@ -119,7 +119,7 @@ fn prove_something(name: &str, start: &str, rewrites: &[Rewrite<Prop>], goals: &
     let start_expr = Prop.parse_expr(start).unwrap();
     let goal_exprs: Vec<_> = goals.iter().map(|g| Prop.parse_expr(g).unwrap()).collect();
 
-    let (mut egraph, _old_root) = EGraph::from_expr(&start_expr);
+    let (mut egraph, _old_root) = EGraph::<Prop, ()>::from_expr(&start_expr);
 
     egraph.dump_dot(&format!("{}-1.dot", name));
 
@@ -233,7 +233,7 @@ fn const_fold() {
     let start_expr = Prop.parse_expr(start).unwrap();
     let end = "F";
     let end_expr = Prop.parse_expr(end).unwrap();
-    let (mut eg, _) = EGraph::from_expr(&start_expr);
+    let (mut eg, _) = EGraph::<Prop, ()>::from_expr(&start_expr);
     eg.dump_dot("constant_folding0.dot");
     assert_eq!(eg.fold_constants(), 2);
     eg.rebuild();

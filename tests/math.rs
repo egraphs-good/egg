@@ -461,7 +461,7 @@ fn associate_adds() {
     let start = "(+ 1 (+ 2 (+ 3 (+ 4 (+ 5 (+ 6 7))))))";
     let start_expr = Math.parse_expr(start).unwrap();
 
-    let (mut egraph, _root) = EGraph::from_expr(&start_expr);
+    let (mut egraph, _root) = EGraph::<Math, ()>::from_expr(&start_expr);
 
     let rules = {
         let all = rules();
@@ -488,7 +488,7 @@ fn associate_adds() {
 fn do_something() {
     let _ = env_logger::builder().is_test(true).try_init();
     let start_expr = Math.parse_expr(EXP).unwrap();
-    let (mut egraph, root) = EGraph::from_expr(&start_expr);
+    let (mut egraph, root) = EGraph::<Math, ()>::from_expr(&start_expr);
 
     let herbies_result = "(*
   (*

@@ -1,4 +1,5 @@
 use log::*;
+use std::fmt::Debug;
 use std::iter::ExactSizeIterator;
 use std::time::Instant;
 
@@ -10,14 +11,14 @@ use crate::{
 
 /// Data structure to keep track of equalities between expressions
 #[derive(Debug)]
-pub struct EGraph<L: Language> {
+pub struct EGraph<L: Language, M> {
     memo: HashMap<Expr<L, Id>, Id>,
-    classes: UnionFind<Id, EClass<L>>,
+    classes: UnionFind<Id, EClass<L, M>>,
     unions_since_rebuild: usize,
 }
 
-impl<L: Language> Default for EGraph<L> {
-    fn default() -> EGraph<L> {
+impl<L: Language, M> Default for EGraph<L, M> {
+    fn default() -> EGraph<L, M> {
         EGraph {
             memo: HashMap::default(),
             classes: UnionFind::default(),
@@ -26,12 +27,24 @@ impl<L: Language> Default for EGraph<L> {
     }
 }
 
+pub trait Metadata<L: Language>: Sized + Debug {
+    type Error: Debug;
+    fn merge(self, other: Self) -> Self;
+    fn make(expr: Expr<L, &Self>) -> Self;
+}
+
+impl<L: Language> Metadata<L> for () {
+    type Error = std::convert::Infallible;
+    fn merge(self, _other: ()) {}
+    fn make(_expr: Expr<L, &()>) {}
+}
+
 /// Struct that tells you whether or not an [`add`] modified the EGraph
 ///
 /// ```
 /// # use egg::egraph::EGraph;
 /// # use egg::expr::tests::*;
-/// let mut egraph = EGraph::<TestLang>::default();
+/// let mut egraph = EGraph::<TestLang, ()>::default();
 /// let x1 = egraph.add(var("x"));
 /// let x2 = egraph.add(var("x"));
 ///
@@ -48,16 +61,13 @@ pub struct AddResult {
 }
 
 #[derive(Debug, Clone)]
-pub struct EClass<L: Language> {
+pub struct EClass<L: Language, M> {
     pub id: Id,
     nodes: Vec<Expr<L, Id>>,
+    metadata: M,
 }
 
-impl<L: Language> EClass<L> {
-    fn new(id: Id, nodes: Vec<Expr<L, Id>>) -> Self {
-        EClass { id, nodes }
-    }
-
+impl<L: Language, M> EClass<L, M> {
     pub fn is_empty(&self) -> bool {
         self.nodes.is_empty()
     }
@@ -71,41 +81,32 @@ impl<L: Language> EClass<L> {
     }
 }
 
-impl<L: Language> Value for EClass<L> {
+impl<L: Language, M: Metadata<L>> Value for EClass<L, M> {
     type Error = std::convert::Infallible;
     fn merge<K>(
         _unionfind: &mut UnionFind<K, Self>,
         to: Self,
         from: Self,
     ) -> Result<Self, Self::Error> {
-        let to_id = to.id;
-        let mut less = to;
-        let mut more = from;
+        let mut less = to.nodes;
+        let mut more = from.nodes;
 
         // make sure less is actually smaller
         if more.len() < less.len() {
             std::mem::swap(&mut less, &mut more);
         }
 
-        more.nodes.extend(less.nodes);
-        more.id = to_id;
-        Ok(more)
+        more.extend(less);
+        Ok(EClass {
+            id: to.id,
+            nodes: more,
+            metadata: to.metadata.merge(from.metadata),
+        })
     }
 }
 
-impl<L: Language> EGraph<L> {
-    pub fn from_expr(expr: &RecExpr<L>) -> (Self, Id) {
-        let mut egraph = EGraph::default();
-        let root = egraph.add_expr(expr);
-        (egraph, root)
-    }
-
-    pub fn add_expr(&mut self, expr: &RecExpr<L>) -> Id {
-        let e = expr.as_ref().map_children(|child| self.add_expr(&child));
-        self.add(e).id
-    }
-
-    pub fn classes(&self) -> impl Iterator<Item = &EClass<L>> {
+impl<L: Language, M> EGraph<L, M> {
+    pub fn classes(&self) -> impl Iterator<Item = &EClass<L, M>> {
         self.classes.values()
     }
 
@@ -119,7 +120,7 @@ impl<L: Language> EGraph<L> {
     /// ```
     /// # use egg::egraph::EGraph;
     /// # use egg::expr::tests::*;
-    /// let mut egraph = EGraph::<TestLang>::default();
+    /// let mut egraph = EGraph::<TestLang, ()>::default();
     /// let x = egraph.add(var("x"));
     /// let y = egraph.add(var("y"));
     /// // only one eclass
@@ -135,29 +136,25 @@ impl<L: Language> EGraph<L> {
         self.classes.number_of_classes()
     }
 
-    pub fn get_eclass(&self, eclass_id: Id) -> &EClass<L> {
+    pub fn get_eclass(&self, eclass_id: Id) -> &EClass<L, M> {
         self.classes.get(eclass_id)
     }
 
-    pub fn equivs(&self, expr1: &RecExpr<L>, expr2: &RecExpr<L>) -> Vec<Id> {
-        use crate::pattern::Pattern;
-        let matches1 = Pattern::from_expr(expr1).search(self);
-        info!("Matches1: {:?}", matches1);
+    pub fn just_find(&self, id: Id) -> Id {
+        self.classes.just_find(id)
+    }
+}
 
-        let matches2 = Pattern::from_expr(expr2).search(self);
-        info!("Matches2: {:?}", matches2);
+impl<L: Language, M: Metadata<L>> EGraph<L, M> {
+    pub fn from_expr(expr: &RecExpr<L>) -> (Self, Id) {
+        let mut egraph = EGraph::default();
+        let root = egraph.add_expr(expr);
+        (egraph, root)
+    }
 
-        let mut equiv_eclasses = Vec::new();
-
-        for m1 in &matches1 {
-            for m2 in &matches2 {
-                if m1.eclass == m2.eclass {
-                    equiv_eclasses.push(m1.eclass)
-                }
-            }
-        }
-
-        equiv_eclasses
+    pub fn add_expr(&mut self, expr: &RecExpr<L>) -> Id {
+        let e = expr.as_ref().map_children(|child| self.add_expr(&child));
+        self.add(e).id
     }
 
     pub fn add(&mut self, enode: Expr<L, Id>) -> AddResult {
@@ -181,7 +178,11 @@ impl<L: Language> EGraph<L> {
         match self.memo.get(&enode) {
             None => {
                 // HACK knowing the next key like this is pretty bad
-                let class = EClass::new(self.classes.total_size() as Id, vec![enode.clone()]);
+                let class = EClass {
+                    id: self.classes.total_size() as Id,
+                    nodes: vec![enode.clone()],
+                    metadata: M::make(enode.map_children(|id| &self.get_eclass(id).metadata)),
+                };
                 let next_id = self.classes.make_set(class);
                 trace!("Added  {:4}: {:?}", next_id, enode);
                 let old = self.memo.insert(enode, next_id);
@@ -201,8 +202,25 @@ impl<L: Language> EGraph<L> {
         }
     }
 
-    pub fn just_find(&self, id: Id) -> Id {
-        self.classes.just_find(id)
+    pub fn equivs(&self, expr1: &RecExpr<L>, expr2: &RecExpr<L>) -> Vec<Id> {
+        use crate::pattern::Pattern;
+        let matches1 = Pattern::from_expr(expr1).search(self);
+        info!("Matches1: {:?}", matches1);
+
+        let matches2 = Pattern::from_expr(expr2).search(self);
+        info!("Matches2: {:?}", matches2);
+
+        let mut equiv_eclasses = Vec::new();
+
+        for m1 in &matches1 {
+            for m2 in &matches2 {
+                if m1.eclass == m2.eclass {
+                    equiv_eclasses.push(m1.eclass)
+                }
+            }
+        }
+
+        equiv_eclasses
     }
 
     /// Trims down eclasses that have variables or constants in them.
@@ -215,7 +233,7 @@ impl<L: Language> EGraph<L> {
     /// # use egg::expr::tests::*;
     /// # use egg::parse::ParsableLanguage;
     /// let expr = TestLang.parse_expr("(+ x y)").unwrap();
-    /// let (mut egraph, root) = EGraph::<TestLang>::from_expr(&expr);
+    /// let (mut egraph, root) = EGraph::<TestLang, ()>::from_expr(&expr);
     /// let z = egraph.add(var("z"));
     /// let eclass = egraph.union(root, z.id);
     /// // eclass has z and + in it
@@ -335,13 +353,13 @@ impl<L: Language> EGraph<L> {
                 new_nodes.insert(node.update_ids(&self.classes));
             }
             trimmed += class.len() - new_nodes.len();
-            let new_class = EClass::new(class.id, new_nodes.into_iter().collect());
-            new_classes.push(new_class);
+            let nodes: Vec<_> = new_nodes.into_iter().collect();
+            new_classes.push((class.id, nodes));
         }
 
-        for class in new_classes {
-            let spot = self.classes.get_mut(class.id);
-            *spot = class;
+        for (id, nodes) in new_classes {
+            let class = self.classes.get_mut(id);
+            class.nodes = nodes
         }
 
         trimmed
@@ -440,7 +458,7 @@ mod tests {
     #[test]
     fn simple_add() {
         crate::init_logger();
-        let mut egraph = EGraph::<TestLang>::default();
+        let mut egraph = EGraph::<TestLang, ()>::default();
 
         let x = egraph.add(var("x")).id;
         let x2 = egraph.add(var("x")).id;

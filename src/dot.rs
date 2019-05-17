@@ -10,7 +10,7 @@
 //! };
 //!
 //! // make an egraph
-//! let mut egraph = EGraph::<TestLang>::default();
+//! let mut egraph = EGraph::<TestLang, ()>::default();
 //! let x = egraph.add(var("x"));
 //! let y = egraph.add(var("y"));
 //! egraph.add(op("+", vec![x.id, y.id]));
@@ -31,18 +31,18 @@ use crate::{egraph::EGraph, expr::Language};
 /// print it.
 ///
 /// [`EGraph`]: ../egraph/struct.EGraph.html
-pub struct Dot<'a, L: Language> {
-    egraph: &'a EGraph<L>,
+pub struct Dot<'a, L: Language, M> {
+    egraph: &'a EGraph<L, M>,
 }
 
-impl<'a, L: Language> Dot<'a, L> {
+impl<'a, L: Language, M> Dot<'a, L, M> {
     /// Given a reference to an `EGraph`, makes a `Dot`.
-    pub fn new(egraph: &EGraph<L>) -> Dot<L> {
+    pub fn new(egraph: &EGraph<L, M>) -> Dot<L, M> {
         Dot { egraph }
     }
 }
 
-impl<'a, L: Language> Display for Dot<'a, L> {
+impl<'a, L: Language, M> Display for Dot<'a, L, M> {
     fn fmt(&self, f: &mut Formatter) -> Result {
         writeln!(f, "digraph {{")?;
 

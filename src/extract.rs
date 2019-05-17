@@ -32,13 +32,13 @@ pub struct CostExpr<L: Language> {
     pub expr: RecExpr<L>,
 }
 
-pub struct Extractor<'a, L: Language> {
+pub struct Extractor<'a, L: Language, M> {
     costs: HashMap<Id, CostExpr<L>>,
-    egraph: &'a EGraph<L>,
+    egraph: &'a EGraph<L, M>,
 }
 
-impl<'a, L: Language> Extractor<'a, L> {
-    pub fn new(egraph: &'a EGraph<L>) -> Self {
+impl<'a, L: Language, M> Extractor<'a, L, M> {
+    pub fn new(egraph: &'a EGraph<L, M>) -> Self {
         // initialize costs with the maximum value
         let costs = HashMap::default();
 
@@ -86,7 +86,7 @@ impl<'a, L: Language> Extractor<'a, L> {
         info!("Took {} loops to find costs", loops);
     }
 
-    fn make_pass(&mut self, class: &EClass<L>) -> bool {
+    fn make_pass(&mut self, class: &EClass<L, M>) -> bool {
         let new = class
             .iter()
             .filter_map(|n| self.node_total_cost(n))
