@@ -489,7 +489,6 @@ fn do_something() {
     let _ = env_logger::builder().is_test(true).try_init();
     let start_expr = Math.parse_expr(EXP).unwrap();
     let (mut egraph, root) = EGraph::from_expr(&start_expr);
-    egraph.debug(true);
 
     let herbies_result = "(*
   (*

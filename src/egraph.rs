@@ -14,7 +14,6 @@ pub struct EGraph<L: Language> {
     nodes: HashMap<Expr<L, Id>, Id>,
     classes: UnionFind<Id, EClass<L>>,
     unions_since_rebuild: usize,
-    debug: bool,
 }
 
 impl<L: Language> Default for EGraph<L> {
@@ -23,7 +22,6 @@ impl<L: Language> Default for EGraph<L> {
             nodes: HashMap::default(),
             classes: UnionFind::default(),
             unions_since_rebuild: 0,
-            debug: false,
         }
     }
 }
@@ -111,34 +109,6 @@ impl<L: Language> EGraph<L> {
         self.classes.values()
     }
 
-    /// Turn on debug checking for this egraph
-    ///
-    /// This will check some invariants very frequently in the EGraph,
-    /// so it'll make things very slow.
-    pub fn debug(&mut self, should_debug: bool) {
-        self.debug = should_debug;
-    }
-
-    fn check(&self) {
-        if !self.debug {
-            return;
-        }
-        // make sure the classes map contains exactly the unique classes
-        let sets = self.classes.build_sets();
-
-        for &l in sets.keys() {
-            assert_eq!(self.classes.just_find(l), l)
-        }
-
-        // make sure the hashcons has everything and points to the right leader
-        for class in self.classes() {
-            for node in class.iter() {
-                let id = self.nodes.get(node).map(|&id| self.just_find(id));
-                assert_eq!(id, Some(class.id));
-            }
-        }
-    }
-
     pub fn is_empty(&self) -> bool {
         self.nodes.is_empty()
     }
@@ -191,8 +161,6 @@ impl<L: Language> EGraph<L> {
     }
 
     pub fn add(&mut self, enode: Expr<L, Id>) -> AddResult {
-        self.check();
-
         trace!("Adding       {:?}", enode);
 
         // make sure that the enodes children are already in the set
@@ -210,7 +178,7 @@ impl<L: Language> EGraph<L> {
         }
 
         // hash cons
-        let result = match self.nodes.get(&enode) {
+        match self.nodes.get(&enode) {
             None => {
                 // HACK knowing the next key like this is pretty bad
                 let class = EClass::new(self.classes.total_size() as Id, vec![enode.clone()]);
@@ -230,10 +198,7 @@ impl<L: Language> EGraph<L> {
                     id: *id,
                 }
             }
-        };
-
-        self.check();
-        result
+        }
     }
 
     pub fn just_find(&self, id: Id) -> Id {
@@ -430,14 +395,11 @@ impl<L: Language> EGraph<L> {
     }
 
     pub fn union(&mut self, id1: Id, id2: Id) -> Id {
-        self.check();
-
         trace!("Unioning {} and {}", id1, id2);
 
         let to = self.classes.union(id1, id2).unwrap();
         self.unions_since_rebuild += 1;
 
-        self.check();
         if log_enabled!(Level::Trace) {
             let from = if to == id1 { id2 } else { id1 };
             trace!("Unioned {} -> {}", from, to);
