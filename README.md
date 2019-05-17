@@ -9,6 +9,9 @@ Typically, you install Rust using [`rustup`](https://www.rust-lang.org/tools/ins
 
 Run `cargo doc --open` to build and open the documentation in a browser.
 
+Before committing/pushing, make sure to run `./check.sh`, which runs
+all the tests and lints that Travis will.
+
 ### Tests
 
 Running `cargo tests` will run the tests.
