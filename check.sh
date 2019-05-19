@@ -2,9 +2,9 @@
 
 set -ev
 
-cargo build ${CI+--verbose}
-cargo test ${CI+--verbose}
-cargo clippy --tests
-cargo doc ${CI+--verbose}
+cargo build --all ${CI+--verbose}
+cargo test --all ${CI+--verbose}
+cargo clippy --all --tests
+cargo doc --all ${CI+--verbose}
 cargo deadlinks
-cargo fmt -- --check
+cargo fmt --all -- --check
