@@ -1,6 +1,8 @@
 use log::*;
 use std::fmt::Debug;
 use std::iter::ExactSizeIterator;
+
+#[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
 
 use crate::{
@@ -279,7 +281,9 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
             for node in &class.nodes {
                 if let Expr::Constant(c) = node {
                     let old_val = constant_nodes.insert(id, c.clone());
-                    assert_eq!(old_val, None, "more than one constants in a class");
+                    if let Some(val) = old_val {
+                        error!("More than one constant in a class! Found: {:?}", val);
+                    }
                 }
             }
         }
@@ -298,10 +302,12 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
                         let const_e = Expr::Constant(L::eval(op.clone(), &consts));
                         let old_val = to_add.insert(id, const_e.clone());
                         if let Some(old_const) = old_val {
-                            assert_eq!(
-                                old_const, const_e,
-                                "nodes in the same class differ in values"
-                            );
+                            if old_const != const_e {
+                                error!(
+                                    "Nodes in the same class differ in values: {:?} != {:?}",
+                                    old_const, const_e,
+                                )
+                            }
                         }
                     }
                 }
@@ -378,6 +384,7 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
         let mut n_rebuilds = 0;
         let mut n_unions = 0;
 
+        #[cfg(not(target_arch = "wasm32"))]
         let start = Instant::now();
 
         loop {
@@ -391,8 +398,26 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
 
         let trimmed_nodes = self.rebuild_classes();
 
+        #[cfg(not(target_arch = "wasm32"))]
         let elapsed = start.elapsed();
 
+        #[cfg(target_arch = "wasm32")]
+        info!(
+            concat!(
+                "REBUILT! {} times",
+                "  Old: hc size {}, eclasses: {}\n",
+                "  New: hc size {}, eclasses: {}\n",
+                "  unions: {}, trimmed nodes: {}"
+            ),
+            n_rebuilds,
+            old_hc_size,
+            old_n_eclasses,
+            self.memo.len(),
+            self.classes.number_of_classes(),
+            n_unions,
+            trimmed_nodes,
+        );
+        #[cfg(not(target_arch = "wasm32"))]
         info!(
             concat!(
                 "REBUILT! {} times in {}.{:03}s\n",

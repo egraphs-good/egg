@@ -1,3 +1,5 @@
+#![recursion_limit = "128"]
+
 use stdweb::traits::IEvent;
 use stdweb::web::Date;
 use yew::services::ConsoleService;
@@ -6,9 +8,9 @@ use yew::{html, Component, ComponentLink, Html, Renderable, ShouldRender};
 mod math;
 
 use egg::{
-    egraph::{AddResult, EClass},
+    egraph::EClass,
     expr::{Id, RecExpr},
-    parse::{pat_to_expr, ParsableLanguage, ParseError},
+    parse::{pat_to_expr, ParsableLanguage},
     pattern::{Pattern, PatternMatches, Rewrite},
 };
 use math::*;
@@ -18,12 +20,53 @@ struct Queried {
     matches: Vec<PatternMatches<Math>>,
 }
 
-pub struct Model {
+struct Model {
     console: ConsoleService,
     egraph: MathEGraph,
     query: Result<Queried, String>,
     added: Vec<Added>,
     examples: Vec<&'static str>,
+    rewrite_groups: Vec<RewriteGroup>,
+}
+
+struct RewriteGroup {
+    name: String,
+    enabled: bool,
+    rewrites: Vec<OptionalRewrite>,
+}
+
+impl Renderable<Model> for RewriteGroup {
+    fn view(&self) -> Html<Model> {
+        html! {
+            <div class="rewrite-group",>
+                <input type="checkbox", checked=self.enabled,></input>
+                <details>
+                    <summary> {&self.name} </summary>
+                    { for self.rewrites.iter().map(Renderable::view) }
+                </details>
+            </div>
+        }
+    }
+}
+
+struct OptionalRewrite {
+    enabled: bool,
+    rewrite: Rewrite<Math>,
+}
+
+impl Renderable<Model> for OptionalRewrite {
+    fn view(&self) -> Html<Model> {
+        html! {
+            <div class="rewrite",>
+                <input type="checkbox", checked=self.enabled,></input>
+                <details>
+                    <summary> {&self.rewrite.name} </summary>
+                    <div class="lhs",> {self.rewrite.lhs.to_sexp()} </div>
+                    <div class="rhs",> {self.rewrite.rhs.to_sexp()} </div>
+                </details>
+            </div>
+        }
+    }
 }
 
 struct Added {
@@ -37,9 +80,10 @@ impl Renderable<Model> for Added {
     }
 }
 
-pub enum Msg {
+enum Msg {
     AddExpr(String),
     AddQuery,
+    RunRewrites,
     UpdateQuery(String),
 }
 
@@ -53,15 +97,14 @@ impl Component for Model {
             egraph: MathEGraph::default(),
             query: Err("enter a pattern or expression".into()),
             added: vec![],
-            examples: vec!["(+ 1 2)", "(* x (+ y z))"],
+            examples: vec!["(+ 1 2)", "(* x (+ y z))", "(+ x (+ x (+ x x)))"],
+            rewrite_groups: math::rules(),
         }
     }
 
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         match msg {
             Msg::UpdateQuery(s) => {
-                self.console.log(&s);
-
                 self.query = Math
                     .parse_pattern(&s)
                     .map(|pattern| {
@@ -88,13 +131,73 @@ impl Component for Model {
                 self.update(Msg::UpdateQuery(s.clone()));
                 self.update(Msg::AddQuery);
             }
+            Msg::RunRewrites => {
+                let start_time = Date::now();
+
+                let mut applied = 0;
+                let mut total_matches = 0;
+                let mut last_total_matches = 0;
+                let mut matches = Vec::new();
+
+                for group in &self.rewrite_groups {
+                    if !group.enabled {
+                        continue;
+                    }
+
+                    for rule in &group.rewrites {
+                        if rule.enabled {
+                            let ms = rule.rewrite.lhs.search(&self.egraph);
+                            if !ms.is_empty() {
+                                matches.push((&rule.rewrite, ms));
+                            }
+                        }
+                    }
+                }
+
+                let match_time = Date::now();
+
+                for (rule, ms) in matches {
+                    for m in ms {
+                        let actually_matched = m.apply(&rule.rhs, &mut self.egraph);
+                        self.console.log(&format!(
+                            "Applied {} {} times",
+                            rule.name,
+                            actually_matched.len()
+                        ));
+
+                        applied += actually_matched.len();
+                        total_matches += m.mappings.len();
+
+                        // log the growth of the egraph
+                        if total_matches - last_total_matches > 1000 {
+                            last_total_matches = total_matches;
+                            let elapsed = Date::now() - match_time;
+                            self.console.log(&format!(
+                                "nodes: {}, eclasses: {}, actual: {}, total: {}, us per match: {}",
+                                self.egraph.total_size(),
+                                self.egraph.number_of_classes(),
+                                applied,
+                                total_matches,
+                                elapsed * 1.0e9
+                            ));
+                        }
+                    }
+                }
+                self.egraph.rebuild();
+                self.egraph.fold_constants();
+                self.egraph.prune();
+
+                let elapsed = Date::now() - start_time;
+                self.console
+                    .log(&format!("Applied {} in {}s", applied, elapsed,));
+            }
         };
         true
     }
 }
 
 fn view_example(s: &'static str) -> Html<Model> {
-    html! { <div onclick=|e| Msg::AddExpr(s.to_string()),> {s} </div> }
+    html! { <div onclick=|_| Msg::AddExpr(s.to_string()),> {s} </div> }
 }
 
 fn view_eclass(eclass: &EClass<Math, BestExpr>) -> Html<Model> {
@@ -130,7 +233,7 @@ impl Renderable<Model> for Model {
                         <th> {"expr"} </th>
                         <th> {"eclass"} </th>
                     </tr>
-                    { for self.added.iter().map(|a| a.view()) }
+                    { for self.added.iter().map(Renderable::view) }
                 </table>
             </section>
             <section id="examples",>
@@ -143,6 +246,13 @@ impl Renderable<Model> for Model {
                 <h3> {"EClasses"} </h3>
                 <div>
                     { for self.egraph.classes().map(view_eclass) }
+                </div>
+            </section>
+            <section id="rewrites",>
+                <h3> {"Rewrites"} </h3>
+                <button onclick=|_| Msg::RunRewrites,>{"Run"}</button>
+                <div>
+                    { for self.rewrite_groups.iter().map(Renderable::view) }
                 </div>
             </section>
         </main>

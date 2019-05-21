@@ -6,3 +6,13 @@ section {
 .eclass p {
     margin: 0 10px;
 }
+
+.rewrite-group {
+    display: flex;
+    align-items: flex-start;
+}
+
+.rewrite {
+    display: flex;
+    align-items: flex-start;
+}

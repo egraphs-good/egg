@@ -3,6 +3,12 @@ name = "web-demo"
 version = "0.1.0"
 authors = ["Max Willsey <me@mwillsey.com>"]
 edition = "2018"
+description = "An demo of egraphs"
+repository = "https://github.com/mwillsey/egg"
+readme = "README.md"
+license = "MIT"
+keywords = ["egg"]
+categories = ["egg"]
 
 
 [dependencies]

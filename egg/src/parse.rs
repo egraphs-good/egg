@@ -69,7 +69,7 @@ where
 
             Ok(Pattern::Expr(Expr::Operator(op, children?)))
         }
-        Sexp::Empty => Err(ParseError("empty!".into()))
+        Sexp::Empty => Err(ParseError("empty!".into())),
     }
 }
 
