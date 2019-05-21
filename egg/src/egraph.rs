@@ -64,7 +64,7 @@ pub struct AddResult {
 pub struct EClass<L: Language, M> {
     pub id: Id,
     nodes: Vec<Expr<L, Id>>,
-    metadata: M,
+    pub metadata: M,
 }
 
 impl<L: Language, M> EClass<L, M> {

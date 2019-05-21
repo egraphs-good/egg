@@ -127,7 +127,7 @@ impl<L: Language> Pattern<L> {
                         continue;
                     }
                     if pat_expr.children().len() != e.children().len() {
-                        panic!(
+                        warn!(
                             concat!(
                                 "Different length children in pattern and expr\n",
                                 "  exp: {:?}\n",
@@ -135,6 +135,7 @@ impl<L: Language> Pattern<L> {
                             ),
                             pat_expr, e
                         );
+                        continue
                     }
 
                     let mut mappings1 = vec![];

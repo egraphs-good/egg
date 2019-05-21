@@ -2,6 +2,7 @@
 
 members = [
     "egg",
+    "web-demo",
 ]
 
 [profile.test]
