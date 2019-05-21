@@ -2,6 +2,6 @@
 
 set -ev
 
-cargo web deploy
+cargo web deploy --release
 
 rsync -az ../target/deploy/ mwillsey.com:/var/www/stuff/egg/
