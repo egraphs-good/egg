@@ -1,14 +1,14 @@
 [package]
 name = "egg"
-version = "0.0.1"
+version = "0.0.2"
 authors = ["Max Willsey <me@mwillsey.com>"]
 edition = "2018"
 description = "An implementation of egraphs"
 repository = "https://github.com/mwillsey/egg"
 readme = "README.md"
 license = "MIT"
-keywords = ["egg"]
-categories = ["egg"]
+keywords = ["e-graphs"]
+categories = ["data-structures"]
 
 [dependencies]
 symbolic_expressions = "5.0.3"
