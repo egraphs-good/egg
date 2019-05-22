@@ -35,14 +35,18 @@ struct RewriteGroup {
     rewrites: Vec<OptionalRewrite>,
 }
 
-impl Renderable<Model> for RewriteGroup {
-    fn view(&self) -> Html<Model> {
+impl RewriteGroup {
+    fn view(&self, i: usize) -> Html<Model> {
+        let applied: usize = self.rewrites.iter().map(|r| r.applied).sum();
+        let matched: usize = self.rewrites.iter().map(|r| r.matched).sum();
+        let percent = percent(applied, matched);
+        let counts = format!("{}/{} ({:.0}%)", applied, matched, percent);
         html! {
             <div class="rewrite-group",>
-                <input type="checkbox", checked=self.enabled,></input>
+                <input type="checkbox", checked=self.enabled, onclick=|_| Msg::ToggleRewriteGroup(i),></input>
                 <details>
-                    <summary> {&self.name} </summary>
-                    { for self.rewrites.iter().map(Renderable::view) }
+                    <summary> {counts} {" "} {&self.name} </summary>
+                    { for self.rewrites.iter().enumerate().map(|(j, r)| r.view(i, j)) }
                 </details>
             </div>
         }
@@ -50,17 +54,40 @@ impl Renderable<Model> for RewriteGroup {
 }
 
 struct OptionalRewrite {
+    applied: usize,
+    matched: usize,
     enabled: bool,
     rewrite: Rewrite<Math>,
 }
 
-impl Renderable<Model> for OptionalRewrite {
-    fn view(&self) -> Html<Model> {
+fn percent(a: usize, b: usize) -> f64 {
+    if b == 0 {
+        0.0
+    } else {
+        a as f64 / b as f64 * 100.0
+    }
+}
+
+impl OptionalRewrite {
+    fn new(rewrite: Rewrite<Math>) -> Self {
+        Self {
+            applied: 0,
+            matched: 0,
+            enabled: true,
+            rewrite,
+        }
+    }
+}
+
+impl OptionalRewrite {
+    fn view(&self, gi: usize, i: usize) -> Html<Model> {
+        let percent = percent(self.applied, self.matched);
+        let counts = format!("{}/{} ({:.0}%)", self.applied, self.matched, percent);
         html! {
             <div class="rewrite",>
-                <input type="checkbox", checked=self.enabled,></input>
+                <input type="checkbox", checked=self.enabled, onclick=|_| Msg::ToggleRewrite(gi, i),></input>
                 <details>
-                    <summary> {&self.rewrite.name} </summary>
+                    <summary> {counts} {" "} {&self.rewrite.name}</summary>
                     <div class="lhs",> {self.rewrite.lhs.to_sexp()} </div>
                     <div class="rhs",> {self.rewrite.rhs.to_sexp()} </div>
                 </details>
@@ -85,6 +112,8 @@ enum Msg {
     AddQuery,
     RunRewrites,
     UpdateQuery(String),
+    ToggleRewrite(usize, usize),
+    ToggleRewriteGroup(usize),
 }
 
 impl Component for Model {
@@ -131,65 +160,45 @@ impl Component for Model {
                 self.update(Msg::UpdateQuery(s.clone()));
                 self.update(Msg::AddQuery);
             }
+            Msg::ToggleRewrite(gi, i) => {
+                self.rewrite_groups[gi].rewrites[i].enabled ^= true;
+            }
+            Msg::ToggleRewriteGroup(gi) => {
+                self.rewrite_groups[gi].enabled ^= true;
+            }
             Msg::RunRewrites => {
                 let start_time = Date::now();
-
-                let mut applied = 0;
-                let mut total_matches = 0;
-                let mut last_total_matches = 0;
                 let mut matches = Vec::new();
 
-                for group in &self.rewrite_groups {
+                for group in &mut self.rewrite_groups {
                     if !group.enabled {
                         continue;
                     }
 
-                    for rule in &group.rewrites {
+                    for rule in &mut group.rewrites {
                         if rule.enabled {
                             let ms = rule.rewrite.lhs.search(&self.egraph);
                             if !ms.is_empty() {
-                                matches.push((&rule.rewrite, ms));
+                                rule.matched += ms.iter().map(|m| m.mappings.len()).sum::<usize>();
+                                matches.push((rule, ms));
                             }
                         }
                     }
                 }
 
-                let match_time = Date::now();
-
                 for (rule, ms) in matches {
                     for m in ms {
-                        let actually_matched = m.apply(&rule.rhs, &mut self.egraph);
-                        self.console.log(&format!(
-                            "Applied {} {} times",
-                            rule.name,
-                            actually_matched.len()
-                        ));
-
-                        applied += actually_matched.len();
-                        total_matches += m.mappings.len();
-
-                        // log the growth of the egraph
-                        if total_matches - last_total_matches > 1000 {
-                            last_total_matches = total_matches;
-                            let elapsed = Date::now() - match_time;
-                            self.console.log(&format!(
-                                "nodes: {}, eclasses: {}, actual: {}, total: {}, us per match: {}",
-                                self.egraph.total_size(),
-                                self.egraph.number_of_classes(),
-                                applied,
-                                total_matches,
-                                elapsed * 1.0e9
-                            ));
-                        }
+                        let actually_matched = m.apply(&rule.rewrite.rhs, &mut self.egraph);
+                        rule.applied += actually_matched.len();
                     }
                 }
+
                 self.egraph.rebuild();
                 self.egraph.fold_constants();
                 self.egraph.prune();
 
                 let elapsed = Date::now() - start_time;
-                self.console
-                    .log(&format!("Applied {} in {}s", applied, elapsed,));
+                self.console.log(&format!("Applied in {}s", elapsed));
             }
         };
         true
@@ -242,17 +251,19 @@ impl Renderable<Model> for Model {
                     { for self.examples.iter().cloned().map(view_example) }
                 </div>
             </section>
+            <section id="stats",>
+                <h3> {"Stats"} </h3>
+                <div> { format!("Nodes: {}", self.egraph.total_size()) } </div>
+            </section>
             <section id="eclasses",>
                 <h3> {"EClasses"} </h3>
-                <div>
-                    { for self.egraph.classes().map(view_eclass) }
-                </div>
+                <div> { for self.egraph.classes().map(view_eclass) } </div>
             </section>
             <section id="rewrites",>
                 <h3> {"Rewrites"} </h3>
                 <button onclick=|_| Msg::RunRewrites,>{"Run"}</button>
                 <div>
-                    { for self.rewrite_groups.iter().map(Renderable::view) }
+                    { for self.rewrite_groups.iter().enumerate().map(|(i, g)| g.view(i)) }
                 </div>
             </section>
         </main>

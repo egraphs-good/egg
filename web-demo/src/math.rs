@@ -124,9 +124,9 @@ use crate::{OptionalRewrite, RewriteGroup};
 fn mk_rules(tuples: &[(&str, &str, &str)]) -> Vec<OptionalRewrite> {
     tuples
         .iter()
-        .map(|(name, left, right)| OptionalRewrite {
-            enabled: true,
-            rewrite: Math.parse_rewrite(name, left, right).unwrap(),
+        .map(|(name, left, right)| {
+            let rw = Math.parse_rewrite(name, left, right).unwrap();
+            OptionalRewrite::new(rw)
         })
         .collect()
 }
