@@ -1,0 +1,24 @@
+[package]
+name = "web-demo"
+version = "0.1.0"
+authors = ["Max Willsey <me@mwillsey.com>"]
+edition = "2018"
+description = "An demo of egraphs"
+repository = "https://github.com/mwillsey/egg"
+readme = "README.md"
+license = "MIT"
+keywords = ["egg"]
+categories = ["egg"]
+
+
+[dependencies]
+stdweb = "0.4.17"
+yew = "0.6"
+
+egg = { path = "../egg" }
+
+log = "0.4"
+
+strum = "0.15"
+strum_macros = "0.15"
+ordered-float = "1"

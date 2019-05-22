@@ -69,11 +69,11 @@ where
 
             Ok(Pattern::Expr(Expr::Operator(op, children?)))
         }
-        Sexp::Empty => panic!(),
+        Sexp::Empty => Err(ParseError("empty!".into())),
     }
 }
 
-fn pat_to_expr<L: Language>(pat: Pattern<L>) -> Result<RecExpr<L>> {
+pub fn pat_to_expr<L: Language>(pat: Pattern<L>) -> Result<RecExpr<L>> {
     match pat {
         Pattern::Wildcard(w) => Err(ParseError(format!(
             "Found wildcard {:?} instead of expr term",

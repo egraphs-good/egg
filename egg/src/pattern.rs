@@ -1,6 +1,8 @@
 use log::*;
 use std::time::Instant;
 
+use symbolic_expressions::Sexp;
+
 use crate::{
     egraph::{AddResult, EGraph, Metadata},
     expr::{Expr, Id, Language, RecExpr},
@@ -16,6 +18,26 @@ pub enum Pattern<L: Language> {
 impl<L: Language> Pattern<L> {
     pub fn from_expr(e: &RecExpr<L>) -> Self {
         Pattern::Expr(e.as_ref().map_children(|child| Pattern::from_expr(&child)))
+    }
+}
+
+impl<L: Language> Pattern<L>
+where
+    L::Wildcard: std::fmt::Display,
+{
+    pub fn to_sexp(&self) -> Sexp {
+        match self {
+            Pattern::Wildcard(w) => Sexp::String(w.to_string()),
+            Pattern::Expr(e) => match e {
+                Expr::Constant(c) => Sexp::String(c.to_string()),
+                Expr::Variable(v) => Sexp::String(v.to_string()),
+                Expr::Operator(op, args) => {
+                    let mut vec: Vec<_> = args.iter().map(Self::to_sexp).collect();
+                    vec.insert(0, Sexp::String(op.to_string()));
+                    Sexp::List(vec)
+                }
+            },
+        }
     }
 }
 
@@ -127,7 +149,7 @@ impl<L: Language> Pattern<L> {
                         continue;
                     }
                     if pat_expr.children().len() != e.children().len() {
-                        panic!(
+                        warn!(
                             concat!(
                                 "Different length children in pattern and expr\n",
                                 "  exp: {:?}\n",
@@ -135,6 +157,7 @@ impl<L: Language> Pattern<L> {
                             ),
                             pat_expr, e
                         );
+                        continue;
                     }
 
                     let mut mappings1 = vec![];
