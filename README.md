@@ -2,6 +2,8 @@
 
 [![Build Status](https://travis-ci.com/mwillsey/egg.svg?branch=master)](https://travis-ci.com/mwillsey/egg)
 
+Check out the [web demo](https://mwillsey.com/stuff/egg).
+
 ## Developing
 
 It's written in [Rust](https://www.rust-lang.org/).
