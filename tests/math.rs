@@ -8,7 +8,7 @@ use egg::{
 };
 use log::*;
 use ordered_float::NotNan;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use strum_macros::{Display, EnumString};
 
@@ -484,6 +484,15 @@ fn associate_adds() {
     egraph.dump_dot("associate.dot");
 }
 
+fn print_time(name: &str, duration: Duration) {
+    println!(
+        "{}: {}.{:06}",
+        name,
+        duration.as_secs(),
+        duration.subsec_micros()
+    );
+}
+
 #[test]
 fn do_something() {
     let _ = env_logger::builder().is_test(true).try_init();
@@ -519,7 +528,11 @@ fn do_something() {
 
     let start_time = Instant::now();
 
-    for _ in 0..2 {
+    for i in 0..2 {
+        println!("\n\nIteration {}\n", i);
+
+        let search_time = Instant::now();
+
         let mut applied = 0;
         let mut total_matches = 0;
         let mut last_total_matches = 0;
@@ -534,6 +547,8 @@ fn do_something() {
                 // egraph.rebuild();
             }
         }
+
+        print_time("Search time", search_time.elapsed());
 
         let match_time = Instant::now();
 
@@ -558,13 +573,21 @@ fn do_something() {
                 }
             }
         }
+
+        print_time("Match time", match_time.elapsed());
+
+        let rebuild_time = Instant::now();
         egraph.rebuild();
-        egraph.prune();
+        // egraph.prune();
+        print_time("Rebuild time", rebuild_time.elapsed());
     }
 
     let rules_time = start_time.elapsed();
 
     let start_time = Instant::now();
+
+    print_time("Rules time", rules_time);
+
     let ext = Extractor::new(&egraph);
     let best = ext.find_best(root);
     let extract_time = start_time.elapsed();
@@ -575,16 +598,8 @@ fn do_something() {
         start_expr.to_sexp()
     );
     println!("Best ({}): {}", best.cost, best.expr.to_sexp());
-    println!(
-        "Rules time: {}.{:03}",
-        rules_time.as_secs(),
-        rules_time.subsec_millis()
-    );
-    println!(
-        "Extract time: {}.{:03}",
-        extract_time.as_secs(),
-        extract_time.subsec_millis()
-    );
+
+    print_time("Extract time", extract_time);
 
     egraph.dump_dot("math.dot");
 }
