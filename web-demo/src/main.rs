@@ -231,7 +231,7 @@ impl Renderable<Model> for Model {
         };
 
         html! {
-        <main>
+        <div>
             <section id="add",>
                 <form onsubmit=|e| {e.prevent_default(); Msg::AddQuery},>
                     <input oninput=|e| Msg::UpdateQuery(e.value),></input>
@@ -266,11 +266,15 @@ impl Renderable<Model> for Model {
                     { for self.rewrite_groups.iter().enumerate().map(|(i, g)| g.view(i)) }
                 </div>
             </section>
-        </main>
+        </div>
         }
     }
 }
 
 fn main() {
-    yew::start_app::<Model>();
+    use stdweb::traits::IParentNode;
+    use stdweb::web::document;
+    yew::initialize();
+    yew::App::<Model>::new().mount(document().query_selector("#app").unwrap().unwrap());
+    yew::run_loop();
 }
