@@ -63,7 +63,7 @@ impl<'a, L: Language, M> Display for Dot<'a, L, M> {
             for (i_in_class, node) in class.iter().enumerate() {
                 for (arg_i, child) in node.children().iter().enumerate() {
                     // write the edge to the child, but clip it to the eclass with lhead
-                    let child_leader = self.egraph.just_find(*child);
+                    let child_leader = self.egraph.find(*child);
                     writeln!(
                         f,
                         // {}.0 to pick an arbitrary node in the cluster

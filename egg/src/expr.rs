@@ -98,7 +98,7 @@ impl<L: Language, Child> Expr<L, Child> {
 
 impl<L: Language> Expr<L, Id> {
     pub fn update_ids<V>(&self, unionfind: &UnionFind<Id, V>) -> Self {
-        self.map_children(|id| unionfind.just_find(id))
+        self.map_children(|id| unionfind.find(id))
     }
 }
 

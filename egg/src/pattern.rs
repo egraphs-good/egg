@@ -298,7 +298,7 @@ mod tests {
             )),
         };
 
-        let eclass = egraph.just_find(plus);
+        let eclass = egraph.find(plus);
         let matches = commute_plus.lhs.search_eclass(&egraph, eclass).unwrap();
         assert_eq!(matches.mappings.len(), 2);
 

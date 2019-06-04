@@ -49,7 +49,7 @@ impl<'a, L: Language, M> Extractor<'a, L, M> {
     }
 
     pub fn find_best(&self, eclass: Id) -> &CostExpr<L> {
-        &self.costs[&self.egraph.just_find(eclass)]
+        &self.costs[&self.egraph.find(eclass)]
     }
 
     fn build_expr(&self, root: &Expr<L, Id>) -> Option<RecExpr<L>> {

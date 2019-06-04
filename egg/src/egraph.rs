@@ -142,8 +142,8 @@ impl<L: Language, M> EGraph<L, M> {
         self.classes.get(eclass_id)
     }
 
-    pub fn just_find(&self, id: Id) -> Id {
-        self.classes.just_find(id)
+    pub fn find(&self, id: Id) -> Id {
+        self.classes.find(id)
     }
 }
 

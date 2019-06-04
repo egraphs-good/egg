@@ -1,13 +1,30 @@
 use crate::util::{HashMap, HashSet};
-use std::fmt::Debug;
+use std::cell::Cell;
+use std::fmt::{self, Debug};
 use std::hash::Hash;
 
-#[derive(Debug)]
 pub struct UnionFind<K, V> {
-    parents: Vec<K>,
+    parents: Vec<Cell<K>>,
     sizes: Vec<u32>,
     values: Vec<Option<V>>,
     n_leaders: usize,
+}
+
+// we must manually implement debug because Cell<T> requires T: Copy
+// to implement Debug, so we add that bound (implied by Key)
+impl<K, V> Debug for UnionFind<K, V>
+where
+    K: Debug + Key,
+    V: Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("UnionFind")
+            .field("parents", &self.parents)
+            .field("sizes", &self.sizes)
+            .field("values", &self.values)
+            .field("n_leaders", &self.n_leaders)
+            .finish()
+    }
 }
 
 impl<K, V> Default for UnionFind<K, V> {
@@ -72,7 +89,7 @@ impl<K: Key, V> UnionFind<K, V> {
 
     pub fn make_set(&mut self, value: V) -> K {
         let new = Key::from_index(self.total_size());
-        self.parents.push(new);
+        self.parents.push(Cell::new(new));
         self.sizes.push(1);
         self.values.push(Some(value));
         self.n_leaders += 1;
@@ -81,7 +98,7 @@ impl<K: Key, V> UnionFind<K, V> {
 
     #[inline(always)]
     fn parent(&self, query: K) -> Option<K> {
-        let parent = self.parents[query.index()];
+        let parent = self.parents[query.index()].get();
         if query == parent {
             None
         } else {
@@ -89,7 +106,7 @@ impl<K: Key, V> UnionFind<K, V> {
         }
     }
 
-    pub fn just_find(&self, query: K) -> K {
+    fn just_find(&self, query: K) -> K {
         let mut current = query;
         while let Some(parent) = self.parent(current) {
             current = parent;
@@ -97,13 +114,13 @@ impl<K: Key, V> UnionFind<K, V> {
         current
     }
 
-    pub fn find(&mut self, query: K) -> K {
+    pub fn find(&self, query: K) -> K {
         let root = self.just_find(query);
 
         // do simple path compression with another loop
         let mut current = query;
         while let Some(parent) = self.parent(current) {
-            self.parents[current.index()] = root;
+            self.parents[current.index()].set(root);
             current = parent;
         }
 
@@ -111,7 +128,7 @@ impl<K: Key, V> UnionFind<K, V> {
     }
 
     pub fn get(&self, query: K) -> &V {
-        let leader = self.just_find(query);
+        let leader = self.find(query);
         self.values[leader.index()].as_ref().unwrap()
     }
 
@@ -160,7 +177,7 @@ impl<K: Key, V: Value> UnionFind<K, V> {
         self.n_leaders -= 1;
         self.values[root1.index()] = Some(value?);
 
-        self.parents[root2.index()] = root1;
+        self.parents[root2.index()].set(root1);
         self.sizes[root1.index()] = size1 + size2;
 
         Ok(root1)
@@ -172,7 +189,7 @@ impl<K: Key + Eq + Hash, V> UnionFind<K, V> {
         let mut map: HashMap<K, HashSet<K>> = HashMap::default();
 
         for i in (0..self.total_size()).map(Key::from_index) {
-            let leader = self.just_find(i);
+            let leader = self.find(i);
             let actual_set = map.entry(leader).or_default();
             actual_set.insert(i);
         }
@@ -205,7 +222,7 @@ mod tests {
         // test the initial condition of everyone in their own set
         for i in 0..n {
             assert_eq!(uf.parent(i), None);
-            assert_eq!(uf.just_find(i), i);
+            assert_eq!(uf.find(i), i);
             assert_eq!(uf.find(i), i);
         }
 
@@ -244,9 +261,6 @@ mod tests {
             assert_eq!(uf.sizes[leader as usize], set.len() as u32);
         }
 
-        // make sure that at least one set isn't flat
-        assert!((0..n).any(|i| uf.parents[i as usize] != uf.just_find(i)));
-
         // compress all paths
         for i in 0..n {
             // make sure the leader is a leader
@@ -254,7 +268,7 @@ mod tests {
             assert_eq!(uf.parent(leader), None);
 
             // make sure the path is compressed
-            assert_eq!(uf.parents[i as usize], leader);
+            assert_eq!(uf.parents[i as usize].get(), leader);
 
             // make sure this didn't change the set structure
             assert_eq!(uf.build_sets(), expected_sets);
