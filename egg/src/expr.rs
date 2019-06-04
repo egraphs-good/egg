@@ -139,11 +139,17 @@ pub trait Language: Debug + PartialEq + Eq + Hash + Clone {
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct Name(pub Rc<str>);
 
+impl From<&str> for Name {
+    fn from(s: &str) -> Self {
+        Name(s.into())
+    }
+}
+
 impl std::str::FromStr for Name {
     type Err = std::convert::Infallible;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Name(s.into()))
+        Ok(s.into())
     }
 }
 
