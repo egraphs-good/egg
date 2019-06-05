@@ -138,12 +138,15 @@ impl<L: Language, M> EGraph<L, M> {
         self.classes.number_of_classes()
     }
 
-    pub fn get_eclass(&self, eclass_id: Id) -> &EClass<L, M> {
-        self.classes.get(eclass_id)
-    }
-
     pub fn find(&self, id: Id) -> Id {
         self.classes.find(id)
+    }
+}
+
+impl<L: Language, M> std::ops::Index<Id> for EGraph<L, M> {
+    type Output = EClass<L, M>;
+    fn index(&self, id: Id) -> &Self::Output {
+        self.classes.get(id)
     }
 }
 
@@ -183,7 +186,7 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
                 let class = EClass {
                     id: self.classes.total_size() as Id,
                     nodes: vec![enode.clone()],
-                    metadata: M::make(enode.map_children(|id| &self.get_eclass(id).metadata)),
+                    metadata: M::make(enode.map_children(|id| &self[id].metadata)),
                 };
                 let next_id = self.classes.make_set(class);
                 trace!("Added  {:4}: {:?}", next_id, enode);
@@ -239,11 +242,11 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
     /// let z = egraph.add(var("z"));
     /// let eclass = egraph.union(root, z.id);
     /// // eclass has z and + in it
-    /// assert_eq!(egraph.get_eclass(eclass).len(), 2);
+    /// assert_eq!(egraph[eclass].len(), 2);
     /// // pruning will remove the +, returning how many nodes were removed
     /// assert_eq!(egraph.prune(), 1);
     /// // eclass is now smaller
-    /// assert_eq!(egraph.get_eclass(eclass).len(), 1);
+    /// assert_eq!(egraph[eclass].len(), 1);
     /// // for now, its not actually removed from the egraph
     /// assert_eq!(egraph.total_size(), 4);
     /// ```
@@ -317,9 +320,9 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
         let mut folded = 0;
         for (cid, new_node) in to_add {
             let add_result = self.add(new_node);
-            let old_size = self.get_eclass(cid).len();
+            let old_size = self[cid].len();
             self.union(cid, add_result.id);
-            if self.get_eclass(cid).len() > old_size {
+            if self[cid].len() > old_size {
                 folded += 1;
             }
         }

@@ -131,7 +131,7 @@ impl<L: Language> Pattern<L> {
 
         let mut new_mappings = Vec::new();
 
-        for e in egraph.get_eclass(eclass).iter() {
+        for e in egraph[eclass].iter() {
             use Expr::*;
             match (pat_expr, e) {
                 (Variable(pv), Variable(ev)) => {
