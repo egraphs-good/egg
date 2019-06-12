@@ -1,12 +1,13 @@
 use log::*;
 use std::time::Instant;
 
+use itertools::Itertools;
+use smallvec::{smallvec, SmallVec};
 use symbolic_expressions::Sexp;
 
 use crate::{
     egraph::{AddResult, EGraph, Metadata},
     expr::{Expr, Id, Language, RecExpr},
-    util::HashMap,
 };
 
 #[derive(Debug, PartialEq, Clone)]
@@ -80,7 +81,37 @@ impl<L: Language> Rewrite<L> {
     }
 }
 
-pub type WildMap<L> = HashMap<<L as Language>::Wildcard, Id>;
+#[derive(Debug, Clone, PartialEq)]
+pub struct WildMap<L: Language> {
+    vec: SmallVec<[(L::Wildcard, Id); 2]>,
+}
+
+impl<L: Language> Default for WildMap<L> {
+    fn default() -> Self {
+        Self {
+            vec: Default::default(),
+        }
+    }
+}
+
+impl<L: Language> WildMap<L> {
+    fn insert(&mut self, w: L::Wildcard, id: Id) -> Option<Id> {
+        if let Some(old) = self.get(&w) {
+            return Some(old);
+        }
+        self.vec.push((w, id));
+        None
+    }
+
+    fn get(&self, w: &L::Wildcard) -> Option<Id> {
+        for (w2, id2) in &self.vec {
+            if w == w2 {
+                return Some(*id2);
+            }
+        }
+        None
+    }
+}
 
 impl<L: Language> Pattern<L> {
     pub fn search<M>(&self, egraph: &EGraph<L, M>) -> Vec<PatternMatches<L>> {
@@ -91,10 +122,12 @@ impl<L: Language> Pattern<L> {
     }
 
     pub fn search_eclass<M>(&self, egraph: &EGraph<L, M>, eclass: Id) -> Option<PatternMatches<L>> {
-        let initial_mapping = HashMap::default();
-        let mappings = self.search_pat(0, initial_mapping, egraph, eclass);
+        let mappings = self.search_pat(0, egraph, eclass);
         if !mappings.is_empty() {
-            Some(PatternMatches { eclass, mappings })
+            Some(PatternMatches {
+                eclass,
+                mappings: mappings.into_vec(),
+            })
         } else {
             None
         }
@@ -103,79 +136,86 @@ impl<L: Language> Pattern<L> {
     fn search_pat<M>(
         &self,
         depth: usize,
-        mut var_mapping: WildMap<L>,
         egraph: &EGraph<L, M>,
         eclass: Id,
-    ) -> Vec<WildMap<L>> {
-        let indent = "    ".repeat(depth);
-
+    ) -> SmallVec<[WildMap<L>; 1]> {
         let pat_expr = match self {
             Pattern::Wildcard(w) => {
-                match var_mapping.get(&w) {
-                    None => {
-                        var_mapping.insert(w.clone(), eclass);
-                    }
-                    Some(&prev_mapped_eclass) => {
-                        if eclass != prev_mapped_eclass {
-                            trace!("{} Failed to bind wildcard {:?}", indent, w);
-                            return vec![];
-                        }
-                    }
-                }
+                let mut var_mapping = WildMap::default();
+                let was_there = var_mapping.insert(w.clone(), eclass);
+                assert_eq!(was_there, None);
 
-                trace!("{} Bound wildcard {:?} to {}", indent, w, eclass);
-                return vec![var_mapping];
+                return smallvec![var_mapping];
             }
             Pattern::Expr(e) => e,
         };
 
-        let mut new_mappings = Vec::new();
+        let mut new_mappings = SmallVec::new();
 
-        for e in egraph[eclass].iter() {
-            use Expr::*;
-            match (pat_expr, e) {
-                (Variable(pv), Variable(ev)) => {
-                    if pv == ev {
-                        new_mappings.push(var_mapping.clone())
-                    }
-                }
-                (Constant(pc), Constant(ec)) => {
-                    if pc == ec {
-                        new_mappings.push(var_mapping.clone())
-                    }
-                }
-                (Operator(po, pargs), Operator(eo, eargs)) => {
-                    if po != eo {
-                        continue;
-                    }
-                    if pat_expr.children().len() != e.children().len() {
-                        warn!(
-                            concat!(
-                                "Different length children in pattern and expr\n",
-                                "  exp: {:?}\n",
-                                "  pat: {:?}"
-                            ),
-                            pat_expr, e
-                        );
-                        continue;
-                    }
-
-                    let mut mappings1 = vec![];
-                    let mut mappings2 = vec![var_mapping.clone()];
-
-                    for (pa, ea) in pargs.iter().zip(eargs) {
-                        std::mem::swap(&mut mappings1, &mut mappings2);
-                        for m in mappings1.drain(..) {
-                            mappings2.extend(pa.search_pat(depth + 1, m, egraph, *ea));
+        use Expr::*;
+        match pat_expr {
+            Variable(pv) => {
+                for e in egraph[eclass].iter() {
+                    if let Variable(ev) = e {
+                        if ev == pv {
+                            new_mappings.push(WildMap::default());
+                            break;
                         }
                     }
-                    new_mappings.extend(mappings2);
                 }
-                _ => (),
+            }
+            Constant(pc) => {
+                for e in egraph[eclass].iter() {
+                    if let Constant(ec) = e {
+                        if ec == pc {
+                            new_mappings.push(WildMap::default());
+                            break;
+                        }
+                    }
+                }
+            }
+            Operator(po, pargs) => {
+                for e in egraph[eclass].iter() {
+                    if let Operator(eo, eargs) = e {
+                        if po != eo {
+                            continue;
+                        }
+                        if pat_expr.children().len() != e.children().len() {
+                            warn!(
+                                concat!(
+                                    "Different length children in pattern and expr\n",
+                                    "  exp: {:?}\n",
+                                    "  pat: {:?}"
+                                ),
+                                pat_expr, e
+                            );
+                            continue;
+                        }
+
+                        let arg_mappings: Vec<_> = pargs
+                            .iter()
+                            .zip(eargs)
+                            .map(|(pa, ea)| pa.search_pat(depth + 1, egraph, *ea))
+                            .collect();
+
+                        'outer: for ms in arg_mappings.iter().multi_cartesian_product() {
+                            let mut combined = ms[0].clone();
+                            for m in &ms[1..] {
+                                for (w, id) in &m.vec {
+                                    if let Some(old_id) = combined.insert(w.clone(), *id) {
+                                        if old_id != *id {
+                                            continue 'outer;
+                                        }
+                                    }
+                                }
+                            }
+                            new_mappings.push(combined)
+                        }
+                    }
+                }
             }
         }
 
-        trace!("{} Found {} mappings", indent, new_mappings.len());
         new_mappings
     }
 }
@@ -226,7 +266,7 @@ impl<L: Language> PatternMatches<L> {
         let result = match pattern {
             Pattern::Wildcard(w) => AddResult {
                 was_there: true,
-                id: mapping[&w],
+                id: mapping.get(&w).unwrap(),
             },
             Pattern::Expr(e) => match e {
                 Expr::Constant(c) => egraph.add(Expr::Constant(c.clone())),
@@ -259,12 +299,9 @@ mod tests {
 
     use super::*;
 
-    use crate::{
-        expr::{
-            tests::{op, var, TestLang},
-            QuestionMarkName,
-        },
-        util::hashmap,
+    use crate::expr::{
+        tests::{op, var, TestLang},
+        QuestionMarkName,
     };
 
     #[test]
@@ -306,7 +343,12 @@ mod tests {
         egraph.rebuild();
         assert_eq!(applications.len(), 2);
 
-        let expected_mappings = vec![hashmap(&[(&a, x), (&b, y)]), hashmap(&[(&a, z), (&b, w)])];
+        let wm = |pairs: &[_]| WildMap { vec: pairs.into() };
+
+        let expected_mappings = vec![
+            wm(&[(a.clone(), x), (b.clone(), y)]),
+            wm(&[(a.clone(), z), (b.clone(), w)]),
+        ];
 
         // for now, I have to check mappings both ways
         if matches.mappings != expected_mappings {
