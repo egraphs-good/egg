@@ -31,13 +31,13 @@ impl<L: Language, M> Default for EGraph<L, M> {
 
 pub trait Metadata<L: Language>: Sized + Debug {
     type Error: Debug;
-    fn merge(self, other: Self) -> Self;
+    fn merge(&self, other: &Self) -> Self;
     fn make(expr: Expr<L, &Self>) -> Self;
 }
 
 impl<L: Language> Metadata<L> for () {
     type Error = std::convert::Infallible;
-    fn merge(self, _other: ()) {}
+    fn merge(&self, _other: &()) {}
     fn make(_expr: Expr<L, &()>) {}
 }
 
@@ -102,7 +102,7 @@ impl<L: Language, M: Metadata<L>> Value for EClass<L, M> {
         Ok(EClass {
             id: to.id,
             nodes: more,
-            metadata: to.metadata.merge(from.metadata),
+            metadata: to.metadata.merge(&from.metadata),
         })
     }
 }
@@ -332,16 +332,27 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
     fn rebuild_once(&mut self) -> usize {
         let mut new_memo = HashMap::default();
         let mut to_union = Vec::new();
+        let mut new_metas = HashMap::default();
 
         for (leader, class) in self.classes.iter() {
+            let mut class_metas = Vec::new();
             for node in &class.nodes {
                 let n = node.update_ids(&self.classes);
+                class_metas.push(M::make(n.map_children(|id| &self[id].metadata)));
 
                 if let Some(old_leader) = new_memo.insert(n, leader) {
                     if old_leader != leader {
                         to_union.push((leader, old_leader));
                     }
                 }
+            }
+            new_metas.insert(leader, class_metas);
+        }
+
+        for (leader, metas) in new_metas.drain() {
+            let class = self.classes.get_mut(leader);
+            for m in metas {
+                class.metadata = class.metadata.merge(&m)
             }
         }
 

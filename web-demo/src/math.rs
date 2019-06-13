@@ -77,7 +77,7 @@ impl Language for Math {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BestExpr {
     pub cost: u64,
     pub expr: RecExpr<Math>,
@@ -85,11 +85,11 @@ pub struct BestExpr {
 
 impl Metadata<Math> for BestExpr {
     type Error = std::convert::Infallible;
-    fn merge(self, other: Self) -> Self {
+    fn merge(&self, other: &Self) -> Self {
         if other.cost < self.cost {
-            other
+            other.clone()
         } else {
-            self
+            self.clone()
         }
     }
     fn make(expr: Expr<Math, &Self>) -> Self {
