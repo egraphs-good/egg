@@ -131,7 +131,7 @@ impl<L: Language, M> EGraph<L, M> {
     /// assert_eq!(egraph.total_size(), 2);
     /// ```
     pub fn total_size(&self) -> usize {
-        self.memo.len()
+        self.classes.total_size()
     }
 
     pub fn number_of_classes(&self) -> usize {
