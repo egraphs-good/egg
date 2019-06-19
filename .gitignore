@@ -3,6 +3,7 @@
 Cargo.lock
 
 dots/
+egg/data/
 
 # nix stuff
 .envrc
