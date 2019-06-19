@@ -8,23 +8,29 @@ use log::*;
 
 pub type Cost = u64;
 
-fn calculate_cost_rec<L: Language>(map: &mut HashMap<RecExpr<L>, Cost>, expr: &RecExpr<L>) -> Cost {
+fn cost_cse_rec<L: Language>(map: &mut HashMap<RecExpr<L>, Cost>, expr: &RecExpr<L>) -> Cost {
     if map.contains_key(expr) {
         return 1;
     }
 
-    let child_cost_expr = expr.as_ref().map_children(|e| calculate_cost_rec(map, &e));
+    let child_cost_expr = expr.as_ref().map_children(|e| cost_cse_rec(map, &e));
     let cost = L::cost(&child_cost_expr);
 
     map.insert(expr.clone(), cost);
     cost
 }
 
-pub fn calculate_cost<L: Language>(expr: &RecExpr<L>) -> Cost {
+pub fn calculate_cost_cse<L: Language>(expr: &RecExpr<L>) -> Cost {
     let mut map = HashMap::default();
-    let cost = calculate_cost_rec(&mut map, expr);
+    let cost = cost_cse_rec(&mut map, expr);
+
     trace!("Found cost to be {}\n  {}", cost, expr.to_sexp());
     cost
+}
+
+pub fn calculate_cost<L: Language>(expr: &RecExpr<L>) -> Cost {
+    let child_cost_expr = expr.as_ref().map_children(|e| calculate_cost(&e));
+    L::cost(&child_cost_expr)
 }
 
 pub struct CostExpr<L: Language> {
@@ -33,80 +39,66 @@ pub struct CostExpr<L: Language> {
 }
 
 pub struct Extractor<'a, L: Language, M> {
-    costs: HashMap<Id, CostExpr<L>>,
+    costs: HashMap<Id, Cost>,
     egraph: &'a EGraph<L, M>,
 }
 
 impl<'a, L: Language, M> Extractor<'a, L, M> {
     pub fn new(egraph: &'a EGraph<L, M>) -> Self {
-        // initialize costs with the maximum value
         let costs = HashMap::default();
-
         let mut extractor = Extractor { costs, egraph };
         extractor.find_costs();
 
         extractor
     }
 
-    pub fn find_best(&self, eclass: Id) -> &CostExpr<L> {
-        &self.costs[&self.egraph.find(eclass)]
-    }
-
-    fn build_expr(&self, root: &Expr<L, Id>) -> Option<RecExpr<L>> {
-        let expr = root
-            .map_children_result(|id| {
-                self.costs
-                    .get(&id)
-                    .map(|cost_expr| cost_expr.expr.clone())
-                    .ok_or(())
-            })
-            .ok()?;
-        Some(expr.into())
-    }
-
-    fn node_total_cost(&self, node: &Expr<L, Id>) -> Option<CostExpr<L>> {
-        let expr = self.build_expr(node)?;
+    pub fn find_best(&self, eclass: Id) -> CostExpr<L> {
+        let expr = self.find_best_expr(eclass);
         let cost = calculate_cost(&expr);
-        Some(CostExpr { cost, expr })
+        CostExpr { cost, expr }
+    }
+
+    fn find_best_expr(&self, eclass: Id) -> RecExpr<L> {
+        let best_node = self.egraph[eclass]
+            .iter()
+            .min_by_key(|n| self.node_total_cost(n))
+            .expect("eclass shouldn't be empty");
+
+        best_node
+            .clone()
+            .map_children(|child| self.find_best_expr(child))
+            .into()
+    }
+
+    fn node_total_cost(&self, node: &Expr<L, Id>) -> Option<Cost> {
+        let expr = node
+            .map_children_result(|id| self.costs.get(&id).cloned().ok_or(()))
+            .ok()?;
+        Some(L::cost(&expr))
     }
 
     fn find_costs(&mut self) {
         let mut did_something = true;
-        let mut loops = 0;
         while did_something {
             did_something = false;
 
             for class in self.egraph.classes() {
-                did_something |= self.make_pass(class);
+                match (self.costs.get(&class.id), self.make_pass(class)) {
+                    (None, Some(cost)) => {
+                        self.costs.insert(class.id, cost);
+                        did_something = true;
+                    }
+                    (Some(old), Some(new)) if new < *old => {
+                        self.costs.insert(class.id, new);
+                        did_something = true;
+                    }
+                    _ => (),
+                }
             }
-
-            loops += 1;
         }
-
-        info!("Took {} loops to find costs", loops);
     }
 
-    fn make_pass(&mut self, class: &EClass<L, M>) -> bool {
-        let new = class
-            .iter()
-            .filter_map(|n| self.node_total_cost(n))
-            .min_by_key(|ce| ce.cost);
-
-        let new = match new {
-            Some(new) => new,
-            None => return true,
-        };
-
-        if let Some(old) = self.costs.get(&class.id) {
-            if new.cost < old.cost {
-                self.costs.insert(class.id, new);
-                true
-            } else {
-                false
-            }
-        } else {
-            self.costs.insert(class.id, new);
-            true
-        }
+    fn make_pass(&self, eclass: &EClass<L, M>) -> Option<Cost> {
+        eclass.iter().filter_map(|n| self.node_total_cost(n)).min()
     }
 }
