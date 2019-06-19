@@ -232,26 +232,36 @@ impl<L: Language> PatternMatches<L> {
         pattern: &Pattern<L>,
         egraph: &mut EGraph<L, M>,
     ) -> Vec<Id> {
+        self.apply_with_limit(pattern, egraph, std::usize::MAX)
+    }
+
+    pub fn apply_with_limit<M: Metadata<L>>(
+        &self,
+        pattern: &Pattern<L>,
+        egraph: &mut EGraph<L, M>,
+        size_limit: usize,
+    ) -> Vec<Id> {
         assert_ne!(self.mappings.len(), 0);
-        self.mappings
-            .iter()
-            .filter_map(|mapping| {
-                let before_size = egraph.total_size();
-                let pattern_root = self.apply_rec(0, pattern, egraph, mapping);
-                let leader = egraph.union(self.eclass, pattern_root.id);
-                if !pattern_root.was_there {
-                    Some(leader)
-                } else {
-                    // if the pattern root `was_there`, then nothing
-                    // was actually done in this application (it was
-                    // already in the egraph), so we can check to make
-                    // sure the egraph isn't any bigger
-                    let after_size = egraph.total_size();
-                    assert_eq!(before_size, after_size);
-                    None
-                }
-            })
-            .collect()
+        let mut applications = Vec::new();
+        for mapping in &self.mappings {
+            let before_size = egraph.total_size();
+            if before_size > size_limit {
+                break;
+            }
+            let pattern_root = self.apply_rec(0, pattern, egraph, mapping);
+            let leader = egraph.union(self.eclass, pattern_root.id);
+            if !pattern_root.was_there {
+                applications.push(leader);
+            } else {
+                // if the pattern root `was_there`, then nothing
+                // was actually done in this application (it was
+                // already in the egraph), so we can check to make
+                // sure the egraph isn't any bigger
+                let after_size = egraph.total_size();
+                assert_eq!(before_size, after_size);
+            }
+        }
+        applications
     }
 
     fn apply_rec<M: Metadata<L>>(
