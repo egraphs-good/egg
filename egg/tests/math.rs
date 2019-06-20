@@ -65,10 +65,6 @@ impl Language for Math {
             }
         }
     }
-
-    fn eval(_op: Self::Operator, _args: &[Self::Constant]) -> Self::Constant {
-        unimplemented!()
-    }
 }
 
 static EXP: &str = r#"

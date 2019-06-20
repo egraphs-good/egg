@@ -1,5 +1,5 @@
 use egg::{
-    egraph::EGraph,
+    egraph::{EClass, EGraph, Metadata},
     expr::{Expr, Language, Name, QuestionMarkName},
     parse::ParsableLanguage,
     pattern::Rewrite,
@@ -11,7 +11,7 @@ use strum_macros::{Display, EnumString};
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 struct Prop;
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone, EnumString, Display)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, EnumString, Display)]
 enum Bool {
     #[strum(serialize = "T")]
     True,
@@ -67,21 +67,6 @@ impl Language for Prop {
 
     fn cost(_node: &Expr<Prop, u64>) -> u64 {
         unimplemented!()
-    }
-
-    fn eval(op: Op, args: &[Bool]) -> Bool {
-        match op {
-            Op::And => args.iter().fold(Bool::True, |x, y| conjoin(x, y.clone())),
-            Op::Or => args.iter().fold(Bool::False, |x, y| disjoin(x, y.clone())),
-            Op::Not => {
-                assert_eq!(args.len(), 1);
-                negate(args[0].clone())
-            }
-            Op::Implies => {
-                assert_eq!(args.len(), 2);
-                implies(args[0].clone(), args[1].clone())
-            }
-        }
     }
 }
 
@@ -191,40 +176,43 @@ fn prove_chain() {
     );
 }
 
-#[test]
-fn evaluate() {
-    assert_eq!(Prop::eval(Op::And, &[Bool::True, Bool::True]), Bool::True);
-    assert_eq!(Prop::eval(Op::And, &[Bool::True, Bool::False]), Bool::False);
-    assert_eq!(Prop::eval(Op::And, &[Bool::False, Bool::True]), Bool::False);
-    assert_eq!(
-        Prop::eval(Op::And, &[Bool::False, Bool::False]),
-        Bool::False
-    );
+type ConstantFold = Option<Bool>;
 
-    assert_eq!(Prop::eval(Op::Or, &[Bool::True, Bool::True]), Bool::True);
-    assert_eq!(Prop::eval(Op::Or, &[Bool::True, Bool::False]), Bool::True);
-    assert_eq!(Prop::eval(Op::Or, &[Bool::False, Bool::True]), Bool::True);
-    assert_eq!(Prop::eval(Op::Or, &[Bool::False, Bool::False]), Bool::False);
+impl Metadata<Prop> for ConstantFold {
+    type Error = std::convert::Infallible;
+    fn merge(&self, other: &Self) -> Self {
+        println!("Merge");
+        self.and(*other)
+    }
+    fn make(expr: Expr<Prop, &Self>) -> Self {
+        let result = match &expr {
+            Expr::Constant(c) => Some(*c),
+            Expr::Variable(_) => None,
+            Expr::Operator(op, args) => {
+                fn map2<T>(a: Option<T>, b: Option<T>, f: impl Fn(T, T) -> T) -> Option<T> {
+                    a.and_then(|a| b.map(|b| f(a, b)))
+                }
 
-    assert_eq!(
-        Prop::eval(Op::Implies, &[Bool::True, Bool::False]),
-        Bool::False
-    );
-    assert_eq!(
-        Prop::eval(Op::Implies, &[Bool::True, Bool::True]),
-        Bool::True
-    );
-    assert_eq!(
-        Prop::eval(Op::Implies, &[Bool::False, Bool::True]),
-        Bool::True
-    );
-    assert_eq!(
-        Prop::eval(Op::Implies, &[Bool::False, Bool::True]),
-        Bool::True
-    );
-
-    assert_eq!(Prop::eval(Op::Not, &[Bool::True]), Bool::False);
-    assert_eq!(Prop::eval(Op::Not, &[Bool::False]), Bool::True);
+                match op {
+                    Op::And => map2(*args[0], *args[1], conjoin),
+                    Op::Or => map2(*args[0], *args[1], disjoin),
+                    Op::Implies => map2(*args[0], *args[1], implies),
+                    Op::Not => {
+                        assert_eq!(args.len(), 1);
+                        args[0].map(negate)
+                    }
+                }
+            }
+        };
+        println!("Make: {:?} -> {:?}", expr, result);
+        result
+    }
+    fn modify(eclass: &mut EClass<Prop, Self>) {
+        println!("Modifying: {:#?}", eclass);
+        if let Some(c) = eclass.metadata {
+            eclass.nodes.push(Expr::Constant(c))
+        }
+    }
 }
 
 #[test]
@@ -233,13 +221,6 @@ fn const_fold() {
     let start_expr = Prop.parse_expr(start).unwrap();
     let end = "F";
     let end_expr = Prop.parse_expr(end).unwrap();
-    let (mut eg, _) = EGraph::<Prop, ()>::from_expr(&start_expr);
-    eg.dump_dot("constant_folding0.dot");
-    assert_eq!(eg.fold_constants(), 2);
-    eg.rebuild();
-    eg.dump_dot("constant_folding1.dot");
-    assert_eq!(eg.fold_constants(), 1);
-    eg.rebuild();
-    eg.dump_dot("constant_folding2.dot");
+    let (eg, _) = EGraph::<Prop, ConstantFold>::from_expr(&start_expr);
     assert!(!eg.equivs(&start_expr, &end_expr).is_empty());
 }

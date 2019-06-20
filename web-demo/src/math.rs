@@ -60,21 +60,6 @@ impl Language for Math {
             }
         }
     }
-
-    fn eval(op: Self::Operator, args: &[Self::Constant]) -> Self::Constant {
-        match op {
-            Op::Add => args[0] + args[1],
-            Op::Sub => args[0] - args[1],
-            Op::Mul => args[0] * args[1],
-            Op::Div => args[0] / args[1],
-            Op::Pow => args[0].powf(args[1].into()).into(),
-            Op::Exp => args[0].exp().into(),
-            Op::Log => args[0].log(std::f64::consts::E).into(),
-            Op::Sqrt => args[0].sqrt().into(),
-            Op::Cbrt => args[0].cbrt().into(),
-            Op::Fabs => args[0].abs().into(),
-        }
-    }
 }
 
 #[derive(Debug, Clone)]

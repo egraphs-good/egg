@@ -33,6 +33,7 @@ pub trait Metadata<L: Language>: Sized + Debug {
     type Error: Debug;
     fn merge(&self, other: &Self) -> Self;
     fn make(expr: Expr<L, &Self>) -> Self;
+    fn modify(_eclass: &mut EClass<L, Self>) {}
 }
 
 impl<L: Language> Metadata<L> for () {
@@ -65,7 +66,7 @@ pub struct AddResult {
 #[derive(Debug, Clone)]
 pub struct EClass<L: Language, M> {
     pub id: Id,
-    nodes: Vec<Expr<L, Id>>,
+    pub nodes: Vec<Expr<L, Id>>,
     pub metadata: M,
 }
 
@@ -99,17 +100,23 @@ impl<L: Language, M: Metadata<L>> Value for EClass<L, M> {
         }
 
         more.extend(less);
-        Ok(EClass {
+        let mut eclass = EClass {
             id: to.id,
             nodes: more,
             metadata: to.metadata.merge(&from.metadata),
-        })
+        };
+        M::modify(&mut eclass);
+        Ok(eclass)
     }
 }
 
 impl<L: Language, M> EGraph<L, M> {
     pub fn classes(&self) -> impl Iterator<Item = &EClass<L, M>> {
         self.classes.values()
+    }
+
+    pub fn classes_mut(&mut self) -> impl Iterator<Item = &mut EClass<L, M>> {
+        self.classes.values_mut()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -183,11 +190,12 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
         match self.memo.get(&enode) {
             None => {
                 // HACK knowing the next key like this is pretty bad
-                let class = EClass {
+                let mut class = EClass {
                     id: self.classes.total_size() as Id,
                     nodes: vec![enode.clone()],
                     metadata: M::make(enode.map_children(|id| &self[id].metadata)),
                 };
+                M::modify(&mut class);
                 let next_id = self.classes.make_set(class);
                 trace!("Added  {:4}: {:?}", next_id, enode);
                 let old = self.memo.insert(enode, next_id);
@@ -228,107 +236,6 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
         equiv_eclasses
     }
 
-    /// Trims down eclasses that have variables or constants in them.
-    ///
-    /// If an eclass has a variable or constant in it, this will
-    /// remove everything else from that eclass except those
-    /// variables/constants.
-    /// ```
-    /// # use egg::egraph::EGraph;
-    /// # use egg::expr::tests::*;
-    /// # use egg::parse::ParsableLanguage;
-    /// let expr = TestLang.parse_expr("(+ x y)").unwrap();
-    /// let (mut egraph, root) = EGraph::<TestLang, ()>::from_expr(&expr);
-    /// let z = egraph.add(var("z"));
-    /// let eclass = egraph.union(root, z.id);
-    /// // eclass has z and + in it
-    /// assert_eq!(egraph[eclass].len(), 2);
-    /// // pruning will remove the +, returning how many nodes were removed
-    /// assert_eq!(egraph.prune(), 1);
-    /// // eclass is now smaller
-    /// assert_eq!(egraph[eclass].len(), 1);
-    /// // for now, its not actually removed from the egraph
-    /// assert_eq!(egraph.total_size(), 4);
-    /// ```
-    ///
-    pub fn prune(&mut self) -> usize {
-        let mut pruned = 0;
-        for class in self.classes.values_mut() {
-            let mut new_nodes = Vec::new();
-            for node in &class.nodes {
-                match node {
-                    Expr::Variable(_) | Expr::Constant(_) => new_nodes.push(node.clone()),
-                    _ => (),
-                }
-            }
-
-            if !new_nodes.is_empty() {
-                pruned += class.len() - new_nodes.len();
-                class.nodes = new_nodes;
-            }
-        }
-
-        if pruned > 0 {
-            info!("Pruned {} nodes", pruned);
-        }
-
-        pruned
-    }
-
-    pub fn fold_constants(&mut self) -> usize {
-        let mut to_add = HashMap::default();
-        let mut constant_nodes = HashMap::default();
-
-        // look for constants in each class
-        for (id, class) in self.classes.iter() {
-            for node in &class.nodes {
-                if let Expr::Constant(c) = node {
-                    let old_val = constant_nodes.insert(id, c.clone());
-                    if let Some(val) = old_val {
-                        error!("More than one constant in a class! Found: {:?}", val);
-                    }
-                }
-            }
-        }
-
-        // evaluate foldable expressions
-        for (id, class) in self.classes.iter() {
-            for node in &class.nodes {
-                if let Expr::Operator(op, cids) = node {
-                    // get children if they are all constant
-                    let children: Option<Vec<_>> = cids
-                        .iter()
-                        .map(|id| constant_nodes.get(id).cloned())
-                        .collect();
-                    // evaluate expression to constant
-                    if let Some(consts) = children {
-                        let const_e = Expr::Constant(L::eval(op.clone(), &consts));
-                        let old_val = to_add.insert(id, const_e.clone());
-                        if let Some(old_const) = old_val {
-                            if old_const != const_e {
-                                error!(
-                                    "Nodes in the same class differ in values: {:?} != {:?}",
-                                    old_const, const_e,
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        // add and merge the new folded constants
-        let mut folded = 0;
-        for (cid, new_node) in to_add {
-            let add_result = self.add(new_node);
-            let old_size = self[cid].len();
-            self.union(cid, add_result.id);
-            if self[cid].len() > old_size {
-                folded += 1;
-            }
-        }
-        folded
-    }
-
     fn rebuild_once(&mut self) -> usize {
         let mut new_memo = HashMap::default();
         let mut to_union = Vec::new();
@@ -360,6 +267,7 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
         for (id1, id2) in to_union {
             self.union(id1, id2);
         }
+
         self.memo = new_memo;
         n_unions
     }

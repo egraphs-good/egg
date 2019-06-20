@@ -194,8 +194,6 @@ impl Component for Model {
                 }
 
                 self.egraph.rebuild();
-                self.egraph.fold_constants();
-                self.egraph.prune();
 
                 let elapsed = Date::now() - start_time;
                 self.console.log(&format!("Applied in {}s", elapsed));
