@@ -3,7 +3,7 @@
 //! parameterized over the language given by the user (by implementing
 //! the [`Language`] trait).
 //!
-//! A typically usage would either implement [`Language`] or use the
+//! A typical usage would either implement [`Language`] or use the
 //! provided [`TestLang`]. From there, you can use the functionality
 //! from the [`ParsableLanguage`] trait module to create expressions
 //! and add them to the EGraph.

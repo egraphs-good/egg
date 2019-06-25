@@ -116,7 +116,7 @@ impl<L: Language, M> EGraph<L, M> {
         self.memo.is_empty()
     }
 
-    /// Returns the number of nodes in the EGraph.
+    /// Returns the number of nodes in the `EGraph`.
     ///
     /// Actually returns the size of the hash cons index.
     /// ```
@@ -227,7 +227,7 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
 
     /// Trims down eclasses that have variables or constants in them.
     ///
-    /// If an eclass has a variable or consant in it, this will
+    /// If an eclass has a variable or constant in it, this will
     /// remove everything else from that eclass except those
     /// variables/constants.
     /// ```
