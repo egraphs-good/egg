@@ -116,7 +116,7 @@ impl<'a, L: Language, Child> fmt::Display for Symbol<'a, L, Child> {
     }
 }
 
-/// Trait that wraps up information from the client about the langauge
+/// Trait that wraps up information from the client about the language
 /// we're working with.
 ///
 /// [`TestLang`] is provided as a simple implementation.
