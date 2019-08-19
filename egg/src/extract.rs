@@ -1,14 +1,14 @@
 use crate::{
     egraph::{EClass, EGraph},
     expr::{Expr, Id, Language, RecExpr},
-    util::HashMap,
 };
 
+use indexmap::IndexMap;
 use log::*;
 
 pub type Cost = u64;
 
-fn cost_cse_rec<L: Language>(map: &mut HashMap<RecExpr<L>, Cost>, expr: &RecExpr<L>) -> Cost {
+fn cost_cse_rec<L: Language>(map: &mut IndexMap<RecExpr<L>, Cost>, expr: &RecExpr<L>) -> Cost {
     if map.contains_key(expr) {
         return 1;
     }
@@ -21,7 +21,7 @@ fn cost_cse_rec<L: Language>(map: &mut HashMap<RecExpr<L>, Cost>, expr: &RecExpr
 }
 
 pub fn calculate_cost_cse<L: Language>(expr: &RecExpr<L>) -> Cost {
-    let mut map = HashMap::default();
+    let mut map = IndexMap::default();
     let cost = cost_cse_rec(&mut map, expr);
 
     trace!("Found cost to be {}\n  {}", cost, expr.to_sexp());
@@ -39,13 +39,13 @@ pub struct CostExpr<L: Language> {
 }
 
 pub struct Extractor<'a, L: Language, M> {
-    costs: HashMap<Id, Cost>,
+    costs: IndexMap<Id, Cost>,
     egraph: &'a EGraph<L, M>,
 }
 
 impl<'a, L: Language, M> Extractor<'a, L, M> {
     pub fn new(egraph: &'a EGraph<L, M>) -> Self {
-        let costs = HashMap::default();
+        let costs = IndexMap::default();
         let mut extractor = Extractor { costs, egraph };
         extractor.find_costs();
 

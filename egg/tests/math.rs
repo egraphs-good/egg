@@ -4,11 +4,12 @@ use egg::{
     extract::{calculate_cost, Extractor},
     parse::ParsableLanguage,
     pattern::Rewrite,
-    util::HashMap,
 };
 use log::*;
 use ordered_float::NotNan;
 use std::time::{Duration, Instant};
+
+use indexmap::IndexMap;
 
 use strum_macros::{Display, EnumString};
 
@@ -125,8 +126,8 @@ fn mk_rules(tuples: &[(&str, &str, &str)]) -> Vec<Rewrite<Math>> {
 }
 
 #[rustfmt::skip]
-fn rules() -> HashMap<&'static str, Vec<Rewrite<Math>>> {
-    let mut m = HashMap::default();
+fn rules() -> IndexMap<&'static str, Vec<Rewrite<Math>>> {
+    let mut m = IndexMap::new();
     let mut add = |name, rules| {
         if m.contains_key(name) {
             panic!("{} was already there", name);

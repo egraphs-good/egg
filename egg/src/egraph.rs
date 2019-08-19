@@ -8,13 +8,14 @@ use std::time::Instant;
 use crate::{
     expr::{Expr, Id, Language, RecExpr},
     unionfind::{UnionFind, Value},
-    util::{HashMap, HashSet},
 };
+
+use indexmap::{IndexMap, IndexSet};
 
 /// Data structure to keep track of equalities between expressions
 #[derive(Debug)]
 pub struct EGraph<L: Language, M> {
-    memo: HashMap<Expr<L, Id>, Id>,
+    memo: IndexMap<Expr<L, Id>, Id>,
     classes: UnionFind<Id, EClass<L, M>>,
     unions_since_rebuild: usize,
 }
@@ -22,7 +23,7 @@ pub struct EGraph<L: Language, M> {
 impl<L: Language, M> Default for EGraph<L, M> {
     fn default() -> EGraph<L, M> {
         EGraph {
-            memo: HashMap::default(),
+            memo: IndexMap::default(),
             classes: UnionFind::default(),
             unions_since_rebuild: 0,
         }
@@ -237,9 +238,9 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
     }
 
     fn rebuild_once(&mut self) -> usize {
-        let mut new_memo = HashMap::default();
+        let mut new_memo = IndexMap::new();
         let mut to_union = Vec::new();
-        let mut new_metas = HashMap::default();
+        let mut new_metas = IndexMap::new();
 
         for (leader, class) in self.classes.iter() {
             let mut class_metas = Vec::new();
@@ -256,7 +257,7 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
             new_metas.insert(leader, class_metas);
         }
 
-        for (leader, metas) in new_metas.drain() {
+        for (leader, metas) in new_metas.drain(..) {
             let class = self.classes.get_mut(leader);
             for m in metas {
                 class.metadata = class.metadata.merge(&m)
@@ -276,7 +277,7 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
         let mut trimmed = 0;
         let mut new_classes = Vec::new();
         for class in self.classes.values() {
-            let mut new_nodes = HashSet::default();
+            let mut new_nodes = IndexSet::new();
             for node in class.nodes.iter() {
                 new_nodes.insert(node.update_ids(&self.classes));
             }

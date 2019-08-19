@@ -1,7 +1,8 @@
-use crate::util::{HashMap, HashSet};
 use std::cell::Cell;
 use std::fmt::{self, Debug};
 use std::hash::Hash;
+
+use indexmap::{IndexMap, IndexSet};
 
 pub struct UnionFind<K, V> {
     parents: Vec<Cell<K>>,
@@ -185,8 +186,8 @@ impl<K: Key, V: Value> UnionFind<K, V> {
 }
 
 impl<K: Key + Eq + Hash, V> UnionFind<K, V> {
-    pub fn build_sets(&self) -> HashMap<K, HashSet<K>> {
-        let mut map: HashMap<K, HashSet<K>> = HashMap::default();
+    pub fn build_sets(&self) -> IndexMap<K, IndexSet<K>> {
+        let mut map: IndexMap<K, IndexSet<K>> = IndexMap::default();
 
         for i in (0..self.total_size()).map(Key::from_index) {
             let leader = self.find(i);
@@ -203,7 +204,7 @@ mod tests {
 
     use super::*;
 
-    use crate::util::{hashmap, hashset};
+    use indexmap::{indexmap, indexset};
 
     fn make_union_find(n: u32) -> UnionFind<u32, ()> {
         let mut uf = UnionFind::new();
@@ -228,8 +229,8 @@ mod tests {
 
         // make sure build_sets works
         let expected_sets = (0..n)
-            .map(|i| (i, hashset(&[i])))
-            .collect::<HashMap<_, _>>();
+            .map(|i| (i, indexset!(i)))
+            .collect::<IndexMap<_, _>>();
         assert_eq!(uf.build_sets(), expected_sets);
 
         // these should all merge into 0, because it's the largest class
@@ -248,12 +249,12 @@ mod tests {
         assert_eq!(uf.union(7, 8), Ok(6));
 
         // check set structure
-        let expected_sets = hashmap(&[
-            (0, hashset(&[0, 1, 2, 3])),
-            (4, hashset(&[4])),
-            (5, hashset(&[5])),
-            (6, hashset(&[6, 7, 8, 9])),
-        ]);
+        let expected_sets = indexmap!(
+            0 => indexset!(0, 1, 2, 3),
+            4 => indexset!(4),
+            5 => indexset!(5),
+            6 => indexset!(6, 7, 8, 9),
+        );
         assert_eq!(uf.build_sets(), expected_sets);
 
         // make sure that the set sizes are right
