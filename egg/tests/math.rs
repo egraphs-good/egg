@@ -536,9 +536,9 @@ fn do_something() {
         let mut matches = Vec::new();
         for (_name, list) in rules.iter() {
             for rule in list {
-                let ms = rule.lhs.search(&egraph);
+                let ms = rule.search(&egraph);
                 if !ms.is_empty() {
-                    matches.push((&rule.rhs, ms));
+                    matches.push(ms);
                 }
                 // rule.run(&mut egraph);
                 // egraph.rebuild();
@@ -549,25 +549,23 @@ fn do_something() {
 
         let match_time = Instant::now();
 
-        for (rhs, ms) in matches {
-            for m in ms {
-                let actually_matched = m.apply(rhs, &mut egraph);
-                applied += actually_matched.len();
-                total_matches += m.mappings.len();
+        for m in matches {
+            let actually_matched = m.apply_with_limit(&mut egraph, std::usize::MAX);
+            applied += actually_matched.len();
+            total_matches += m.len();
 
-                // log the growth of the egraph
-                if total_matches - last_total_matches > 1000 {
-                    last_total_matches = total_matches;
-                    let elapsed = match_time.elapsed();
-                    debug!(
-                        "nodes: {}, eclasses: {}, actual: {}, total: {}, us per match: {}",
-                        egraph.total_size(),
-                        egraph.number_of_classes(),
-                        applied,
-                        total_matches,
-                        elapsed.as_micros() / total_matches as u128
-                    );
-                }
+            // log the growth of the egraph
+            if total_matches - last_total_matches > 1000 {
+                last_total_matches = total_matches;
+                let elapsed = match_time.elapsed();
+                debug!(
+                    "nodes: {}, eclasses: {}, actual: {}, total: {}, us per match: {}",
+                    egraph.total_size(),
+                    egraph.number_of_classes(),
+                    applied,
+                    total_matches,
+                    elapsed.as_micros() / total_matches as u128
+                );
             }
         }
 

@@ -20,6 +20,20 @@ impl<L: Language> Pattern<L> {
     pub fn from_expr(e: &RecExpr<L>) -> Self {
         Pattern::Expr(e.as_ref().map_children(|child| Pattern::from_expr(&child)))
     }
+
+    pub fn subst_and_find<M>(&self, egraph: &mut EGraph<L, M>, mapping: &WildMap<L>) -> Id
+    where
+        M: Metadata<L>,
+    {
+        match self {
+            Pattern::Wildcard(w) => mapping.get(w).unwrap(),
+            Pattern::Expr(expr) => {
+                let expr = expr.map_children(|pat| pat.subst_and_find(egraph, mapping));
+                let result = egraph.add(expr);
+                result.id
+            }
+        }
+    }
 }
 
 impl<L: Language> Pattern<L>
@@ -43,22 +57,43 @@ where
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Rewrite<L: Language> {
-    pub name: String,
+pub struct Condition<L: Language> {
     pub lhs: Pattern<L>,
     pub rhs: Pattern<L>,
 }
 
+impl<L: Language> Condition<L> {
+    fn check<M>(&self, egraph: &mut EGraph<L, M>, mapping: &WildMap<L>) -> bool
+    where
+        M: Metadata<L>,
+    {
+        let lhs_id = self.lhs.subst_and_find(egraph, mapping);
+        let rhs_id = self.rhs.subst_and_find(egraph, mapping);
+        lhs_id == rhs_id
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct Rewrite<L: Language> {
+    pub name: String,
+    pub lhs: Pattern<L>,
+    pub rhs: Pattern<L>,
+    pub conditions: Vec<Condition<L>>,
+}
+
 impl<L: Language> Rewrite<L> {
     pub fn flip(&self) -> Self {
+        // flip doesn't make sense for conditional rewrites
+        assert_eq!(self.conditions, vec![]);
         Rewrite {
             name: format!("{}-flipped", self.name),
             lhs: self.rhs.clone(),
             rhs: self.lhs.clone(),
+            conditions: self.conditions.clone(),
         }
     }
 
-    pub fn run<M: Metadata<L>>(&self, egraph: &mut EGraph<L, M>) {
+    pub fn run<M: Metadata<L>>(&self, egraph: &mut EGraph<L, M>) -> Vec<Id> {
         debug!("Running rewrite '{}'", self.name);
         let matches = self.lhs.search(&egraph);
         debug!(
@@ -68,9 +103,9 @@ impl<L: Language> Rewrite<L> {
         );
 
         let start = Instant::now();
-        for m in matches {
-            m.apply(&self.rhs, egraph);
-        }
+        let ids = self
+            .search(egraph)
+            .apply_with_limit(egraph, std::usize::MAX);
         let elapsed = start.elapsed();
         debug!(
             "Applied rewrite {} in {}.{:03}",
@@ -78,6 +113,49 @@ impl<L: Language> Rewrite<L> {
             elapsed.as_secs(),
             elapsed.subsec_millis()
         );
+
+        ids
+    }
+
+    pub fn search<M>(&self, egraph: &EGraph<L, M>) -> RewriteMatches<L> {
+        RewriteMatches {
+            rewrite: self,
+            matches: self.lhs.search(egraph),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct RewriteMatches<'a, L: Language> {
+    rewrite: &'a Rewrite<L>,
+    matches: Vec<PatternMatches<L>>,
+}
+
+impl<'a, L: Language> RewriteMatches<'a, L> {
+    pub fn is_empty(&self) -> bool {
+        self.matches.iter().all(|m| m.mappings.is_empty())
+    }
+
+    pub fn len(&self) -> usize {
+        self.matches.iter().map(|m| m.mappings.len()).sum()
+    }
+
+    pub fn apply_with_limit<M: Metadata<L>>(
+        &self,
+        egraph: &mut EGraph<L, M>,
+        size_limit: usize,
+    ) -> Vec<Id> {
+        self.matches
+            .iter()
+            .flat_map(|m| {
+                m.apply_conditionally_with_limit(
+                    &self.rewrite.rhs,
+                    egraph,
+                    &self.rewrite.conditions,
+                    size_limit,
+                )
+            })
+            .collect()
     }
 }
 
@@ -227,18 +305,38 @@ pub struct PatternMatches<L: Language> {
 }
 
 impl<L: Language> PatternMatches<L> {
+    #[deprecated(
+        since = "0.0.3",
+        note = "This unconditionally applies match. Use the `Rewrite` api instead."
+    )]
     pub fn apply<M: Metadata<L>>(
         &self,
         pattern: &Pattern<L>,
         egraph: &mut EGraph<L, M>,
     ) -> Vec<Id> {
-        self.apply_with_limit(pattern, egraph, std::usize::MAX)
+        let conditions = vec![];
+        self.apply_conditionally_with_limit(pattern, egraph, &conditions, std::usize::MAX)
     }
 
+    #[deprecated(
+        since = "0.0.3",
+        note = "This unconditionally applies match. Use the `Rewrite` api instead."
+    )]
     pub fn apply_with_limit<M: Metadata<L>>(
         &self,
         pattern: &Pattern<L>,
         egraph: &mut EGraph<L, M>,
+        size_limit: usize,
+    ) -> Vec<Id> {
+        let conditions = vec![];
+        self.apply_conditionally_with_limit(pattern, egraph, &conditions, size_limit)
+    }
+
+    fn apply_conditionally_with_limit<M: Metadata<L>>(
+        &self,
+        pattern: &Pattern<L>,
+        egraph: &mut EGraph<L, M>,
+        conditions: &[Condition<L>],
         size_limit: usize,
     ) -> Vec<Id> {
         assert_ne!(self.mappings.len(), 0);
@@ -248,17 +346,20 @@ impl<L: Language> PatternMatches<L> {
             if before_size > size_limit {
                 break;
             }
-            let pattern_root = self.apply_rec(0, pattern, egraph, mapping);
-            let leader = egraph.union(self.eclass, pattern_root.id);
-            if !pattern_root.was_there {
-                applications.push(leader);
-            } else {
-                // if the pattern root `was_there`, then nothing
-                // was actually done in this application (it was
-                // already in the egraph), so we can check to make
-                // sure the egraph isn't any bigger
-                let after_size = egraph.total_size();
-                assert_eq!(before_size, after_size);
+
+            if conditions.iter().all(|c| c.check(egraph, mapping)) {
+                let pattern_root = self.apply_rec(0, pattern, egraph, mapping);
+                let leader = egraph.union(self.eclass, pattern_root.id);
+                if !pattern_root.was_there {
+                    applications.push(leader);
+                } else {
+                    // if the pattern root `was_there`, then nothing
+                    // was actually done in this application (it was
+                    // already in the egraph), so we can check to make
+                    // sure the egraph isn't any bigger
+                    let after_size = egraph.total_size();
+                    assert_eq!(before_size, after_size);
+                }
             }
         }
         applications
@@ -343,13 +444,14 @@ mod tests {
                 "+",
                 vec![Pattern::Wildcard(b.clone()), Pattern::Wildcard(a.clone())],
             )),
+            conditions: vec![],
         };
 
-        let eclass = egraph.find(plus);
-        let matches = commute_plus.lhs.search_eclass(&egraph, eclass).unwrap();
-        assert_eq!(matches.mappings.len(), 2);
+        // let eclass = egraph.find(plus);
+        let matches = commute_plus.search(&egraph);
+        assert_eq!(matches.len(), 2);
 
-        let applications = matches.apply(&commute_plus.rhs, &mut egraph);
+        let applications = matches.apply_with_limit(&mut egraph, 1000);
         egraph.rebuild();
         assert_eq!(applications.len(), 2);
 
@@ -360,15 +462,21 @@ mod tests {
             wm(&[(a.clone(), z), (b.clone(), w)]),
         ];
 
+        let actual_mappings: Vec<WildMap<_>> = matches
+            .matches
+            .iter()
+            .flat_map(|m| m.mappings.clone())
+            .collect();
+
         // for now, I have to check mappings both ways
-        if matches.mappings != expected_mappings {
+        if actual_mappings != expected_mappings {
             let e0 = expected_mappings[0].clone();
             let e1 = expected_mappings[1].clone();
-            assert_eq!(matches.mappings, vec![e1, e0])
+            assert_eq!(actual_mappings, vec![e1, e0])
         }
 
         info!("Here are the mappings!");
-        for m in &matches.mappings {
+        for m in &actual_mappings {
             info!("mappings: {:?}", m);
         }
 
@@ -380,5 +488,54 @@ mod tests {
 
         let best = ext.find_best(2);
         eprintln!("Best: {:#?}", best.expr);
+    }
+
+    #[test]
+    fn conditional_rewrite() {
+        crate::init_logger();
+        let mut egraph = EGraph::<TestLang, ()>::default();
+
+        let x = egraph.add(var("x")).id;
+        let y = egraph.add(Expr::Constant(2)).id;
+        let mul = egraph.add(op("*", vec![x, y])).id;
+
+        let true_expr = op("TRUE", vec![]);
+        let true_pat = Pattern::Expr(op("TRUE", vec![]));
+        let true_id = egraph.add(true_expr.clone()).id;
+
+        let a: QuestionMarkName = "?a".parse().unwrap();
+        let b: QuestionMarkName = "?b".parse().unwrap();
+
+        let mul_to_shift = crate::pattern::Rewrite {
+            name: "mul_to_shift".into(),
+            lhs: Pattern::Expr(op(
+                "*",
+                vec![Pattern::Wildcard(a.clone()), Pattern::Wildcard(b.clone())],
+            )),
+            rhs: Pattern::Expr(op(
+                ">>",
+                vec![
+                    Pattern::Wildcard(a.clone()),
+                    Pattern::Expr(op("log2", vec![Pattern::Wildcard(b.clone())])),
+                ],
+            )),
+            conditions: vec![Condition {
+                lhs: Pattern::Expr(op("is-power2", vec![Pattern::Wildcard(b.clone())])),
+                rhs: true_pat,
+            }],
+        };
+
+        // rewrite shouldn't do anything yet
+        egraph.rebuild();
+        let apps = mul_to_shift.run(&mut egraph);
+        assert_eq!(apps, vec![]);
+
+        let two_ispow2 = egraph.add(op("is-power2", vec![y])).id;
+        egraph.union(two_ispow2, true_id);
+
+        // rewrite should now fire
+        egraph.rebuild();
+        let apps = mul_to_shift.run(&mut egraph);
+        assert_eq!(apps, vec![mul]);
     }
 }
