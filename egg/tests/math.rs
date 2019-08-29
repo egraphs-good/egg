@@ -209,6 +209,8 @@ fn rules() -> IndexMap<&'static str, Vec<Rewrite<Math>>> {
             ("remove-double-div", "(/ 1 (/ 1 ?a))",         "?a"),
             ("rgt-mult-inverse",  "(* ?a (/ 1 ?a))",         "1"),
             ("lft-mult-inverse", "(* (/ 1 ?a) ?a)", "1"),
+            // NOTE not really id-reduce, oh well
+            ("add-mul", "(+ ?a ?a)", "(* 2 ?a)"),
         ],
     );
 
@@ -236,6 +238,17 @@ fn rules() -> IndexMap<&'static str, Vec<Rewrite<Math>>> {
             ("/-rgt-identity",    "(/ ?a 1)",   "?a"),
             ("mul-1-neg",         "(* -1 ?a)",  "(- 0 ?a)"),
         ],
+    );
+
+    add("fractions",
+        &[
+
+            ("sub-div",     "(- (/ ?a ?c) (/ ?b ?c))",  "(/ (- ?a ?b) ?c)"),
+            ("frac-add",    "(+ (/ ?a ?b) (/ ?c ?d))",  "(/ (+ (* ?a ?d) (* ?b ?c)) (* ?b ?d))"),
+            ("frac-sub",    "(- (/ ?a ?b) (/ ?c ?d))",  "(/ (- (* ?a ?d) (* ?b ?c)) (* ?b ?d))"),
+            ("frac-times" , "(* (/ ?a ?b) (/ ?c ?d))",  "(/ (* ?a ?c) (* ?b ?d))"),
+            ("frac-2neg",   "(/ ?a ?b)",              "(/ (- ?a) (- ?b))"),
+        ]
     );
 
     add(
