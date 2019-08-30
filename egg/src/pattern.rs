@@ -1,6 +1,7 @@
 use log::*;
 use std::time::Instant;
 
+use indexmap::IndexSet;
 use itertools::Itertools;
 use smallvec::{smallvec, SmallVec};
 use symbolic_expressions::Sexp;
@@ -32,6 +33,25 @@ impl<L: Language> Pattern<L> {
                 let result = egraph.add(expr);
                 result.id
             }
+        }
+    }
+
+    fn insert_wildcards(&self, set: &mut IndexSet<L::Wildcard>) {
+        match self {
+            Pattern::Wildcard(w) => {
+                set.insert(w.clone());
+            }
+            Pattern::Expr(expr) => {
+                expr.map_children(|pat| pat.insert_wildcards(set));
+            }
+        }
+    }
+
+    fn is_bound(&self, set: &IndexSet<L::Wildcard>) -> bool {
+        match self {
+            Pattern::Wildcard(w) => set.contains(w),
+            Pattern::Expr(Expr::Operator(_, pats)) => pats.iter().all(|p| p.is_bound(set)),
+            _ => true,
         }
     }
 }
@@ -82,6 +102,16 @@ pub struct Rewrite<L: Language> {
 }
 
 impl<L: Language> Rewrite<L> {
+    pub fn is_bound(&self) -> bool {
+        let mut bound = IndexSet::new();
+        self.lhs.insert_wildcards(&mut bound);
+        self.rhs.is_bound(&bound)
+            && self
+                .conditions
+                .iter()
+                .all(|cond| cond.lhs.is_bound(&bound) && cond.rhs.is_bound(&bound))
+    }
+
     pub fn flip(&self) -> Self {
         // flip doesn't make sense for conditional rewrites
         assert_eq!(self.conditions, vec![]);
