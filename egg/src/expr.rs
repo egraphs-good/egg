@@ -58,6 +58,10 @@ impl<L: Language> RecExpr<L> {
 }
 
 impl<L: Language, Child> Expr<L, Child> {
+    pub fn var(v: impl Into<L::Variable>) -> Self {
+        Expr::Variable(v.into())
+    }
+
     pub fn map_children_result<Child2, F, Error>(&self, f: F) -> Result<Expr<L, Child2>, Error>
     where
         Child: Clone,
@@ -137,9 +141,9 @@ pub trait Language: Debug + PartialEq + Eq + Hash + Clone {
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct Name(pub Rc<str>);
 
-impl From<&str> for Name {
-    fn from(s: &str) -> Self {
-        Name(s.into())
+impl<S: std::borrow::Borrow<str>> From<S> for Name {
+    fn from(s: S) -> Self {
+        Name(s.borrow().into())
     }
 }
 
