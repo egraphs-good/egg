@@ -157,7 +157,7 @@ impl<L: Language> Rewrite<L> {
 
 #[derive(Debug)]
 pub struct RewriteMatches<'a, L: Language> {
-    rewrite: &'a Rewrite<L>,
+    pub rewrite: &'a Rewrite<L>,
     matches: Vec<PatternMatches<L>>,
 }
 
