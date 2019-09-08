@@ -16,6 +16,7 @@ stdweb = "0.4.17"
 yew = "0.6"
 
 egg = { path = "../egg" }
+egg-math = { path = "../egg-math" }
 
 log = "0.4"
 

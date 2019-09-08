@@ -2,6 +2,7 @@
 
 members = [
     "egg",
+    "egg-math",
     "web-demo",
 ]
 

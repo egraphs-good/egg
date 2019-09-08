@@ -33,6 +33,7 @@ impl<L: Language, M> Default for EGraph<L, M> {
 pub trait Metadata<L: Language>: Sized + Debug {
     type Error: Debug;
     fn merge(&self, other: &Self) -> Self;
+    // TODO should make be allowed to modify?
     fn make(expr: Expr<L, &Self>) -> Self;
     fn modify(_eclass: &mut EClass<L, Self>) {}
 }
@@ -393,6 +394,34 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
         let mut file = File::create(&filename).unwrap();
         write!(file, "{}", dot).unwrap();
         trace!("Writing {}...\n{}", filename, dot);
+    }
+
+    pub fn rule_pass<'a, I>(&'a mut self, node_limit: usize, rules: I) -> usize
+    where
+        I: IntoIterator<Item = &'a crate::pattern::Rewrite<L>>,
+    {
+        let mut matches = Vec::new();
+
+        for rule in rules.into_iter() {
+            let ms = rule.lhs.search(self);
+            if !ms.is_empty() {
+                matches.push((&rule.rhs, ms));
+            }
+        }
+
+        let mut n_applications = 0;
+
+        for (rhs, ms) in matches {
+            for m in ms {
+                n_applications += m.apply(rhs, self).len();
+
+                if self.total_size() > node_limit {
+                    return n_applications;
+                }
+            }
+        }
+
+        n_applications
     }
 }
 

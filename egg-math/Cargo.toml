@@ -1,0 +1,15 @@
+[package]
+name = "egg-math"
+version = "0.1.0"
+authors = ["Max Willsey <me@mwillsey.com>"]
+edition = "2018"
+
+[dependencies]
+egg = { path = "../egg" }
+log = "0.4"
+indexmap = "1.1"
+
+ordered-float = "1"
+env_logger = "0.6"
+strum = "0.15"
+strum_macros = "0.15"

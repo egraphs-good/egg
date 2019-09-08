@@ -18,7 +18,6 @@ smallvec = "0.6"
 indexmap = "1"
 
 [dev-dependencies]
-env_logger = "0.6.1"
+env_logger = "0.6"
 strum = "0.15"
 strum_macros = "0.15"
-ordered-float = "1"

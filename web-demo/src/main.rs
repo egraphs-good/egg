@@ -5,15 +5,13 @@ use stdweb::web::Date;
 use yew::services::ConsoleService;
 use yew::{html, Component, ComponentLink, Html, Renderable, ShouldRender};
 
-mod math;
-
 use egg::{
     egraph::EClass,
     expr::{Id, RecExpr},
     parse::{pat_to_expr, ParsableLanguage},
     pattern::{Pattern, PatternMatches, Rewrite},
 };
-use math::*;
+use egg_math::*;
 
 struct Queried {
     pattern: Pattern<Math>,
@@ -33,6 +31,17 @@ struct RewriteGroup {
     name: String,
     enabled: bool,
     rewrites: Vec<OptionalRewrite>,
+}
+
+fn rewrite_groups() -> Vec<RewriteGroup> {
+    egg_math::rules()
+        .iter()
+        .map(|(name, vec)| RewriteGroup {
+            name: name.to_string(),
+            enabled: true,
+            rewrites: vec.iter().cloned().map(OptionalRewrite::new).collect(),
+        })
+        .collect()
 }
 
 impl RewriteGroup {
@@ -127,7 +136,7 @@ impl Component for Model {
             query: Err("enter a pattern or expression".into()),
             added: vec![],
             examples: vec!["(+ 1 2)", "(* x (+ y z))", "(+ x (+ x (+ x x)))"],
-            rewrite_groups: math::rules(),
+            rewrite_groups: rewrite_groups(),
         }
     }
 
@@ -207,12 +216,12 @@ fn view_example(s: &'static str) -> Html<Model> {
     html! { <div onclick=|_| Msg::AddExpr(s.to_string()),> {s} </div> }
 }
 
-fn view_eclass(eclass: &EClass<Math, BestExpr>) -> Html<Model> {
+fn view_eclass(eclass: &EClass<Math, Meta>) -> Html<Model> {
     html! {
         <details class="eclass",>
             <summary> {eclass.id} </summary>
             <p>{format!("Size: {}", eclass.len())}</p>
-            <p>{format!("Best: {}", eclass.metadata.expr.to_sexp())}</p>
+            <p>{format!("Best: {}", eclass.metadata.best.to_sexp())}</p>
             <p>{format!("Cost: {}", eclass.metadata.cost)}</p>
         </details>
     }
