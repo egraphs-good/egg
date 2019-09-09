@@ -124,22 +124,17 @@ impl<L: Language> Rewrite<L> {
     }
 
     pub fn run<M: Metadata<L>>(&self, egraph: &mut EGraph<L, M>) -> Vec<Id> {
-        debug!("Running rewrite '{}'", self.name);
-        let matches = self.lhs.search(&egraph);
-        debug!(
-            "Ran the rewrite '{}', found {} matches",
-            self.name,
-            matches.len()
-        );
-
         let start = Instant::now();
-        let ids = self
-            .search(egraph)
-            .apply_with_limit(egraph, std::usize::MAX);
+
+        let matches = self.search(egraph);
+        debug!("Found rewrite {} {} times", self.name, matches.len());
+
+        let ids = matches.apply_with_limit(egraph, std::usize::MAX);
         let elapsed = start.elapsed();
         debug!(
-            "Applied rewrite {} in {}.{:03}",
+            "Applied rewrite {} {} times in {}.{:03}",
             self.name,
+            ids.len(),
             elapsed.as_secs(),
             elapsed.subsec_millis()
         );
@@ -555,15 +550,16 @@ mod tests {
             }],
         };
 
-        // rewrite shouldn't do anything yet
+        info!("rewrite shouldn't do anything yet");
         egraph.rebuild();
         let apps = mul_to_shift.run(&mut egraph);
         assert_eq!(apps, vec![]);
 
+        info!("Add the needed equality");
         let two_ispow2 = egraph.add(op("is-power2", vec![y])).id;
         egraph.union(two_ispow2, true_id);
 
-        // rewrite should now fire
+        info!("Should fire now");
         egraph.rebuild();
         let apps = mul_to_shift.run(&mut egraph);
         assert_eq!(apps, vec![mul]);

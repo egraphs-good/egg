@@ -128,6 +128,7 @@ struct CheckSimplify {
 
 impl CheckSimplify {
     fn check(self) {
+        let _ = env_logger::builder().is_test(true).try_init();
         let start_expr = Math.parse_expr(self.start).unwrap();
         let end_expr = Math.parse_expr(self.end).unwrap();
 

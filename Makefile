@@ -10,10 +10,14 @@ test-egg:
 	cd egg; cargo test
 	cd egg; cargo clippy --tests
 
+	cd egg; cargo build          --features "parent-pointers"
+	cd egg; cargo test           --features "parent-pointers"
+	cd egg; cargo clippy --tests --features "parent-pointers"
+
 .PHONY: test-math
 test-math:
-	cd egg-math; cargo clippy --tests
-	cd egg-math; cargo test
+	cd egg-math; cargo clippy --tests --features "parent-pointers"
+	cd egg-math; cargo test	          --features "parent-pointers"
 
 .PHONY: deploy-web-demo
 deploy-web-demo:

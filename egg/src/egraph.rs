@@ -1,16 +1,13 @@
-use log::*;
 use std::fmt::Debug;
 use std::iter::ExactSizeIterator;
 
-#[cfg(not(target_arch = "wasm32"))]
-use std::time::Instant;
+use indexmap::{IndexMap, IndexSet};
+use log::*;
 
 use crate::{
     expr::{Expr, Id, Language, RecExpr},
     unionfind::{UnionFind, Value},
 };
-
-use indexmap::{IndexMap, IndexSet};
 
 /// Data structure to keep track of equalities between expressions
 #[derive(Debug)]
@@ -70,6 +67,8 @@ pub struct EClass<L: Language, M> {
     pub id: Id,
     pub nodes: Vec<Expr<L, Id>>,
     pub metadata: M,
+    #[cfg(feature = "parent-pointers")]
+    parents: IndexSet<usize>,
 }
 
 impl<L: Language, M> EClass<L, M> {
@@ -102,11 +101,19 @@ impl<L: Language, M: Metadata<L>> Value for EClass<L, M> {
         }
 
         more.extend(less);
+
         let mut eclass = EClass {
             id: to.id,
             nodes: more,
             metadata: to.metadata.merge(&from.metadata),
+            #[cfg(feature = "parent-pointers")]
+            parents: {
+                let mut parents = to.parents;
+                parents.extend(from.parents);
+                parents
+            },
         };
+
         M::modify(&mut eclass);
         Ok(eclass)
     }
@@ -171,6 +178,33 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
         self.add(e).id
     }
 
+    fn add_unchecked(&mut self, enode: Expr<L, Id>) -> AddResult {
+        // HACK knowing the next key like this is pretty bad
+        let mut class = EClass {
+            id: self.classes.total_size() as Id,
+            nodes: vec![enode.clone()],
+            metadata: M::make(enode.map_children(|id| &self[id].metadata)),
+            #[cfg(feature = "parent-pointers")]
+            parents: IndexSet::new(),
+        };
+        M::modify(&mut class);
+        let next_id = self.classes.make_set(class);
+        trace!("Added  {:4}: {:?}", next_id, enode);
+
+        let (idx, old) = self.memo.insert_full(enode, next_id);
+        let _ = idx;
+        #[cfg(feature = "parent-pointers")]
+        for &child in self.memo.get_index(idx).unwrap().0.children() {
+            self.classes.get_mut(child).parents.insert(idx);
+        }
+
+        assert_eq!(old, None);
+        AddResult {
+            was_there: false,
+            id: next_id,
+        }
+    }
+
     pub fn add(&mut self, enode: Expr<L, Id>) -> AddResult {
         trace!("Adding       {:?}", enode);
 
@@ -188,40 +222,25 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
             }
         }
 
-        // hash cons
         match self.memo.get(&enode) {
-            None => {
-                // HACK knowing the next key like this is pretty bad
-                let mut class = EClass {
-                    id: self.classes.total_size() as Id,
-                    nodes: vec![enode.clone()],
-                    metadata: M::make(enode.map_children(|id| &self[id].metadata)),
-                };
-                M::modify(&mut class);
-                let next_id = self.classes.make_set(class);
-                trace!("Added  {:4}: {:?}", next_id, enode);
-                let old = self.memo.insert(enode, next_id);
-                assert_eq!(old, None);
-                AddResult {
-                    was_there: false,
-                    id: next_id,
-                }
-            }
-            Some(id) => {
-                trace!("Added *{:4}: {:?}", id, enode);
+            Some(&id) => {
+                trace!("Found     {}: {:?}", id, enode);
                 AddResult {
                     was_there: true,
-                    id: *id,
+                    id: self.classes.find(id),
                 }
             }
+            None => self.add_unchecked(enode),
         }
     }
 
     pub fn equivs(&self, expr1: &RecExpr<L>, expr2: &RecExpr<L>) -> Vec<Id> {
         use crate::pattern::Pattern;
+        debug!("Searching for expr1: {}", expr1.to_sexp());
         let matches1 = Pattern::from_expr(expr1).search(self);
         info!("Matches1: {:?}", matches1);
 
+        debug!("Searching for expr2: {}", expr2.to_sexp());
         let matches2 = Pattern::from_expr(expr2).search(self);
         info!("Matches2: {:?}", matches2);
 
@@ -238,6 +257,7 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
         equiv_eclasses
     }
 
+    #[cfg(not(feature = "parent-pointers"))]
     fn rebuild_once(&mut self) -> usize {
         let mut new_memo = IndexMap::new();
         let mut to_union = Vec::new();
@@ -295,6 +315,13 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
         trimmed
     }
 
+    #[cfg(feature = "parent-pointers")]
+    pub fn rebuild(&mut self) {
+        info!("Skipping rebuild because we have parent pointers");
+        self.rebuild_classes();
+    }
+
+    #[cfg(not(feature = "parent-pointers"))]
     pub fn rebuild(&mut self) {
         if self.unions_since_rebuild == 0 {
             info!("Skipping rebuild!");
@@ -309,7 +336,7 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
         let mut n_unions = 0;
 
         #[cfg(not(target_arch = "wasm32"))]
-        let start = Instant::now();
+        let start = std::time::Instant::now();
 
         loop {
             let u = self.rebuild_once();
@@ -361,11 +388,31 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
         );
     }
 
+    #[inline(always)]
     pub fn union(&mut self, id1: Id, id2: Id) -> Id {
-        trace!("Unioning {} and {}", id1, id2);
+        self.union_depth(0, id1, id2)
+    }
 
-        let to = self.classes.union(id1, id2).unwrap();
+    fn union_depth(&mut self, depth: usize, id1: Id, id2: Id) -> Id {
+        trace!("Unioning (d={}) {} and {}", depth, id1, id2);
+        let (to, did_something) = self.classes.union(id1, id2).unwrap();
+        if !did_something {
+            return to;
+        }
         self.unions_since_rebuild += 1;
+
+        #[cfg(feature = "parent-pointers")]
+        self.upward(to);
+
+        // #[cfg(feature = "parent-pointers")] {
+        //     self.classes.get_mut(to).nodes = self[to]
+        //         .nodes
+        //         .iter()
+        //         .map(|n| n.update_ids(&self.classes))
+        //         .collect::<IndexSet<_>>()
+        //         .into_iter()
+        //         .collect();
+        // }
 
         if log_enabled!(Level::Trace) {
             let from = if to == id1 { id2 } else { id1 };
@@ -376,6 +423,50 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
             }
         }
         to
+    }
+
+    #[cfg(feature = "parent-pointers")]
+    fn upward(&mut self, id: Id) {
+        use itertools::Itertools;
+
+        let mut t = 0;
+        let mut ids = vec![id];
+        let mut done = IndexSet::new();
+
+        while let Some(id) = ids.pop() {
+            t += 1;
+            let id = self.classes.find(id);
+            if !done.insert(id) {
+                continue;
+            }
+
+            if t > 1000 && t % 1000 == 0 {
+                warn!("Long time: {}, to do: {}", t, ids.len());
+            }
+
+            let map = self[id]
+                .parents
+                .iter()
+                .map(|p| {
+                    let (expr, id) = self.memo.get_index(*p).unwrap();
+                    let expr = expr.update_ids(&self.classes);
+                    (expr, *id)
+                })
+                .into_group_map();
+
+            for (_expr, same_ids) in map {
+                if same_ids.len() > 1 {
+                    let id0 = same_ids[0];
+                    let mut did_union = false;
+                    for id in same_ids[1..].iter() {
+                        did_union |= self.classes.union(id0, *id).unwrap().1;
+                    }
+                    if did_union {
+                        ids.push(id0);
+                    }
+                }
+            }
+        }
     }
 
     pub fn dump_dot(&self, filename: &str)

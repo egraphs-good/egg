@@ -155,12 +155,12 @@ impl<K: Key, V> UnionFind<K, V> {
 }
 
 impl<K: Key, V: Value> UnionFind<K, V> {
-    pub fn union(&mut self, set1: K, set2: K) -> Result<K, V::Error> {
+    pub fn union(&mut self, set1: K, set2: K) -> Result<(K, bool), V::Error> {
         let mut root1 = self.find(set1);
         let mut root2 = self.find(set2);
 
         if root1 == root2 {
-            return Ok(root1);
+            return Ok((root1, false));
         }
 
         // make root1 the bigger one, then union into that one
@@ -181,7 +181,7 @@ impl<K: Key, V: Value> UnionFind<K, V> {
         self.parents[root2.index()].set(root1);
         self.sizes[root1.index()] = size1 + size2;
 
-        Ok(root1)
+        Ok((root1, true))
     }
 }
 
@@ -235,18 +235,18 @@ mod tests {
 
         // these should all merge into 0, because it's the largest class
         // after the first merge
-        assert_eq!(uf.union(0, 1), Ok(0));
-        assert_eq!(uf.union(1, 2), Ok(0));
-        assert_eq!(uf.union(3, 2), Ok(0));
+        assert_eq!(uf.union(0, 1), Ok((0, true)));
+        assert_eq!(uf.union(1, 2), Ok((0, true)));
+        assert_eq!(uf.union(3, 2), Ok((0, true)));
 
         // build up another set
-        assert_eq!(uf.union(6, 7), Ok(6));
-        assert_eq!(uf.union(8, 9), Ok(8));
-        assert_eq!(uf.union(7, 9), Ok(6));
+        assert_eq!(uf.union(6, 7), Ok((6, true)));
+        assert_eq!(uf.union(8, 9), Ok((8, true)));
+        assert_eq!(uf.union(7, 9), Ok((6, true)));
 
-        // make sure union on same set returns leader
-        assert_eq!(uf.union(1, 3), Ok(0));
-        assert_eq!(uf.union(7, 8), Ok(6));
+        // make sure union on same set returns leader and false
+        assert_eq!(uf.union(1, 3), Ok((0, false)));
+        assert_eq!(uf.union(7, 8), Ok((6, false)));
 
         // check set structure
         let expected_sets = indexmap!(
