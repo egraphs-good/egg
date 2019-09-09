@@ -335,8 +335,7 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
         let mut n_rebuilds = 0;
         let mut n_unions = 0;
 
-        #[cfg(not(target_arch = "wasm32"))]
-        let start = std::time::Instant::now();
+        let start = instant::Instant::now();
 
         loop {
             let u = self.rebuild_once();
@@ -349,26 +348,7 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
 
         let trimmed_nodes = self.rebuild_classes();
 
-        #[cfg(not(target_arch = "wasm32"))]
         let elapsed = start.elapsed();
-
-        #[cfg(target_arch = "wasm32")]
-        info!(
-            concat!(
-                "REBUILT! {} times",
-                "  Old: hc size {}, eclasses: {}\n",
-                "  New: hc size {}, eclasses: {}\n",
-                "  unions: {}, trimmed nodes: {}"
-            ),
-            n_rebuilds,
-            old_hc_size,
-            old_n_eclasses,
-            self.memo.len(),
-            self.classes.number_of_classes(),
-            n_unions,
-            trimmed_nodes,
-        );
-        #[cfg(not(target_arch = "wasm32"))]
         info!(
             concat!(
                 "REBUILT! {} times in {}.{:03}s\n",

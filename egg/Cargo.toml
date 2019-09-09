@@ -16,6 +16,7 @@ log = "0.4.0"
 itertools = "0.8"
 smallvec = "0.6"
 indexmap = "1"
+instant = "0.1"
 
 [dev-dependencies]
 env_logger = "0.6"
@@ -24,3 +25,4 @@ strum_macros = "0.15"
 
 [features]
 parent-pointers = []
+stdweb = [ "instant/stdweb" ]

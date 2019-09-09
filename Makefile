@@ -1,5 +1,5 @@
 .PHONY:
-test: test-egg test-math
+test: test-egg test-math test-web
 	cargo fmt -- --check
 	cd egg; cargo doc
 	cd egg; cargo deadlinks --dir ../target/doc/egg
@@ -18,6 +18,13 @@ test-egg:
 test-math:
 	cd egg-math; cargo clippy --tests --features "parent-pointers"
 	cd egg-math; cargo test	          --features "parent-pointers"
+
+.PHONY: test-web
+test-web:
+	cd web-demo; cargo web build
+	 # cargo web test ${CI+--verbose}
+	cd web-demo; cargo clippy
+	cd web-demo; cargo fmt -- --check
 
 .PHONY: deploy-web-demo
 deploy-web-demo:

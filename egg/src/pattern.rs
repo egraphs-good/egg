@@ -1,8 +1,7 @@
-use log::*;
-use std::time::Instant;
-
 use indexmap::IndexSet;
+use instant::Instant;
 use itertools::Itertools;
+use log::*;
 use smallvec::{smallvec, SmallVec};
 use symbolic_expressions::Sexp;
 
