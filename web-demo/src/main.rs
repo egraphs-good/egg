@@ -186,20 +186,19 @@ impl Component for Model {
 
                     for rule in &mut group.rewrites {
                         if rule.enabled {
-                            let ms = rule.rewrite.lhs.search(&self.egraph);
+                            let ms = rule.rewrite.search(&self.egraph);
                             if !ms.is_empty() {
-                                rule.matched += ms.iter().map(|m| m.mappings.len()).sum::<usize>();
-                                matches.push((rule, ms));
+                                rule.matched += ms.len();
+                                matches.push((&mut rule.applied, ms));
                             }
                         }
                     }
                 }
 
-                for (rule, ms) in matches {
-                    for m in ms {
-                        let actually_matched = m.apply(&rule.rewrite.rhs, &mut self.egraph);
-                        rule.applied += actually_matched.len();
-                    }
+                for (applied, ms) in matches {
+                    let limit = 100_000;
+                    let actually_matched = ms.apply_with_limit(&mut self.egraph, limit);
+                    *applied += actually_matched.len();
                 }
 
                 self.egraph.rebuild();

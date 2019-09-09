@@ -395,34 +395,6 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
         write!(file, "{}", dot).unwrap();
         trace!("Writing {}...\n{}", filename, dot);
     }
-
-    pub fn rule_pass<'a, I>(&'a mut self, node_limit: usize, rules: I) -> usize
-    where
-        I: IntoIterator<Item = &'a crate::pattern::Rewrite<L>>,
-    {
-        let mut matches = Vec::new();
-
-        for rule in rules.into_iter() {
-            let ms = rule.lhs.search(self);
-            if !ms.is_empty() {
-                matches.push((&rule.rhs, ms));
-            }
-        }
-
-        let mut n_applications = 0;
-
-        for (rhs, ms) in matches {
-            for m in ms {
-                n_applications += m.apply(rhs, self).len();
-
-                if self.total_size() > node_limit {
-                    return n_applications;
-                }
-            }
-        }
-
-        n_applications
-    }
 }
 
 #[cfg(test)]

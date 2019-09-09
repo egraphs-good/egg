@@ -110,7 +110,6 @@ impl Language for Math {
                     Op::RealToPosit => 0,
                     Op::Expm1 => 70,
                     Op::Log1p => 70,
-                    _ => unimplemented!(),
                 };
 
                 cost + child_costs.iter().sum::<u64>()
@@ -183,7 +182,7 @@ impl egg::egraph::Metadata<Math> for Meta {
                 let const_args: Option<Vec<Constant>> = args
                     .iter()
                     .map(|meta| match meta.best.as_ref() {
-                        Expr::Constant(c) => Some(c.clone()),
+                        Expr::Constant(c) => Some(*c),
                         _ => None,
                     })
                     .collect();
@@ -204,7 +203,7 @@ impl egg::egraph::Metadata<Math> for Meta {
 
     fn modify(eclass: &mut EClass<Math, Self>) {
         match &eclass.metadata.best.as_ref() {
-            Expr::Constant(c) => eclass.nodes = vec![Expr::Constant(c.clone())],
+            Expr::Constant(c) => eclass.nodes = vec![Expr::Constant(*c)],
             Expr::Variable(v) => eclass.nodes = vec![Expr::Variable(v.clone())],
             _ => (),
         }
