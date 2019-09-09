@@ -13,14 +13,6 @@
 //! [`TestLang`]: expr/tests/struct.TestLang.html
 //! [`ParsableLanguage`]: parse/trait.ParsableLanguage.html
 
-#![warn(clippy::correctness)]
-#![warn(clippy::style)]
-#![warn(clippy::complexity)]
-#![warn(clippy::perf)]
-#![warn(clippy::cargo)]
-// #![warn(clippy::pedantic)]
-// #![warn(clippy::nursery)]
-
 mod unionfind;
 
 pub mod dot;
