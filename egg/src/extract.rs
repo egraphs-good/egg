@@ -59,8 +59,11 @@ impl<'a, L: Language, M> Extractor<'a, L, M> {
     }
 
     fn find_best_expr(&self, eclass: Id) -> RecExpr<L> {
+        let eclass = self.egraph.find(eclass);
+
         let best_node = self.egraph[eclass]
             .iter()
+            .filter(|n| self.node_total_cost(n).is_some())
             .min_by_key(|n| self.node_total_cost(n))
             .expect("eclass shouldn't be empty");
 
