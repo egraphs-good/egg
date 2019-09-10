@@ -296,20 +296,21 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
 
     fn rebuild_classes(&mut self) -> usize {
         let mut trimmed = 0;
-        let mut new_classes = Vec::new();
-        for class in self.classes.values() {
-            let mut new_nodes = IndexSet::new();
-            for node in class.nodes.iter() {
-                new_nodes.insert(node.update_ids(&self.classes));
-            }
-            trimmed += class.len() - new_nodes.len();
-            let nodes: Vec<_> = new_nodes.into_iter().collect();
-            new_classes.push((class.id, nodes));
-        }
 
-        for (id, nodes) in new_classes {
-            let class = self.classes.get_mut(id);
-            class.nodes = nodes
+        let (find, mut_values) = self.classes.split();
+        for class in mut_values {
+            let old_len = class.len();
+
+            let unique: IndexSet<_> = class
+                .nodes
+                .iter()
+                .map(|node| node.map_children(|id| find(id)))
+                .collect();
+
+            trimmed += old_len - unique.len();
+
+            class.nodes.clear();
+            class.nodes.extend(unique);
         }
 
         trimmed

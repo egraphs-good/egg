@@ -40,13 +40,14 @@ impl<K, V> Default for UnionFind<K, V> {
 }
 
 pub trait Key: Copy + PartialEq {
-    fn index(&self) -> usize;
+    fn index(self) -> usize;
     fn from_index(index: usize) -> Self;
 }
 
 impl Key for u32 {
-    fn index(&self) -> usize {
-        *self as usize
+    #[inline(always)]
+    fn index(self) -> usize {
+        self as usize
     }
     fn from_index(index: usize) -> Self {
         index as Self
@@ -70,6 +71,19 @@ impl Value for () {
         _value2: Self,
     ) -> Result<Self, Self::Error> {
         Ok(())
+    }
+}
+
+#[inline(always)]
+fn find<K: Key>(parents: &[Cell<K>], mut current: K) -> K {
+    loop {
+        let parent = parents[current.index()].get();
+        if current == parent {
+            return current;
+        }
+        let grandparent = parents[parent.index()].get();
+        parents[current.index()].set(grandparent);
+        current = grandparent;
     }
 }
 
@@ -97,35 +111,8 @@ impl<K: Key, V> UnionFind<K, V> {
         new
     }
 
-    #[inline(always)]
-    fn parent(&self, query: K) -> Option<K> {
-        let parent = self.parents[query.index()].get();
-        if query == parent {
-            None
-        } else {
-            Some(parent)
-        }
-    }
-
-    fn just_find(&self, query: K) -> K {
-        let mut current = query;
-        while let Some(parent) = self.parent(current) {
-            current = parent;
-        }
-        current
-    }
-
-    pub fn find(&self, query: K) -> K {
-        let root = self.just_find(query);
-
-        // do simple path compression with another loop
-        let mut current = query;
-        while let Some(parent) = self.parent(current) {
-            self.parents[current.index()].set(root);
-            current = parent;
-        }
-
-        current
+    pub fn find(&self, current: K) -> K {
+        find(&self.parents, current)
     }
 
     pub fn get(&self, query: K) -> &V {
@@ -151,6 +138,14 @@ impl<K: Key, V> UnionFind<K, V> {
 
     pub fn values_mut(&mut self) -> impl Iterator<Item = &mut V> {
         self.values.iter_mut().filter_map(Option::as_mut)
+    }
+
+    // this is useful when you want to mutate the values, but still be
+    // able to perform lookups
+    pub fn split<'a>(&'a mut self) -> (impl Fn(K) -> K + 'a, impl Iterator<Item = &mut V>) {
+        let parents = &self.parents;
+        let values = self.values.iter_mut().filter_map(Option::as_mut);
+        (move |k| find(parents, k), values)
     }
 }
 
@@ -222,7 +217,6 @@ mod tests {
 
         // test the initial condition of everyone in their own set
         for i in 0..n {
-            assert_eq!(uf.parent(i), None);
             assert_eq!(uf.find(i), i);
             assert_eq!(uf.find(i), i);
         }
@@ -266,7 +260,7 @@ mod tests {
         for i in 0..n {
             // make sure the leader is a leader
             let leader = uf.find(i);
-            assert_eq!(uf.parent(leader), None);
+            assert_eq!(uf.find(leader), leader);
 
             // make sure the path is compressed
             assert_eq!(uf.parents[i as usize].get(), leader);

@@ -63,6 +63,7 @@ impl<L: Language, Child> Expr<L, Child> {
         Expr::Variable(v.into())
     }
 
+    #[inline(always)]
     pub fn map_children_result<Child2, F, Error>(&self, f: F) -> Result<Expr<L, Child2>, Error>
     where
         Child: Clone,
@@ -79,6 +80,7 @@ impl<L: Language, Child> Expr<L, Child> {
         })
     }
 
+    #[inline(always)]
     pub fn map_children<Child2, F>(&self, mut f: F) -> Expr<L, Child2>
     where
         Child: Clone,
