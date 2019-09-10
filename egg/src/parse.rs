@@ -49,8 +49,8 @@ where
             }
             s.parse::<L::Wildcard>()
                 .map(Pattern::Wildcard)
-                .or_else(|_| s.parse().map(|c| Pattern::Expr(Expr::Constant(c))))
-                .or_else(|_| s.parse().map(|v| Pattern::Expr(Expr::Variable(v))))
+                .or_else(|_| s.parse().map(|c| Pattern::Expr(Expr::Constant(c).into())))
+                .or_else(|_| s.parse().map(|v| Pattern::Expr(Expr::Variable(v).into())))
                 .map_err(|_| ParseError("bad".into()))
         }
 
@@ -67,7 +67,7 @@ where
 
             let children: Result<Vec<Pattern<L>>> = sexps.map(|s| parse_term(s)).collect();
 
-            Ok(Pattern::Expr(Expr::Operator(op, children?)))
+            Ok(Pattern::Expr(Expr::Operator(op, children?.into()).into()))
         }
         Sexp::Empty => Err(ParseError("empty!".into())),
     }
@@ -135,7 +135,7 @@ mod tests {
 
     #[test]
     fn simple_parse() {
-        let expr: RecExpr<TestLang> = op("+", vec![var("x").into(), var("x").into()]).into();
+        let expr: RecExpr<TestLang> = op("+", vec![var("x").into(), var("x").into()]);
 
         let expr2 = TestLang.parse_expr("(+ x x)").unwrap();
 

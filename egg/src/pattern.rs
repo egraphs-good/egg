@@ -12,13 +12,17 @@ use crate::{
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Pattern<L: Language> {
-    Expr(Expr<L, Pattern<L>>),
+    Expr(Box<Expr<L, Pattern<L>>>),
     Wildcard(L::Wildcard),
 }
 
 impl<L: Language> Pattern<L> {
     pub fn from_expr(e: &RecExpr<L>) -> Self {
-        Pattern::Expr(e.as_ref().map_children(|child| Pattern::from_expr(&child)))
+        Pattern::Expr(
+            e.as_ref()
+                .map_children(|child| Pattern::from_expr(&child))
+                .into(),
+        )
     }
 
     pub fn subst_and_find<M>(&self, egraph: &mut EGraph<L, M>, mapping: &WildMap<L>) -> Id
@@ -49,8 +53,10 @@ impl<L: Language> Pattern<L> {
     fn is_bound(&self, set: &IndexSet<L::Wildcard>) -> bool {
         match self {
             Pattern::Wildcard(w) => set.contains(w),
-            Pattern::Expr(Expr::Operator(_, pats)) => pats.iter().all(|p| p.is_bound(set)),
-            _ => true,
+            Pattern::Expr(e) => match e.as_ref() {
+                Expr::Operator(_, pats) => pats.iter().all(|p| p.is_bound(set)),
+                _ => true,
+            },
         }
     }
 }
@@ -62,7 +68,7 @@ where
     pub fn to_sexp(&self) -> Sexp {
         match self {
             Pattern::Wildcard(w) => Sexp::String(w.to_string()),
-            Pattern::Expr(e) => match e {
+            Pattern::Expr(e) => match e.as_ref() {
                 Expr::Constant(c) => Sexp::String(c.to_string()),
                 Expr::Variable(v) => Sexp::String(v.to_string()),
                 Expr::Operator(op, args) => {
@@ -255,7 +261,7 @@ impl<L: Language> Pattern<L> {
         let mut new_mappings = SmallVec::new();
 
         use Expr::*;
-        match pat_expr {
+        match pat_expr.as_ref() {
             Variable(pv) => {
                 for e in egraph[eclass].iter() {
                     if let Variable(ev) = e {
@@ -403,7 +409,7 @@ impl<L: Language> PatternMatches<L> {
                 was_there: true,
                 id: mapping.get(&w).unwrap(),
             },
-            Pattern::Expr(e) => match e {
+            Pattern::Expr(e) => match e.as_ref() {
                 Expr::Constant(c) => egraph.add(Expr::Constant(c.clone())),
                 Expr::Variable(v) => egraph.add(Expr::Variable(v.clone())),
                 Expr::Operator(_, _) => {
@@ -523,9 +529,8 @@ mod tests {
         let y = egraph.add(Expr::Constant(2)).id;
         let mul = egraph.add(op("*", vec![x, y])).id;
 
-        let true_expr = op("TRUE", vec![]);
         let true_pat = Pattern::Expr(op("TRUE", vec![]));
-        let true_id = egraph.add(true_expr.clone()).id;
+        let true_id = egraph.add(op("TRUE", vec![])).id;
 
         let a: QuestionMarkName = "?a".parse().unwrap();
         let b: QuestionMarkName = "?b".parse().unwrap();

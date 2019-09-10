@@ -2,6 +2,7 @@ use std::fmt::{self, Debug};
 use std::hash::Hash;
 use std::rc::Rc;
 
+use smallvec::SmallVec;
 use symbolic_expressions::Sexp;
 
 use crate::unionfind::UnionFind;
@@ -14,7 +15,7 @@ pub type IdNode<L> = Expr<L, Id>;
 pub enum Expr<L: Language, Child> {
     Constant(L::Constant),
     Variable(L::Variable),
-    Operator(L::Operator, Vec<Child>),
+    Operator(L::Operator, SmallVec<[Child; 2]>),
 }
 
 type Inner<L> = Expr<L, RecExpr<L>>;
@@ -72,7 +73,7 @@ impl<L: Language, Child> Expr<L, Child> {
             Constant(c) => Constant(c.clone()),
             Variable(v) => Variable(v.clone()),
             Operator(op, args) => {
-                let args2: Result<Vec<_>, Error> = args.iter().cloned().map(f).collect();
+                let args2: Result<SmallVec<_>, Error> = args.iter().cloned().map(f).collect();
                 Operator(op.clone(), args2?)
             }
         })
@@ -228,7 +229,10 @@ pub mod tests {
         Expr::Variable(v.parse().unwrap())
     }
 
-    pub fn op<Child>(o: &str, args: Vec<Child>) -> Expr<TestLang, Child> {
-        Expr::Operator(o.parse().unwrap(), args)
+    pub fn op<E, Child>(o: &str, args: Vec<Child>) -> E
+    where
+        E: From<Expr<TestLang, Child>>,
+    {
+        Expr::Operator(o.parse().unwrap(), args.into()).into()
     }
 }
