@@ -277,6 +277,4 @@ fn do_something() {
     println!("Best ({}): {}", best.cost, best.expr.to_sexp());
 
     print_time("Extract time", extract_time);
-
-    egraph.dump_dot("math.dot");
 }
