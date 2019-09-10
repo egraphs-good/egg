@@ -261,27 +261,15 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
     fn rebuild_once(&mut self) -> usize {
         let mut new_memo = IndexMap::new();
         let mut to_union = Vec::new();
-        let mut new_metas = IndexMap::new();
 
         for (leader, class) in self.classes.iter() {
-            let mut class_metas = Vec::new();
             for node in &class.nodes {
                 let n = node.update_ids(&self.classes);
-                class_metas.push(M::make(n.map_children(|id| &self[id].metadata)));
-
                 if let Some(old_leader) = new_memo.insert(n, leader) {
                     if old_leader != leader {
                         to_union.push((leader, old_leader));
                     }
                 }
-            }
-            new_metas.insert(leader, class_metas);
-        }
-
-        for (leader, metas) in new_metas.drain(..) {
-            let class = self.classes.get_mut(leader);
-            for m in metas {
-                class.metadata = class.metadata.merge(&m)
             }
         }
 
@@ -290,7 +278,6 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
             self.union(id1, id2);
         }
 
-        self.memo = new_memo;
         n_unions
     }
 
