@@ -283,7 +283,7 @@ impl<L: Language> Pattern<L> {
                             continue;
                         }
                         if pat_expr.children().len() != e.children().len() {
-                            warn!(
+                            debug!(
                                 concat!(
                                     "Different length children in pattern and expr\n",
                                     "  exp: {:?}\n",
