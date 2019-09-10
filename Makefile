@@ -29,4 +29,4 @@ test-web:
 .PHONY: deploy-web-demo
 deploy-web-demo:
 	cd web-demo; cargo web deploy --release
-	rsync -az web-demo/target/deploy/ mwillsey.com:/var/www/stuff/egg/
+	rsync -az target/deploy/ mwillsey.com:/var/www/stuff/egg/
