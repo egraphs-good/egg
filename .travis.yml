@@ -8,4 +8,4 @@ before_script:
   - rustup target add wasm32-unknown-unknown
   - cargo install cargo-deadlinks || echo "cargo-deadlinks already installed"
   - cargo install cargo-web || echo "cargo-web already installed"
-script: ./check.sh
+script: make
