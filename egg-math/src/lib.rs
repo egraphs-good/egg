@@ -125,16 +125,18 @@ pub struct Meta {
 }
 
 fn eval(op: Op, args: &[Constant]) -> Option<Constant> {
+    let a = |i| args.get(i).cloned();
     match op {
-        Op::Add => Some(args[0] + args[1]),
-        Op::Sub => Some(args[0] - args[1]),
-        Op::Mul => Some(args[0] * args[1]),
-        Op::Div => Some(args[0] / args[1]),
-        Op::Pow => None, // args[0].powf(args[1]),
-        Op::Exp => None, // args[0].exp(),
-        Op::Log => None, // args[0].ln(),
+        Op::Add => Some(a(0)? + a(1)?),
+        Op::Sub => Some(a(0)? - a(1)?),
+        Op::Mul => Some(a(0)? * a(1)?),
+        Op::Div => Some(a(0)? / a(1)?),
+        Op::Pow => None, // a(0)?.powf(a(1)?),
+        Op::Exp => None, // a(0)?.exp(),
+        Op::Log => None, // a(0)?.ln(),
         Op::Sqrt => {
-            unimplemented!()
+            None
+            // unimplemented!()
             // if let Some(sqrt) = args[0].sqrt() {
             //     #[allow(clippy::float_cmp)]
             //     let is_int = sqrt == sqrt.trunc();
@@ -195,14 +197,18 @@ impl egg::egraph::Metadata<Math> for Meta {
             expr => expr,
         };
 
+        let best: RecExpr<_> = expr.map_children(|c| c.best.clone()).into();
         Self {
-            best: expr.map_children(|c| c.best.clone()).into(),
+            best,
             cost: Math::cost(&expr.map_children(|c| c.cost)),
         }
     }
 
     fn modify(eclass: &mut EClass<Math, Self>) {
         match &eclass.metadata.best.as_ref() {
+            // NOTE pruning vs not pruning is decided right here
+            // Expr::Constant(c) => eclass.nodes.push(Expr::Constant(*c)),
+            // Expr::Variable(v) => eclass.nodes.push(Expr::Variable(v.clone())),
             Expr::Constant(c) => eclass.nodes = vec![Expr::Constant(*c)],
             Expr::Variable(v) => eclass.nodes = vec![Expr::Variable(v.clone())],
             _ => (),

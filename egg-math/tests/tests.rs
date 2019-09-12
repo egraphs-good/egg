@@ -7,7 +7,7 @@ use egg::{
 use log::*;
 use std::time::{Duration, Instant};
 
-use egg_math::Math;
+use egg_math::{Math, Meta};
 
 #[test]
 fn associate_adds() {
@@ -132,23 +132,23 @@ impl CheckSimplify {
         let start_expr = Math.parse_expr(self.start).unwrap();
         let end_expr = Math.parse_expr(self.end).unwrap();
 
-        let (mut egraph, root) = EGraph::<Math, ()>::from_expr(&start_expr);
+        let (mut egraph, root) = EGraph::<Math, Meta>::from_expr(&start_expr);
         run_rules(&mut egraph, self.iters, self.limit);
 
         let ext = Extractor::new(&egraph);
         let best = ext.find_best(root);
         println!("Best ({}): {}", best.cost, best.expr.to_sexp());
 
-        let equivs = egraph.equivs(&start_expr, &end_expr);
-        if equivs.is_empty() {
+        if best.expr != end_expr {
             println!("start: {}", start_expr.to_sexp());
+            println!("start: {:?}", start_expr);
             panic!("Could not simplify {} to {}", self.start, self.end);
         }
 
         // make sure that pattern search also works
         let pattern = Pattern::from_expr(&end_expr);
         let matches = pattern.search_eclass(&egraph, root).unwrap();
-        assert_eq!(matches.mappings.len(), 1);
+        assert!(!matches.mappings.is_empty());
     }
 }
 
@@ -175,8 +175,23 @@ fn simplifies() {
                    2)))
         "#,
         end: "(/ 1 (sqrt five))",
-        iters: 5,
-        limit: 35_000,
+        iters: 6,
+        limit: 75_000,
+    }
+    .check();
+}
+
+#[test]
+fn fold_after_rewrite() {
+    CheckSimplify {
+        start: "
+          (+ 1
+             (- a
+                (* (- 2 1)
+                   a)))",
+        end: "1",
+        iters: 4,
+        limit: 10_000,
     }
     .check();
 }
@@ -235,7 +250,7 @@ static EXP: &str = r#"
 fn do_something() {
     let _ = env_logger::builder().is_test(true).try_init();
     let start_expr = Math.parse_expr(EXP).unwrap();
-    let (mut egraph, root) = EGraph::<Math, ()>::from_expr(&start_expr);
+    let (mut egraph, root) = EGraph::<Math, Meta>::from_expr(&start_expr);
 
     let herbies_result = "(*
   (*
