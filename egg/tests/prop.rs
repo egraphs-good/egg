@@ -28,7 +28,7 @@ impl Language for Prop {
 macro_rules! rule {
     ($name:ident, $left:expr, $right:expr) => {
         #[allow(dead_code)]
-        fn $name() -> Rewrite<Prop> {
+        fn $name<M: Metadata<Prop>>() -> Rewrite<Prop, M> {
             trace!(
                 "Building rule {} ==> {}",
                 stringify!($left),
@@ -37,10 +37,14 @@ macro_rules! rule {
             Prop::parse_rewrite(stringify!($name), $left, $right).unwrap()
         }
     };
+    ($name:ident, $name2:ident, $left:expr, $right:expr) => {
+        rule!($name, $left, $right);
+        rule!($name2, $right, $left);
+    };
 }
 
-rule! {def_imply,   "(-> ?a ?b)",       "(| (~ ?a) ?b)"          }
-rule! {double_neg,  "(~ (~ ?a))",       "?a"                     }
+rule! {def_imply, def_imply_flip,   "(-> ?a ?b)",       "(| (~ ?a) ?b)"          }
+rule! {double_neg, double_neg_flip,  "(~ (~ ?a))",       "?a"                     }
 rule! {assoc_or,    "(| ?a (| ?b ?c))", "(| (| ?a ?b) ?c)"       }
 rule! {dist_and_or, "(& ?a (| ?b ?c))", "(| (& ?a ?b) (& ?a ?c))"}
 rule! {dist_or_and, "(| ?a (& ?b ?c))", "(& (| ?a ?b) (| ?a ?c))"}
@@ -52,7 +56,7 @@ rule! {and_true,    "(& ?a true)",         "?a"                     }
 rule! {contrapositive, "(-> ?a ?b)",    "(-> (~ ?b) (~ ?a))"     }
 rule! {lem_imply, "(& (-> ?a ?b) (-> (~ ?a) ?c))", "(| ?b ?c)"}
 
-fn prove_something(name: &str, start: &str, rewrites: &[Rewrite<Prop>], goals: &[&str]) {
+fn prove_something(name: &str, start: &str, rewrites: &[Rewrite<Prop, ()>], goals: &[&str]) {
     let _ = env_logger::builder().is_test(true).try_init();
 
     let start_expr = Prop::parse_expr(start).unwrap();
@@ -82,12 +86,7 @@ fn prove_something(name: &str, start: &str, rewrites: &[Rewrite<Prop>], goals: &
 #[test]
 fn prove_contrapositive() {
     let _ = env_logger::builder().is_test(true).try_init();
-    let rules = &[
-        def_imply(),
-        def_imply().flip(),
-        double_neg().flip(),
-        comm_or(),
-    ];
+    let rules = &[def_imply(), def_imply_flip(), double_neg_flip(), comm_or()];
     prove_something(
         "contrapositive",
         "(-> x y)",
@@ -108,8 +107,8 @@ fn prove_chain() {
     let rules = &[
         // rules needed for contrapositive
         def_imply(),
-        def_imply().flip(),
-        double_neg().flip(),
+        def_imply_flip(),
+        double_neg_flip(),
         comm_or(),
         // and some others
         comm_and(),

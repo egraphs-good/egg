@@ -26,7 +26,7 @@ impl Language for List {
 macro_rules! rule {
     ($name:ident, $left:expr, $right:expr) => {
         #[allow(dead_code)]
-        fn $name() -> Rewrite<List> {
+        fn $name() -> Rewrite<List, ()> {
             trace!(
                 "Building rule {} ==> {}",
                 stringify!($left),
@@ -39,7 +39,7 @@ macro_rules! rule {
   lhs: {:?},
   rhs: {:?},
 }}",
-                rw.name, rw.lhs, rw.rhs
+                rw.name, rw.lhs, rw.applier
             );
             rw
         }
@@ -49,7 +49,7 @@ macro_rules! rule {
 rule! {fold_nil, "nil", "list"}
 rule! {fold_cons, "(cons ?a (list ?tail...))", "(list ?a ?tail...)"}
 
-fn prove_something(start: &str, rewrites: &[Rewrite<List>], goals: &[&str]) {
+fn prove_something(start: &str, rewrites: &[Rewrite<List, ()>], goals: &[&str]) {
     let _ = env_logger::builder().is_test(true).try_init();
 
     let start_expr = List::parse_expr(start).unwrap();

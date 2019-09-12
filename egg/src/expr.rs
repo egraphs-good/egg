@@ -110,7 +110,7 @@ impl<L: Language> Expr<L, u64> {
 /// manually derive these things for Expr
 ///
 /// [`TestLang`]: tests/struct.TestLang.html
-pub trait Language: Debug + PartialEq + Eq + Hash + Clone {
+pub trait Language: Debug + PartialEq + Eq + Hash + Clone + 'static {
     fn cost(&self, children: &[u64]) -> u64;
 }
 

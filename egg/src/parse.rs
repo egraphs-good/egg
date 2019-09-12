@@ -5,6 +5,7 @@ use std::str::FromStr;
 use symbolic_expressions::{parser::parse_str, Sexp, SexpError};
 
 use crate::{
+    egraph::Metadata,
     expr::{Expr, Language, QuestionMarkName, RecExpr},
     pattern::{Pattern, Rewrite, WildcardKind},
 };
@@ -102,13 +103,16 @@ where
         parse_term(&sexp)
     }
 
-    fn parse_rewrite(name: &str, lhs: &str, rhs: &str) -> Result<Rewrite<Self>> {
-        Ok(Rewrite {
-            name: name.into(),
-            lhs: Self::parse_pattern(lhs)?,
-            rhs: Self::parse_pattern(rhs)?,
-            conditions: vec![],
-        })
+    fn parse_rewrite<M: Metadata<Self>>(
+        name: &str,
+        lhs: &str,
+        rhs: &str,
+    ) -> Result<Rewrite<Self, M>> {
+        Ok(Rewrite::simple_rewrite(
+            name.into(),
+            Self::parse_pattern(lhs)?,
+            Self::parse_pattern(rhs)?,
+        ))
     }
 
     fn parse_expr(s: &str) -> Result<RecExpr<Self>> {
