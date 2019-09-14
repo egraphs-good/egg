@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use egg::{
     egraph::EClass,
     expr::{Expr, Language, Name, QuestionMarkName, RecExpr},
@@ -86,16 +88,34 @@ pub enum Op {
 
 type Constant = NotNan<f64>;
 
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Display)]
+pub enum Term {
+    Constant(Constant),
+    Op(Op),
+    Variable(Name),
+}
+
+type BoxedErr = Box<dyn std::error::Error>;
+impl FromStr for Term {
+    type Err = BoxedErr;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        s.parse()
+            .map(Term::Constant)
+            .map_err(BoxedErr::from)
+            .or_else(|_| s.parse().map(Term::Op).map_err(BoxedErr::from))
+            .or_else(|_| s.parse().map(Term::Variable).map_err(BoxedErr::from))
+    }
+}
+
 impl Language for Math {
-    type Constant = Constant;
-    type Operator = Op;
-    type Variable = Name;
+    type Term = Term;
     type Wildcard = QuestionMarkName;
 
     fn cost(node: &Expr<Math, u64>) -> u64 {
-        match node {
-            Expr::Constant(_) | Expr::Variable(_) => 1,
-            Expr::Operator(op, child_costs) => {
+        match &node.t {
+            Term::Constant(_) | Term::Variable(_) => 1,
+            Term::Op(op) => {
                 let cost = match op {
                     Op::Add => 40,
                     Op::Sub => 40,
@@ -112,7 +132,7 @@ impl Language for Math {
                     Op::Log1p => 70,
                 };
 
-                cost + child_costs.iter().sum::<u64>()
+                cost + node.children.iter().sum::<u64>()
             }
         }
     }
@@ -180,19 +200,22 @@ impl egg::egraph::Metadata<Math> for Meta {
 
     fn make(expr: Expr<Math, &Self>) -> Self {
         let expr = match expr {
-            Expr::Operator(op, args) => {
-                let const_args: Option<Vec<Constant>> = args
+            Expr {
+                t: Term::Op(op),
+                children,
+            } => {
+                let const_args: Option<Vec<Constant>> = children
                     .iter()
-                    .map(|meta| match meta.best.as_ref() {
-                        Expr::Constant(c) => Some(*c),
+                    .map(|meta| match meta.best.as_ref().t {
+                        Term::Constant(c) => Some(c.clone()),
                         _ => None,
                     })
                     .collect();
 
                 const_args
                     .and_then(|a| eval(op.clone(), &a))
-                    .map(Expr::Constant)
-                    .unwrap_or_else(|| Expr::Operator(op, args))
+                    .map(|c| Expr::unit(Term::Constant(c)))
+                    .unwrap_or_else(|| Expr::new(Term::Op(op), children))
             }
             expr => expr,
         };
@@ -205,13 +228,10 @@ impl egg::egraph::Metadata<Math> for Meta {
     }
 
     fn modify(eclass: &mut EClass<Math, Self>) {
-        match &eclass.metadata.best.as_ref() {
-            // NOTE pruning vs not pruning is decided right here
-            // Expr::Constant(c) => eclass.nodes.push(Expr::Constant(*c)),
-            // Expr::Variable(v) => eclass.nodes.push(Expr::Variable(v.clone())),
-            Expr::Constant(c) => eclass.nodes = vec![Expr::Constant(*c)],
-            Expr::Variable(v) => eclass.nodes = vec![Expr::Variable(v.clone())],
-            _ => (),
+        // NOTE pruning vs not pruning is decided right here
+        let best = eclass.metadata.best.as_ref();
+        if best.children.is_empty() {
+            eclass.nodes = vec![Expr::unit(best.t.clone())]
         }
     }
 }

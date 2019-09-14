@@ -53,10 +53,7 @@ impl<L: Language> Pattern<L> {
     fn is_bound(&self, set: &IndexSet<L::Wildcard>) -> bool {
         match self {
             Pattern::Wildcard(w) => set.contains(w),
-            Pattern::Expr(e) => match e.as_ref() {
-                Expr::Operator(_, pats) => pats.iter().all(|p| p.is_bound(set)),
-                _ => true,
-            },
+            Pattern::Expr(e) => e.children.iter().all(|p| p.is_bound(set)),
         }
     }
 }
@@ -68,12 +65,11 @@ where
     pub fn to_sexp(&self) -> Sexp {
         match self {
             Pattern::Wildcard(w) => Sexp::String(w.to_string()),
-            Pattern::Expr(e) => match e.as_ref() {
-                Expr::Constant(c) => Sexp::String(c.to_string()),
-                Expr::Variable(v) => Sexp::String(v.to_string()),
-                Expr::Operator(op, args) => {
-                    let mut vec: Vec<_> = args.iter().map(Self::to_sexp).collect();
-                    vec.insert(0, Sexp::String(op.to_string()));
+            Pattern::Expr(e) => match e.children.len() {
+                0 => Sexp::String(e.t.to_string()),
+                _ => {
+                    let mut vec: Vec<_> = e.children.iter().map(Self::to_sexp).collect();
+                    vec.insert(0, Sexp::String(e.t.to_string()));
                     Sexp::List(vec)
                 }
             },
@@ -260,66 +256,46 @@ impl<L: Language> Pattern<L> {
 
         let mut new_mappings = SmallVec::new();
 
-        use Expr::*;
-        match pat_expr.as_ref() {
-            Variable(pv) => {
-                for e in egraph[eclass].iter() {
-                    if let Variable(ev) = e {
-                        if ev == pv {
-                            new_mappings.push(WildMap::default());
-                            break;
-                        }
-                    }
+        if pat_expr.children.is_empty() {
+            for e in egraph[eclass].iter() {
+                if e.children.is_empty() && pat_expr.t == e.t {
+                    new_mappings.push(WildMap::default());
+                    break;
                 }
             }
-            Constant(pc) => {
-                for e in egraph[eclass].iter() {
-                    if let Constant(ec) = e {
-                        if ec == pc {
-                            new_mappings.push(WildMap::default());
-                            break;
-                        }
-                    }
+        } else {
+            for e in egraph[eclass].iter().filter(|e| e.t == pat_expr.t) {
+                if pat_expr.children.len() != e.children.len() {
+                    debug!(
+                        concat!(
+                            "Different length children in pattern and expr\n",
+                            "  exp: {:?}\n",
+                            "  pat: {:?}"
+                        ),
+                        pat_expr, e
+                    );
+                    continue;
                 }
-            }
-            Operator(po, pargs) => {
-                for e in egraph[eclass].iter() {
-                    if let Operator(eo, eargs) = e {
-                        if po != eo {
-                            continue;
-                        }
-                        if pat_expr.children().len() != e.children().len() {
-                            debug!(
-                                concat!(
-                                    "Different length children in pattern and expr\n",
-                                    "  exp: {:?}\n",
-                                    "  pat: {:?}"
-                                ),
-                                pat_expr, e
-                            );
-                            continue;
-                        }
 
-                        let arg_mappings: Vec<_> = pargs
-                            .iter()
-                            .zip(eargs)
-                            .map(|(pa, ea)| pa.search_pat(depth + 1, egraph, *ea))
-                            .collect();
+                let arg_mappings: Vec<_> = pat_expr
+                    .children
+                    .iter()
+                    .zip(&e.children)
+                    .map(|(pa, ea)| pa.search_pat(depth + 1, egraph, *ea))
+                    .collect();
 
-                        'outer: for ms in arg_mappings.iter().multi_cartesian_product() {
-                            let mut combined = ms[0].clone();
-                            for m in &ms[1..] {
-                                for (w, id) in &m.vec {
-                                    if let Some(old_id) = combined.insert(w.clone(), *id) {
-                                        if old_id != *id {
-                                            continue 'outer;
-                                        }
-                                    }
+                'outer: for ms in arg_mappings.iter().multi_cartesian_product() {
+                    let mut combined = ms[0].clone();
+                    for m in &ms[1..] {
+                        for (w, id) in &m.vec {
+                            if let Some(old_id) = combined.insert(w.clone(), *id) {
+                                if old_id != *id {
+                                    continue 'outer;
                                 }
                             }
-                            new_mappings.push(combined)
                         }
                     }
+                    new_mappings.push(combined)
                 }
             }
         }
@@ -409,25 +385,21 @@ impl<L: Language> PatternMatches<L> {
                 was_there: true,
                 id: mapping.get(&w).unwrap(),
             },
-            Pattern::Expr(e) => match e.as_ref() {
-                Expr::Constant(c) => egraph.add(Expr::Constant(c.clone())),
-                Expr::Variable(v) => egraph.add(Expr::Variable(v.clone())),
-                Expr::Operator(_, _) => {
-                    // use the `was_there` field to keep track if we
-                    // ever added anything to the egraph during this
-                    // application
-                    let mut everything_was_there = true;
-                    let n = e.clone().map_children(|arg| {
-                        let add = self.apply_rec(depth + 1, &arg, egraph, mapping);
-                        everything_was_there &= add.was_there;
-                        add.id
-                    });
-                    trace!("{}adding: {:?}", "    ".repeat(depth), n);
-                    let mut op_add = egraph.add(n);
-                    op_add.was_there &= everything_was_there;
-                    op_add
-                }
-            },
+            Pattern::Expr(e) => {
+                // use the `was_there` field to keep track if we
+                // ever added anything to the egraph during this
+                // application
+                let mut everything_was_there = true;
+                let n = e.clone().map_children(|arg| {
+                    let add = self.apply_rec(depth + 1, &arg, egraph, mapping);
+                    everything_was_there &= add.was_there;
+                    add.id
+                });
+                trace!("{}adding: {:?}", "    ".repeat(depth), n);
+                let mut op_add = egraph.add(n);
+                op_add.was_there &= everything_was_there;
+                op_add
+            }
         };
 
         trace!("{}result: {:?}", "    ".repeat(depth), result);
@@ -526,7 +498,7 @@ mod tests {
         let mut egraph = EGraph::<TestLang, ()>::default();
 
         let x = egraph.add(var("x")).id;
-        let y = egraph.add(Expr::Constant(2)).id;
+        let y = egraph.add(var("2")).id;
         let mul = egraph.add(op("*", vec![x, y])).id;
 
         let true_pat = Pattern::Expr(op("TRUE", vec![]));

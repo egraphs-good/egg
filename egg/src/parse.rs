@@ -37,9 +37,7 @@ impl From<SexpError> for ParseError {
 
 fn parse_term<L: ParsableLanguage>(sexp: &Sexp) -> Result<Pattern<L>>
 where
-    L::Constant: FromStr,
-    L::Variable: FromStr,
-    L::Operator: FromStr,
+    L::Term: FromStr,
     L::Wildcard: FromStr,
 {
     match sexp {
@@ -49,8 +47,7 @@ where
             }
             s.parse::<L::Wildcard>()
                 .map(Pattern::Wildcard)
-                .or_else(|_| s.parse().map(|c| Pattern::Expr(Expr::Constant(c).into())))
-                .or_else(|_| s.parse().map(|v| Pattern::Expr(Expr::Variable(v).into())))
+                .or_else(|_| s.parse().map(|t| Pattern::Expr(Box::new(Expr::unit(t)))))
                 .map_err(|_| ParseError("bad".into()))
         }
 
@@ -60,14 +57,14 @@ where
 
             let op = match sexps.next().unwrap() {
                 Sexp::String(s) => s
-                    .parse::<L::Operator>()
+                    .parse::<L::Term>()
                     .map_err(|_| ParseError(format!("bad op: {}", s)))?,
                 op_sexp => return Err(ParseError(format!("expected op, got {}", op_sexp))),
             };
 
             let children: Result<Vec<Pattern<L>>> = sexps.map(|s| parse_term(s)).collect();
 
-            Ok(Pattern::Expr(Expr::Operator(op, children?.into()).into()))
+            Ok(Pattern::Expr(Expr::new(op, children?.into()).into()))
         }
         Sexp::Empty => Err(ParseError("empty!".into())),
     }
@@ -92,9 +89,7 @@ pub fn pat_to_expr<L: Language>(pat: Pattern<L>) -> Result<RecExpr<L>> {
 /// [`TestLang`]: ../expr/tests/struct.TestLang.html
 pub trait ParsableLanguage: Language
 where
-    Self::Constant: FromStr,
-    Self::Variable: FromStr,
-    Self::Operator: FromStr,
+    Self::Term: FromStr,
     Self::Wildcard: FromStr,
 {
     fn parse_pattern(&self, s: &str) -> Result<Pattern<Self>> {
@@ -119,9 +114,7 @@ where
 
 impl<L: Language> ParsableLanguage for L
 where
-    Self::Constant: FromStr,
-    Self::Variable: FromStr,
-    Self::Operator: FromStr,
+    Self::Term: FromStr,
     Self::Wildcard: FromStr,
 {
 }

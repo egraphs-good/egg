@@ -5,6 +5,7 @@ use egg::{
     pattern::Rewrite,
 };
 use log::*;
+use std::str::FromStr;
 
 use strum_macros::{Display, EnumString};
 
@@ -59,10 +60,28 @@ enum Op {
     Implies,
 }
 
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Display)]
+enum Term {
+    Bool(Bool),
+    Op(Op),
+    Variable(Name),
+}
+
+type BoxedErr = Box<dyn std::error::Error>;
+impl FromStr for Term {
+    type Err = BoxedErr;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        s.parse()
+            .map(Term::Bool)
+            .map_err(BoxedErr::from)
+            .or_else(|_| s.parse().map(Term::Op).map_err(BoxedErr::from))
+            .or_else(|_| s.parse().map(Term::Variable).map_err(BoxedErr::from))
+    }
+}
+
 impl Language for Prop {
-    type Constant = Bool;
-    type Operator = Op;
-    type Variable = Name;
+    type Term = Term;
     type Wildcard = QuestionMarkName;
 
     fn cost(_node: &Expr<Prop, u64>) -> u64 {
@@ -185,10 +204,11 @@ impl Metadata<Prop> for ConstantFold {
         self.and(*other)
     }
     fn make(expr: Expr<Prop, &Self>) -> Self {
-        let result = match &expr {
-            Expr::Constant(c) => Some(*c),
-            Expr::Variable(_) => None,
-            Expr::Operator(op, args) => {
+        let result = match &expr.t {
+            Term::Bool(c) => Some(*c),
+            Term::Variable(_) => None,
+            Term::Op(op) => {
+                let args = &expr.children;
                 fn map2<T>(a: Option<T>, b: Option<T>, f: impl Fn(T, T) -> T) -> Option<T> {
                     a.and_then(|a| b.map(|b| f(a, b)))
                 }
@@ -210,7 +230,7 @@ impl Metadata<Prop> for ConstantFold {
     fn modify(eclass: &mut EClass<Prop, Self>) {
         println!("Modifying: {:#?}", eclass);
         if let Some(c) = eclass.metadata {
-            eclass.nodes.push(Expr::Constant(c))
+            eclass.nodes.push(Expr::unit(Term::Bool(c)))
         }
     }
 }

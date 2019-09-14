@@ -194,7 +194,7 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
         let (idx, old) = self.memo.insert_full(enode, next_id);
         let _ = idx;
         #[cfg(feature = "parent-pointers")]
-        for &child in self.memo.get_index(idx).unwrap().0.children() {
+        for &child in &self.memo.get_index(idx).unwrap().0.children {
             self.classes.get_mut(child).parents.insert(idx);
         }
 
@@ -210,7 +210,7 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
 
         // make sure that the enodes children are already in the set
         if cfg!(debug_assertions) {
-            for &id in enode.children() {
+            for &id in &enode.children {
                 if id >= self.classes.total_size() as u32 {
                     panic!(
                         "Expr: {:?}\n  Found id {} but classes.len() = {}",
@@ -439,9 +439,7 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
 
     pub fn dump_dot(&self, filename: &str)
     where
-        L::Constant: std::fmt::Display,
-        L::Variable: std::fmt::Display,
-        L::Operator: std::fmt::Display,
+        L::Term: std::fmt::Display,
     {
         use std::fs::File;
         use std::io::prelude::*;

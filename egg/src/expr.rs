@@ -12,10 +12,9 @@ pub type Id = u32;
 pub type IdNode<L> = Expr<L, Id>;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub enum Expr<L: Language, Child> {
-    Constant(L::Constant),
-    Variable(L::Variable),
-    Operator(L::Operator, SmallVec<[Child; 2]>),
+pub struct Expr<L: Language, Child> {
+    pub t: L::Term,
+    pub children: SmallVec<[Child; 2]>,
 }
 
 type Inner<L> = Expr<L, RecExpr<L>>;
@@ -46,21 +45,22 @@ impl<L: Language> AsRef<Inner<L>> for RecExpr<L> {
 
 impl<L: Language> RecExpr<L> {
     pub fn to_sexp(&self) -> Sexp {
-        match self.as_ref() {
-            Expr::Constant(c) => Sexp::String(c.to_string()),
-            Expr::Variable(v) => Sexp::String(v.to_string()),
-            Expr::Operator(op, args) => {
-                let mut vec: Vec<_> = args.iter().map(Self::to_sexp).collect();
-                vec.insert(0, Sexp::String(op.to_string()));
-                Sexp::List(vec)
-            }
-        }
+        let e = self.as_ref();
+        let mut vec: Vec<_> = e.children.iter().map(Self::to_sexp).collect();
+        vec.insert(0, Sexp::String(e.t.to_string()));
+        Sexp::List(vec)
     }
 }
 
 impl<L: Language, Child> Expr<L, Child> {
-    pub fn var(v: impl Into<L::Variable>) -> Self {
-        Expr::Variable(v.into())
+    #[inline(always)]
+    pub fn unit(t: L::Term) -> Self {
+        Expr::new(t, Default::default())
+    }
+
+    #[inline(always)]
+    pub fn new(t: L::Term, children: SmallVec<[Child; 2]>) -> Self {
+        Expr { t, children }
     }
 
     #[inline(always)]
@@ -69,15 +69,8 @@ impl<L: Language, Child> Expr<L, Child> {
         Child: Clone,
         F: FnMut(Child) -> Result<Child2, Error>,
     {
-        use Expr::*;
-        Ok(match self {
-            Constant(c) => Constant(c.clone()),
-            Variable(v) => Variable(v.clone()),
-            Operator(op, args) => {
-                let args2: Result<SmallVec<_>, Error> = args.iter().cloned().map(f).collect();
-                Operator(op.clone(), args2?)
-            }
-        })
+        let ch2: Result<SmallVec<_>, Error> = self.children.iter().cloned().map(f).collect();
+        Ok(Expr::new(self.t.clone(), ch2?))
     }
 
     #[inline(always)]
@@ -89,37 +82,11 @@ impl<L: Language, Child> Expr<L, Child> {
         let some_f = |child| Result::<Child2, std::convert::Infallible>::Ok(f(child));
         self.map_children_result(some_f).unwrap()
     }
-
-    pub fn children(&self) -> &[Child] {
-        match self {
-            Expr::Constant(_) => &[],
-            Expr::Variable(_) => &[],
-            Expr::Operator(_, args) => args,
-        }
-    }
-
-    pub fn symbol(&self) -> Symbol<L, Child> {
-        Symbol { node: self }
-    }
 }
 
 impl<L: Language> Expr<L, Id> {
     pub fn update_ids<V>(&self, unionfind: &UnionFind<Id, V>) -> Self {
         self.map_children(|id| unionfind.find(id))
-    }
-}
-
-pub struct Symbol<'a, L: Language, Child> {
-    node: &'a Expr<L, Child>,
-}
-
-impl<'a, L: Language, Child> fmt::Display for Symbol<'a, L, Child> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self.node {
-            Expr::Variable(v) => write!(f, "{}", v),
-            Expr::Constant(c) => write!(f, "{}", c),
-            Expr::Operator(op, _) => write!(f, "{}", op),
-        }
     }
 }
 
@@ -133,9 +100,7 @@ impl<'a, L: Language, Child> fmt::Display for Symbol<'a, L, Child> {
 ///
 /// [`TestLang`]: tests/struct.TestLang.html
 pub trait Language: Debug + PartialEq + Eq + Hash + Clone {
-    type Constant: Debug + PartialEq + Eq + Hash + Clone + fmt::Display;
-    type Variable: Debug + PartialEq + Eq + Hash + Clone + fmt::Display;
-    type Operator: Debug + PartialEq + Eq + Hash + Clone + fmt::Display;
+    type Term: Debug + PartialEq + Eq + Hash + Clone + fmt::Display;
     type Wildcard: Debug + PartialEq + Eq + Hash + Clone;
 
     fn cost(node: &Expr<Self, u64>) -> u64;
@@ -205,36 +170,28 @@ pub mod tests {
     pub struct TestLang;
 
     impl Language for TestLang {
-        type Constant = i32;
-        type Variable = Name;
-        type Operator = Name;
+        type Term = Name;
         type Wildcard = QuestionMarkName;
 
         fn cost(node: &Expr<Self, u64>) -> u64 {
-            match node {
-                Expr::Variable(_) => 1,
-                Expr::Constant(_) => 1,
-                Expr::Operator(op, costs) => {
-                    let my_costs = match op.as_ref() {
-                        "+" => 5,
-                        "*" => 50,
-                        "/" => 150,
-                        _ => 10,
-                    };
-                    my_costs + costs.iter().sum::<u64>()
-                }
-            }
+            let my_costs = match node.t.as_ref() {
+                "+" => 5,
+                "*" => 50,
+                "/" => 150,
+                _ => 10,
+            };
+            my_costs + node.children.iter().sum::<u64>()
         }
     }
 
     pub fn var<T>(v: &str) -> Expr<TestLang, T> {
-        Expr::Variable(v.parse().unwrap())
+        Expr::unit(v.parse().unwrap())
     }
 
     pub fn op<E, Child>(o: &str, args: Vec<Child>) -> E
     where
         E: From<Expr<TestLang, Child>>,
     {
-        Expr::Operator(o.parse().unwrap(), args.into()).into()
+        Expr::new(o.parse().unwrap(), args.into()).into()
     }
 }
