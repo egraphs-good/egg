@@ -291,7 +291,7 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
             let unique: IndexSet<_> = class
                 .nodes
                 .iter()
-                .map(|node| node.map_children(|id| find(id)))
+                .map(|node| node.map_children(&find))
                 .collect();
 
             trimmed += old_len - unique.len();

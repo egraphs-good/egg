@@ -1,82 +1,24 @@
 use egg::{
+    define_term,
     egraph::{EClass, EGraph, Metadata},
     expr::{Expr, Language, Name, QuestionMarkName},
     parse::ParsableLanguage,
     pattern::Rewrite,
 };
 use log::*;
-use std::str::FromStr;
-
-use strum_macros::{Display, EnumString};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 struct Prop;
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, EnumString, Display)]
-enum Bool {
-    #[strum(serialize = "T")]
-    True,
-    #[strum(serialize = "F")]
-    False,
-}
-
-fn conjoin(x: Bool, y: Bool) -> Bool {
-    if (x == Bool::True) && (y == Bool::True) {
-        Bool::True
-    } else {
-        Bool::False
-    }
-}
-
-fn disjoin(x: Bool, y: Bool) -> Bool {
-    if (x == Bool::True) || (y == Bool::True) {
-        Bool::True
-    } else {
-        Bool::False
-    }
-}
-
-fn negate(x: Bool) -> Bool {
-    if x == Bool::True {
-        Bool::False
-    } else {
-        Bool::True
-    }
-}
-
-fn implies(x: Bool, y: Bool) -> Bool {
-    disjoin(y, negate(x))
-}
-
-#[derive(Debug, PartialEq, Eq, Hash, Clone, EnumString, Display)]
-enum Op {
-    #[strum(serialize = "&")]
-    And,
-    #[strum(serialize = "~")]
-    Not,
-    #[strum(serialize = "|")]
-    Or,
-    #[strum(serialize = "->")]
-    Implies,
-}
-
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Display)]
-enum Term {
-    Bool(Bool),
-    Op(Op),
-    Variable(Name),
-}
-
-type BoxedErr = Box<dyn std::error::Error>;
-impl FromStr for Term {
-    type Err = BoxedErr;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        s.parse()
-            .map(Term::Bool)
-            .map_err(BoxedErr::from)
-            .or_else(|_| s.parse().map(Term::Op).map_err(BoxedErr::from))
-            .or_else(|_| s.parse().map(Term::Variable).map_err(BoxedErr::from))
+define_term! {
+    #[derive(Debug, PartialEq, Eq, Hash, Clone)]
+    enum Term {
+        Bool(bool),
+        And = "&",
+        Not = "~",
+        Or = "|",
+        Implies = "->",
+        Variable(Name),
     }
 }
 
@@ -111,9 +53,9 @@ rule! {dist_and_or, "(& ?a (| ?b ?c))", "(| (& ?a ?b) (& ?a ?c))"}
 rule! {dist_or_and, "(| ?a (& ?b ?c))", "(& (| ?a ?b) (| ?a ?c))"}
 rule! {comm_or,     "(| ?a ?b)",        "(| ?b ?a)"              }
 rule! {comm_and,    "(& ?a ?b)",        "(& ?b ?a)"              }
-rule! {lem,         "(| ?a (~ ?a))",    "T"                      }
-rule! {or_true,     "(| ?a T)",         "T"                      }
-rule! {and_true,    "(& ?a T)",         "?a"                     }
+rule! {lem,         "(| ?a (~ ?a))",    "true"                      }
+rule! {or_true,     "(| ?a true)",         "true"                      }
+rule! {and_true,    "(& ?a true)",         "?a"                     }
 rule! {contrapositive, "(-> ?a ?b)",    "(-> (~ ?b) (~ ?a))"     }
 rule! {lem_imply, "(& (-> ?a ?b) (-> (~ ?a) ?c))", "(| ?b ?c)"}
 
@@ -195,7 +137,7 @@ fn prove_chain() {
     );
 }
 
-type ConstantFold = Option<Bool>;
+type ConstantFold = Option<bool>;
 
 impl Metadata<Prop> for ConstantFold {
     type Error = std::convert::Infallible;
@@ -207,21 +149,18 @@ impl Metadata<Prop> for ConstantFold {
         let result = match &expr.t {
             Term::Bool(c) => Some(*c),
             Term::Variable(_) => None,
-            Term::Op(op) => {
-                let args = &expr.children;
-                fn map2<T>(a: Option<T>, b: Option<T>, f: impl Fn(T, T) -> T) -> Option<T> {
-                    a.and_then(|a| b.map(|b| f(a, b)))
-                }
-
-                match op {
-                    Op::And => map2(*args[0], *args[1], conjoin),
-                    Op::Or => map2(*args[0], *args[1], disjoin),
-                    Op::Implies => map2(*args[0], *args[1], implies),
-                    Op::Not => {
-                        assert_eq!(args.len(), 1);
-                        args[0].map(negate)
+            op => {
+                let a = |i: usize| *expr.children[i];
+                Some(match op {
+                    Term::And => a(0)? && a(1)?,
+                    Term::Or => a(0)? || a(1)?,
+                    Term::Implies => a(1)? || !a(0)?,
+                    Term::Not => {
+                        assert_eq!(expr.children.len(), 1);
+                        !a(0)?
                     }
-                }
+                    _ => panic!("Unknown op: {:?}", op),
+                })
             }
         };
         println!("Make: {:?} -> {:?}", expr, result);
@@ -237,9 +176,9 @@ impl Metadata<Prop> for ConstantFold {
 
 #[test]
 fn const_fold() {
-    let start = "(| (& F T) (& T F))";
+    let start = "(| (& false true) (& true false))";
     let start_expr = Prop.parse_expr(start).unwrap();
-    let end = "F";
+    let end = "false";
     let end_expr = Prop.parse_expr(end).unwrap();
     let (eg, _) = EGraph::<Prop, ConstantFold>::from_expr(&start_expr);
     assert!(!eg.equivs(&start_expr, &end_expr).is_empty());

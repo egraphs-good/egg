@@ -19,7 +19,3 @@ egg = { path = "../egg", features = ["stdweb"] }
 egg-math = { path = "../egg-math" }
 
 log = "0.4"
-
-strum = "0.15"
-strum_macros = "0.15"
-ordered-float = "1"

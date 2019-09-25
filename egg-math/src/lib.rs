@@ -1,7 +1,5 @@
-use std::fmt;
-use std::str::FromStr;
-
 use egg::{
+    define_term,
     egraph::EClass,
     expr::{Expr, Language, Name, QuestionMarkName, RecExpr},
 };
@@ -15,114 +13,47 @@ pub use rules::rules;
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct Math;
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub enum Term {
-    Constant(Constant),
-    Variable(Name),
-    Add,
-    Sub,
-    Mul,
-    Div,
-    Pow,
-    Exp,
-    Log,
-    Sqrt,
-    Cbrt,
-    Fabs,
-    // #[strum(serialize = "sin")]
-    // Sin,
-    // #[strum(serialize = "cos")]
-    // Cos,
-    // #[strum(serialize = "tan")]
-    // Tan,
-    // #[strum(serialize = "asin")]
-    // Asin,
-    // #[strum(serialize = "acos")]
-    // Acos,
-    // #[strum(serialize = "atan")]
-    // Atan,
-    // #[strum(serialize = "atan2")]
-    // Atan2,
-    // #[strum(serialize = "sinh")]
-    // Sinh,
-    // #[strum(serialize = "cosh")]
-    // Cosh,
-    // #[strum(serialize = "tanh")]
-    // Tanh,
-    // #[strum(serialize = "asinh")]
-    // Asinh,
-    // #[strum(serialize = "acosh")]
-    // Acosh,
-    // #[strum(serialize = "atanh")]
-    // Atanh,
-
-    // #[strum(serialize = "fma")]
-    // Fma,
-    Log1p,
-    Expm1,
-    // #[strum(serialize = "hypot")]
-    // Hypot,
-
-    // #[strum(serialize = "+.p16")]
-    // PositAdd,
-    // #[strum(serialize = "-.p16")]
-    // PositSub,
-    // #[strum(serialize = "*.p16")]
-    // PositMul,
-    // #[strum(serialize = "/.p16")]
-    // PositDiv,
-    RealToPosit,
-}
-
 type Constant = NotNan<f64>;
 
-type BoxedErr = Box<dyn std::error::Error>;
-impl FromStr for Term {
-    type Err = BoxedErr;
+define_term! {
+    #[derive(Debug, PartialEq, Eq, Hash, Clone)]
+    pub enum Term {
+        Constant(Constant),
+        Add = "+",
+        Sub = "-",
+        Mul = "*",
+        Div = "/",
+        Pow = "pow",
+        Exp = "exp",
+        Log = "log",
+        Sqrt = "sqrt",
+        Cbrt = "cbrt",
+        Fabs = "fabs",
+        // Sin = "sin",
+        // Cos = "cos",
+        // Tan = "tan",
+        // Asin = "asin",
+        // Acos = "acos",
+        // Atan = "atan",
+        // Atan2 = "atan2",
+        // Sinh = "sinh",
+        // Cosh = "cosh",
+        // Tanh = "tanh",
+        // Asinh = "asinh",
+        // Acosh = "acosh",
+        // Atanh = "atanh",
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "+" => Ok(Term::Add),
-            "-" => Ok(Term::Sub),
-            "*" => Ok(Term::Mul),
-            "/" => Ok(Term::Div),
-            "pow" => Ok(Term::Pow),
-            "exp" => Ok(Term::Exp),
-            "log" => Ok(Term::Log),
-            "sqrt" => Ok(Term::Sqrt),
-            "cbrt" => Ok(Term::Cbrt),
-            "fabs" => Ok(Term::Fabs),
-            "log1p" => Ok(Term::Log1p),
-            "expm1" => Ok(Term::Expm1),
-            "real->posit16" => Ok(Term::RealToPosit),
-            s => s
-                .parse()
-                .map(Term::Constant)
-                .map_err(BoxedErr::from)
-                .or_else(|_| s.parse().map(Term::Variable).map_err(BoxedErr::from)),
-        }
-    }
-}
+        // Fma = "fma",
+        Log1p = "log1p",
+        Expm1 = "expm1",
+        // Hypot = "hypot",
 
-impl fmt::Display for Term {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Term::Variable(v) => write!(f, "{}", v),
-            Term::Constant(c) => write!(f, "{}", c),
-            Term::Add => write!(f, "+"),
-            Term::Sub => write!(f, "-"),
-            Term::Mul => write!(f, "*"),
-            Term::Div => write!(f, "/"),
-            Term::Pow => write!(f, "pow"),
-            Term::Exp => write!(f, "exp"),
-            Term::Log => write!(f, "log"),
-            Term::Sqrt => write!(f, "sqrt"),
-            Term::Cbrt => write!(f, "cbrt"),
-            Term::Fabs => write!(f, "fabs"),
-            Term::Log1p => write!(f, "log1p"),
-            Term::Expm1 => write!(f, "expm1"),
-            Term::RealToPosit => write!(f, "real->posit16"),
-        }
+        // PositAdd = "+.p16",
+        // PositSub = "-.p16",
+        // PositMul = "*.p16",
+        // PositDiv = "/.p16",
+        RealToPosit = "real->posit",
+        Variable(Name),
     }
 }
 
@@ -218,7 +149,7 @@ impl egg::egraph::Metadata<Math> for Meta {
                 .children
                 .iter()
                 .map(|meta| match meta.best.as_ref().t {
-                    Term::Constant(c) => Some(c.clone()),
+                    Term::Constant(c) => Some(c),
                     _ => None,
                 })
                 .collect();
