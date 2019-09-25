@@ -12,8 +12,8 @@ pub type Id = u32;
 pub type IdNode<L> = Expr<L, Id>;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub struct Expr<L: Language, Child> {
-    pub t: L::Term,
+pub struct Expr<O, Child> {
+    pub op: O,
     pub children: SmallVec<[Child; 2]>,
 }
 
@@ -43,24 +43,24 @@ impl<L: Language> AsRef<Inner<L>> for RecExpr<L> {
     }
 }
 
-impl<L: Language> RecExpr<L> {
+impl<L: Language + fmt::Display> RecExpr<L> {
     pub fn to_sexp(&self) -> Sexp {
         let e = self.as_ref();
         let mut vec: Vec<_> = e.children.iter().map(Self::to_sexp).collect();
-        vec.insert(0, Sexp::String(e.t.to_string()));
+        vec.insert(0, Sexp::String(e.op.to_string()));
         Sexp::List(vec)
     }
 }
 
 impl<L: Language, Child> Expr<L, Child> {
     #[inline(always)]
-    pub fn unit(t: L::Term) -> Self {
-        Expr::new(t, Default::default())
+    pub fn unit(op: L) -> Self {
+        Expr::new(op, Default::default())
     }
 
     #[inline(always)]
-    pub fn new(t: L::Term, children: SmallVec<[Child; 2]>) -> Self {
-        Expr { t, children }
+    pub fn new(op: L, children: SmallVec<[Child; 2]>) -> Self {
+        Expr { op, children }
     }
 
     #[inline(always)]
@@ -70,7 +70,7 @@ impl<L: Language, Child> Expr<L, Child> {
         F: FnMut(Child) -> Result<Child2, Error>,
     {
         let ch2: Result<SmallVec<_>, Error> = self.children.iter().cloned().map(f).collect();
-        Ok(Expr::new(self.t.clone(), ch2?))
+        Ok(Expr::new(self.op.clone(), ch2?))
     }
 
     #[inline(always)]
@@ -90,6 +90,12 @@ impl<L: Language> Expr<L, Id> {
     }
 }
 
+impl<L: Language> Expr<L, u64> {
+    pub fn cost(&self) -> u64 {
+        self.op.cost(&self.children)
+    }
+}
+
 /// Trait that wraps up information from the client about the language
 /// we're working with.
 ///
@@ -100,10 +106,7 @@ impl<L: Language> Expr<L, Id> {
 ///
 /// [`TestLang`]: tests/struct.TestLang.html
 pub trait Language: Debug + PartialEq + Eq + Hash + Clone {
-    type Term: Debug + PartialEq + Eq + Hash + Clone + fmt::Display;
-    type Wildcard: Debug + PartialEq + Eq + Hash + Clone;
-
-    fn cost(node: &Expr<Self, u64>) -> u64;
+    fn cost(&self, children: &[u64]) -> u64;
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
@@ -165,22 +168,34 @@ impl AsRef<str> for QuestionMarkName {
 pub mod tests {
 
     use super::*;
+    use std::fmt;
+    use std::str::FromStr;
 
-    #[derive(Debug, PartialEq, Eq, Hash, Clone)]
-    pub struct TestLang;
+    #[derive(Debug, Clone, Hash, PartialEq, Eq)]
+    pub struct TestLang(String);
+
+    impl fmt::Display for TestLang {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "{}", self.0)
+        }
+    }
+
+    impl FromStr for TestLang {
+        type Err = ();
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            Ok(TestLang(s.into()))
+        }
+    }
 
     impl Language for TestLang {
-        type Term = Name;
-        type Wildcard = QuestionMarkName;
-
-        fn cost(node: &Expr<Self, u64>) -> u64 {
-            let my_costs = match node.t.as_ref() {
+        fn cost(&self, children: &[u64]) -> u64 {
+            let my_costs = match self.0.as_ref() {
                 "+" => 5,
                 "*" => 50,
                 "/" => 150,
                 _ => 10,
             };
-            my_costs + node.children.iter().sum::<u64>()
+            my_costs + children.iter().sum::<u64>()
         }
     }
 

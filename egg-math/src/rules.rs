@@ -6,7 +6,7 @@ use egg::{parse::ParsableLanguage, pattern::Rewrite};
 fn mk_rules(tuples: &[(&str, &str, &str)]) -> Vec<Rewrite<Math>> {
     tuples
         .iter()
-        .map(|(name, left, right)| Math.parse_rewrite(name, left, right).unwrap())
+        .map(|(name, left, right)| Math::parse_rewrite(name, left, right).unwrap())
         .collect()
 }
 

@@ -15,7 +15,7 @@ use egg_math::*;
 
 struct Queried {
     pattern: Pattern<Math>,
-    matches: Vec<PatternMatches<Math>>,
+    matches: Vec<PatternMatches>,
 }
 
 struct Model {
@@ -143,8 +143,7 @@ impl Component for Model {
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         match msg {
             Msg::UpdateQuery(s) => {
-                self.query = Math
-                    .parse_pattern(&s)
+                self.query = Math::parse_pattern(&s)
                     .map(|pattern| {
                         let matches = pattern.search(&self.egraph);
                         Queried { pattern, matches }

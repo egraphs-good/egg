@@ -236,11 +236,11 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
 
     pub fn equivs(&self, expr1: &RecExpr<L>, expr2: &RecExpr<L>) -> Vec<Id> {
         use crate::pattern::Pattern;
-        debug!("Searching for expr1: {}", expr1.to_sexp());
+        // debug!("Searching for expr1: {}", expr1.to_sexp());
         let matches1 = Pattern::from_expr(expr1).search(self);
         info!("Matches1: {:?}", matches1);
 
-        debug!("Searching for expr2: {}", expr2.to_sexp());
+        // debug!("Searching for expr2: {}", expr2.to_sexp());
         let matches2 = Pattern::from_expr(expr2).search(self);
         info!("Matches2: {:?}", matches2);
 
@@ -439,7 +439,7 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
 
     pub fn dump_dot(&self, filename: &str)
     where
-        L::Term: std::fmt::Display,
+        L: std::fmt::Display,
     {
         use std::fs::File;
         use std::io::prelude::*;

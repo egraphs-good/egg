@@ -42,7 +42,7 @@ impl<'a, L: Language, M> Dot<'a, L, M> {
     }
 }
 
-impl<'a, L: Language, M> Display for Dot<'a, L, M> {
+impl<'a, L: Language + Display, M> Display for Dot<'a, L, M> {
     fn fmt(&self, f: &mut Formatter) -> Result {
         writeln!(f, "digraph {{")?;
 
@@ -54,7 +54,7 @@ impl<'a, L: Language, M> Display for Dot<'a, L, M> {
             writeln!(f, "  subgraph cluster_{} {{", class.id)?;
             writeln!(f, "    style=dotted")?;
             for (i, node) in class.iter().enumerate() {
-                writeln!(f, "    {}.{}[label = \"{}\"]", class.id, i, node.t)?;
+                writeln!(f, "    {}.{}[label = \"{}\"]", class.id, i, node.op)?;
             }
             writeln!(f, "  }}")?;
         }

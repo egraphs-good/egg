@@ -1,18 +1,15 @@
 use egg::{
     define_term,
     egraph::{EClass, EGraph, Metadata},
-    expr::{Expr, Language, Name, QuestionMarkName},
+    expr::{Expr, Language, Name},
     parse::ParsableLanguage,
     pattern::Rewrite,
 };
 use log::*;
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
-struct Prop;
-
 define_term! {
     #[derive(Debug, PartialEq, Eq, Hash, Clone)]
-    enum Term {
+    enum Prop {
         Bool(bool),
         And = "&",
         Not = "~",
@@ -23,10 +20,7 @@ define_term! {
 }
 
 impl Language for Prop {
-    type Term = Term;
-    type Wildcard = QuestionMarkName;
-
-    fn cost(_node: &Expr<Prop, u64>) -> u64 {
+    fn cost(&self, _children: &[u64]) -> u64 {
         unimplemented!()
     }
 }
@@ -40,8 +34,7 @@ macro_rules! rule {
                 stringify!($left),
                 stringify!($right)
             );
-            Prop.parse_rewrite(stringify!($name), $left, $right)
-                .unwrap()
+            Prop::parse_rewrite(stringify!($name), $left, $right).unwrap()
         }
     };
 }
@@ -62,8 +55,8 @@ rule! {lem_imply, "(& (-> ?a ?b) (-> (~ ?a) ?c))", "(| ?b ?c)"}
 fn prove_something(name: &str, start: &str, rewrites: &[Rewrite<Prop>], goals: &[&str]) {
     let _ = env_logger::builder().is_test(true).try_init();
 
-    let start_expr = Prop.parse_expr(start).unwrap();
-    let goal_exprs: Vec<_> = goals.iter().map(|g| Prop.parse_expr(g).unwrap()).collect();
+    let start_expr = Prop::parse_expr(start).unwrap();
+    let goal_exprs: Vec<_> = goals.iter().map(|g| Prop::parse_expr(g).unwrap()).collect();
 
     let (mut egraph, _old_root) = EGraph::<Prop, ()>::from_expr(&start_expr);
 
@@ -146,16 +139,16 @@ impl Metadata<Prop> for ConstantFold {
         self.and(*other)
     }
     fn make(expr: Expr<Prop, &Self>) -> Self {
-        let result = match &expr.t {
-            Term::Bool(c) => Some(*c),
-            Term::Variable(_) => None,
+        let result = match &expr.op {
+            Prop::Bool(c) => Some(*c),
+            Prop::Variable(_) => None,
             op => {
                 let a = |i: usize| *expr.children[i];
                 Some(match op {
-                    Term::And => a(0)? && a(1)?,
-                    Term::Or => a(0)? || a(1)?,
-                    Term::Implies => a(1)? || !a(0)?,
-                    Term::Not => {
+                    Prop::And => a(0)? && a(1)?,
+                    Prop::Or => a(0)? || a(1)?,
+                    Prop::Implies => a(1)? || !a(0)?,
+                    Prop::Not => {
                         assert_eq!(expr.children.len(), 1);
                         !a(0)?
                     }
@@ -169,7 +162,7 @@ impl Metadata<Prop> for ConstantFold {
     fn modify(eclass: &mut EClass<Prop, Self>) {
         println!("Modifying: {:#?}", eclass);
         if let Some(c) = eclass.metadata {
-            eclass.nodes.push(Expr::unit(Term::Bool(c)))
+            eclass.nodes.push(Expr::unit(Prop::Bool(c)))
         }
     }
 }
@@ -177,9 +170,9 @@ impl Metadata<Prop> for ConstantFold {
 #[test]
 fn const_fold() {
     let start = "(| (& false true) (& true false))";
-    let start_expr = Prop.parse_expr(start).unwrap();
+    let start_expr = Prop::parse_expr(start).unwrap();
     let end = "false";
-    let end_expr = Prop.parse_expr(end).unwrap();
+    let end_expr = Prop::parse_expr(end).unwrap();
     let (eg, _) = EGraph::<Prop, ConstantFold>::from_expr(&start_expr);
     assert!(!eg.equivs(&start_expr, &end_expr).is_empty());
 }

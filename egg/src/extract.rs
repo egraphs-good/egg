@@ -14,8 +14,7 @@ fn cost_cse_rec<L: Language>(map: &mut IndexMap<RecExpr<L>, Cost>, expr: &RecExp
     }
 
     let child_cost_expr = expr.as_ref().map_children(|e| cost_cse_rec(map, &e));
-    let cost = L::cost(&child_cost_expr);
-
+    let cost = child_cost_expr.cost();
     map.insert(expr.clone(), cost);
     cost
 }
@@ -24,13 +23,13 @@ pub fn calculate_cost_cse<L: Language>(expr: &RecExpr<L>) -> Cost {
     let mut map = IndexMap::default();
     let cost = cost_cse_rec(&mut map, expr);
 
-    trace!("Found cost to be {}\n  {}", cost, expr.to_sexp());
+    trace!("Found cost to be {}\n  {:?}", cost, expr);
     cost
 }
 
 pub fn calculate_cost<L: Language>(expr: &RecExpr<L>) -> Cost {
     let child_cost_expr = expr.as_ref().map_children(|e| calculate_cost(&e));
-    L::cost(&child_cost_expr)
+    child_cost_expr.cost()
 }
 
 pub struct CostExpr<L: Language> {
@@ -77,7 +76,7 @@ impl<'a, L: Language, M> Extractor<'a, L, M> {
         let expr = node
             .map_children_result(|id| self.costs.get(&id).cloned().ok_or(()))
             .ok()?;
-        Some(L::cost(&expr))
+        Some(expr.cost())
     }
 
     fn find_costs(&mut self) {

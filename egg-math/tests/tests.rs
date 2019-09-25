@@ -13,7 +13,7 @@ use egg_math::{Math, Meta};
 fn associate_adds() {
     let _ = env_logger::builder().is_test(true).try_init();
     let start = "(+ 1 (+ 2 (+ 3 (+ 4 (+ 5 (+ 6 7))))))";
-    let start_expr = Math.parse_expr(start).unwrap();
+    let start_expr = Math::parse_expr(start).unwrap();
 
     let (mut egraph, _root) = EGraph::<Math, ()>::from_expr(&start_expr);
 
@@ -129,8 +129,8 @@ struct CheckSimplify {
 impl CheckSimplify {
     fn check(self) {
         let _ = env_logger::builder().is_test(true).try_init();
-        let start_expr = Math.parse_expr(self.start).unwrap();
-        let end_expr = Math.parse_expr(self.end).unwrap();
+        let start_expr = Math::parse_expr(self.start).unwrap();
+        let end_expr = Math::parse_expr(self.end).unwrap();
 
         let (mut egraph, root) = EGraph::<Math, Meta>::from_expr(&start_expr);
         run_rules(&mut egraph, self.iters, self.limit);
@@ -249,7 +249,7 @@ static EXP: &str = r#"
 #[test]
 fn do_something() {
     let _ = env_logger::builder().is_test(true).try_init();
-    let start_expr = Math.parse_expr(EXP).unwrap();
+    let start_expr = Math::parse_expr(EXP).unwrap();
     let (mut egraph, root) = EGraph::<Math, Meta>::from_expr(&start_expr);
 
     let herbies_result = "(*
@@ -270,7 +270,7 @@ fn do_something() {
     (pow (- 1 (/ 1 (+ (exp (- 0 t)) 1))) c_n))
    (/ (pow (/ 1 (+ (exp (- 0 s)) 1)) c_p) (pow (/ 1 (+ (exp (- 0 t)) 1)) c_p))))";
 
-    let other_expr = Math.parse_expr(herbies_result).unwrap();
+    let other_expr = Math::parse_expr(herbies_result).unwrap();
     println!(
         "Herbie ({}): {}",
         calculate_cost(&other_expr),

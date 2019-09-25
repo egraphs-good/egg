@@ -5,7 +5,7 @@ use std::str::FromStr;
 use symbolic_expressions::{parser::parse_str, Sexp, SexpError};
 
 use crate::{
-    expr::{Expr, Language, RecExpr},
+    expr::{Expr, Language, QuestionMarkName, RecExpr},
     pattern::{Pattern, Rewrite},
 };
 
@@ -37,15 +37,14 @@ impl From<SexpError> for ParseError {
 
 fn parse_term<L: ParsableLanguage>(sexp: &Sexp) -> Result<Pattern<L>>
 where
-    L::Term: FromStr,
-    L::Wildcard: FromStr,
+    L: FromStr,
 {
     match sexp {
         Sexp::String(s) => {
             if s.trim() != s || s.is_empty() {
                 panic!("There's whitespace!")
             }
-            s.parse::<L::Wildcard>()
+            s.parse::<QuestionMarkName>()
                 .map(Pattern::Wildcard)
                 .or_else(|_| s.parse().map(|t| Pattern::Expr(Box::new(Expr::unit(t)))))
                 .map_err(|_| ParseError("bad".into()))
@@ -57,7 +56,7 @@ where
 
             let op = match sexps.next().unwrap() {
                 Sexp::String(s) => s
-                    .parse::<L::Term>()
+                    .parse::<L>()
                     .map_err(|_| ParseError(format!("bad op: {}", s)))?,
                 op_sexp => return Err(ParseError(format!("expected op, got {}", op_sexp))),
             };
@@ -89,35 +88,29 @@ pub fn pat_to_expr<L: Language>(pat: Pattern<L>) -> Result<RecExpr<L>> {
 /// [`TestLang`]: ../expr/tests/struct.TestLang.html
 pub trait ParsableLanguage: Language
 where
-    Self::Term: FromStr,
-    Self::Wildcard: FromStr,
+    Self: FromStr,
 {
-    fn parse_pattern(&self, s: &str) -> Result<Pattern<Self>> {
+    fn parse_pattern(s: &str) -> Result<Pattern<Self>> {
         let sexp = parse_str(s.trim())?;
         parse_term(&sexp)
     }
 
-    fn parse_rewrite(&self, name: &str, lhs: &str, rhs: &str) -> Result<Rewrite<Self>> {
+    fn parse_rewrite(name: &str, lhs: &str, rhs: &str) -> Result<Rewrite<Self>> {
         Ok(Rewrite {
             name: name.into(),
-            lhs: self.parse_pattern(lhs)?,
-            rhs: self.parse_pattern(rhs)?,
+            lhs: Self::parse_pattern(lhs)?,
+            rhs: Self::parse_pattern(rhs)?,
             conditions: vec![],
         })
     }
 
-    fn parse_expr(&self, s: &str) -> Result<RecExpr<Self>> {
-        let pat = self.parse_pattern(s)?;
+    fn parse_expr(s: &str) -> Result<RecExpr<Self>> {
+        let pat = Self::parse_pattern(s)?;
         pat_to_expr(pat)
     }
 }
 
-impl<L: Language> ParsableLanguage for L
-where
-    Self::Term: FromStr,
-    Self::Wildcard: FromStr,
-{
-}
+impl<L: Language> ParsableLanguage for L where Self: FromStr {}
 
 #[cfg(test)]
 mod tests {
@@ -130,7 +123,7 @@ mod tests {
     fn simple_parse() {
         let expr: RecExpr<TestLang> = op("+", vec![var("x").into(), var("x").into()]);
 
-        let expr2 = TestLang.parse_expr("(+ x x)").unwrap();
+        let expr2 = TestLang::parse_expr("(+ x x)").unwrap();
 
         assert_eq!(expr, expr2);
     }

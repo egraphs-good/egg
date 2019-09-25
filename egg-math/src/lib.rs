@@ -1,7 +1,7 @@
 use egg::{
     define_term,
     egraph::EClass,
-    expr::{Expr, Language, Name, QuestionMarkName, RecExpr},
+    expr::{Expr, Language, Name, RecExpr},
 };
 
 use ordered_float::NotNan;
@@ -10,14 +10,11 @@ pub type MathEGraph<M = Meta> = egg::egraph::EGraph<Math, M>;
 mod rules;
 pub use rules::rules;
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub struct Math;
-
 type Constant = NotNan<f64>;
 
 define_term! {
     #[derive(Debug, PartialEq, Eq, Hash, Clone)]
-    pub enum Term {
+    pub enum Math {
         Constant(Constant),
         Add = "+",
         Sub = "-",
@@ -58,28 +55,25 @@ define_term! {
 }
 
 impl Language for Math {
-    type Term = Term;
-    type Wildcard = QuestionMarkName;
-
-    fn cost(node: &Expr<Math, u64>) -> u64 {
-        let cost = match &node.t {
-            Term::Constant(_) | Term::Variable(_) => 1,
-            Term::Add => 40,
-            Term::Sub => 40,
-            Term::Mul => 40,
-            Term::Div => 40,
-            Term::Pow => 210,
-            Term::Exp => 70,
-            Term::Log => 70,
-            Term::Sqrt => 40,
-            Term::Cbrt => 80,
-            Term::Fabs => 40,
-            Term::RealToPosit => 0,
-            Term::Expm1 => 70,
-            Term::Log1p => 70,
+    fn cost(&self, children: &[u64]) -> u64 {
+        let cost = match self {
+            Math::Constant(_) | Math::Variable(_) => 1,
+            Math::Add => 40,
+            Math::Sub => 40,
+            Math::Mul => 40,
+            Math::Div => 40,
+            Math::Pow => 210,
+            Math::Exp => 70,
+            Math::Log => 70,
+            Math::Sqrt => 40,
+            Math::Cbrt => 80,
+            Math::Fabs => 40,
+            Math::RealToPosit => 0,
+            Math::Expm1 => 70,
+            Math::Log1p => 70,
         };
 
-        cost + node.children.iter().sum::<u64>()
+        cost + children.iter().sum::<u64>()
     }
 }
 
@@ -89,17 +83,17 @@ pub struct Meta {
     pub best: RecExpr<Math>,
 }
 
-fn eval(op: Term, args: &[Constant]) -> Option<Constant> {
+fn eval(op: Math, args: &[Constant]) -> Option<Constant> {
     let a = |i| args.get(i).cloned();
     match op {
-        Term::Add => Some(a(0)? + a(1)?),
-        Term::Sub => Some(a(0)? - a(1)?),
-        Term::Mul => Some(a(0)? * a(1)?),
-        Term::Div => Some(a(0)? / a(1)?),
-        Term::Pow => None, // a(0)?.powf(a(1)?),
-        Term::Exp => None, // a(0)?.exp(),
-        Term::Log => None, // a(0)?.ln(),
-        Term::Sqrt => {
+        Math::Add => Some(a(0)? + a(1)?),
+        Math::Sub => Some(a(0)? - a(1)?),
+        Math::Mul => Some(a(0)? * a(1)?),
+        Math::Div => Some(a(0)? / a(1)?),
+        Math::Pow => None, // a(0)?.powf(a(1)?),
+        Math::Exp => None, // a(0)?.exp(),
+        Math::Log => None, // a(0)?.ln(),
+        Math::Sqrt => {
             None
             // unimplemented!()
             // if let Some(sqrt) = args[0].sqrt() {
@@ -114,7 +108,7 @@ fn eval(op: Term, args: &[Constant]) -> Option<Constant> {
             //     None
             // }
         }
-        // Term::Cbrt => {
+        // Math::Cbrt => {
         //     if let Some(cbrt) = args[0].to_f64().map(f64::cbrt) {
         //         #[allow(clippy::float_cmp)]
         //         let is_int = cbrt == cbrt.trunc();
@@ -127,8 +121,8 @@ fn eval(op: Term, args: &[Constant]) -> Option<Constant> {
         //         None
         //     }
         // }
-        Term::Fabs => Some(Constant::new(args[0].abs()).unwrap()),
-        Term::RealToPosit => Some(args[0]),
+        Math::Fabs => Some(Constant::new(args[0].abs()).unwrap()),
+        Math::RealToPosit => Some(args[0]),
         _ => None,
     }
 }
@@ -148,22 +142,22 @@ impl egg::egraph::Metadata<Math> for Meta {
             let const_args: Option<Vec<Constant>> = expr
                 .children
                 .iter()
-                .map(|meta| match meta.best.as_ref().t {
-                    Term::Constant(c) => Some(c),
+                .map(|meta| match meta.best.as_ref().op {
+                    Math::Constant(c) => Some(c),
                     _ => None,
                 })
                 .collect();
 
             const_args
-                .and_then(|a| eval(expr.t.clone(), &a))
-                .map(|c| Expr::unit(Term::Constant(c)))
+                .and_then(|a| eval(expr.op.clone(), &a))
+                .map(|c| Expr::unit(Math::Constant(c)))
                 .unwrap_or(expr)
         };
 
         let best: RecExpr<_> = expr.map_children(|c| c.best.clone()).into();
         Self {
             best,
-            cost: Math::cost(&expr.map_children(|c| c.cost)),
+            cost: expr.map_children(|c| c.cost).cost(),
         }
     }
 
@@ -171,7 +165,7 @@ impl egg::egraph::Metadata<Math> for Meta {
         // NOTE pruning vs not pruning is decided right here
         let best = eclass.metadata.best.as_ref();
         if best.children.is_empty() {
-            eclass.nodes = vec![Expr::unit(best.t.clone())]
+            eclass.nodes = vec![Expr::unit(best.op.clone())]
         }
     }
 }
