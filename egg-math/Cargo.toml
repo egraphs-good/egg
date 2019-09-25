@@ -8,6 +8,7 @@ edition = "2018"
 egg = { path = "../egg" }
 log = "0.4"
 indexmap = "1.1"
+libc = "0.2.0"
 
 ordered-float = "1"
 env_logger = "0.6"
@@ -16,3 +17,7 @@ strum_macros = "0.15"
 
 [features]
 parent-pointers = ["egg/parent-pointers"]
+
+[lib]
+name = "egg_math"
+crate-type = ["rlib", "cdylib"]

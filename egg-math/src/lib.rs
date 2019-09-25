@@ -1,6 +1,9 @@
+extern crate libc;
+
 use egg::{
-    egraph::EClass,
+    egraph::{EClass, EGraph},
     expr::{Expr, Language, Name, QuestionMarkName, RecExpr},
+    parse::ParsableLanguage,
 };
 
 use ordered_float::NotNan;
@@ -10,6 +13,28 @@ pub type MathEGraph<M = Meta> = egg::egraph::EGraph<Math, M>;
 
 mod rules;
 pub use rules::rules;
+
+use std::ffi::CStr;
+use std::mem::transmute;
+use std::os::raw::c_char;
+
+// I had to add $(rustc --print sysroot)/lib to LD_LIBRARY_PATH to get linking to work after installing rust with rustup
+#[no_mangle]
+pub unsafe extern "C" fn create_egraph(expr: *const c_char) -> *mut EGraph<Math, ()> {
+    let bytes = CStr::from_ptr(expr).to_bytes();
+    let expr_string: &str = std::str::from_utf8(bytes).unwrap(); // make sure the bytes are UTF-8
+
+    let start_expr = Math.parse_expr(expr_string).unwrap();
+    let (egraph, _root) = EGraph::<Math, ()>::from_expr(&start_expr);
+
+    Box::into_raw(Box::new(egraph))
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn destroy_egraph(ptr: *mut EGraph<Math, ()>) {
+    let _counter: Box<EGraph<Math, ()>> = transmute(ptr);
+    // Drop
+}
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct Math;
