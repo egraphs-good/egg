@@ -13,6 +13,8 @@
 //! [`TestLang`]: expr/tests/struct.TestLang.html
 //! [`ParsableLanguage`]: parse/trait.ParsableLanguage.html
 
+mod macros;
+
 mod unionfind;
 
 pub mod dot;

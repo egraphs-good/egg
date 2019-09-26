@@ -15,7 +15,7 @@ use egg_math::*;
 
 struct Queried {
     pattern: Pattern<Math>,
-    matches: Vec<PatternMatches<Math>>,
+    matches: Vec<PatternMatches>,
 }
 
 struct Model {
@@ -66,7 +66,7 @@ struct OptionalRewrite {
     applied: usize,
     matched: usize,
     enabled: bool,
-    rewrite: Rewrite<Math>,
+    rewrite: Rewrite<Math, Meta>,
 }
 
 fn percent(a: usize, b: usize) -> f64 {
@@ -78,7 +78,7 @@ fn percent(a: usize, b: usize) -> f64 {
 }
 
 impl OptionalRewrite {
-    fn new(rewrite: Rewrite<Math>) -> Self {
+    fn new(rewrite: Rewrite<Math, Meta>) -> Self {
         Self {
             applied: 0,
             matched: 0,
@@ -98,7 +98,7 @@ impl OptionalRewrite {
                 <details>
                     <summary> {counts} {" "} {&self.rewrite.name}</summary>
                     <div class="lhs",> {self.rewrite.lhs.to_sexp()} </div>
-                    <div class="rhs",> {self.rewrite.rhs.to_sexp()} </div>
+                    <div class="rhs",> {format!("{:?}", self.rewrite.applier)} </div>
                 </details>
             </div>
         }
@@ -143,8 +143,7 @@ impl Component for Model {
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         match msg {
             Msg::UpdateQuery(s) => {
-                self.query = Math
-                    .parse_pattern(&s)
+                self.query = Math::parse_pattern(&s)
                     .map(|pattern| {
                         let matches = pattern.search(&self.egraph);
                         Queried { pattern, matches }

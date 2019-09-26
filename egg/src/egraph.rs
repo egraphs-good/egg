@@ -194,7 +194,7 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
         let (idx, old) = self.memo.insert_full(enode, next_id);
         let _ = idx;
         #[cfg(feature = "parent-pointers")]
-        for &child in self.memo.get_index(idx).unwrap().0.children() {
+        for &child in &self.memo.get_index(idx).unwrap().0.children {
             self.classes.get_mut(child).parents.insert(idx);
         }
 
@@ -210,7 +210,7 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
 
         // make sure that the enodes children are already in the set
         if cfg!(debug_assertions) {
-            for &id in enode.children() {
+            for &id in &enode.children {
                 if id >= self.classes.total_size() as u32 {
                     panic!(
                         "Expr: {:?}\n  Found id {} but classes.len() = {}",
@@ -236,11 +236,11 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
 
     pub fn equivs(&self, expr1: &RecExpr<L>, expr2: &RecExpr<L>) -> Vec<Id> {
         use crate::pattern::Pattern;
-        debug!("Searching for expr1: {}", expr1.to_sexp());
+        // debug!("Searching for expr1: {}", expr1.to_sexp());
         let matches1 = Pattern::from_expr(expr1).search(self);
         info!("Matches1: {:?}", matches1);
 
-        debug!("Searching for expr2: {}", expr2.to_sexp());
+        // debug!("Searching for expr2: {}", expr2.to_sexp());
         let matches2 = Pattern::from_expr(expr2).search(self);
         info!("Matches2: {:?}", matches2);
 
@@ -291,7 +291,7 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
             let unique: IndexSet<_> = class
                 .nodes
                 .iter()
-                .map(|node| node.map_children(|id| find(id)))
+                .map(|node| node.map_children(&find))
                 .collect();
 
             trimmed += old_len - unique.len();
@@ -439,9 +439,7 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
 
     pub fn dump_dot(&self, filename: &str)
     where
-        L::Constant: std::fmt::Display,
-        L::Variable: std::fmt::Display,
-        L::Operator: std::fmt::Display,
+        L: std::fmt::Display,
     {
         use std::fs::File;
         use std::io::prelude::*;

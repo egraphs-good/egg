@@ -42,7 +42,7 @@ impl<'a, L: Language, M> Dot<'a, L, M> {
     }
 }
 
-impl<'a, L: Language, M> Display for Dot<'a, L, M> {
+impl<'a, L: Language + Display, M> Display for Dot<'a, L, M> {
     fn fmt(&self, f: &mut Formatter) -> Result {
         writeln!(f, "digraph {{")?;
 
@@ -54,14 +54,14 @@ impl<'a, L: Language, M> Display for Dot<'a, L, M> {
             writeln!(f, "  subgraph cluster_{} {{", class.id)?;
             writeln!(f, "    style=dotted")?;
             for (i, node) in class.iter().enumerate() {
-                writeln!(f, "    {}.{}[label = \"{}\"]", class.id, i, node.symbol())?;
+                writeln!(f, "    {}.{}[label = \"{}\"]", class.id, i, node.op)?;
             }
             writeln!(f, "  }}")?;
         }
 
         for class in self.egraph.classes() {
             for (i_in_class, node) in class.iter().enumerate() {
-                for (arg_i, child) in node.children().iter().enumerate() {
+                for (arg_i, child) in node.children.iter().enumerate() {
                     // write the edge to the child, but clip it to the eclass with lhead
                     let child_leader = self.egraph.find(*child);
                     writeln!(

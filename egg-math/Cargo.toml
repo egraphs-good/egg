@@ -12,8 +12,6 @@ libc = "0.2.0"
 
 ordered-float = "1"
 env_logger = "0.6"
-strum = "0.15"
-strum_macros = "0.15"
 
 [features]
 parent-pointers = ["egg/parent-pointers"]

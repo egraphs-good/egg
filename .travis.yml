@@ -1,6 +1,6 @@
 language: rust
 rust:
-  - 1.34.2
+  - 1.38.0
 cache: cargo
 before_script:
   - rustup component add rustfmt

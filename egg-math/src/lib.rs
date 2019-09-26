@@ -8,15 +8,15 @@ use egg::{
     expr::{Expr, Language, Name, QuestionMarkName, RecExpr},
     parse::ParsableLanguage,
     extract::{Extractor},
+    define_term,
 };
 
 use ordered_float::NotNan;
-use strum_macros::{Display, EnumString};
-
 pub type MathEGraph<M = Meta> = egg::egraph::EGraph<Math, M>;
 
 mod rules;
 pub use rules::rules;
+
 
 use std::ffi::{CStr, CString};
 use std::mem::transmute;
@@ -28,7 +28,7 @@ unsafe fn cstring_to_recexpr(c_string: *const c_char) -> Option<RecExpr<Math>> {
     match string_result {
         Ok(expr_string) =>
         {
-            let parse_result = Math.parse_expr(expr_string);
+            let parse_result = Math::parse_expr(expr_string);
             match parse_result {
                 Ok(rec_expr) => Some(rec_expr),
                 Err(error) => None,
@@ -169,111 +169,71 @@ fn run_rules(egraph: &mut EGraph<Math, Meta>, iters: u32, limit: u32)
 
 }
 
-
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub struct Math;
-
-#[derive(Debug, PartialEq, Eq, Hash, Clone, EnumString, Display)]
-pub enum Op {
-    #[strum(serialize = "+")]
-    Add,
-    #[strum(serialize = "-")]
-    Sub,
-    #[strum(serialize = "*")]
-    Mul,
-    #[strum(serialize = "/")]
-    Div,
-    #[strum(serialize = "pow")]
-    Pow,
-    #[strum(serialize = "exp")]
-    Exp,
-    #[strum(serialize = "log")]
-    Log,
-    #[strum(serialize = "sqrt")]
-    Sqrt,
-    #[strum(serialize = "cbrt")]
-    Cbrt,
-    #[strum(serialize = "fabs")]
-    Fabs,
-    // #[strum(serialize = "sin")]
-    // Sin,
-    // #[strum(serialize = "cos")]
-    // Cos,
-    // #[strum(serialize = "tan")]
-    // Tan,
-    // #[strum(serialize = "asin")]
-    // Asin,
-    // #[strum(serialize = "acos")]
-    // Acos,
-    // #[strum(serialize = "atan")]
-    // Atan,
-    // #[strum(serialize = "atan2")]
-    // Atan2,
-    // #[strum(serialize = "sinh")]
-    // Sinh,
-    // #[strum(serialize = "cosh")]
-    // Cosh,
-    // #[strum(serialize = "tanh")]
-    // Tanh,
-    // #[strum(serialize = "asinh")]
-    // Asinh,
-    // #[strum(serialize = "acosh")]
-    // Acosh,
-    // #[strum(serialize = "atanh")]
-    // Atanh,
-
-    // #[strum(serialize = "fma")]
-    // Fma,
-    #[strum(serialize = "log1p")]
-    Log1p,
-    #[strum(serialize = "expm1")]
-    Expm1,
-    // #[strum(serialize = "hypot")]
-    // Hypot,
-
-    // #[strum(serialize = "+.p16")]
-    // PositAdd,
-    // #[strum(serialize = "-.p16")]
-    // PositSub,
-    // #[strum(serialize = "*.p16")]
-    // PositMul,
-    // #[strum(serialize = "/.p16")]
-    // PositDiv,
-    #[strum(serialize = "real->posit16")]
-    RealToPosit,
-}
-
 type Constant = NotNan<f64>;
 
+
+define_term! {
+    #[derive(Debug, PartialEq, Eq, Hash, Clone)]
+    pub enum Math {
+        Constant(Constant),
+        Add = "+",
+        Sub = "-",
+        Mul = "*",
+        Div = "/",
+        Pow = "pow",
+        Exp = "exp",
+        Log = "log",
+        Sqrt = "sqrt",
+        Cbrt = "cbrt",
+        Fabs = "fabs",
+        // Sin = "sin",
+        // Cos = "cos",
+        // Tan = "tan",
+        // Asin = "asin",
+        // Acos = "acos",
+        // Atan = "atan",
+        // Atan2 = "atan2",
+        // Sinh = "sinh",
+        // Cosh = "cosh",
+        // Tanh = "tanh",
+        // Asinh = "asinh",
+        // Acosh = "acosh",
+        // Atanh = "atanh",
+
+        // Fma = "fma",
+        Log1p = "log1p",
+        Expm1 = "expm1",
+        // Hypot = "hypot",
+
+        // PositAdd = "+.p16",
+        // PositSub = "-.p16",
+        // PositMul = "*.p16",
+        // PositDiv = "/.p16",
+        RealToPosit = "real->posit",
+        Variable(Name),
+    }
+}
+
 impl Language for Math {
-    type Constant = Constant;
-    type Operator = Op;
-    type Variable = Name;
-    type Wildcard = QuestionMarkName;
+    fn cost(&self, children: &[u64]) -> u64 {
+        let cost = match self {
+            Math::Constant(_) | Math::Variable(_) => 1,
+            Math::Add => 40,
+            Math::Sub => 40,
+            Math::Mul => 40,
+            Math::Div => 40,
+            Math::Pow => 210,
+            Math::Exp => 70,
+            Math::Log => 70,
+            Math::Sqrt => 40,
+            Math::Cbrt => 80,
+            Math::Fabs => 40,
+            Math::RealToPosit => 0,
+            Math::Expm1 => 70,
+            Math::Log1p => 70,
+        };
 
-    fn cost(node: &Expr<Math, u64>) -> u64 {
-        match node {
-            Expr::Constant(_) | Expr::Variable(_) => 1,
-            Expr::Operator(op, child_costs) => {
-                let cost = match op {
-                    Op::Add => 40,
-                    Op::Sub => 40,
-                    Op::Mul => 40,
-                    Op::Div => 40,
-                    Op::Pow => 210,
-                    Op::Exp => 70,
-                    Op::Log => 70,
-                    Op::Sqrt => 40,
-                    Op::Cbrt => 80,
-                    Op::Fabs => 40,
-                    Op::RealToPosit => 0,
-                    Op::Expm1 => 70,
-                    Op::Log1p => 70,
-                };
-
-                cost + child_costs.iter().sum::<u64>()
-            }
-        }
+        cost + children.iter().sum::<u64>()
     }
 }
 
@@ -283,17 +243,17 @@ pub struct Meta {
     pub best: RecExpr<Math>,
 }
 
-fn eval(op: Op, args: &[Constant]) -> Option<Constant> {
+fn eval(op: Math, args: &[Constant]) -> Option<Constant> {
     let a = |i| args.get(i).cloned();
     match op {
-        Op::Add => Some(a(0)? + a(1)?),
-        Op::Sub => Some(a(0)? - a(1)?),
-        Op::Mul => Some(a(0)? * a(1)?),
-        Op::Div => Some(a(0)? / a(1)?),
-        Op::Pow => None, // a(0)?.powf(a(1)?),
-        Op::Exp => None, // a(0)?.exp(),
-        Op::Log => None, // a(0)?.ln(),
-        Op::Sqrt => {
+        Math::Add => Some(a(0)? + a(1)?),
+        Math::Sub => Some(a(0)? - a(1)?),
+        Math::Mul => Some(a(0)? * a(1)?),
+        Math::Div => Some(a(0)? / a(1)?),
+        Math::Pow => None, // a(0)?.powf(a(1)?),
+        Math::Exp => None, // a(0)?.exp(),
+        Math::Log => None, // a(0)?.ln(),
+        Math::Sqrt => {
             None
             // unimplemented!()
             // if let Some(sqrt) = args[0].sqrt() {
@@ -308,7 +268,7 @@ fn eval(op: Op, args: &[Constant]) -> Option<Constant> {
             //     None
             // }
         }
-        // Op::Cbrt => {
+        // Math::Cbrt => {
         //     if let Some(cbrt) = args[0].to_f64().map(f64::cbrt) {
         //         #[allow(clippy::float_cmp)]
         //         let is_int = cbrt == cbrt.trunc();
@@ -321,8 +281,8 @@ fn eval(op: Op, args: &[Constant]) -> Option<Constant> {
         //         None
         //     }
         // }
-        Op::Fabs => Some(Constant::new(args[0].abs()).unwrap()),
-        Op::RealToPosit => Some(args[0]),
+        Math::Fabs => Some(Constant::new(args[0].abs()).unwrap()),
+        Math::RealToPosit => Some(args[0]),
         _ => None,
     }
 }
@@ -338,39 +298,34 @@ impl egg::egraph::Metadata<Math> for Meta {
     }
 
     fn make(expr: Expr<Math, &Self>) -> Self {
-        let expr = match expr {
-            Expr::Operator(op, args) => {
-                let const_args: Option<Vec<Constant>> = args
-                    .iter()
-                    .map(|meta| match meta.best.as_ref() {
-                        Expr::Constant(c) => Some(*c),
-                        _ => None,
-                    })
-                    .collect();
+        let expr = {
+            let const_args: Option<Vec<Constant>> = expr
+                .children
+                .iter()
+                .map(|meta| match meta.best.as_ref().op {
+                    Math::Constant(c) => Some(c),
+                    _ => None,
+                })
+                .collect();
 
-                const_args
-                    .and_then(|a| eval(op.clone(), &a))
-                    .map(Expr::Constant)
-                    .unwrap_or_else(|| Expr::Operator(op, args))
-            }
-            expr => expr,
+            const_args
+                .and_then(|a| eval(expr.op.clone(), &a))
+                .map(|c| Expr::unit(Math::Constant(c)))
+                .unwrap_or(expr)
         };
 
         let best: RecExpr<_> = expr.map_children(|c| c.best.clone()).into();
         Self {
             best,
-            cost: Math::cost(&expr.map_children(|c| c.cost)),
+            cost: expr.map_children(|c| c.cost).cost(),
         }
     }
 
     fn modify(eclass: &mut EClass<Math, Self>) {
-        match &eclass.metadata.best.as_ref() {
-            // NOTE pruning vs not pruning is decided right here
-            // Expr::Constant(c) => eclass.nodes.push(Expr::Constant(*c)),
-            // Expr::Variable(v) => eclass.nodes.push(Expr::Variable(v.clone())),
-            Expr::Constant(c) => eclass.nodes = vec![Expr::Constant(*c)],
-            Expr::Variable(v) => eclass.nodes = vec![Expr::Variable(v.clone())],
-            _ => (),
+        // NOTE pruning vs not pruning is decided right here
+        let best = eclass.metadata.best.as_ref();
+        if best.children.is_empty() {
+            eclass.nodes = vec![Expr::unit(best.op.clone())]
         }
     }
 }

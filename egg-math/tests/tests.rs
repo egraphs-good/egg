@@ -13,7 +13,7 @@ use egg_math::{Math, Meta};
 fn associate_adds() {
     let _ = env_logger::builder().is_test(true).try_init();
     let start = "(+ 1 (+ 2 (+ 3 (+ 4 (+ 5 (+ 6 7))))))";
-    let start_expr = Math.parse_expr(start).unwrap();
+    let start_expr = Math::parse_expr(start).unwrap();
 
     let (mut egraph, _root) = EGraph::<Math, ()>::from_expr(&start_expr);
 
@@ -36,15 +36,6 @@ fn associate_adds() {
     assert_eq!(egraph.number_of_classes(), 127);
 
     egraph.dump_dot("associate.dot");
-}
-
-fn print_time(name: &str, duration: Duration) {
-    println!(
-        "{}: {}.{:06}",
-        name,
-        duration.as_secs(),
-        duration.subsec_micros()
-    );
 }
 
 fn run_rules<M>(egraph: &mut EGraph<Math, M>, iters: usize, limit: usize) -> Duration
@@ -74,7 +65,7 @@ where
             }
         }
 
-        print_time("Search time", search_time.elapsed());
+        println!("Search time: {:.4}", search_time.elapsed().as_secs_f64());
 
         let match_time = Instant::now();
 
@@ -102,18 +93,18 @@ where
             }
         }
 
-        print_time("Match time", match_time.elapsed());
+        println!("Match time: {:.4}", match_time.elapsed().as_secs_f64());
 
         let rebuild_time = Instant::now();
         egraph.rebuild();
         // egraph.prune();
-        print_time("Rebuild time", rebuild_time.elapsed());
+        println!("Rebuild time: {:.4}", rebuild_time.elapsed().as_secs_f64());
     }
 
     println!("Final size {}", egraph.total_size());
 
     let rules_time = start_time.elapsed();
-    print_time("Rules time", rules_time);
+    println!("Rules time: {:.4}", rules_time.as_secs_f64());
 
     rules_time
 }
@@ -129,8 +120,8 @@ struct CheckSimplify {
 impl CheckSimplify {
     fn check(self) {
         let _ = env_logger::builder().is_test(true).try_init();
-        let start_expr = Math.parse_expr(self.start).unwrap();
-        let end_expr = Math.parse_expr(self.end).unwrap();
+        let start_expr = Math::parse_expr(self.start).unwrap();
+        let end_expr = Math::parse_expr(self.end).unwrap();
 
         let (mut egraph, root) = EGraph::<Math, Meta>::from_expr(&start_expr);
         run_rules(&mut egraph, self.iters, self.limit);
@@ -249,7 +240,7 @@ static EXP: &str = r#"
 #[test]
 fn do_something() {
     let _ = env_logger::builder().is_test(true).try_init();
-    let start_expr = Math.parse_expr(EXP).unwrap();
+    let start_expr = Math::parse_expr(EXP).unwrap();
     let (mut egraph, root) = EGraph::<Math, Meta>::from_expr(&start_expr);
 
     let herbies_result = "(*
@@ -270,7 +261,7 @@ fn do_something() {
     (pow (- 1 (/ 1 (+ (exp (- 0 t)) 1))) c_n))
    (/ (pow (/ 1 (+ (exp (- 0 s)) 1)) c_p) (pow (/ 1 (+ (exp (- 0 t)) 1)) c_p))))";
 
-    let other_expr = Math.parse_expr(herbies_result).unwrap();
+    let other_expr = Math::parse_expr(herbies_result).unwrap();
     println!(
         "Herbie ({}): {}",
         calculate_cost(&other_expr),
@@ -291,5 +282,5 @@ fn do_something() {
     );
     println!("Best ({}): {}", best.cost, best.expr.to_sexp());
 
-    print_time("Extract time", extract_time);
+    println!("Extract time: {:.4}", extract_time.as_secs_f64());
 }

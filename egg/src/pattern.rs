@@ -1,3 +1,6 @@
+use std::fmt;
+use std::rc::Rc;
+
 use indexmap::IndexSet;
 use instant::Instant;
 use itertools::Itertools;
@@ -7,13 +10,19 @@ use symbolic_expressions::Sexp;
 
 use crate::{
     egraph::{AddResult, EGraph, Metadata},
-    expr::{Expr, Id, Language, RecExpr},
+    expr::{Expr, Id, Language, QuestionMarkName, RecExpr},
 };
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Pattern<L: Language> {
     Expr(Box<Expr<L, Pattern<L>>>),
-    Wildcard(L::Wildcard),
+    Wildcard(QuestionMarkName, WildcardKind),
+}
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum WildcardKind {
+    Single,
+    ZeroOrMore,
 }
 
 impl<L: Language> Pattern<L> {
@@ -25,12 +34,22 @@ impl<L: Language> Pattern<L> {
         )
     }
 
-    pub fn subst_and_find<M>(&self, egraph: &mut EGraph<L, M>, mapping: &WildMap<L>) -> Id
+    pub fn is_multi_wildcard(&self) -> bool {
+        match self {
+            Pattern::Wildcard(_, WildcardKind::ZeroOrMore) => true,
+            _ => false,
+        }
+    }
+
+    pub fn subst_and_find<M>(&self, egraph: &mut EGraph<L, M>, mapping: &WildMap) -> Id
     where
         M: Metadata<L>,
     {
         match self {
-            Pattern::Wildcard(w) => mapping.get(w).unwrap(),
+            Pattern::Wildcard(w, kind) => {
+                assert_eq!(*kind, WildcardKind::Single);
+                mapping.get(w, *kind).unwrap()[0]
+            }
             Pattern::Expr(expr) => {
                 let expr = expr.map_children(|pat| pat.subst_and_find(egraph, mapping));
                 let result = egraph.add(expr);
@@ -39,9 +58,9 @@ impl<L: Language> Pattern<L> {
         }
     }
 
-    fn insert_wildcards(&self, set: &mut IndexSet<L::Wildcard>) {
+    fn insert_wildcards(&self, set: &mut IndexSet<QuestionMarkName>) {
         match self {
-            Pattern::Wildcard(w) => {
+            Pattern::Wildcard(w, _) => {
                 set.insert(w.clone());
             }
             Pattern::Expr(expr) => {
@@ -50,30 +69,23 @@ impl<L: Language> Pattern<L> {
         }
     }
 
-    fn is_bound(&self, set: &IndexSet<L::Wildcard>) -> bool {
+    fn is_bound(&self, set: &IndexSet<QuestionMarkName>) -> bool {
         match self {
-            Pattern::Wildcard(w) => set.contains(w),
-            Pattern::Expr(e) => match e.as_ref() {
-                Expr::Operator(_, pats) => pats.iter().all(|p| p.is_bound(set)),
-                _ => true,
-            },
+            Pattern::Wildcard(w, _) => set.contains(w),
+            Pattern::Expr(e) => e.children.iter().all(|p| p.is_bound(set)),
         }
     }
 }
 
-impl<L: Language> Pattern<L>
-where
-    L::Wildcard: std::fmt::Display,
-{
+impl<L: Language + fmt::Display> Pattern<L> {
     pub fn to_sexp(&self) -> Sexp {
         match self {
-            Pattern::Wildcard(w) => Sexp::String(w.to_string()),
-            Pattern::Expr(e) => match e.as_ref() {
-                Expr::Constant(c) => Sexp::String(c.to_string()),
-                Expr::Variable(v) => Sexp::String(v.to_string()),
-                Expr::Operator(op, args) => {
-                    let mut vec: Vec<_> = args.iter().map(Self::to_sexp).collect();
-                    vec.insert(0, Sexp::String(op.to_string()));
+            Pattern::Wildcard(w, _) => Sexp::String(w.to_string()),
+            Pattern::Expr(e) => match e.children.len() {
+                0 => Sexp::String(e.op.to_string()),
+                _ => {
+                    let mut vec: Vec<_> = e.children.iter().map(Self::to_sexp).collect();
+                    vec.insert(0, Sexp::String(e.op.to_string()));
                     Sexp::List(vec)
                 }
             },
@@ -88,7 +100,7 @@ pub struct Condition<L: Language> {
 }
 
 impl<L: Language> Condition<L> {
-    fn check<M>(&self, egraph: &mut EGraph<L, M>, mapping: &WildMap<L>) -> bool
+    fn check<M>(&self, egraph: &mut EGraph<L, M>, mapping: &WildMap) -> bool
     where
         M: Metadata<L>,
     {
@@ -98,37 +110,111 @@ impl<L: Language> Condition<L> {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
-pub struct Rewrite<L: Language> {
+pub trait Applier<L: Language, M: Metadata<L>>: fmt::Debug {
+    fn apply(&self, egraph: &mut EGraph<L, M>, mapping: &WildMap) -> Vec<AddResult>;
+}
+
+impl<L: Language, M: Metadata<L>> Applier<L, M> for Pattern<L> {
+    fn apply(&self, egraph: &mut EGraph<L, M>, mapping: &WildMap) -> Vec<AddResult> {
+        trace!("apply_rec {:2?} {:?}", self, mapping);
+
+        let result = match &self {
+            Pattern::Wildcard(w, kind) => mapping
+                .get(&w, *kind)
+                .unwrap()
+                .iter()
+                .map(|&id| AddResult {
+                    was_there: true,
+                    id,
+                })
+                .collect(),
+            Pattern::Expr(e) => {
+                // use the `was_there` field to keep track if we
+                // ever added anything to the egraph during this
+                // application
+                let mut everything_was_there = true;
+                let children = e
+                    .children
+                    .iter()
+                    .flat_map(|child| child.apply(egraph, mapping))
+                    .map(|result| {
+                        everything_was_there &= result.was_there;
+                        result.id
+                    })
+                    .collect();
+                let n = Expr::new(e.op.clone(), children);
+                trace!("adding: {:?}", n);
+                let mut op_add = egraph.add(n);
+                op_add.was_there &= everything_was_there;
+                vec![op_add]
+            }
+        };
+
+        trace!("result: {:?}", result);
+        result
+    }
+}
+
+// pub struct FnApplier<F, L, M> {
+//     f: F,
+//     l: std::marker::PhantomData<L>,
+//     m: std::marker::PhantomData<M>,
+// }
+
+// impl<F, L, M> FnApplier<F, L, M> {
+//     pub fn new(f: F) -> Self {
+//         Self {
+//             f,
+//             l: std::marker::PhantomData,
+//             m: std::marker::PhantomData,
+//         }
+//     }
+// }
+
+// impl<F, L, M> fmt::Debug for FnApplier<F, L, M> {
+//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+//         write!(f, "FnApplier")
+//     }
+// }
+
+// impl<F, L: Language, M: Metadata<L>> Applier<L, M> for FnApplier<F, L, M>
+// where
+//     F: Fn(&mut EGraph<L, M>, &WildMap) -> Vec<AddResult>,
+// {
+//     fn apply(&self, egraph: &mut EGraph<L, M>, mapping: &WildMap) -> Vec<AddResult> {
+//         (self.f)(egraph, mapping)
+//     }
+// }
+
+#[derive(Clone)]
+pub struct Rewrite<L: Language, M: Metadata<L>> {
     pub name: String,
     pub lhs: Pattern<L>,
-    pub rhs: Pattern<L>,
+    pub applier: Rc<dyn Applier<L, M>>,
     pub conditions: Vec<Condition<L>>,
 }
 
-impl<L: Language> Rewrite<L> {
-    pub fn is_bound(&self) -> bool {
-        let mut bound = IndexSet::new();
-        self.lhs.insert_wildcards(&mut bound);
-        self.rhs.is_bound(&bound)
-            && self
-                .conditions
-                .iter()
-                .all(|cond| cond.lhs.is_bound(&bound) && cond.rhs.is_bound(&bound))
+impl<L: Language, M: Metadata<L>> fmt::Debug for Rewrite<L, M> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Rewrite {}", self.name)
     }
+}
 
-    pub fn flip(&self) -> Self {
-        // flip doesn't make sense for conditional rewrites
-        assert_eq!(self.conditions, vec![]);
+impl<L: Language, M: Metadata<L>> Rewrite<L, M> {
+    pub fn simple_rewrite(name: String, lhs: Pattern<L>, rhs: Pattern<L>) -> Rewrite<L, M> {
+        let mut bound = IndexSet::new();
+        lhs.insert_wildcards(&mut bound);
+        assert!(rhs.is_bound(&bound));
+
         Rewrite {
-            name: format!("{}-flipped", self.name),
-            lhs: self.rhs.clone(),
-            rhs: self.lhs.clone(),
-            conditions: self.conditions.clone(),
+            name,
+            lhs,
+            applier: Rc::new(rhs),
+            conditions: vec![],
         }
     }
 
-    pub fn run<M: Metadata<L>>(&self, egraph: &mut EGraph<L, M>) -> Vec<Id> {
+    pub fn run(&self, egraph: &mut EGraph<L, M>) -> Vec<Id> {
         let start = Instant::now();
 
         let matches = self.search(egraph);
@@ -147,21 +233,59 @@ impl<L: Language> Rewrite<L> {
         ids
     }
 
-    pub fn search<M>(&self, egraph: &EGraph<L, M>) -> RewriteMatches<L> {
+    pub fn search(&self, egraph: &EGraph<L, M>) -> RewriteMatches<L, M> {
         RewriteMatches {
             rewrite: self,
             matches: self.lhs.search(egraph),
         }
     }
+
+    fn apply(
+        &self,
+        egraph: &mut EGraph<L, M>,
+        matches: &PatternMatches,
+        size_limit: usize,
+    ) -> Vec<Id> {
+        assert_ne!(matches.mappings.len(), 0);
+        let mut applications = Vec::new();
+        for mapping in &matches.mappings {
+            let before_size = egraph.total_size();
+            if before_size > size_limit {
+                break;
+            }
+
+            if self.conditions.iter().all(|c| c.check(egraph, mapping)) {
+                for pattern_root in self.applier.apply(egraph, mapping) {
+                    let leader = egraph.union(matches.eclass, pattern_root.id);
+                    if !pattern_root.was_there {
+                        applications.push(leader);
+                    } else {
+                        // if the pattern root `was_there`, then nothing
+                        // was actually done in this application (it was
+                        // already in the egraph), so we can check to make
+                        // sure the egraph isn't any bigger
+                        let after_size = egraph.total_size();
+                        assert_eq!(before_size, after_size);
+                    }
+                }
+            }
+        }
+        applications
+    }
+}
+#[derive(Debug)]
+pub struct PatternMatches {
+    pub eclass: Id,
+    pub mappings: Vec<WildMap>,
 }
 
 #[derive(Debug)]
-pub struct RewriteMatches<'a, L: Language> {
-    pub rewrite: &'a Rewrite<L>,
-    matches: Vec<PatternMatches<L>>,
+pub struct RewriteMatches<'a, L: Language, M: Metadata<L>> {
+    pub rewrite: &'a Rewrite<L, M>,
+    matches: Vec<PatternMatches>,
 }
 
-impl<'a, L: Language> RewriteMatches<'a, L> {
+impl<'a, L: Language, M: Metadata<L>> RewriteMatches<'a, L, M> {
     pub fn is_empty(&self) -> bool {
         self.matches.iter().all(|m| m.mappings.is_empty())
     }
@@ -170,31 +294,20 @@ impl<'a, L: Language> RewriteMatches<'a, L> {
         self.matches.iter().map(|m| m.mappings.len()).sum()
     }
 
-    pub fn apply_with_limit<M: Metadata<L>>(
-        &self,
-        egraph: &mut EGraph<L, M>,
-        size_limit: usize,
-    ) -> Vec<Id> {
+    pub fn apply_with_limit(&self, egraph: &mut EGraph<L, M>, size_limit: usize) -> Vec<Id> {
         self.matches
             .iter()
-            .flat_map(|m| {
-                m.apply_conditionally_with_limit(
-                    &self.rewrite.rhs,
-                    egraph,
-                    &self.rewrite.conditions,
-                    size_limit,
-                )
-            })
+            .flat_map(|m| self.rewrite.apply(egraph, m, size_limit))
             .collect()
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct WildMap<L: Language> {
-    vec: SmallVec<[(L::Wildcard, Id); 2]>,
+pub struct WildMap {
+    vec: SmallVec<[(QuestionMarkName, WildcardKind, Vec<Id>); 2]>,
 }
 
-impl<L: Language> Default for WildMap<L> {
+impl Default for WildMap {
     fn default() -> Self {
         Self {
             vec: Default::default(),
@@ -202,40 +315,56 @@ impl<L: Language> Default for WildMap<L> {
     }
 }
 
-impl<L: Language> WildMap<L> {
-    fn insert(&mut self, w: L::Wildcard, id: Id) -> Option<Id> {
-        if let Some(old) = self.get(&w) {
-            return Some(old);
+impl WildMap {
+    fn insert(&mut self, w: QuestionMarkName, kind: WildcardKind, ids: Vec<Id>) -> Option<&[Id]> {
+        // HACK double get is annoying here but you need it for lifetime reasons
+        if self.get(&w, kind).is_some() {
+            self.get(&w, kind)
+        } else {
+            self.vec.push((w, kind, ids));
+            None
         }
-        self.vec.push((w, id));
-        None
     }
-
-    fn get(&self, w: &L::Wildcard) -> Option<Id> {
-        for (w2, id2) in &self.vec {
+    fn get(&self, w: &QuestionMarkName, kind: WildcardKind) -> Option<&[Id]> {
+        for (w2, kind2, ids2) in &self.vec {
             if w == w2 {
-                return Some(*id2);
+                assert_eq!(kind, *kind2);
+                return Some(&ids2);
             }
         }
         None
     }
 }
 
+impl<'a> std::ops::Index<&'a QuestionMarkName> for WildMap {
+    type Output = [Id];
+    fn index(&self, q: &QuestionMarkName) -> &Self::Output {
+        for (w2, _kind, ids2) in &self.vec {
+            if q == w2 {
+                return &ids2;
+            }
+        }
+        panic!()
+    }
+}
+
 impl<L: Language> Pattern<L> {
-    pub fn search<M>(&self, egraph: &EGraph<L, M>) -> Vec<PatternMatches<L>> {
+    pub fn search<M>(&self, egraph: &EGraph<L, M>) -> Vec<PatternMatches> {
         egraph
             .classes()
             .filter_map(|class| self.search_eclass(egraph, class.id))
             .collect()
     }
 
-    pub fn search_eclass<M>(&self, egraph: &EGraph<L, M>, eclass: Id) -> Option<PatternMatches<L>> {
+    pub fn search_eclass<M>(&self, egraph: &EGraph<L, M>, eclass: Id) -> Option<PatternMatches> {
         let mappings = self.search_pat(0, egraph, eclass);
         if !mappings.is_empty() {
-            Some(PatternMatches {
+            let res = PatternMatches {
                 eclass,
                 mappings: mappings.into_vec(),
-            })
+            };
+            trace!("Found matches for {:?}: {:?}", self, res);
+            Some(res)
         } else {
             None
         }
@@ -246,11 +375,12 @@ impl<L: Language> Pattern<L> {
         depth: usize,
         egraph: &EGraph<L, M>,
         eclass: Id,
-    ) -> SmallVec<[WildMap<L>; 1]> {
+    ) -> SmallVec<[WildMap; 1]> {
         let pat_expr = match self {
-            Pattern::Wildcard(w) => {
+            Pattern::Wildcard(w, kind) => {
+                assert_eq!(*kind, WildcardKind::Single);
                 let mut var_mapping = WildMap::default();
-                let was_there = var_mapping.insert(w.clone(), eclass);
+                let was_there = var_mapping.insert(w.clone(), *kind, vec![eclass]);
                 assert_eq!(was_there, None);
 
                 return smallvec![var_mapping];
@@ -260,178 +390,88 @@ impl<L: Language> Pattern<L> {
 
         let mut new_mappings = SmallVec::new();
 
-        use Expr::*;
-        match pat_expr.as_ref() {
-            Variable(pv) => {
-                for e in egraph[eclass].iter() {
-                    if let Variable(ev) = e {
-                        if ev == pv {
-                            new_mappings.push(WildMap::default());
-                            break;
-                        }
-                    }
+        if pat_expr.children.is_empty() {
+            for e in egraph[eclass].iter() {
+                if e.children.is_empty() && pat_expr.op == e.op {
+                    new_mappings.push(WildMap::default());
+                    break;
                 }
             }
-            Constant(pc) => {
-                for e in egraph[eclass].iter() {
-                    if let Constant(ec) = e {
-                        if ec == pc {
-                            new_mappings.push(WildMap::default());
-                            break;
-                        }
+        } else {
+            for e in egraph[eclass].iter().filter(|e| e.op == pat_expr.op) {
+                let n_multi = pat_expr
+                    .children
+                    .iter()
+                    .filter(|p| p.is_multi_wildcard())
+                    .count();
+                let (range, multi_mapping) = if n_multi > 0 {
+                    assert_eq!(n_multi, 1, "Patterns can only have one multi match");
+                    let (position, q) = pat_expr
+                        .children
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(i, p)| match p {
+                            Pattern::Wildcard(q, WildcardKind::ZeroOrMore) => Some((i, q)),
+                            Pattern::Wildcard(_, WildcardKind::Single) => None,
+                            Pattern::Expr(_) => None,
+                        })
+                        .next()
+                        .unwrap();
+                    assert_eq!(
+                        position,
+                        pat_expr.children.len() - 1,
+                        "Multi matches must be in the tail position for now"
+                    );
+
+                    // if the pattern is more than one longer, then we
+                    // can't match the multi matcher
+                    let len = pat_expr.children.len();
+                    if len - 1 > e.children.len() {
+                        continue;
                     }
+                    let ids = e.children[len - 1..].to_vec();
+                    (
+                        (0..len - 1),
+                        Some((q.clone(), WildcardKind::ZeroOrMore, ids)),
+                    )
+                } else {
+                    let len = pat_expr.children.len();
+                    if len != e.children.len() {
+                        continue;
+                    }
+                    ((0..len), None)
+                };
+
+                let mut arg_mappings: Vec<_> = pat_expr.children[range]
+                    .iter()
+                    .zip(&e.children)
+                    .map(|(pa, ea)| pa.search_pat(depth + 1, egraph, *ea))
+                    .collect();
+
+                if let Some((q, kind, ids)) = multi_mapping {
+                    let mut m = WildMap::default();
+                    m.vec.push((q, kind, ids));
+                    arg_mappings.push(smallvec![m]);
                 }
-            }
-            Operator(po, pargs) => {
-                for e in egraph[eclass].iter() {
-                    if let Operator(eo, eargs) = e {
-                        if po != eo {
-                            continue;
-                        }
-                        if pat_expr.children().len() != e.children().len() {
-                            debug!(
-                                concat!(
-                                    "Different length children in pattern and expr\n",
-                                    "  exp: {:?}\n",
-                                    "  pat: {:?}"
-                                ),
-                                pat_expr, e
-                            );
-                            continue;
-                        }
 
-                        let arg_mappings: Vec<_> = pargs
-                            .iter()
-                            .zip(eargs)
-                            .map(|(pa, ea)| pa.search_pat(depth + 1, egraph, *ea))
-                            .collect();
-
-                        'outer: for ms in arg_mappings.iter().multi_cartesian_product() {
-                            let mut combined = ms[0].clone();
-                            for m in &ms[1..] {
-                                for (w, id) in &m.vec {
-                                    if let Some(old_id) = combined.insert(w.clone(), *id) {
-                                        if old_id != *id {
-                                            continue 'outer;
-                                        }
-                                    }
+                'outer: for ms in arg_mappings.iter().multi_cartesian_product() {
+                    let mut combined = ms[0].clone();
+                    for m in &ms[1..] {
+                        for (w, kind, ids) in &m.vec {
+                            if let Some(old_ids) = combined.insert(w.clone(), *kind, ids.clone()) {
+                                if old_ids != ids.as_slice() {
+                                    continue 'outer;
                                 }
                             }
-                            new_mappings.push(combined)
                         }
                     }
+                    new_mappings.push(combined)
                 }
             }
         }
 
+        trace!("new_mapping for {:?}: {:?}", pat_expr, new_mappings);
         new_mappings
-    }
-}
-
-#[derive(Debug)]
-pub struct PatternMatches<L: Language> {
-    pub eclass: Id,
-    pub mappings: Vec<WildMap<L>>,
-}
-
-impl<L: Language> PatternMatches<L> {
-    #[deprecated(
-        since = "0.0.3",
-        note = "This unconditionally applies match. Use the `Rewrite` api instead."
-    )]
-    pub fn apply<M: Metadata<L>>(
-        &self,
-        pattern: &Pattern<L>,
-        egraph: &mut EGraph<L, M>,
-    ) -> Vec<Id> {
-        let conditions = vec![];
-        self.apply_conditionally_with_limit(pattern, egraph, &conditions, std::usize::MAX)
-    }
-
-    #[deprecated(
-        since = "0.0.3",
-        note = "This unconditionally applies match. Use the `Rewrite` api instead."
-    )]
-    pub fn apply_with_limit<M: Metadata<L>>(
-        &self,
-        pattern: &Pattern<L>,
-        egraph: &mut EGraph<L, M>,
-        size_limit: usize,
-    ) -> Vec<Id> {
-        let conditions = vec![];
-        self.apply_conditionally_with_limit(pattern, egraph, &conditions, size_limit)
-    }
-
-    fn apply_conditionally_with_limit<M: Metadata<L>>(
-        &self,
-        pattern: &Pattern<L>,
-        egraph: &mut EGraph<L, M>,
-        conditions: &[Condition<L>],
-        size_limit: usize,
-    ) -> Vec<Id> {
-        assert_ne!(self.mappings.len(), 0);
-        let mut applications = Vec::new();
-        for mapping in &self.mappings {
-            let before_size = egraph.total_size();
-            if before_size > size_limit {
-                break;
-            }
-
-            if conditions.iter().all(|c| c.check(egraph, mapping)) {
-                let pattern_root = self.apply_rec(0, pattern, egraph, mapping);
-                let leader = egraph.union(self.eclass, pattern_root.id);
-                if !pattern_root.was_there {
-                    applications.push(leader);
-                } else {
-                    // if the pattern root `was_there`, then nothing
-                    // was actually done in this application (it was
-                    // already in the egraph), so we can check to make
-                    // sure the egraph isn't any bigger
-                    let after_size = egraph.total_size();
-                    assert_eq!(before_size, after_size);
-                }
-            }
-        }
-        applications
-    }
-
-    fn apply_rec<M: Metadata<L>>(
-        &self,
-        depth: usize,
-        pattern: &Pattern<L>,
-        egraph: &mut EGraph<L, M>,
-        mapping: &WildMap<L>,
-    ) -> AddResult {
-        trace!("{}apply_rec {:2?}", "    ".repeat(depth), pattern);
-
-        let result = match pattern {
-            Pattern::Wildcard(w) => AddResult {
-                was_there: true,
-                id: mapping.get(&w).unwrap(),
-            },
-            Pattern::Expr(e) => match e.as_ref() {
-                Expr::Constant(c) => egraph.add(Expr::Constant(c.clone())),
-                Expr::Variable(v) => egraph.add(Expr::Variable(v.clone())),
-                Expr::Operator(_, _) => {
-                    // use the `was_there` field to keep track if we
-                    // ever added anything to the egraph during this
-                    // application
-                    let mut everything_was_there = true;
-                    let n = e.clone().map_children(|arg| {
-                        let add = self.apply_rec(depth + 1, &arg, egraph, mapping);
-                        everything_was_there &= add.was_there;
-                        add.id
-                    });
-                    trace!("{}adding: {:?}", "    ".repeat(depth), n);
-                    let mut op_add = egraph.add(n);
-                    op_add.was_there &= everything_was_there;
-                    op_add
-                }
-            },
-        };
-
-        trace!("{}result: {:?}", "    ".repeat(depth), result);
-        result
     }
 }
 
@@ -444,6 +484,10 @@ mod tests {
         tests::{op, var, TestLang},
         QuestionMarkName,
     };
+
+    fn wc<L: Language>(name: &QuestionMarkName) -> Pattern<L> {
+        Pattern::Wildcard(name.clone(), WildcardKind::Single)
+    }
 
     #[test]
     fn simple_match() {
@@ -464,20 +508,12 @@ mod tests {
         let a: QuestionMarkName = "?a".parse().unwrap();
         let b: QuestionMarkName = "?b".parse().unwrap();
 
-        let commute_plus = crate::pattern::Rewrite {
-            name: "commute_plus".into(),
-            lhs: Pattern::Expr(op(
-                "+",
-                vec![Pattern::Wildcard(a.clone()), Pattern::Wildcard(b.clone())],
-            )),
-            rhs: Pattern::Expr(op(
-                "+",
-                vec![Pattern::Wildcard(b.clone()), Pattern::Wildcard(a.clone())],
-            )),
-            conditions: vec![],
-        };
+        let commute_plus = Rewrite::simple_rewrite(
+            "commute_plus".into(),
+            Pattern::Expr(op("+", vec![wc(&a), wc(&b)])),
+            Pattern::Expr(op("+", vec![wc(&b), wc(&a)])),
+        );
 
-        // let eclass = egraph.find(plus);
         let matches = commute_plus.search(&egraph);
         assert_eq!(matches.len(), 2);
 
@@ -487,12 +523,13 @@ mod tests {
 
         let wm = |pairs: &[_]| WildMap { vec: pairs.into() };
 
+        use WildcardKind::Single;
         let expected_mappings = vec![
-            wm(&[(a.clone(), x), (b.clone(), y)]),
-            wm(&[(a.clone(), z), (b.clone(), w)]),
+            wm(&[(a.clone(), Single, vec![x]), (b.clone(), Single, vec![y])]),
+            wm(&[(a.clone(), Single, vec![z]), (b.clone(), Single, vec![w])]),
         ];
 
-        let actual_mappings: Vec<WildMap<_>> = matches
+        let actual_mappings: Vec<WildMap> = matches
             .matches
             .iter()
             .flat_map(|m| m.mappings.clone())
@@ -526,7 +563,7 @@ mod tests {
         let mut egraph = EGraph::<TestLang, ()>::default();
 
         let x = egraph.add(var("x")).id;
-        let y = egraph.add(Expr::Constant(2)).id;
+        let y = egraph.add(var("2")).id;
         let mul = egraph.add(op("*", vec![x, y])).id;
 
         let true_pat = Pattern::Expr(op("TRUE", vec![]));
@@ -537,19 +574,16 @@ mod tests {
 
         let mul_to_shift = crate::pattern::Rewrite {
             name: "mul_to_shift".into(),
-            lhs: Pattern::Expr(op(
-                "*",
-                vec![Pattern::Wildcard(a.clone()), Pattern::Wildcard(b.clone())],
-            )),
-            rhs: Pattern::Expr(op(
-                ">>",
-                vec![
-                    Pattern::Wildcard(a.clone()),
-                    Pattern::Expr(op("log2", vec![Pattern::Wildcard(b.clone())])),
-                ],
-            )),
+            lhs: Pattern::Expr(op("*", vec![wc(&a), wc(&b)])),
+            applier: {
+                let pattern = Pattern::Expr(op(
+                    ">>",
+                    vec![wc(&a), Pattern::Expr(op("log2", vec![wc(&b)]))],
+                ));
+                Rc::new(pattern)
+            },
             conditions: vec![Condition {
-                lhs: Pattern::Expr(op("is-power2", vec![Pattern::Wildcard(b.clone())])),
+                lhs: Pattern::Expr(op("is-power2", vec![wc(&b)])),
                 rhs: true_pat,
             }],
         };
@@ -567,5 +601,48 @@ mod tests {
         egraph.rebuild();
         let apps = mul_to_shift.run(&mut egraph);
         assert_eq!(apps, vec![mul]);
+    }
+
+    #[test]
+    fn fn_rewrite() {
+        crate::init_logger();
+        use crate::parse::ParsableLanguage;
+
+        let mut egraph = EGraph::<TestLang, ()>::default();
+
+        let start = TestLang::parse_expr("(+ x y)").unwrap();
+        let goal = TestLang::parse_expr("xy").unwrap();
+
+        let root = egraph.add_expr(&start);
+
+        let a: QuestionMarkName = "?a".parse().unwrap();
+        let b: QuestionMarkName = "?b".parse().unwrap();
+
+        fn get(egraph: &EGraph<TestLang, ()>, id: Id) -> TestLang {
+            egraph[id].nodes[0].op.clone()
+        }
+
+        #[derive(Debug)]
+        struct Appender;
+        impl Applier<TestLang, ()> for Appender {
+            fn apply(&self, egraph: &mut EGraph<TestLang, ()>, map: &WildMap) -> Vec<AddResult> {
+                let a: QuestionMarkName = "?a".parse().unwrap();
+                let b: QuestionMarkName = "?b".parse().unwrap();
+                let a = get(&egraph, map[&a][0]);
+                let b = get(&egraph, map[&b][0]);
+                let s = format!("{}{}", a, b);
+                vec![egraph.add(var(&s))]
+            }
+        }
+
+        let rw = crate::pattern::Rewrite {
+            name: "fold_add".into(),
+            lhs: Pattern::Expr(op("+", vec![wc(&a), wc(&b)])),
+            applier: Rc::new(Appender),
+            conditions: vec![],
+        };
+
+        rw.run(&mut egraph);
+        assert_eq!(egraph.equivs(&start, &goal), vec![root]);
     }
 }

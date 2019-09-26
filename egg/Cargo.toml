@@ -1,6 +1,6 @@
 [package]
 name = "egg"
-version = "0.0.3"
+version = "0.0.4"
 authors = ["Max Willsey <me@mwillsey.com>"]
 edition = "2018"
 description = "An implementation of egraphs"
@@ -20,8 +20,6 @@ instant = "0.1"
 
 [dev-dependencies]
 env_logger = "0.6"
-strum = "0.15"
-strum_macros = "0.15"
 
 [features]
 parent-pointers = []

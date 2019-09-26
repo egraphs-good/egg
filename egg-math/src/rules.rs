@@ -1,17 +1,17 @@
 use indexmap::IndexMap;
 
 use crate::Math;
-use egg::{parse::ParsableLanguage, pattern::Rewrite};
+use egg::{egraph::Metadata, parse::ParsableLanguage, pattern::Rewrite};
 
-fn mk_rules(tuples: &[(&str, &str, &str)]) -> Vec<Rewrite<Math>> {
+fn mk_rules<M: Metadata<Math>>(tuples: &[(&str, &str, &str)]) -> Vec<Rewrite<Math, M>> {
     tuples
         .iter()
-        .map(|(name, left, right)| Math.parse_rewrite(name, left, right).unwrap())
+        .map(|(name, left, right)| Math::parse_rewrite(name, left, right).unwrap())
         .collect()
 }
 
 #[rustfmt::skip]
-pub fn rules() -> IndexMap<&'static str, Vec<Rewrite<Math>>> {
+pub fn rules<M: Metadata<Math>>() -> IndexMap<&'static str, Vec<Rewrite<Math, M>>> {
     let mut m = IndexMap::new();
     let mut add = |name, rules| {
         if m.contains_key(name) {
