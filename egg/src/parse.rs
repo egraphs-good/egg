@@ -6,7 +6,7 @@ use symbolic_expressions::{parser::parse_str, Sexp, SexpError};
 
 use crate::{
     expr::{Expr, Language, QuestionMarkName, RecExpr},
-    pattern::{Pattern, Rewrite},
+    pattern::{Pattern, Rewrite, WildcardKind},
 };
 
 #[derive(Debug, Clone)]
@@ -45,7 +45,14 @@ where
                 panic!("There's whitespace!")
             }
             s.parse::<QuestionMarkName>()
-                .map(Pattern::Wildcard)
+                .map(|q| {
+                    let kind = if q.as_ref().ends_with("...") {
+                        WildcardKind::ZeroOrMore
+                    } else {
+                        WildcardKind::Single
+                    };
+                    Pattern::Wildcard(q, kind)
+                })
                 .or_else(|_| s.parse().map(|t| Pattern::Expr(Box::new(Expr::unit(t)))))
                 .map_err(|_| ParseError(format!("Couldn't parse '{}'", s)))
         }
@@ -71,7 +78,7 @@ where
 
 pub fn pat_to_expr<L: Language>(pat: Pattern<L>) -> Result<RecExpr<L>> {
     match pat {
-        Pattern::Wildcard(w) => Err(ParseError(format!(
+        Pattern::Wildcard(w, _) => Err(ParseError(format!(
             "Found wildcard {:?} instead of expr term",
             w
         ))),
