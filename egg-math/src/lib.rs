@@ -1,9 +1,13 @@
 extern crate libc;
 
+use std::time::{Instant, Duration};
+use log::debug;
+
 use egg::{
     egraph::{EClass, EGraph},
     expr::{Expr, Language, Name, QuestionMarkName, RecExpr},
     parse::ParsableLanguage,
+    extract::{Extractor},
 };
 
 use ordered_float::NotNan;
@@ -14,27 +18,157 @@ pub type MathEGraph<M = Meta> = egg::egraph::EGraph<Math, M>;
 mod rules;
 pub use rules::rules;
 
-use std::ffi::CStr;
+use std::ffi::{CStr, CString};
 use std::mem::transmute;
 use std::os::raw::c_char;
 
+unsafe fn cstring_to_recexpr(c_string: *const c_char) -> Option<RecExpr<Math>> {
+    let bytes = CStr::from_ptr(c_string).to_bytes();
+    let string_result = std::str::from_utf8(bytes);
+    match string_result {
+        Ok(expr_string) =>
+        {
+            let parse_result = Math.parse_expr(expr_string);
+            match parse_result {
+                Ok(rec_expr) => Some(rec_expr),
+                Err(error) => None,
+            }
+        },
+        Err(error) => None,
+    }
+}
+
 // I had to add $(rustc --print sysroot)/lib to LD_LIBRARY_PATH to get linking to work after installing rust with rustup
 #[no_mangle]
-pub unsafe extern "C" fn create_egraph(expr: *const c_char) -> *mut EGraph<Math, ()> {
-    let bytes = CStr::from_ptr(expr).to_bytes();
-    let expr_string: &str = std::str::from_utf8(bytes).unwrap(); // make sure the bytes are UTF-8
-
-    let start_expr = Math.parse_expr(expr_string).unwrap();
-    let (egraph, _root) = EGraph::<Math, ()>::from_expr(&start_expr);
+pub unsafe extern "C" fn egraph_create(expr: *const c_char) -> *mut EGraph<Math, Meta> {
+    let egraph : EGraph<Math, Meta> = Default::default();
 
     Box::into_raw(Box::new(egraph))
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn destroy_egraph(ptr: *mut EGraph<Math, ()>) {
-    let _counter: Box<EGraph<Math, ()>> = transmute(ptr);
+pub unsafe extern "C" fn egraph_destroy(egraph_ptr: *mut EGraph<Math, Meta>) {
+    let _counter: Box<EGraph<Math, Meta>> = transmute(egraph_ptr);
     // Drop
 }
+
+// a struct to report failure if the add fails
+#[repr(C)]
+pub struct EGraphAddResult {
+    id: u32,
+    successp: bool,
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn egraph_add_expr(egraph_ptr: *mut EGraph<Math, Meta>, expr: *const c_char) -> *mut EGraphAddResult {
+    let mut egraph = &mut *egraph_ptr;
+    let parsed_expr = cstring_to_recexpr(expr);
+
+    let result = match parsed_expr {
+        Some(rec_expr) => EGraphAddResult{id: egraph.add_expr(&rec_expr),
+                                          successp: true},
+        None => EGraphAddResult{ id: 0,
+                                 successp: false},
+    };
+    Box::into_raw(Box::new(result))
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn egraph_run_rules(egraph_ptr: *mut EGraph<Math, Meta>, iters: u32, limit: u32) {
+    let mut egraph = &mut *egraph_ptr;
+    run_rules(egraph, iters, limit);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn egraph_get_simplest(egraph_ptr: *mut EGraph<Math, Meta>, node_id: u32) -> *const c_char {
+    let mut egraph = &mut *egraph_ptr;
+    let ext = Extractor::new(&egraph);
+    let best = ext.find_best(node_id);
+
+
+    let best_str = CString::new(best.expr.to_sexp().to_string()).unwrap();
+    let best_str_pointer = best_str.as_ptr();
+    std::mem::forget(best_str);
+    best_str_pointer
+}
+
+fn print_time(name: &str, duration: Duration) {
+    println!(
+        "{}: {}.{:06}",
+        name,
+        duration.as_secs(),
+        duration.subsec_micros()
+    );
+}
+
+fn run_rules(egraph: &mut EGraph<Math, Meta>, iters: u32, limit: u32)
+{
+    let rules = rules();
+    let start_time = Instant::now();
+
+    for i in 0..iters {
+        println!("\n\nIteration {}\n", i);
+
+        let search_time = Instant::now();
+
+        let mut applied = 0;
+        let mut total_matches = 0;
+        let mut last_total_matches = 0;
+        let mut matches = Vec::new();
+        for (_name, list) in rules.iter() {
+            for rule in list {
+                let ms = rule.search(&egraph);
+                if !ms.is_empty() {
+                    matches.push(ms);
+                }
+                // rule.run(&mut egraph);
+                // egraph.rebuild();
+            }
+        }
+
+        print_time("Search time", search_time.elapsed());
+
+        let match_time = Instant::now();
+
+        for m in matches {
+            let actually_matched = m.apply_with_limit(egraph, limit as usize);
+            if egraph.total_size() > limit as usize {
+                panic!("Node limit exceeded. {} > {}", egraph.total_size(), limit);
+            }
+
+            applied += actually_matched.len();
+            total_matches += m.len();
+
+            // log the growth of the egraph
+            if total_matches - last_total_matches > 1000 {
+                last_total_matches = total_matches;
+                let elapsed = match_time.elapsed();
+                debug!(
+                    "nodes: {}, eclasses: {}, actual: {}, total: {}, us per match: {}",
+                    egraph.total_size(),
+                    egraph.number_of_classes(),
+                    applied,
+                    total_matches,
+                    elapsed.as_micros() / total_matches as u128
+                );
+            }
+        }
+
+        print_time("Match time", match_time.elapsed());
+
+        let rebuild_time = Instant::now();
+        egraph.rebuild();
+        
+        print_time("Rebuild time", rebuild_time.elapsed());
+    }
+
+    println!("Final size {}", egraph.total_size());
+
+    let rules_time = start_time.elapsed();
+    print_time("Rules time", rules_time);
+
+}
+
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct Math;
