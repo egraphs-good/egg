@@ -38,15 +38,6 @@ fn associate_adds() {
     egraph.dump_dot("associate.dot");
 }
 
-fn print_time(name: &str, duration: Duration) {
-    println!(
-        "{}: {}.{:06}",
-        name,
-        duration.as_secs(),
-        duration.subsec_micros()
-    );
-}
-
 fn run_rules<M>(egraph: &mut EGraph<Math, M>, iters: usize, limit: usize) -> Duration
 where
     M: Metadata<Math>,
@@ -74,7 +65,7 @@ where
             }
         }
 
-        print_time("Search time", search_time.elapsed());
+        println!("Search time: {:.4}", search_time.elapsed().as_secs_f64());
 
         let match_time = Instant::now();
 
@@ -102,18 +93,18 @@ where
             }
         }
 
-        print_time("Match time", match_time.elapsed());
+        println!("Match time: {:.4}", match_time.elapsed().as_secs_f64());
 
         let rebuild_time = Instant::now();
         egraph.rebuild();
         // egraph.prune();
-        print_time("Rebuild time", rebuild_time.elapsed());
+        println!("Rebuild time: {:.4}", rebuild_time.elapsed().as_secs_f64());
     }
 
     println!("Final size {}", egraph.total_size());
 
     let rules_time = start_time.elapsed();
-    print_time("Rules time", rules_time);
+    println!("Rules time: {:.4}", rules_time.as_secs_f64());
 
     rules_time
 }
@@ -291,5 +282,5 @@ fn do_something() {
     );
     println!("Best ({}): {}", best.cost, best.expr.to_sexp());
 
-    print_time("Extract time", extract_time);
+    println!("Extract time: {:.4}", extract_time.as_secs_f64());
 }
