@@ -47,7 +47,7 @@ where
             s.parse::<QuestionMarkName>()
                 .map(Pattern::Wildcard)
                 .or_else(|_| s.parse().map(|t| Pattern::Expr(Box::new(Expr::unit(t)))))
-                .map_err(|_| ParseError("bad".into()))
+                .map_err(|_| ParseError(format!("Couldn't parse '{}'", s)))
         }
 
         Sexp::List(vec) => {
