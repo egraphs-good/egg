@@ -422,9 +422,6 @@ impl<L: Language> Pattern<L> {
                         pat_expr.children.len() - 1,
                         "Multi matches must be in the tail position for now"
                     );
-                    println!("Found a multi {:?}", q);
-                    println!("{:?}", pat_expr);
-                    println!("{:?}", e);
 
                     // if the pattern is more than one longer, then we
                     // can't match the multi matcher
@@ -433,7 +430,6 @@ impl<L: Language> Pattern<L> {
                         continue;
                     }
                     let ids = e.children[len - 1..].to_vec();
-                    println!("Binding to ids {:?}", ids);
                     (
                         (0..len - 1),
                         Some((q.clone(), WildcardKind::ZeroOrMore, ids)),
@@ -453,13 +449,9 @@ impl<L: Language> Pattern<L> {
                     .collect();
 
                 if let Some((q, kind, ids)) = multi_mapping {
-                    // assert!(combined.get(q).is_none());
-                    // combined.vec.push((q.clone(), *kind, ids.clone()));
-                    // println!("{:?}", combined);
                     let mut m = WildMap::default();
                     m.vec.push((q, kind, ids));
                     arg_mappings.push(smallvec![m]);
-                    println!("PUSHED to {:?}", arg_mappings);
                 }
 
                 'outer: for ms in arg_mappings.iter().multi_cartesian_product() {
