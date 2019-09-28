@@ -29,6 +29,7 @@ define_term! {
         Let = "let",
 
         Subst = "subst",
+        String(String),
     }
 }
 
@@ -37,6 +38,7 @@ impl Language for Lang {
         let mine = match self {
             Lang::Bool(_) => 1,
             Lang::Num(_) => 1,
+            Lang::String(_) => 1,
 
             Lang::Int => 1,
             Lang::Var => 2,
@@ -220,13 +222,13 @@ fn prove_something(start: &str, goals: &[&str]) {
 #[test]
 fn lambda_under() {
     prove_something(
-        "(lam 0 (+ (int 4)
-                   (app (lam 1 (var 1))
+        "(lam x (+ (int 4)
+                   (app (lam y (var y))
                         (int 4))))",
         &[
-            "(lam 0 (+ (int 4) (subst (int 4) 1 (var 1))))",
-            "(lam 0 (+ (int 4) (int 4)))",
-            "(lam 0 (int 8)))",
+            "(lam x (+ (int 4) (subst (int 4) y (var y))))",
+            "(lam x (+ (int 4) (int 4)))",
+            "(lam x (int 8)))",
         ],
     );
 }
@@ -234,12 +236,12 @@ fn lambda_under() {
 #[test]
 fn lambda_let_simple() {
     prove_something(
-        "(let 0 (int 0)
-         (let 1 (int 1)
-         (+ (var 0) (var 1))))",
+        "(let x (int 0)
+         (let y (int 1)
+         (+ (var x) (var y))))",
         &[
-            "(let 1 (int 1)
-             (+ (int 0) (var 1)))",
+            "(let y (int 1)
+             (+ (int 0) (var y)))",
             "(+ (int 0) (int 1))",
             "(int 1)",
         ],
@@ -249,16 +251,15 @@ fn lambda_let_simple() {
 #[test]
 fn lambda_compose() {
     prove_something(
-        "(let 8 (lam 0 (lam 1 (lam 2 (app (var 0)
-                                          (app (var 1) (var 2))))))
-         (let 9 (lam 4 (+ (var 4) (int 1)))
-         (app (app (var 8) (var 9))
-              (var 9))))",
+        "(let compose (lam f (lam g (lam x (app (var f)
+                                           (app (var g) (var x))))))
+         (let add1 (lam y (+ (var y) (int 1)))
+         (app (app (var compose) (var add1)) (var add1))))",
         &[
-            "(lam 2 (+ (int 1)
-                       (app (lam 4 (+ (int 1) (var 4)))
-                            (var 2))))",
-            "(lam 2 (+ (var 2) (int 2)))",
+            "(lam x (+ (int 1)
+                       (app (lam y (+ (int 1) (var y)))
+                            (var x))))",
+            "(lam x (+ (var x) (int 2)))",
         ],
     );
 }
