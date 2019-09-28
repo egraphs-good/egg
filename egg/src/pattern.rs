@@ -344,7 +344,7 @@ impl<'a> std::ops::Index<&'a QuestionMarkName> for WildMap {
                 return &ids2;
             }
         }
-        panic!()
+        panic!("Didn't find wildcard {}", q)
     }
 }
 
