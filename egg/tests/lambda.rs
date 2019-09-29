@@ -66,13 +66,6 @@ fn rules() -> Vec<Rewrite<Lang, Meta>> {
         rw("lam-let", "(app (lam ?v ?body) ?e)", "(let ?v ?e ?body)"),
 
         rw(
-            "subst-lam",
-            // NOTE this will capture if variables aren't unique
-            "(subst ?e ?v (lam ?var ?body))",
-            "(lam ?var (subst ?e ?v ?body))",
-        ),
-
-        rw(
             "subst-app",
             "(subst ?e ?v (app ?a ?b))",
             "(app (subst ?e ?v ?a) (subst ?e ?v ?b))",
@@ -108,9 +101,21 @@ fn rules() -> Vec<Rewrite<Lang, Meta>> {
             name: "var-subst".into(),
             lhs: Lang::parse_pattern("(subst ?e ?v1 (var ?v2))").unwrap(),
             applier: Rc::new(VarSubst {
+                e: "?e".parse().unwrap(),
                 v1: "?v1".parse().unwrap(),
                 v2: "?v2".parse().unwrap(),
+                body: None,
+            }),
+            conditions: vec![],
+        },
+        Rewrite {
+            name: "var-subst".into(),
+            lhs: Lang::parse_pattern("(subst ?e ?v1 (lam ?v2 ?body))",).unwrap(),
+            applier: Rc::new(VarSubst {
                 e: "?e".parse().unwrap(),
+                v1: "?v1".parse().unwrap(),
+                v2: "?v2".parse().unwrap(),
+                body: Some("?body".parse().unwrap()),
             }),
             conditions: vec![],
         }
@@ -119,9 +124,10 @@ fn rules() -> Vec<Rewrite<Lang, Meta>> {
 
 #[derive(Debug)]
 struct VarSubst {
+    e: QuestionMarkName,
     v1: QuestionMarkName,
     v2: QuestionMarkName,
-    e: QuestionMarkName,
+    body: Option<QuestionMarkName>,
 }
 
 impl Applier<Lang, Meta> for VarSubst {
@@ -129,14 +135,29 @@ impl Applier<Lang, Meta> for VarSubst {
         let v1 = map[&self.v1][0];
         let v2 = map[&self.v2][0];
         let e = map[&self.e][0];
-        vec![if v1 == v2 {
-            AddResult {
-                was_there: true,
-                id: e,
+
+        let res = if let Some(body) = &self.body {
+            let body = map[body][0];
+            // substituting in a lambda
+            if v1 == v2 {
+                egraph.add(Expr::new(Lang::Lambda, smallvec![v2, body]))
+            } else {
+                let sub_body = egraph.add(Expr::new(Lang::Subst, smallvec![e, v1, body]));
+                egraph.add(Expr::new(Lang::Lambda, smallvec![v2, sub_body.id]))
             }
         } else {
-            egraph.add(Expr::new(Lang::Var, smallvec![v2]))
-        }]
+            // substituting for a variable
+            if v1 == v2 {
+                AddResult {
+                    was_there: true,
+                    id: e,
+                }
+            } else {
+                egraph.add(Expr::new(Lang::Var, smallvec![v2]))
+            }
+        };
+
+        vec![res]
     }
 }
 
@@ -246,6 +267,12 @@ fn lambda_let_simple() {
             "(int 1)",
         ],
     );
+}
+
+#[test]
+#[should_panic(expected = "Couldn't prove goal 0")]
+fn lambda_capture() {
+    prove_something("(subst (int 1) x (lam x (var x)))", &["(lam x (int 1))"]);
 }
 
 #[test]
