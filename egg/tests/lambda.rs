@@ -270,14 +270,6 @@ fn prove_something(size_limit: usize, start: &str, goals: &[&str]) {
         egraph_size = new_size;
 
         for rw in &rules {
-            if rw.name == "fix" && i > 0 {
-                println!("Skipping {}", rw.name);
-                continue;
-            }
-            if rw.name.starts_with("subst") && i > 20 {
-                println!("Skipping {}", rw.name);
-                continue;
-            }
             let new = rw.run(&mut egraph).len();
             if new > 0 {
                 println!("Fired {} {} times", rw.name, new);
@@ -373,7 +365,6 @@ fn lambda_if() {
     );
 }
 
-// #[ignore]
 #[test]
 fn lambda_fib() {
     prove_something(
