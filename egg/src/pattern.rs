@@ -259,13 +259,6 @@ impl<L: Language, M: Metadata<L>> Rewrite<L, M> {
                     let leader = egraph.union(matches.eclass, pattern_root.id);
                     if !pattern_root.was_there {
                         applications.push(leader);
-                    } else {
-                        // if the pattern root `was_there`, then nothing
-                        // was actually done in this application (it was
-                        // already in the egraph), so we can check to make
-                        // sure the egraph isn't any bigger
-                        let after_size = egraph.total_size();
-                        assert_eq!(before_size, after_size);
                     }
                 }
             }
