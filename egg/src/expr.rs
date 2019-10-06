@@ -73,7 +73,7 @@ impl<L: Language + fmt::Display> RecExpr<L> {
                         }
                     }
                     pp(buf, val, width, level + 1)?;
-                    if i < list.len() - 1 {
+                    if !indent && i < list.len() - 1 {
                         write!(buf, " ")?;
                     }
                 }
