@@ -9,7 +9,6 @@ use egg::{
 
 use log::*;
 use smallvec::smallvec;
-use std::rc::Rc;
 
 type EGraph = egg::egraph::EGraph<Lang, Meta>;
 
@@ -139,28 +138,26 @@ fn rules() -> Vec<Rewrite<Lang, Meta>> {
         // equal by name, they never will be because names are
         // unique. Egg doesn't have a way for you to write inequality
         // contraints
-        Rewrite {
-            name: "var-subst".into(),
-            lhs: Lang::parse_pattern("(subst ?e ?v1 (var ?v2))").unwrap(),
-            applier: Rc::new(VarSubst {
+        Rewrite::new(
+            "var-subst",
+            Lang::parse_pattern("(subst ?e ?v1 (var ?v2))").unwrap(),
+            VarSubst {
                 e: "?e".parse().unwrap(),
                 v1: "?v1".parse().unwrap(),
                 v2: "?v2".parse().unwrap(),
                 body: None,
-            }),
-            conditions: vec![],
-        },
-        Rewrite {
-            name: "var-subst".into(),
-            lhs: Lang::parse_pattern("(subst ?e ?v1 (lam ?v2 ?body))",).unwrap(),
-            applier: Rc::new(VarSubst {
+            },
+        ),
+        Rewrite::new(
+            "var-subst",
+            Lang::parse_pattern("(subst ?e ?v1 (lam ?v2 ?body))",).unwrap(),
+            VarSubst {
                 e: "?e".parse().unwrap(),
                 v1: "?v1".parse().unwrap(),
                 v2: "?v2".parse().unwrap(),
                 body: Some("?body".parse().unwrap()),
-            }),
-            conditions: vec![],
-        }
+            },
+        )
     ]
 }
 
