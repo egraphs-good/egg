@@ -19,7 +19,7 @@ pub enum Pattern<L: Language> {
     Wildcard(QuestionMarkName, WildcardKind),
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone, Copy, Hash)]
 pub enum WildcardKind {
     Single,
     ZeroOrMore,
@@ -155,43 +155,14 @@ impl<L: Language, M: Metadata<L>> Applier<L, M> for Pattern<L> {
     }
 }
 
-// pub struct FnApplier<F, L, M> {
-//     f: F,
-//     l: std::marker::PhantomData<L>,
-//     m: std::marker::PhantomData<M>,
-// }
-
-// impl<F, L, M> FnApplier<F, L, M> {
-//     pub fn new(f: F) -> Self {
-//         Self {
-//             f,
-//             l: std::marker::PhantomData,
-//             m: std::marker::PhantomData,
-//         }
-//     }
-// }
-
-// impl<F, L, M> fmt::Debug for FnApplier<F, L, M> {
-//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-//         write!(f, "FnApplier")
-//     }
-// }
-
-// impl<F, L: Language, M: Metadata<L>> Applier<L, M> for FnApplier<F, L, M>
-// where
-//     F: Fn(&mut EGraph<L, M>, &WildMap) -> Vec<AddResult>,
-// {
-//     fn apply(&self, egraph: &mut EGraph<L, M>, mapping: &WildMap) -> Vec<AddResult> {
-//         (self.f)(egraph, mapping)
-//     }
-// }
-
 #[derive(Clone)]
 pub struct Rewrite<L: Language, M: Metadata<L>> {
     pub name: String,
     pub lhs: Pattern<L>,
     pub applier: Rc<dyn Applier<L, M>>,
     pub conditions: Vec<Condition<L>>,
+    // to make sure that users call the constructor
+    _hidden: (),
 }
 
 impl<L: Language, M: Metadata<L>> fmt::Debug for Rewrite<L, M> {
@@ -201,16 +172,27 @@ impl<L: Language, M: Metadata<L>> fmt::Debug for Rewrite<L, M> {
 }
 
 impl<L: Language, M: Metadata<L>> Rewrite<L, M> {
-    pub fn simple_rewrite(name: String, lhs: Pattern<L>, rhs: Pattern<L>) -> Rewrite<L, M> {
+    pub fn simple_rewrite(
+        name: impl Into<String>,
+        lhs: Pattern<L>,
+        rhs: Pattern<L>,
+    ) -> Rewrite<L, M> {
         let mut bound = IndexSet::new();
         lhs.insert_wildcards(&mut bound);
         assert!(rhs.is_bound(&bound));
+        Rewrite::new(name, lhs, rhs)
+    }
 
+    pub fn new<A>(name: impl Into<String>, lhs: Pattern<L>, applier: A) -> Rewrite<L, M>
+    where
+        A: Applier<L, M> + 'static,
+    {
         Rewrite {
-            name,
+            name: name.into(),
             lhs,
-            applier: Rc::new(rhs),
+            applier: Rc::new(applier),
             conditions: vec![],
+            _hidden: (),
         }
     }
 
@@ -295,7 +277,7 @@ impl<'a, L: Language, M: Metadata<L>> RewriteMatches<'a, L, M> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash)]
 pub struct WildMap {
     vec: SmallVec<[(QuestionMarkName, WildcardKind, Vec<Id>); 2]>,
 }
@@ -502,7 +484,7 @@ mod tests {
         let b: QuestionMarkName = "?b".parse().unwrap();
 
         let commute_plus = Rewrite::simple_rewrite(
-            "commute_plus".into(),
+            "commute_plus",
             Pattern::Expr(op("+", vec![wc(&a), wc(&b)])),
             Pattern::Expr(op("+", vec![wc(&b), wc(&a)])),
         );
@@ -565,21 +547,18 @@ mod tests {
         let a: QuestionMarkName = "?a".parse().unwrap();
         let b: QuestionMarkName = "?b".parse().unwrap();
 
-        let mul_to_shift = crate::pattern::Rewrite {
-            name: "mul_to_shift".into(),
-            lhs: Pattern::Expr(op("*", vec![wc(&a), wc(&b)])),
-            applier: {
-                let pattern = Pattern::Expr(op(
-                    ">>",
-                    vec![wc(&a), Pattern::Expr(op("log2", vec![wc(&b)]))],
-                ));
-                Rc::new(pattern)
-            },
-            conditions: vec![Condition {
-                lhs: Pattern::Expr(op("is-power2", vec![wc(&b)])),
-                rhs: true_pat,
-            }],
-        };
+        let mut mul_to_shift = Rewrite::simple_rewrite(
+            "mul_to_shift",
+            Pattern::Expr(op("*", vec![wc(&a), wc(&b)])),
+            Pattern::Expr(op(
+                ">>",
+                vec![wc(&a), Pattern::Expr(op("log2", vec![wc(&b)]))],
+            )),
+        );
+        mul_to_shift.conditions.push(Condition {
+            lhs: Pattern::Expr(op("is-power2", vec![wc(&b)])),
+            rhs: true_pat,
+        });
 
         info!("rewrite shouldn't do anything yet");
         egraph.rebuild();
@@ -628,12 +607,11 @@ mod tests {
             }
         }
 
-        let rw = crate::pattern::Rewrite {
-            name: "fold_add".into(),
-            lhs: Pattern::Expr(op("+", vec![wc(&a), wc(&b)])),
-            applier: Rc::new(Appender),
-            conditions: vec![],
-        };
+        let rw = Rewrite::new(
+            "fold_add",
+            Pattern::Expr(op("+", vec![wc(&a), wc(&b)])),
+            Appender,
+        );
 
         rw.run(&mut egraph);
         assert_eq!(egraph.equivs(&start, &goal), vec![root]);

@@ -109,7 +109,7 @@ where
         rhs: &str,
     ) -> Result<Rewrite<Self, M>> {
         Ok(Rewrite::simple_rewrite(
-            name.into(),
+            name,
             Self::parse_pattern(lhs)?,
             Self::parse_pattern(rhs)?,
         ))
