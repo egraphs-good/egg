@@ -1,7 +1,7 @@
 .PHONY:
 test: test-egg test-math test-web
 	cargo fmt -- --check
-	cd egg; cargo doc
+	cd egg; cargo doc --no-deps
 	cd egg; cargo deadlinks --dir ../target/doc/egg
 
 .PHONY: test-egg
