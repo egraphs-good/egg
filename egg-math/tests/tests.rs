@@ -72,7 +72,8 @@ where
         for m in matches {
             let actually_matched = m.apply_with_limit(egraph, limit);
             if egraph.total_size() > limit {
-                panic!("Node limit exceeded. {} > {}", egraph.total_size(), limit);
+                warn!("Node limit exceeded. {} > {}", egraph.total_size(), limit);
+                break;
             }
 
             applied += actually_matched.len();
