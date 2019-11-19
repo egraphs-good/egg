@@ -257,7 +257,7 @@ pub struct PatternMatches {
 #[derive(Debug)]
 pub struct RewriteMatches<'a, L: Language, M: Metadata<L>> {
     pub rewrite: &'a Rewrite<L, M>,
-    matches: Vec<PatternMatches>,
+    pub matches: Vec<PatternMatches>,
 }
 
 impl<'a, L: Language, M: Metadata<L>> RewriteMatches<'a, L, M> {

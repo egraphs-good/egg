@@ -1,16 +1,15 @@
 use crate::{
     egraph::{EClass, EGraph},
-    expr::{Expr, Id, Language, RecExpr},
+    expr::{Cost, Expr, Id, Language, RecExpr},
 };
+use std::cmp::Ordering;
 
 use indexmap::IndexMap;
 use log::*;
 
-pub type Cost = u64;
-
 fn cost_cse_rec<L: Language>(map: &mut IndexMap<RecExpr<L>, Cost>, expr: &RecExpr<L>) -> Cost {
     if map.contains_key(expr) {
-        return 1;
+        return 1.0;
     }
 
     let child_cost_expr = expr.as_ref().map_children(|e| cost_cse_rec(map, &e));
@@ -42,6 +41,16 @@ pub struct Extractor<'a, L: Language, M> {
     egraph: &'a EGraph<L, M>,
 }
 
+fn cmp(a: &Option<Cost>, b: &Option<Cost>) -> Ordering {
+    // None is high
+    match (a, b) {
+        (None, None) => Ordering::Equal,
+        (None, Some(_)) => Ordering::Greater,
+        (Some(_), None) => Ordering::Less,
+        (Some(a), Some(b)) => a.partial_cmp(&b).unwrap(),
+    }
+}
+
 impl<'a, L: Language, M> Extractor<'a, L, M> {
     pub fn new(egraph: &'a EGraph<L, M>) -> Self {
         let costs = IndexMap::default();
@@ -62,8 +71,11 @@ impl<'a, L: Language, M> Extractor<'a, L, M> {
 
         let best_node = self.egraph[eclass]
             .iter()
-            .filter(|n| self.node_total_cost(n).is_some())
-            .min_by_key(|n| self.node_total_cost(n))
+            .min_by(|a, b| {
+                let a = self.node_total_cost(a);
+                let b = self.node_total_cost(b);
+                cmp(&a, &b)
+            })
             .expect("eclass shouldn't be empty");
 
         best_node
@@ -101,6 +113,10 @@ impl<'a, L: Language, M> Extractor<'a, L, M> {
     }
 
     fn make_pass(&self, eclass: &EClass<L, M>) -> Option<Cost> {
-        eclass.iter().filter_map(|n| self.node_total_cost(n)).min()
+        eclass
+            .iter()
+            .map(|n| self.node_total_cost(n))
+            .min_by(cmp)
+            .unwrap()
     }
 }

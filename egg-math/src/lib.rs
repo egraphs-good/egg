@@ -1,7 +1,7 @@
 use egg::{
     define_term,
     egraph::EClass,
-    expr::{Expr, Language, Name, RecExpr},
+    expr::{Cost, Expr, Language, Name, RecExpr},
 };
 
 use ordered_float::NotNan;
@@ -55,7 +55,7 @@ define_term! {
 }
 
 impl Language for Math {
-    fn cost(&self, children: &[u64]) -> u64 {
+    fn cost(&self, children: &[Cost]) -> Cost {
         let cost = match self {
             Math::Constant(_) | Math::Variable(_) => 1,
             Math::Add => 40,
@@ -71,15 +71,15 @@ impl Language for Math {
             Math::RealToPosit => 0,
             Math::Expm1 => 70,
             Math::Log1p => 70,
-        };
+        } as Cost;
 
-        cost + children.iter().sum::<u64>()
+        cost + children.iter().sum::<Cost>()
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct Meta {
-    pub cost: u64,
+    pub cost: Cost,
     pub best: RecExpr<Math>,
 }
 

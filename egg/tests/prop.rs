@@ -1,7 +1,7 @@
 use egg::{
     define_term,
     egraph::{EClass, EGraph, Metadata},
-    expr::{Expr, Language, Name},
+    expr::{Cost, Expr, Language, Name},
     parse::ParsableLanguage,
     pattern::Rewrite,
 };
@@ -20,7 +20,7 @@ define_term! {
 }
 
 impl Language for Prop {
-    fn cost(&self, _children: &[u64]) -> u64 {
+    fn cost(&self, _children: &[Cost]) -> Cost {
         unimplemented!()
     }
 }

@@ -8,6 +8,7 @@ use symbolic_expressions::Sexp;
 use crate::unionfind::UnionFind;
 
 pub type Id = u32;
+pub type Cost = f64;
 
 pub type IdNode<L> = Expr<L, Id>;
 
@@ -130,8 +131,8 @@ impl<L: Language> Expr<L, Id> {
     }
 }
 
-impl<L: Language> Expr<L, u64> {
-    pub fn cost(&self) -> u64 {
+impl<L: Language> Expr<L, Cost> {
+    pub fn cost(&self) -> Cost {
         self.op.cost(&self.children)
     }
 }
@@ -146,7 +147,7 @@ impl<L: Language> Expr<L, u64> {
 ///
 /// [`TestLang`]: tests/struct.TestLang.html
 pub trait Language: Debug + PartialEq + Eq + Hash + Clone + 'static {
-    fn cost(&self, children: &[u64]) -> u64;
+    fn cost(&self, children: &[Cost]) -> Cost;
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
@@ -228,14 +229,14 @@ pub mod tests {
     }
 
     impl Language for TestLang {
-        fn cost(&self, children: &[u64]) -> u64 {
+        fn cost(&self, children: &[Cost]) -> Cost {
             let my_costs = match self.0.as_ref() {
-                "+" => 5,
-                "*" => 50,
-                "/" => 150,
-                _ => 10,
+                "+" => 5.0,
+                "*" => 50.0,
+                "/" => 150.0,
+                _ => 10.0,
             };
-            my_costs + children.iter().sum::<u64>()
+            my_costs + children.iter().sum::<f64>()
         }
     }
 

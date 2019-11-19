@@ -1,7 +1,7 @@
 use egg::{
     define_term,
     egraph::{AddResult, EClass, Metadata},
-    expr::{Expr, Language, QuestionMarkName},
+    expr::{Cost, Expr, Language, QuestionMarkName},
     extract::{calculate_cost, Extractor},
     parse::ParsableLanguage,
     pattern::{Applier, Rewrite, WildMap},
@@ -37,21 +37,21 @@ define_term! {
 }
 
 impl Language for Lang {
-    fn cost(&self, children: &[u64]) -> u64 {
+    fn cost(&self, children: &[Cost]) -> Cost {
         let mine = match self {
-            Lang::Bool(_) => 1,
-            Lang::Num(_) => 1,
-            Lang::String(_) => 1,
+            Lang::Bool(_) => 1.0,
+            Lang::Num(_) => 1.0,
+            Lang::String(_) => 1.0,
 
-            Lang::Int => 1,
-            Lang::Var => 2,
-            Lang::Let => 1,
-            Lang::App => 200,
+            Lang::Int => 1.0,
+            Lang::Var => 2.0,
+            Lang::Let => 1.0,
+            Lang::App => 200.0,
 
-            Lang::Subst => 1,
-            _ => 3,
+            Lang::Subst => 1.0,
+            _ => 3.0,
         };
-        mine + children.iter().sum::<u64>()
+        mine + children.iter().sum::<Cost>()
     }
 }
 

@@ -1,7 +1,7 @@
 use egg::{
     define_term,
     egraph::EGraph,
-    expr::{Language, Name},
+    expr::{Cost, Language, Name},
     parse::ParsableLanguage,
     pattern::Rewrite,
 };
@@ -18,7 +18,7 @@ define_term! {
 }
 
 impl Language for List {
-    fn cost(&self, _children: &[u64]) -> u64 {
+    fn cost(&self, _children: &[Cost]) -> Cost {
         unimplemented!()
     }
 }
