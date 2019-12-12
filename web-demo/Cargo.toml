@@ -12,10 +12,9 @@ categories = ["egg"]
 
 
 [dependencies]
-stdweb = "0.4.17"
-yew = "0.6"
+stdweb = "0.4"
+yew = "0.10.0"
+log = "0.4"
 
 egg = { path = "..", features = ["stdweb"] }
 egg-math = { path = "../egg-math" }
-
-log = "0.4"

@@ -1,4 +1,4 @@
-#![recursion_limit = "128"]
+#![recursion_limit = "512"]
 
 use stdweb::traits::IEvent;
 use stdweb::web::Date;
@@ -45,7 +45,7 @@ fn rewrite_groups() -> Vec<RewriteGroup> {
 }
 
 impl RewriteGroup {
-    fn view(&self, i: usize) -> Html<Model> {
+    fn render(&self, i: usize) -> Html<Model> {
         let applied: usize = self.rewrites.iter().map(|r| r.applied).sum();
         let matched: usize = self.rewrites.iter().map(|r| r.matched).sum();
         let percent = percent(applied, matched);
@@ -55,7 +55,7 @@ impl RewriteGroup {
                 <input type="checkbox", checked=self.enabled, onclick=|_| Msg::ToggleRewriteGroup(i),></input>
                 <details>
                     <summary> {counts} {" "} {&self.name} </summary>
-                    { for self.rewrites.iter().enumerate().map(|(j, r)| r.view(i, j)) }
+                    { for self.rewrites.iter().enumerate().map(|(j, r)| r.render(i, j)) }
                 </details>
             </div>
         }
@@ -89,7 +89,7 @@ impl OptionalRewrite {
 }
 
 impl OptionalRewrite {
-    fn view(&self, gi: usize, i: usize) -> Html<Model> {
+    fn render(&self, gi: usize, i: usize) -> Html<Model> {
         let percent = percent(self.applied, self.matched);
         let counts = format!("{}/{} ({:.0}%)", self.applied, self.matched, percent);
         html! {
@@ -111,7 +111,7 @@ struct Added {
 }
 
 impl Renderable<Model> for Added {
-    fn view(&self) -> Html<Model> {
+    fn render(&self) -> Html<Model> {
         html! { <tr> <td> {self.expr.to_sexp()} </td> <td> {self.id} </td> </tr> }
     }
 }
@@ -208,24 +208,7 @@ impl Component for Model {
         };
         true
     }
-}
 
-fn view_example(s: &'static str) -> Html<Model> {
-    html! { <div onclick=|_| Msg::AddExpr(s.to_string()),> {s} </div> }
-}
-
-fn view_eclass(eclass: &EClass<Math, Meta>) -> Html<Model> {
-    html! {
-        <details class="eclass",>
-            <summary> {eclass.id} </summary>
-            <p>{format!("Size: {}", eclass.len())}</p>
-            <p>{format!("Best: {}", eclass.metadata.best.to_sexp())}</p>
-            <p>{format!("Cost: {}", eclass.metadata.cost)}</p>
-        </details>
-    }
-}
-
-impl Renderable<Model> for Model {
     fn view(&self) -> Html<Self> {
         let query_message = match &self.query {
             Ok(q) => {
@@ -247,13 +230,13 @@ impl Renderable<Model> for Model {
                         <th> {"expr"} </th>
                         <th> {"eclass"} </th>
                     </tr>
-                    { for self.added.iter().map(Renderable::view) }
+                    { for self.added.iter().map(Renderable::render) }
                 </table>
             </section>
             <section id="examples",>
                 <h3> {"Examples"} </h3>
                 <div>
-                    { for self.examples.iter().cloned().map(view_example) }
+                    { for self.examples.iter().cloned().map(render_example) }
                 </div>
             </section>
             <section id="stats",>
@@ -262,17 +245,32 @@ impl Renderable<Model> for Model {
             </section>
             <section id="eclasses",>
                 <h3> {"EClasses"} </h3>
-                <div> { for self.egraph.classes().map(view_eclass) } </div>
+                <div> { for self.egraph.classes().map(render_eclass) } </div>
             </section>
             <section id="rewrites",>
                 <h3> {"Rewrites"} </h3>
                 <button onclick=|_| Msg::RunRewrites,>{"Run"}</button>
                 <div>
-                    { for self.rewrite_groups.iter().enumerate().map(|(i, g)| g.view(i)) }
+                    { for self.rewrite_groups.iter().enumerate().map(|(i, g)| g.render(i)) }
                 </div>
             </section>
         </div>
         }
+    }
+}
+
+fn render_example(s: &'static str) -> Html<Model> {
+    html! { <div onclick=|_| Msg::AddExpr(s.to_string()),> {s} </div> }
+}
+
+fn render_eclass(eclass: &EClass<Math, Meta>) -> Html<Model> {
+    html! {
+        <details class="eclass",>
+            <summary> {eclass.id} </summary>
+            <p>{format!("Size: {}", eclass.len())}</p>
+            <p>{format!("Best: {}", eclass.metadata.best.to_sexp())}</p>
+            <p>{format!("Cost: {}", eclass.metadata.cost)}</p>
+        </details>
     }
 }
 
