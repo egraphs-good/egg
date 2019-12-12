@@ -1,18 +1,18 @@
 .PHONY:
 test: test-egg test-math test-web
 	cargo fmt -- --check
-	cd egg; cargo doc --no-deps
-	cd egg; cargo deadlinks --dir ../target/doc/egg
+	cargo doc --no-deps
+	cargo deadlinks
 
 .PHONY: test-egg
 test-egg:
-	cd egg; cargo build
-	cd egg; cargo test
-	cd egg; cargo clippy --tests
+	cargo build
+	cargo test
+	cargo clippy --tests
 
-	cd egg; cargo build          --features "parent-pointers"
-	cd egg; cargo test           --features "parent-pointers"
-	cd egg; cargo clippy --tests --features "parent-pointers"
+	cargo build          --features "parent-pointers"
+	cargo test           --features "parent-pointers"
+	cargo clippy --tests --features "parent-pointers"
 
 .PHONY: test-math
 test-math:

@@ -5,7 +5,7 @@ authors = ["Max Willsey <me@mwillsey.com>"]
 edition = "2018"
 
 [dependencies]
-egg = { path = "../egg" }
+egg = { path = ".." }
 log = "0.4"
 indexmap = "1.1"
 

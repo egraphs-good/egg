@@ -15,7 +15,7 @@ categories = ["egg"]
 stdweb = "0.4.17"
 yew = "0.6"
 
-egg = { path = "../egg", features = ["stdweb"] }
+egg = { path = "..", features = ["stdweb"] }
 egg-math = { path = "../egg-math" }
 
 log = "0.4"
