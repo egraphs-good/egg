@@ -17,6 +17,7 @@ itertools = "0.8"
 smallvec = "0.6"
 indexmap = "1"
 instant = "0.1"
+rand = "0.7"
 
 [dev-dependencies]
 env_logger = "0.6"

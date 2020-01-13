@@ -7,6 +7,7 @@ use itertools::Itertools;
 use log::*;
 use smallvec::{smallvec, SmallVec};
 use symbolic_expressions::Sexp;
+use rand::seq::SliceRandom;
 
 use crate::{
     egraph::{AddResult, EGraph, Metadata},
@@ -272,6 +273,19 @@ impl<'a, L: Language, M: Metadata<L>> RewriteMatches<'a, L, M> {
     pub fn apply_with_limit(&self, egraph: &mut EGraph<L, M>, size_limit: usize) -> Vec<Id> {
         self.matches
             .iter()
+            .flat_map(|m| self.rewrite.apply(egraph, m, size_limit))
+            .collect()
+    }
+
+    pub fn apply_random<R: rand::Rng + ?Sized>(
+        &self,
+        egraph: &mut EGraph<L, M>,
+        size_limit: usize,
+        amount: usize,
+        rng: &mut R
+    ) -> Vec<Id> {
+        self.matches
+            .choose_multiple(rng, amount)
             .flat_map(|m| self.rewrite.apply(egraph, m, size_limit))
             .collect()
     }
