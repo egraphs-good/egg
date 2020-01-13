@@ -5,9 +5,9 @@ use indexmap::IndexSet;
 use instant::Instant;
 use itertools::Itertools;
 use log::*;
+use rand::seq::SliceRandom;
 use smallvec::{smallvec, SmallVec};
 use symbolic_expressions::Sexp;
-use rand::seq::SliceRandom;
 
 use crate::{
     egraph::{AddResult, EGraph, Metadata},
@@ -282,7 +282,7 @@ impl<'a, L: Language, M: Metadata<L>> RewriteMatches<'a, L, M> {
         egraph: &mut EGraph<L, M>,
         size_limit: usize,
         amount: usize,
-        rng: &mut R
+        rng: &mut R,
     ) -> Vec<Id> {
         self.matches
             .choose_multiple(rng, amount)
