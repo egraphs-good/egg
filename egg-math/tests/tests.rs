@@ -1,21 +1,18 @@
 use egg::{
-    egraph::{EGraph, Metadata},
     extract::{calculate_cost, Extractor},
     parse::ParsableLanguage,
     pattern::Pattern,
+    run::{Runner, SimpleRunner},
 };
-use log::*;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
-use egg_math::{Math, Meta};
+use egg_math::{EGraph, Math};
 
 #[test]
 fn associate_adds() {
     let _ = env_logger::builder().is_test(true).try_init();
     let start = "(+ 1 (+ 2 (+ 3 (+ 4 (+ 5 (+ 6 7))))))";
     let start_expr = Math::parse_expr(start).unwrap();
-
-    let (mut egraph, _root) = EGraph::<Math, ()>::from_expr(&start_expr);
 
     let rules = {
         let all = egg_math::rules();
@@ -25,89 +22,17 @@ fn associate_adds() {
         r
     };
 
-    for _ in 0..4 {
-        for rule in &rules {
-            rule.run(&mut egraph);
-            egraph.rebuild();
-        }
-    }
+    // Must specfify the () metadata so pruning doesn't mess us up here
+    let egraph: EGraph<()> = SimpleRunner::default()
+        .with_iter_limit(7)
+        .with_node_limit(8_000)
+        .run_expr(start_expr, &rules)
+        .0;
 
     // there are exactly 127 non-empty subsets of 7 things
     assert_eq!(egraph.number_of_classes(), 127);
 
     egraph.dump_dot("associate.dot");
-}
-
-fn run_rules<M>(egraph: &mut EGraph<Math, M>, iters: usize, limit: usize) -> Duration
-where
-    M: Metadata<Math>,
-{
-    let rules = egg_math::rules();
-    let start_time = Instant::now();
-
-    for i in 0..iters {
-        println!("\n\nIteration {}\n", i);
-
-        let search_time = Instant::now();
-
-        let mut applied = 0;
-        let mut total_matches = 0;
-        let mut last_total_matches = 0;
-        let mut matches = Vec::new();
-        for (_name, list) in rules.iter() {
-            for rule in list {
-                let ms = rule.search(&egraph);
-                if !ms.is_empty() {
-                    matches.push(ms);
-                }
-                // rule.run(&mut egraph);
-                // egraph.rebuild();
-            }
-        }
-
-        println!("Search time: {:.4}", search_time.elapsed().as_secs_f64());
-
-        let match_time = Instant::now();
-
-        for m in matches {
-            let actually_matched = m.apply_with_limit(egraph, limit);
-            if egraph.total_size() > limit {
-                warn!("Node limit exceeded. {} > {}", egraph.total_size(), limit);
-                break;
-            }
-
-            applied += actually_matched.len();
-            total_matches += m.len();
-
-            // log the growth of the egraph
-            if total_matches - last_total_matches > 1000 {
-                last_total_matches = total_matches;
-                let elapsed = match_time.elapsed();
-                debug!(
-                    "nodes: {}, eclasses: {}, actual: {}, total: {}, us per match: {}",
-                    egraph.total_size(),
-                    egraph.number_of_classes(),
-                    applied,
-                    total_matches,
-                    elapsed.as_micros() / total_matches as u128
-                );
-            }
-        }
-
-        println!("Match time: {:.4}", match_time.elapsed().as_secs_f64());
-
-        let rebuild_time = Instant::now();
-        egraph.rebuild();
-        // egraph.prune();
-        println!("Rebuild time: {:.4}", rebuild_time.elapsed().as_secs_f64());
-    }
-
-    println!("Final size {}", egraph.total_size());
-
-    let rules_time = start_time.elapsed();
-    println!("Rules time: {:.4}", rules_time.as_secs_f64());
-
-    rules_time
 }
 
 #[must_use]
@@ -124,8 +49,11 @@ impl CheckSimplify {
         let start_expr = Math::parse_expr(self.start).unwrap();
         let end_expr = Math::parse_expr(self.end).unwrap();
 
-        let (mut egraph, root) = EGraph::<Math, Meta>::from_expr(&start_expr);
-        run_rules(&mut egraph, self.iters, self.limit);
+        let (mut egraph, root) = EGraph::from_expr(&start_expr);
+        SimpleRunner::default()
+            .with_iter_limit(self.iters)
+            .with_node_limit(self.limit)
+            .run(&mut egraph, &egg_math::all_rules());
 
         let ext = Extractor::new(&egraph);
         let best = ext.find_best(root);
@@ -242,7 +170,7 @@ static EXP: &str = r#"
 fn do_something() {
     let _ = env_logger::builder().is_test(true).try_init();
     let start_expr = Math::parse_expr(EXP).unwrap();
-    let (mut egraph, root) = EGraph::<Math, Meta>::from_expr(&start_expr);
+    let (mut egraph, root) = EGraph::from_expr(&start_expr);
 
     let herbies_result = "(*
   (*
@@ -269,9 +197,12 @@ fn do_something() {
         other_expr.to_sexp()
     );
 
-    run_rules(&mut egraph, 3, 20_000);
-    let start_time = Instant::now();
+    SimpleRunner::default()
+        .with_iter_limit(3)
+        .with_node_limit(20_000)
+        .run(&mut egraph, &egg_math::all_rules());
 
+    let start_time = Instant::now();
     let ext = Extractor::new(&egraph);
     let best = ext.find_best(root);
     let extract_time = start_time.elapsed();

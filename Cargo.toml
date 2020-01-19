@@ -17,6 +17,7 @@ itertools = "0.8"
 smallvec = "0.6"
 indexmap = "1"
 instant = "0.1"
+serde = { version = "1", features = ["derive"], optional = true }
 
 [dev-dependencies]
 env_logger = "0.6"
@@ -24,6 +25,7 @@ env_logger = "0.6"
 [features]
 parent-pointers = []
 stdweb = [ "instant/stdweb" ]
+serde-1 = [ "serde", "indexmap/serde-1" ]
 
 [workspace]
 members = [

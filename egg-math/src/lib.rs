@@ -5,10 +5,18 @@ use egg::{
 };
 
 use ordered_float::NotNan;
-pub type MathEGraph<M = Meta> = egg::egraph::EGraph<Math, M>;
+pub type EGraph<M = Meta> = egg::egraph::EGraph<Math, M>;
+pub type Rewrite<M = Meta> = egg::rewrite::Rewrite<Math, M>;
 
 mod rules;
 pub use rules::rules;
+
+pub fn all_rules() -> Vec<Rewrite> {
+    crate::rules::rules()
+        .into_iter()
+        .flat_map(|(_, rs)| rs)
+        .collect()
+}
 
 type Constant = NotNan<f64>;
 

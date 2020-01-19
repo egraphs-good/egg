@@ -5,9 +5,8 @@ use std::str::FromStr;
 use symbolic_expressions::{parser::parse_str, Sexp, SexpError};
 
 use crate::{
-    egraph::Metadata,
     expr::{Expr, Language, QuestionMarkName, RecExpr},
-    pattern::{Pattern, Rewrite, WildcardKind},
+    pattern::{Pattern, WildcardKind},
 };
 
 #[derive(Debug, Clone)]
@@ -101,18 +100,6 @@ where
     fn parse_pattern(s: &str) -> Result<Pattern<Self>> {
         let sexp = parse_str(s.trim())?;
         parse_term(&sexp)
-    }
-
-    fn parse_rewrite<M: Metadata<Self>>(
-        name: &str,
-        lhs: &str,
-        rhs: &str,
-    ) -> Result<Rewrite<Self, M>> {
-        Ok(Rewrite::simple_rewrite(
-            name,
-            Self::parse_pattern(lhs)?,
-            Self::parse_pattern(rhs)?,
-        ))
     }
 
     fn parse_expr(s: &str) -> Result<RecExpr<Self>> {

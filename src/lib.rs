@@ -23,6 +23,8 @@ pub mod expr;
 pub mod extract;
 pub mod parse;
 pub mod pattern;
+pub mod rewrite;
+pub mod run;
 
 #[cfg(test)]
 fn init_logger() {

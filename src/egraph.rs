@@ -463,6 +463,24 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
         write!(file, "{}", dot).unwrap();
         trace!("Writing {}...\n{}", filename, dot);
     }
+
+    pub fn dump(&self) -> EGraphDump<L, M> {
+        EGraphDump(self)
+    }
+}
+
+pub struct EGraphDump<'a, L, M>(&'a EGraph<L, M>);
+
+impl<'a, L, M> Debug for EGraphDump<'a, L, M>
+where
+    L: Language,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for class in self.0.classes() {
+            writeln!(f, "{}: {:?}", class.id, class.nodes)?
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]

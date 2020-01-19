@@ -25,6 +25,18 @@ pub struct RecExpr<L> {
     rc: Rc<Inner<L>>,
 }
 
+#[cfg(feature = "serde-1")]
+impl<L: Language + fmt::Display> serde::Serialize for RecExpr<L> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        // 3 is the number of fields in the struct.
+        let s = self.pretty(80);
+        serializer.serialize_str(&s)
+    }
+}
+
 impl<L: Language> From<Inner<L>> for RecExpr<L> {
     fn from(inner: Inner<L>) -> Self {
         let rc = Rc::new(inner);
@@ -90,6 +102,26 @@ impl<L: Language + fmt::Display> RecExpr<L> {
         let mut buf = String::new();
         pp(&mut buf, &sexp, width, 1).unwrap();
         buf
+    }
+}
+
+impl<L: Language> RecExpr<L> {
+    pub fn ast_size(&self) -> usize {
+        1 + self
+            .as_ref()
+            .children
+            .iter()
+            .map(|c| c.ast_size())
+            .sum::<usize>()
+    }
+    pub fn ast_depth(&self) -> usize {
+        1 + self
+            .as_ref()
+            .children
+            .iter()
+            .map(|c| c.ast_depth())
+            .max()
+            .unwrap_or(0)
     }
 }
 

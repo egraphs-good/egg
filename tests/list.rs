@@ -1,11 +1,14 @@
 use egg::{
     define_term,
-    egraph::EGraph,
     expr::{Cost, Language, Name},
     parse::ParsableLanguage,
-    pattern::Rewrite,
+    rewrite::rw,
+    run::{Runner, SimpleRunner},
 };
 use log::*;
+
+type Meta = ();
+type Rewrite = egg::rewrite::Rewrite<List, Meta>;
 
 define_term! {
     #[derive(Debug, PartialEq, Eq, Hash, Clone)]
@@ -23,46 +26,26 @@ impl Language for List {
     }
 }
 
-macro_rules! rule {
-    ($name:ident, $left:expr, $right:expr) => {
-        #[allow(dead_code)]
-        fn $name() -> Rewrite<List, ()> {
-            trace!(
-                "Building rule {} ==> {}",
-                stringify!($left),
-                stringify!($right)
-            );
-            let rw = List::parse_rewrite(stringify!($name), $left, $right).unwrap();
-            println!(
-                "Rewrite {{
-  name: {},
-  lhs: {:?},
-  rhs: {:?},
-}}",
-                rw.name, rw.lhs, rw.applier
-            );
-            rw
-        }
-    };
+fn rules() -> Vec<Rewrite> {
+    vec![
+        rw("fold_nil").p("nil").a("list").mk(),
+        rw("fold_cons")
+            .p("(cons ?a (list ?tail...))")
+            .a("(list ?a ?tail...)")
+            .mk(),
+    ]
 }
 
-rule! {fold_nil, "nil", "list"}
-rule! {fold_cons, "(cons ?a (list ?tail...))", "(list ?a ?tail...)"}
-
-fn prove_something(start: &str, rewrites: &[Rewrite<List, ()>], goals: &[&str]) {
+fn prove_something(start: &str, rewrites: &[Rewrite], goals: &[&str]) {
     let _ = env_logger::builder().is_test(true).try_init();
 
     let start_expr = List::parse_expr(start).unwrap();
     let goal_exprs: Vec<_> = goals.iter().map(|g| List::parse_expr(g).unwrap()).collect();
 
-    let (mut egraph, _old_root) = EGraph::<List, ()>::from_expr(&start_expr);
-
-    for _ in 0..20 {
-        for rw in rewrites {
-            rw.run(&mut egraph);
-        }
-        egraph.rebuild();
-    }
+    let (egraph, _) = SimpleRunner::default()
+        .with_iter_limit(20)
+        .with_node_limit(5_000)
+        .run_expr(start_expr.clone(), rewrites);
 
     for (i, (goal_expr, goal_str)) in goal_exprs.iter().zip(goals).enumerate() {
         info!("Trying to prove goal {}: {}", i, goal_str);
@@ -75,10 +58,9 @@ fn prove_something(start: &str, rewrites: &[Rewrite<List, ()>], goals: &[&str]) 
 
 #[test]
 fn fold_em_up() {
-    let rules = &[fold_nil(), fold_cons()];
     prove_something(
         "(cons a (cons b (cons c nil)))",
-        rules,
+        &rules(),
         &[
             "(cons a (cons b (cons c list)))",
             "(cons a (cons b (list c)))",

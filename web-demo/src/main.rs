@@ -9,18 +9,18 @@ use egg::{
     egraph::EClass,
     expr::{Id, RecExpr},
     parse::{pat_to_expr, ParsableLanguage},
-    pattern::{Pattern, PatternMatches, Rewrite},
+    pattern::{EClassMatches, Pattern},
 };
 use egg_math::*;
 
 struct Queried {
     pattern: Pattern<Math>,
-    matches: Vec<PatternMatches>,
+    matches: Vec<EClassMatches>,
 }
 
 struct Model {
     console: ConsoleService,
-    egraph: MathEGraph,
+    egraph: EGraph,
     query: Result<Queried, String>,
     added: Vec<Added>,
     examples: Vec<&'static str>,
@@ -66,7 +66,7 @@ struct OptionalRewrite {
     applied: usize,
     matched: usize,
     enabled: bool,
-    rewrite: Rewrite<Math, Meta>,
+    rewrite: Rewrite,
 }
 
 fn percent(a: usize, b: usize) -> f64 {
@@ -78,7 +78,7 @@ fn percent(a: usize, b: usize) -> f64 {
 }
 
 impl OptionalRewrite {
-    fn new(rewrite: Rewrite<Math, Meta>) -> Self {
+    fn new(rewrite: Rewrite) -> Self {
         Self {
             applied: 0,
             matched: 0,
@@ -97,8 +97,8 @@ impl OptionalRewrite {
                 <input type="checkbox", checked=self.enabled, onclick=|_| Msg::ToggleRewrite(gi, i),></input>
                 <details>
                     <summary> {counts} {" "} {&self.rewrite.name}</summary>
-                    <div class="lhs",> {self.rewrite.lhs.to_sexp()} </div>
-                    <div class="rhs",> {format!("{:?}", self.rewrite.applier)} </div>
+                    <div class="lhs",> {self.rewrite.patterns[0].to_sexp()} </div>
+                    <div class="rhs",> {format!("{:?}", self.rewrite.appliers[0])} </div>
                 </details>
             </div>
         }
@@ -132,7 +132,7 @@ impl Component for Model {
     fn create(_: Self::Properties, _: ComponentLink<Self>) -> Self {
         Model {
             console: ConsoleService::new(),
-            egraph: MathEGraph::default(),
+            egraph: EGraph::default(),
             query: Err("enter a pattern or expression".into()),
             added: vec![],
             examples: vec!["(+ 1 2)", "(* x (+ y z))", "(+ x (+ x (+ x x)))"],
@@ -186,17 +186,14 @@ impl Component for Model {
                     for rule in &mut group.rewrites {
                         if rule.enabled {
                             let ms = rule.rewrite.search(&self.egraph);
-                            if !ms.is_empty() {
-                                rule.matched += ms.len();
-                                matches.push((&mut rule.applied, ms));
-                            }
+                            rule.matched += ms.len();
+                            matches.push((&rule.rewrite, &mut rule.applied, ms));
                         }
                     }
                 }
 
-                for (applied, ms) in matches {
-                    let limit = 100_000;
-                    let actually_matched = ms.apply_with_limit(&mut self.egraph, limit);
+                for (rule, applied, ms) in matches {
+                    let actually_matched = rule.apply(&mut self.egraph, &ms);
                     *applied += actually_matched.len();
                 }
 

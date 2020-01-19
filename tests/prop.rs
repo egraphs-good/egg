@@ -3,7 +3,8 @@ use egg::{
     egraph::{EClass, EGraph, Metadata},
     expr::{Cost, Expr, Language, Name},
     parse::ParsableLanguage,
-    pattern::Rewrite,
+    rewrite::{rw, Rewrite},
+    run::{Runner, SimpleRunner},
 };
 use log::*;
 
@@ -29,12 +30,13 @@ macro_rules! rule {
     ($name:ident, $left:expr, $right:expr) => {
         #[allow(dead_code)]
         fn $name<M: Metadata<Prop>>() -> Rewrite<Prop, M> {
-            trace!(
-                "Building rule {} ==> {}",
-                stringify!($left),
-                stringify!($right)
-            );
-            Prop::parse_rewrite(stringify!($name), $left, $right).unwrap()
+            rw(stringify!($name))
+                .with_pattern_str($left)
+                .unwrap()
+                .with_applier_str($right)
+                .unwrap()
+                .build()
+                .unwrap()
         }
     };
     ($name:ident, $name2:ident, $left:expr, $right:expr) => {
@@ -58,21 +60,15 @@ rule! {lem_imply, "(& (-> ?a ?b) (-> (~ ?a) ?c))", "(| ?b ?c)"}
 
 fn prove_something(name: &str, start: &str, rewrites: &[Rewrite<Prop, ()>], goals: &[&str]) {
     let _ = env_logger::builder().is_test(true).try_init();
+    info!("Proving {}", name);
 
     let start_expr = Prop::parse_expr(start).unwrap();
     let goal_exprs: Vec<_> = goals.iter().map(|g| Prop::parse_expr(g).unwrap()).collect();
 
-    let (mut egraph, _old_root) = EGraph::<Prop, ()>::from_expr(&start_expr);
-
-    egraph.dump_dot(&format!("{}-1.dot", name));
-
-    for _ in 0..20 {
-        for rw in rewrites {
-            rw.run(&mut egraph);
-        }
-        egraph.rebuild();
-    }
-    egraph.dump_dot(&format!("{}-2.dot", name));
+    let (egraph, _) = SimpleRunner::default()
+        .with_iter_limit(20)
+        .with_node_limit(5_000)
+        .run_expr(start_expr.clone(), rewrites);
 
     for (i, (goal_expr, goal_str)) in goal_exprs.iter().zip(goals).enumerate() {
         info!("Trying to prove goal {}: {}", i, goal_str);

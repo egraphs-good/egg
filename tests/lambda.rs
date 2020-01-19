@@ -2,9 +2,11 @@ use egg::{
     define_term,
     egraph::{AddResult, EClass, Metadata},
     expr::{Cost, Expr, Language, QuestionMarkName},
-    extract::{calculate_cost, Extractor},
+    extract::calculate_cost,
     parse::ParsableLanguage,
-    pattern::{Applier, Rewrite, WildMap},
+    pattern::WildMap,
+    rewrite::{rw, Applier, Rewrite},
+    run::{Runner, SimpleRunner},
 };
 
 use log::*;
@@ -55,109 +57,96 @@ impl Language for Lang {
     }
 }
 
-#[rustfmt::skip]
 fn rules() -> Vec<Rewrite<Lang, Meta>> {
-    let rw = |name, l, r| Lang::parse_rewrite(name, l, r).unwrap();
     vec![
-
         // open term rules
 
         // NOTE I can't write a false rule here
-        rw("if-true", "(if (bool true) ?then ?else)", "?then"),
-        rw("if-false", "(if (bool false) ?then ?else)", "?else"),
-
-        rw(
-            "add-int",
-            "(+ (int ?a) (int ?b)))",
-            "(int (+ ?a ?b))",
-        ),
-
-        rw(
-            "eq-int",
-            "(= (int ?a) (int ?b)))",
-            "(bool (= ?a ?b))",
-        ),
-
-        rw("add-comm", "(+ ?a ?b)", "(+ ?b ?a)"),
-        rw("add-assoc", "(+ (+ ?a ?b) ?c)", "(+ ?a (+ ?b ?c))"),
-
+        rw("if-true")
+            .p("(if (bool true) ?then ?else)")
+            .a("?then")
+            .mk(),
+        rw("if-false")
+            .p("(if (bool false) ?then ?else)")
+            .a("?else")
+            .mk(),
+        rw("add-int")
+            .p("(+ (int ?a) (int ?b)))")
+            .a("(int (+ ?a ?b))")
+            .mk(),
+        rw("eq-int")
+            .p("(= (int ?a) (int ?b)))")
+            .a("(bool (= ?a ?b))")
+            .mk(),
+        rw("add-comm").p("(+ ?a ?b)").a("(+ ?b ?a)").mk(),
+        rw("add-assoc")
+            .p("(+ (+ ?a ?b) ?c)")
+            .a("(+ ?a (+ ?b ?c))")
+            .mk(),
         // subst rules
-        rw(
-            "fix",
-            "(fix ?v ?e)",
-            "(subst (fix ?v ?e) ?v ?e)",
-        ),
-
-        rw(
-            "beta",
-            "(app (lam ?v ?body) ?e)",
-            "(subst ?e ?v ?body)"
-        ),
-
-        rw("let-lam", "(let ?v ?e ?body)", "(app (lam ?v ?body) ?e)"),
-        rw("lam-let", "(app (lam ?v ?body) ?e)", "(let ?v ?e ?body)"),
-
-        rw(
-            "subst-app",
-            "(subst ?e ?v (app ?a ?b))",
-            "(app (subst ?e ?v ?a) (subst ?e ?v ?b))",
-        ),
-
-        rw(
-            "subst-add",
-            "(subst ?e ?v (+ ?a ?b))",
-            "(+ (subst ?e ?v ?a) (subst ?e ?v ?b))",
-        ),
-
-        rw(
-            "subst-eq",
-            "(subst ?e ?v (= ?a ?b))",
-            "(= (subst ?e ?v ?a) (subst ?e ?v ?b))",
-        ),
-
-        rw(
-            "subst-if",
-            "(subst ?e ?v (if ?cond ?then ?else))",
-            "(if (subst ?e ?v ?cond) (subst ?e ?v ?then) (subst ?e ?v ?else))",
-        ),
-
-        rw(
-            "subst-int",
-            "(subst ?e ?v (int ?i))",
-            "(int ?i)",
-        ),
-
-        rw(
-            "subst-bool",
-            "(subst ?e ?v (bool ?b))",
-            "(bool ?b)",
-        ),
-
+        rw("fix")
+            .p("(fix ?v ?e)")
+            .a("(subst (fix ?v ?e) ?v ?e)")
+            .mk(),
+        rw("beta")
+            .p("(app (lam ?v ?body) ?e)")
+            .a("(subst ?e ?v ?body)")
+            .mk(),
+        rw("let-lam")
+            .p("(let ?v ?e ?body)")
+            .a("(app (lam ?v ?body) ?e)")
+            .mk(),
+        rw("lam-let")
+            .p("(app (lam ?v ?body) ?e)")
+            .a("(let ?v ?e ?body)")
+            .mk(),
+        rw("subst-app")
+            .p("(subst ?e ?v (app ?a ?b))")
+            .a("(app (subst ?e ?v ?a) (subst ?e ?v ?b))")
+            .mk(),
+        rw("subst-add")
+            .p("(subst ?e ?v (+ ?a ?b))")
+            .a("(+ (subst ?e ?v ?a) (subst ?e ?v ?b))")
+            .mk(),
+        rw("subst-eq")
+            .p("(subst ?e ?v (= ?a ?b))")
+            .a("(= (subst ?e ?v ?a) (subst ?e ?v ?b))")
+            .mk(),
+        rw("subst-if")
+            .p("(subst ?e ?v (if ?cond ?then ?else))")
+            .a("(if (subst ?e ?v ?cond) (subst ?e ?v ?then) (subst ?e ?v ?else))")
+            .mk(),
+        rw("subst-int")
+            .p("(subst ?e ?v (int ?i))")
+            .a("(int ?i)")
+            .mk(),
+        rw("subst-bool")
+            .p("(subst ?e ?v (bool ?b))")
+            .a("(bool ?b)")
+            .mk(),
         // NOTE variable substitution has to be done by a dynamic
         // pattern, because it knows that if the two variables aren't
         // equal by name, they never will be because names are
         // unique. Egg doesn't have a way for you to write inequality
         // contraints
-        Rewrite::new(
-            "var-subst",
-            Lang::parse_pattern("(subst ?e ?v1 (var ?v2))").unwrap(),
-            VarSubst {
+        rw("var-subst")
+            .p("(subst ?e ?v1 (var ?v2))")
+            .with_applier(VarSubst {
                 e: "?e".parse().unwrap(),
                 v1: "?v1".parse().unwrap(),
                 v2: "?v2".parse().unwrap(),
                 body: None,
-            },
-        ),
-        Rewrite::new(
-            "var-subst",
-            Lang::parse_pattern("(subst ?e ?v1 (lam ?v2 ?body))",).unwrap(),
-            VarSubst {
+            })
+            .mk(),
+        rw("var-subst")
+            .p("(subst ?e ?v1 (lam ?v2 ?body))")
+            .with_applier(VarSubst {
                 e: "?e".parse().unwrap(),
                 v1: "?v1".parse().unwrap(),
                 v2: "?v2".parse().unwrap(),
                 body: Some("?body".parse().unwrap()),
-            },
-        )
+            })
+            .mk(),
     ]
 }
 
@@ -232,7 +221,7 @@ impl Metadata<Lang> for Meta {
     }
 }
 
-fn prove_something(size_limit: usize, start: &str, goals: &[&str]) {
+fn prove_something(start: &str, goals: &[&str]) {
     let _ = env_logger::builder().is_test(true).try_init();
 
     let start_expr = Lang::parse_expr(start).unwrap();
@@ -240,40 +229,10 @@ fn prove_something(size_limit: usize, start: &str, goals: &[&str]) {
 
     let goal_exprs: Vec<_> = goals.iter().map(|g| Lang::parse_expr(g).unwrap()).collect();
 
-    let (mut egraph, root) = EGraph::from_expr(&start_expr);
-
-    let rules = rules();
-    let mut egraph_size = 0;
-    for i in 0..500 {
-        println!("\nIteration {}:", i);
-        println!(
-            "Size n={}, e={}",
-            egraph.total_size(),
-            egraph.number_of_classes()
-        );
-
-        let ext = Extractor::new(&egraph);
-        let best = ext.find_best(root);
-        println!("Best ({}): {}", best.cost, best.expr.pretty(40));
-        let new_size = egraph.total_size();
-        if new_size == egraph_size {
-            println!("\nEnding early because we're saturated");
-            break;
-        }
-        if new_size > size_limit {
-            println!("\nStop because size limit of {}", size_limit);
-            break;
-        }
-        egraph_size = new_size;
-
-        for rw in &rules {
-            let new = rw.run(&mut egraph).len();
-            if new > 0 {
-                println!("Fired {} {} times", rw.name, new);
-            }
-        }
-        egraph.rebuild();
-    }
+    let (egraph, _) = SimpleRunner::default()
+        .with_iter_limit(500)
+        .with_node_limit(5_000)
+        .run_expr(start_expr.clone(), &rules());
 
     for (i, (goal_expr, goal_str)) in goal_exprs.iter().zip(goals).enumerate() {
         info!("Trying to prove goal {}: {}", i, goal_str);
@@ -287,7 +246,6 @@ fn prove_something(size_limit: usize, start: &str, goals: &[&str]) {
 #[test]
 fn lambda_under() {
     prove_something(
-        5_000,
         "(lam x (+ (int 4)
                    (app (lam y (var y))
                         (int 4))))",
@@ -302,7 +260,6 @@ fn lambda_under() {
 #[test]
 fn lambda_let_simple() {
     prove_something(
-        5_000,
         "(let x (int 0)
          (let y (int 1)
          (+ (var x) (var y))))",
@@ -318,17 +275,12 @@ fn lambda_let_simple() {
 #[test]
 #[should_panic(expected = "Couldn't prove goal 0")]
 fn lambda_capture() {
-    prove_something(
-        5_000,
-        "(subst (int 1) x (lam x (var x)))",
-        &["(lam x (int 1))"],
-    );
+    prove_something("(subst (int 1) x (lam x (var x)))", &["(lam x (int 1))"]);
 }
 
 #[test]
 fn lambda_compose() {
     prove_something(
-        5_000,
         "(let compose (lam f (lam g (lam x (app (var f)
                                            (app (var g) (var x))))))
          (let add1 (lam y (+ (var y) (int 1)))
@@ -345,7 +297,6 @@ fn lambda_compose() {
 #[test]
 fn lambda_if() {
     prove_something(
-        5_000,
         "(let zeroone (lam x
            (if (= (var x) (int 0))
                (int 0)
@@ -368,7 +319,6 @@ fn lambda_if() {
 #[test]
 fn lambda_fib() {
     prove_something(
-        5_000,
         "(let fib (fix fib (lam n
            (if (= (var n) (int 0))
                (int 0)
