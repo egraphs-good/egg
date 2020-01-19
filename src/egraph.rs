@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::fmt::{self, Debug};
 use std::iter::ExactSizeIterator;
 
 use indexmap::{IndexMap, IndexSet};
@@ -6,11 +6,11 @@ use log::*;
 
 use crate::{
     expr::{Expr, Id, Language, RecExpr},
-    unionfind::{UnionFind, Value},
+    unionfind::{Key, UnionFind, Value},
 };
 
 /// Data structure to keep track of equalities between expressions
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct EGraph<L: Language, M> {
     memo: IndexMap<Expr<L, Id>, Id>,
     classes: UnionFind<Id, EClass<L, M>>,
@@ -87,7 +87,7 @@ impl<L: Language, M> EClass<L, M> {
 
 impl<L: Language, M: Metadata<L>> Value for EClass<L, M> {
     type Error = std::convert::Infallible;
-    fn merge<K>(
+    fn merge<K: Key>(
         _unionfind: &mut UnionFind<K, Self>,
         to: Self,
         from: Self,

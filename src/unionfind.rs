@@ -1,34 +1,22 @@
 use std::cell::Cell;
-use std::fmt::{self, Debug};
+use std::fmt::Debug;
 use std::hash::Hash;
 
 use indexmap::{IndexMap, IndexSet};
 
-pub struct UnionFind<K, V> {
+// The Key bound on UnionFind is necessary to derive clone. We only
+// instantiate UnionFind in one place (EGraph), so this type bound
+// isn't intrusive
+
+#[derive(Debug, Clone)]
+pub struct UnionFind<K: Key, V> {
     parents: Vec<Cell<K>>,
     sizes: Vec<u32>,
     values: Vec<Option<V>>,
     n_leaders: usize,
 }
 
-// we must manually implement debug because Cell<T> requires T: Copy
-// to implement Debug, so we add that bound (implied by Key)
-impl<K, V> Debug for UnionFind<K, V>
-where
-    K: Debug + Key,
-    V: Debug,
-{
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("UnionFind")
-            .field("parents", &self.parents)
-            .field("sizes", &self.sizes)
-            .field("values", &self.values)
-            .field("n_leaders", &self.n_leaders)
-            .finish()
-    }
-}
-
-impl<K, V> Default for UnionFind<K, V> {
+impl<K: Key, V> Default for UnionFind<K, V> {
     fn default() -> Self {
         UnionFind {
             parents: Vec::new(),
@@ -56,7 +44,7 @@ impl Key for u32 {
 
 pub trait Value: Sized {
     type Error: Debug;
-    fn merge<K>(
+    fn merge<K: Key>(
         unionfind: &mut UnionFind<K, Self>,
         value1: Self,
         value2: Self,
@@ -65,7 +53,7 @@ pub trait Value: Sized {
 
 impl Value for () {
     type Error = std::convert::Infallible;
-    fn merge<K>(
+    fn merge<K: Key>(
         _: &mut UnionFind<K, Self>,
         _value1: Self,
         _value2: Self,
