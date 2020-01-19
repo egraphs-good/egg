@@ -31,12 +31,12 @@ pub fn calculate_cost<L: Language>(expr: &RecExpr<L>) -> Cost {
     child_cost_expr.cost()
 }
 
-pub struct CostExpr<L: Language> {
+pub struct CostExpr<L> {
     pub cost: Cost,
     pub expr: RecExpr<L>,
 }
 
-pub struct Extractor<'a, L: Language, M> {
+pub struct Extractor<'a, L, M> {
     costs: IndexMap<Id, Cost>,
     egraph: &'a EGraph<L, M>,
 }

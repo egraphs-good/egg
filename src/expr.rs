@@ -21,7 +21,7 @@ pub struct Expr<O, Child> {
 type Inner<L> = Expr<L, RecExpr<L>>;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub struct RecExpr<L: Language> {
+pub struct RecExpr<L> {
     rc: Rc<Inner<L>>,
 }
 

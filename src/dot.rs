@@ -31,7 +31,7 @@ use crate::{egraph::EGraph, expr::Language};
 /// print it.
 ///
 /// [`EGraph`]: ../egraph/struct.EGraph.html
-pub struct Dot<'a, L: Language, M> {
+pub struct Dot<'a, L, M> {
     egraph: &'a EGraph<L, M>,
 }
 

@@ -10,11 +10,22 @@ use crate::{
 };
 
 /// Data structure to keep track of equalities between expressions
-#[derive(Debug, Clone)]
-pub struct EGraph<L: Language, M> {
+#[derive(Clone)]
+pub struct EGraph<L, M> {
     memo: IndexMap<Expr<L, Id>, Id>,
     classes: UnionFind<Id, EClass<L, M>>,
     unions_since_rebuild: usize,
+}
+
+// manual debug impl to avoid L: Language bound on EGraph defn
+impl<L: Language, M: Debug> Debug for EGraph<L, M> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("EGraph")
+            .field("memo", &self.memo)
+            .field("classes", &self.classes)
+            .field("unions_since_rebuild", &self.unions_since_rebuild)
+            .finish()
+    }
 }
 
 impl<L: Language, M> Default for EGraph<L, M> {
@@ -27,7 +38,7 @@ impl<L: Language, M> Default for EGraph<L, M> {
     }
 }
 
-pub trait Metadata<L: Language>: Sized + Debug {
+pub trait Metadata<L>: Sized + Debug {
     type Error: Debug;
     fn merge(&self, other: &Self) -> Self;
     // TODO should make be allowed to modify?
@@ -63,7 +74,7 @@ pub struct AddResult {
 }
 
 #[derive(Debug, Clone)]
-pub struct EClass<L: Language, M> {
+pub struct EClass<L, M> {
     pub id: Id,
     pub nodes: Vec<Expr<L, Id>>,
     pub metadata: M,

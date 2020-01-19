@@ -14,7 +14,7 @@ use crate::{
 };
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum Pattern<L: Language> {
+pub enum Pattern<L> {
     Expr(Box<Expr<L, Pattern<L>>>),
     Wildcard(QuestionMarkName, WildcardKind),
 }
@@ -94,7 +94,7 @@ impl<L: Language + fmt::Display> Pattern<L> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Condition<L: Language> {
+pub struct Condition<L> {
     pub lhs: Pattern<L>,
     pub rhs: Pattern<L>,
 }
@@ -156,7 +156,7 @@ impl<L: Language, M: Metadata<L>> Applier<L, M> for Pattern<L> {
 }
 
 #[derive(Clone)]
-pub struct Rewrite<L: Language, M: Metadata<L>> {
+pub struct Rewrite<L, M> {
     pub name: String,
     pub lhs: Pattern<L>,
     pub applier: Rc<dyn Applier<L, M>>,
@@ -165,7 +165,7 @@ pub struct Rewrite<L: Language, M: Metadata<L>> {
     _hidden: (),
 }
 
-impl<L: Language, M: Metadata<L>> fmt::Debug for Rewrite<L, M> {
+impl<L, M> fmt::Debug for Rewrite<L, M> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Rewrite {}", self.name)
     }
@@ -255,7 +255,7 @@ pub struct PatternMatches {
 }
 
 #[derive(Debug)]
-pub struct RewriteMatches<'a, L: Language, M: Metadata<L>> {
+pub struct RewriteMatches<'a, L, M> {
     pub rewrite: &'a Rewrite<L, M>,
     pub matches: Vec<PatternMatches>,
 }
