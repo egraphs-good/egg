@@ -36,7 +36,7 @@ struct RewriteGroup {
 fn rewrite_groups() -> Vec<RewriteGroup> {
     egg_math::rules()
         .iter()
-        .map(|(name, vec)| RewriteGroup {
+        .map(|(&name, vec)| RewriteGroup {
             name: name.to_string(),
             enabled: true,
             rewrites: vec.iter().cloned().map(OptionalRewrite::new).collect(),
@@ -165,7 +165,7 @@ impl Component for Model {
                 }
             }
             Msg::AddExpr(s) => {
-                self.update(Msg::UpdateQuery(s.clone()));
+                self.update(Msg::UpdateQuery(s));
                 self.update(Msg::AddQuery);
             }
             Msg::ToggleRewrite(gi, i) => {

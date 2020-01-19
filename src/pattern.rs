@@ -503,6 +503,7 @@ mod tests {
             wm(&[(a.clone(), Single, vec![x]), (b.clone(), Single, vec![y])]),
             wm(&[(a.clone(), Single, vec![z]), (b.clone(), Single, vec![w])]),
         ];
+        std::mem::drop((a, b));
 
         let actual_mappings: Vec<WildMap> = matches
             .matches
