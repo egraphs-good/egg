@@ -29,4 +29,5 @@ test-web:
 .PHONY: deploy-web-demo
 deploy-web-demo:
 	cd web-demo; cargo web deploy --release
-	rsync -az target/deploy/ mwillsey.com:/var/www/stuff/egg/
+	rsync -a target/deploy/ ~/src/site/stuff/egg/
+	cd ~/src/site; make deploy
