@@ -1,6 +1,8 @@
 use std::fmt;
 use std::rc::Rc;
 
+use log::*;
+
 use crate::{
     egraph::{AddResult, EGraph, Metadata},
     expr::{Id, Language},
@@ -13,6 +15,7 @@ pub struct RewriteBuilder<L, M> {
     patterns: Vec<Pattern<L>>,
     appliers: Vec<Rc<dyn Applier<L, M>>>,
     conditions: Vec<Condition<L>>,
+    application_limit: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -22,6 +25,7 @@ pub struct Rewrite<L, M> {
     pub patterns: Vec<Pattern<L>>,
     pub appliers: Vec<Rc<dyn Applier<L, M>>>,
     pub conditions: Vec<Condition<L>>,
+    pub application_limit: usize,
 }
 
 /// Shorthand for `RewriteBuilder::new`.
@@ -36,6 +40,7 @@ impl<L, M> RewriteBuilder<L, M> {
             patterns: vec![],
             appliers: vec![],
             conditions: vec![],
+            application_limit: 10_000,
         }
     }
 }
@@ -76,6 +81,11 @@ where
         self.conditions.push(condition);
         self
     }
+    /// Default is 10_000.
+    pub fn with_application_limit(mut self, application_limit: usize) -> Self {
+        self.application_limit = application_limit;
+        self
+    }
 
     pub fn build(self) -> Result<Rewrite<L, M>, ()> {
         assert_ne!(self.patterns.len(), 0);
@@ -86,6 +96,7 @@ where
             patterns: self.patterns,
             appliers: self.appliers,
             conditions: self.conditions,
+            application_limit: self.application_limit,
         })
     }
 
@@ -129,7 +140,7 @@ impl<L: Language, M: Metadata<L>> Rewrite<L, M> {
 
     pub fn apply(&self, egraph: &mut EGraph<L, M>, ematches: &[EClassMatches]) -> Vec<Id> {
         let mut applications = Vec::new();
-        for ematch in ematches {
+        'outer: for ematch in ematches {
             for mapping in &ematch.mappings {
                 if self.conditions.iter().all(|c| c.check(egraph, mapping)) {
                     for applier in &self.appliers {
@@ -140,11 +151,21 @@ impl<L: Language, M: Metadata<L>> Rewrite<L, M> {
                                 let leader = egraph.union(ematch.eclass, applied_root.id);
                                 applications.push(leader);
                             }
+
+                            if applications.len() > self.application_limit {
+                                warn!(
+                                    "Rule {} exceeded the limit: {}",
+                                    self.name,
+                                    applications.len()
+                                );
+                                break 'outer;
+                            }
                         }
                     }
                 }
             }
         }
+
         applications
     }
 }
@@ -174,7 +195,6 @@ pub trait Applier<L: Language, M: Metadata<L>>: fmt::Debug {
 mod tests {
 
     use super::*;
-    use log::*;
 
     use crate::expr::{
         tests::{op, var, TestLang},
