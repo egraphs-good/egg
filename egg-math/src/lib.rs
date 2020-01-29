@@ -1,7 +1,8 @@
 use egg::{
     define_term,
     egraph::EClass,
-    expr::{Cost, Expr, Language, Name, RecExpr},
+    expr::{Expr, Name, RecExpr},
+    extract::CostFunction,
 };
 
 use ordered_float::NotNan;
@@ -21,7 +22,6 @@ pub fn all_rules() -> Vec<Rewrite> {
 type Constant = NotNan<f64>;
 
 define_term! {
-    #[derive(Debug, PartialEq, Eq, Hash, Clone)]
     pub enum Math {
         Constant(Constant),
         Add = "+",
@@ -62,9 +62,13 @@ define_term! {
     }
 }
 
-impl Language for Math {
-    fn cost(&self, children: &[Cost]) -> Cost {
-        let cost = match self {
+pub struct MathCostFn;
+
+impl CostFunction<Math> for MathCostFn {
+    type Cost = usize;
+
+    fn cost(&mut self, expr: &Expr<Math, Self::Cost>) -> Self::Cost {
+        let cost = match expr.op {
             Math::Constant(_) | Math::Variable(_) => 1,
             Math::Add => 40,
             Math::Sub => 40,
@@ -79,15 +83,15 @@ impl Language for Math {
             Math::RealToPosit => 0,
             Math::Expm1 => 70,
             Math::Log1p => 70,
-        } as Cost;
+        } as usize;
 
-        cost + children.iter().sum::<Cost>()
+        cost + expr.children.iter().sum::<usize>()
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct Meta {
-    pub cost: Cost,
+    pub cost: usize,
     pub best: RecExpr<Math>,
 }
 
@@ -165,7 +169,7 @@ impl egg::egraph::Metadata<Math> for Meta {
         let best: RecExpr<_> = expr.map_children(|c| c.best.clone()).into();
         Self {
             best,
-            cost: expr.map_children(|c| c.cost).cost(),
+            cost: MathCostFn.cost(&expr.map_children(|c| c.cost)),
         }
     }
 

@@ -1,12 +1,12 @@
 use egg::{
-    extract::{calculate_cost, Extractor},
+    extract::{CostFunction, Extractor},
     parse::ParsableLanguage,
     pattern::Pattern,
     run::{Runner, SimpleRunner},
 };
 use std::time::Instant;
 
-use egg_math::{EGraph, Math};
+use egg_math::{EGraph, Math, MathCostFn};
 
 #[test]
 fn associate_adds() {
@@ -55,11 +55,10 @@ impl CheckSimplify {
             .with_node_limit(self.limit)
             .run(&mut egraph, &egg_math::all_rules());
 
-        let ext = Extractor::new(&egraph);
-        let best = ext.find_best(root);
-        println!("Best ({}): {}", best.cost, best.expr.to_sexp());
+        let (cost, best) = Extractor::new(&egraph, MathCostFn).find_best(root);
+        println!("Best ({}): {}", cost, best.to_sexp());
 
-        if best.expr != end_expr {
+        if best != end_expr {
             println!("start: {}", start_expr.to_sexp());
             println!("start: {:?}", start_expr);
             panic!("Could not simplify {} to {}", self.start, self.end);
@@ -193,7 +192,7 @@ fn do_something() {
     let other_expr = Math::parse_expr(herbies_result).unwrap();
     println!(
         "Herbie ({}): {}",
-        calculate_cost(&other_expr),
+        MathCostFn.cost_rec(&other_expr),
         other_expr.to_sexp()
     );
 
@@ -203,16 +202,15 @@ fn do_something() {
         .run(&mut egraph, &egg_math::all_rules());
 
     let start_time = Instant::now();
-    let ext = Extractor::new(&egraph);
-    let best = ext.find_best(root);
+    let (cost, best) = Extractor::new(&egraph, MathCostFn).find_best(root);
     let extract_time = start_time.elapsed();
 
     println!(
         "Start ({}): {}",
-        calculate_cost(&start_expr),
+        MathCostFn.cost_rec(&start_expr),
         start_expr.to_sexp()
     );
-    println!("Best ({}): {}", best.cost, best.expr.to_sexp());
+    println!("Best ({}): {}", cost, best.to_sexp());
 
     println!("Extract time: {:.4}", extract_time.as_secs_f64());
 }

@@ -1,47 +1,45 @@
+use std::cmp::Ordering;
+use std::fmt::Debug;
+
 use crate::{
     egraph::{EClass, EGraph},
-    expr::{Cost, Expr, Id, Language, RecExpr},
+    expr::{Expr, Id, Language, RecExpr},
 };
-use std::cmp::Ordering;
 
 use indexmap::IndexMap;
-use log::*;
 
-fn cost_cse_rec<L: Language>(map: &mut IndexMap<RecExpr<L>, Cost>, expr: &RecExpr<L>) -> Cost {
-    if map.contains_key(expr) {
-        return 1.0;
-    }
-
-    let child_cost_expr = expr.as_ref().map_children(|e| cost_cse_rec(map, &e));
-    let cost = child_cost_expr.cost();
-    map.insert(expr.clone(), cost);
-    cost
-}
-
-pub fn calculate_cost_cse<L: Language>(expr: &RecExpr<L>) -> Cost {
-    let mut map = IndexMap::default();
-    let cost = cost_cse_rec(&mut map, expr);
-
-    trace!("Found cost to be {}\n  {:?}", cost, expr);
-    cost
-}
-
-pub fn calculate_cost<L: Language>(expr: &RecExpr<L>) -> Cost {
-    let child_cost_expr = expr.as_ref().map_children(|e| calculate_cost(&e));
-    child_cost_expr.cost()
-}
-
-pub struct CostExpr<L> {
-    pub cost: Cost,
-    pub expr: RecExpr<L>,
-}
-
-pub struct Extractor<'a, L, M> {
-    costs: IndexMap<Id, Cost>,
+pub struct Extractor<'a, CF: CostFunction<L>, L: Language, M> {
+    cost_function: CF,
+    costs: IndexMap<Id, CF::Cost>,
     egraph: &'a EGraph<L, M>,
 }
 
-fn cmp(a: &Option<Cost>, b: &Option<Cost>) -> Ordering {
+pub trait CostFunction<L: Language> {
+    type Cost: Ord + Debug + Clone;
+    fn cost(&mut self, expr: &Expr<L, Self::Cost>) -> Self::Cost;
+    fn cost_rec(&mut self, expr: &RecExpr<L>) -> Self::Cost {
+        let child_cost_expr = expr.as_ref().map_children(|e| self.cost_rec(&e));
+        self.cost(&child_cost_expr)
+    }
+}
+
+pub struct AstSize;
+impl<L: Language> CostFunction<L> for AstSize {
+    type Cost = usize;
+    fn cost(&mut self, expr: &Expr<L, Self::Cost>) -> Self::Cost {
+        1 + expr.children.iter().copied().sum::<usize>()
+    }
+}
+
+pub struct AstDepth;
+impl<L: Language> CostFunction<L> for AstDepth {
+    type Cost = usize;
+    fn cost(&mut self, expr: &Expr<L, Self::Cost>) -> Self::Cost {
+        1 + expr.children.iter().copied().max().unwrap_or(0)
+    }
+}
+
+fn cmp<T: Ord>(a: &Option<T>, b: &Option<T>) -> Ordering {
     // None is high
     match (a, b) {
         (None, None) => Ordering::Equal,
@@ -51,22 +49,30 @@ fn cmp(a: &Option<Cost>, b: &Option<Cost>) -> Ordering {
     }
 }
 
-impl<'a, L: Language, M> Extractor<'a, L, M> {
-    pub fn new(egraph: &'a EGraph<L, M>) -> Self {
+impl<'a, CF, L, M> Extractor<'a, CF, L, M>
+where
+    CF: CostFunction<L>,
+    L: Language,
+{
+    pub fn new(egraph: &'a EGraph<L, M>, cost_function: CF) -> Self {
         let costs = IndexMap::default();
-        let mut extractor = Extractor { costs, egraph };
+        let mut extractor = Extractor {
+            costs,
+            egraph,
+            cost_function,
+        };
         extractor.find_costs();
 
         extractor
     }
 
-    pub fn find_best(&self, eclass: Id) -> CostExpr<L> {
+    pub fn find_best(&mut self, eclass: Id) -> (CF::Cost, RecExpr<L>) {
         let expr = self.find_best_expr(eclass);
-        let cost = calculate_cost(&expr);
-        CostExpr { cost, expr }
+        let cost = self.cost_function.cost_rec(&expr);
+        (cost, expr)
     }
 
-    fn find_best_expr(&self, eclass: Id) -> RecExpr<L> {
+    fn find_best_expr(&mut self, eclass: Id) -> RecExpr<L> {
         let eclass = self.egraph.find(eclass);
 
         let best_node = self.egraph[eclass]
@@ -84,11 +90,11 @@ impl<'a, L: Language, M> Extractor<'a, L, M> {
             .into()
     }
 
-    fn node_total_cost(&self, node: &Expr<L, Id>) -> Option<Cost> {
+    fn node_total_cost(&mut self, node: &Expr<L, Id>) -> Option<CF::Cost> {
         let expr = node
             .map_children_result(|id| self.costs.get(&id).cloned().ok_or(()))
             .ok()?;
-        Some(expr.cost())
+        Some(self.cost_function.cost(&expr))
     }
 
     fn find_costs(&mut self) {
@@ -97,7 +103,8 @@ impl<'a, L: Language, M> Extractor<'a, L, M> {
             did_something = false;
 
             for class in self.egraph.classes() {
-                match (self.costs.get(&class.id), self.make_pass(class)) {
+                let pass = self.make_pass(class);
+                match (self.costs.get(&class.id), pass) {
                     (None, Some(cost)) => {
                         self.costs.insert(class.id, cost);
                         did_something = true;
@@ -112,7 +119,7 @@ impl<'a, L: Language, M> Extractor<'a, L, M> {
         }
     }
 
-    fn make_pass(&self, eclass: &EClass<L, M>) -> Option<Cost> {
+    fn make_pass(&mut self, eclass: &EClass<L, M>) -> Option<CF::Cost> {
         eclass
             .iter()
             .map(|n| self.node_total_cost(n))

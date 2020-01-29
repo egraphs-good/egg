@@ -1,7 +1,7 @@
 use egg::{
     define_term,
     egraph::{EClass, EGraph, Metadata},
-    expr::{Cost, Expr, Language, Name},
+    expr::{Expr, Name},
     parse::ParsableLanguage,
     rewrite::{rw, Rewrite},
     run::{Runner, SimpleRunner},
@@ -9,7 +9,6 @@ use egg::{
 use log::*;
 
 define_term! {
-    #[derive(Debug, PartialEq, Eq, Hash, Clone)]
     enum Prop {
         Bool(bool),
         And = "&",
@@ -17,12 +16,6 @@ define_term! {
         Or = "|",
         Implies = "->",
         Variable(Name),
-    }
-}
-
-impl Language for Prop {
-    fn cost(&self, _children: &[Cost]) -> Cost {
-        unimplemented!()
     }
 }
 

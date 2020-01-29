@@ -1,6 +1,6 @@
 use egg::{
     define_term,
-    expr::{Cost, Language, Name},
+    expr::Name,
     parse::ParsableLanguage,
     rewrite::rw,
     run::{Runner, SimpleRunner},
@@ -11,18 +11,11 @@ type Meta = ();
 type Rewrite = egg::rewrite::Rewrite<List, Meta>;
 
 define_term! {
-    #[derive(Debug, PartialEq, Eq, Hash, Clone)]
     enum List {
         Nil = "nil",
         Cons = "cons",
         List = "list",
         Variable(Name),
-    }
-}
-
-impl Language for List {
-    fn cost(&self, _children: &[Cost]) -> Cost {
-        unimplemented!()
     }
 }
 

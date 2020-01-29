@@ -8,8 +8,6 @@ use symbolic_expressions::Sexp;
 use crate::unionfind::UnionFind;
 
 pub type Id = u32;
-pub type Cost = f64;
-
 pub type IdNode<L> = Expr<L, Id>;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
@@ -163,12 +161,6 @@ impl<L: Language> Expr<L, Id> {
     }
 }
 
-impl<L: Language> Expr<L, Cost> {
-    pub fn cost(&self) -> Cost {
-        self.op.cost(&self.children)
-    }
-}
-
 /// Trait that wraps up information from the client about the language
 /// we're working with.
 ///
@@ -178,9 +170,7 @@ impl<L: Language> Expr<L, Cost> {
 /// manually derive these things for Expr
 ///
 /// [`TestLang`]: tests/struct.TestLang.html
-pub trait Language: Debug + PartialEq + Eq + Hash + Clone + 'static {
-    fn cost(&self, children: &[Cost]) -> Cost;
-}
+pub trait Language: Debug + PartialEq + Eq + Hash + Clone + 'static {}
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct Name(pub Rc<str>);
@@ -246,6 +236,7 @@ pub mod tests {
 
     #[derive(Debug, Clone, Hash, PartialEq, Eq)]
     pub struct TestLang(String);
+    impl Language for TestLang {}
 
     impl fmt::Display for TestLang {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -257,18 +248,6 @@ pub mod tests {
         type Err = ();
         fn from_str(s: &str) -> Result<Self, Self::Err> {
             Ok(TestLang(s.into()))
-        }
-    }
-
-    impl Language for TestLang {
-        fn cost(&self, children: &[Cost]) -> Cost {
-            let my_costs = match self.0.as_ref() {
-                "+" => 5.0,
-                "*" => 50.0,
-                "/" => 150.0,
-                _ => 10.0,
-            };
-            my_costs + children.iter().sum::<f64>()
         }
     }
 

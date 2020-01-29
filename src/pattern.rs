@@ -383,11 +383,10 @@ mod tests {
 
         egraph.dump_dot("simple-match.dot");
 
-        use crate::extract::Extractor;
+        use crate::extract::{AstSize, Extractor};
 
-        let ext = Extractor::new(&egraph);
-
-        let best = ext.find_best(2);
-        eprintln!("Best: {:#?}", best.expr);
+        let mut ext = Extractor::new(&egraph, AstSize);
+        let (_, best) = ext.find_best(2);
+        eprintln!("Best: {:#?}", best);
     }
 }

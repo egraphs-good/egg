@@ -6,7 +6,7 @@ use log::*;
 
 use crate::{
     egraph::{EGraph, Metadata},
-    expr::{Language, RecExpr},
+    expr::{Id, Language, RecExpr},
     pattern::EClassMatches,
     rewrite::Rewrite,
 };
@@ -34,6 +34,7 @@ pub struct Iteration {
 #[non_exhaustive]
 pub struct RunReport<L, E> {
     pub initial_expr: RecExpr<L>,
+    pub initial_expr_eclass: Id,
     // pub initial_cost: Cost,
     pub iterations: Vec<Iteration>,
     // pub final_expr: RecExpr<L>,
@@ -181,7 +182,7 @@ where
         // let initial_cost = calculate_cost(&initial_expr);
         // info!("Without empty: {}", initial_expr.pretty(80));
 
-        let (mut egraph, _root) = EGraph::from_expr(&initial_expr);
+        let (mut egraph, initial_expr_eclass) = EGraph::from_expr(&initial_expr);
 
         let rules_time = Instant::now();
         let (iterations, stop_reason) = self.run(&mut egraph, rules);
@@ -204,6 +205,7 @@ where
             // ast_size: best.expr.ast_size(),
             // ast_depth: best.expr.ast_depth(),
             initial_expr,
+            initial_expr_eclass,
             // initial_cost,
             // final_cost: best.cost,
             // final_expr: best.expr,

@@ -1,8 +1,8 @@
 use egg::{
     define_term,
     egraph::{AddResult, EClass, Metadata},
-    expr::{Cost, Expr, Language, QuestionMarkName},
-    extract::calculate_cost,
+    expr::{Expr, QuestionMarkName},
+    extract::{AstSize, CostFunction, Extractor},
     parse::ParsableLanguage,
     pattern::WildMap,
     rewrite::{rw, Applier, Rewrite},
@@ -15,7 +15,6 @@ use smallvec::smallvec;
 type EGraph = egg::egraph::EGraph<Lang, Meta>;
 
 define_term! {
-    #[derive(Debug, PartialEq, Eq, Hash, Clone)]
     enum Lang {
         Bool(bool),
         Num(i32),
@@ -35,25 +34,6 @@ define_term! {
 
         Subst = "subst",
         String(String),
-    }
-}
-
-impl Language for Lang {
-    fn cost(&self, children: &[Cost]) -> Cost {
-        let mine = match self {
-            Lang::Bool(_) => 1.0,
-            Lang::Num(_) => 1.0,
-            Lang::String(_) => 1.0,
-
-            Lang::Int => 1.0,
-            Lang::Var => 2.0,
-            Lang::Let => 1.0,
-            Lang::App => 200.0,
-
-            Lang::Subst => 1.0,
-            _ => 3.0,
-        };
-        mine + children.iter().sum::<Cost>()
     }
 }
 
@@ -225,14 +205,17 @@ fn prove_something(start: &str, goals: &[&str]) {
     let _ = env_logger::builder().is_test(true).try_init();
 
     let start_expr = Lang::parse_expr(start).unwrap();
-    println!("Start ({}): {}", calculate_cost(&start_expr), start);
+    println!("Start ({}): {}", AstSize.cost_rec(&start_expr), start);
 
     let goal_exprs: Vec<_> = goals.iter().map(|g| Lang::parse_expr(g).unwrap()).collect();
 
-    let (egraph, _) = SimpleRunner::default()
+    let (egraph, report) = SimpleRunner::default()
         .with_iter_limit(500)
         .with_node_limit(5_000)
         .run_expr(start_expr.clone(), &rules());
+
+    let (cost, best) = Extractor::new(&egraph, AstSize).find_best(report.initial_expr_eclass);
+    println!("End ({}): {}", cost, best.pretty(80));
 
     for (i, (goal_expr, goal_str)) in goal_exprs.iter().zip(goals).enumerate() {
         info!("Trying to prove goal {}: {}", i, goal_str);

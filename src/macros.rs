@@ -8,6 +8,7 @@ macro_rules! define_term {
         }
     ) => {
         $(#[$meta])*
+        #[derive(Debug, PartialEq, Eq, Hash, Clone)]
         $vis enum $name {
             $( $variant $(( $($t),* ))? ),*
         }
@@ -36,6 +37,8 @@ macro_rules! define_term {
                 unreachable!()
             }
         }
+
+        impl $crate::expr::Language for $name {}
 
     };
     (@parse_arm $e:expr, $name:ident $variant:ident = $str:literal) => {
