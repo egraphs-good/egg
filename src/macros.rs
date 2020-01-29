@@ -1,5 +1,5 @@
 #[macro_export]
-macro_rules! define_term {
+macro_rules! define_language {
     (
         $(#[$meta:meta])*
         $vis:vis enum $name:ident {
@@ -16,7 +16,7 @@ macro_rules! define_term {
         impl std::str::FromStr for $name {
             type Err = ();
             fn from_str(s: &str) -> Result<Self, Self::Err> {
-                $( define_term!(
+                $( define_language!(
                     @parse_arm s,
                     $name $variant
                     $(( $($t),* ))?
@@ -28,7 +28,7 @@ macro_rules! define_term {
 
         impl std::fmt::Display for $name {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                $( define_term!(
+                $( define_language!(
                     @print_arm self, f,
                     $name $variant
                         $(( $($t),* ))?
@@ -71,7 +71,7 @@ macro_rules! define_term {
 
 #[cfg(test)]
 mod tests {
-    define_term! { enum Term {
+    define_language! { enum Term {
         Nil = "nil",
         Cons = "cons",
         Foo = "f",

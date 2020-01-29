@@ -1,5 +1,5 @@
 use egg::{
-    define_term,
+    define_language,
     expr::Name,
     parse::ParsableLanguage,
     rewrite::rw,
@@ -10,7 +10,7 @@ use log::*;
 type Meta = ();
 type Rewrite = egg::rewrite::Rewrite<List, Meta>;
 
-define_term! {
+define_language! {
     enum List {
         Nil = "nil",
         Cons = "cons",

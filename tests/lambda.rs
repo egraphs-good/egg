@@ -1,5 +1,5 @@
 use egg::{
-    define_term,
+    define_language,
     egraph::{AddResult, EClass, Metadata},
     expr::{Expr, QuestionMarkName},
     extract::{AstSize, CostFunction, Extractor},
@@ -14,7 +14,7 @@ use smallvec::smallvec;
 
 type EGraph = egg::egraph::EGraph<Lang, Meta>;
 
-define_term! {
+define_language! {
     enum Lang {
         Bool(bool),
         Num(i32),

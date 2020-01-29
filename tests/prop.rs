@@ -1,5 +1,5 @@
 use egg::{
-    define_term,
+    define_language,
     egraph::{EClass, EGraph, Metadata},
     expr::{Expr, Name},
     parse::ParsableLanguage,
@@ -8,7 +8,7 @@ use egg::{
 };
 use log::*;
 
-define_term! {
+define_language! {
     enum Prop {
         Bool(bool),
         And = "&",

@@ -1,5 +1,5 @@
 use egg::{
-    define_term,
+    define_language,
     egraph::EClass,
     expr::{Expr, Name, RecExpr},
     extract::CostFunction,
@@ -21,7 +21,7 @@ pub fn all_rules() -> Vec<Rewrite> {
 
 type Constant = NotNan<f64>;
 
-define_term! {
+define_language! {
     pub enum Math {
         Constant(Constant),
         Add = "+",
