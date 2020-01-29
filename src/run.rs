@@ -14,14 +14,6 @@ use crate::{
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde-1", derive(serde::Serialize))]
 #[non_exhaustive]
-pub enum StopReason<E> {
-    Saturated,
-    Error(E),
-}
-
-#[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde-1", derive(serde::Serialize))]
-#[non_exhaustive]
 pub struct Iteration {
     pub egraph_nodes: usize,
     pub egraph_classes: usize,
@@ -48,7 +40,7 @@ pub struct RunReport<L, E> {
     // pub final_cost: Cost,
     pub rules_time: f64,
     // pub extract_time: f64,
-    pub stop_reason: StopReason<E>,
+    pub stop_reason: E,
     // metrics
     // pub ast_size: usize,
     // pub ast_depth: usize,
@@ -62,22 +54,25 @@ where
     type Error: fmt::Debug;
     // TODO make it so Runners can add fields to Iteration data
 
-    fn pre_step(&mut self, _iter: usize, _egraph: &mut EGraph<L, M>) -> Result<(), Self::Error> {
+    fn pre_step(&mut self, _egraph: &mut EGraph<L, M>) -> Result<(), Self::Error> {
         Ok(())
     }
 
-    fn post_step(&mut self, _iter: usize, _egraph: &mut EGraph<L, M>) -> Result<(), Self::Error> {
+    fn post_step(
+        &mut self,
+        _iteration: &Iteration,
+        _egraph: &mut EGraph<L, M>,
+    ) -> Result<(), Self::Error> {
         Ok(())
     }
 
-    fn during_step(&mut self, _iter: usize, _egraph: &EGraph<L, M>) -> Result<(), Self::Error> {
+    fn during_step(&mut self, _egraph: &EGraph<L, M>) -> Result<(), Self::Error> {
         Ok(())
     }
 
     /// Dictates how matches will be applied.
     fn apply_matches(
         &mut self,
-        _iter: usize,
         egraph: &mut EGraph<L, M>,
         rewrite: &Rewrite<L, M>,
         matches: Vec<EClassMatches>,
@@ -87,19 +82,11 @@ where
 
     fn step(
         &mut self,
-        iter: usize,
         egraph: &mut EGraph<L, M>,
         rules: &[Rewrite<L, M>],
     ) -> Result<Iteration, Self::Error> {
-        trace!("Running pre_step...");
-        self.pre_step(iter, egraph)?;
-
         let egraph_nodes = egraph.total_size();
         let egraph_classes = egraph.number_of_classes();
-        info!(
-            "\n\nIteration {}, n={}, e={}",
-            iter, egraph_nodes, egraph_classes
-        );
         trace!("EGraph {:?}", egraph.dump());
 
         let search_time = Instant::now();
@@ -108,7 +95,7 @@ where
         for rule in rules.iter() {
             let ms = rule.search(egraph);
             matches.push(ms);
-            self.during_step(iter, egraph)?
+            self.during_step(egraph)?
         }
 
         let search_time = search_time.elapsed().as_secs_f64();
@@ -125,7 +112,7 @@ where
 
             debug!("Applying {} {} times", rw.name, total_matches);
 
-            let actually_matched = self.apply_matches(iter, egraph, rw, ms);
+            let actually_matched = self.apply_matches(egraph, rw, ms);
             if actually_matched > 0 {
                 // applications.push((&m.rewrite.name, actually_matched));
                 if let Some(count) = applied.get_mut(&rw.name) {
@@ -136,7 +123,7 @@ where
                 debug!("Applied {} {} times", rw.name, actually_matched);
             }
 
-            self.during_step(iter, egraph)?
+            self.during_step(egraph)?
         }
 
         let apply_time = apply_time.elapsed().as_secs_f64();
@@ -154,8 +141,6 @@ where
         );
 
         trace!("Running post_step...");
-        self.post_step(iter, egraph)?;
-
         Ok(Iteration {
             applied,
             egraph_nodes,
@@ -171,22 +156,19 @@ where
         &mut self,
         egraph: &mut EGraph<L, M>,
         rules: &[Rewrite<L, M>],
-    ) -> (Vec<Iteration>, StopReason<Self::Error>) {
+    ) -> (Vec<Iteration>, Self::Error) {
         let mut iterations = vec![];
-        let mut i = 0;
-        let stop_reason = loop {
-            match self.step(i, egraph, rules) {
-                Ok(iter) => {
-                    let saturated = iter.applied.is_empty();
-                    iterations.push(iter);
-                    if saturated {
-                        break StopReason::Saturated;
-                    }
-                }
-                Err(stop) => break StopReason::Error(stop),
-            };
-            i += 1;
+        let mut fn_loop = || -> Result<(), Self::Error> {
+            loop {
+                trace!("Running pre_step...");
+                self.pre_step(egraph)?;
+                trace!("Running step...");
+                iterations.push(self.step(egraph, rules)?);
+                trace!("Running post_step...");
+                self.post_step(iterations.last().unwrap(), egraph)?;
+            }
         };
+        let stop_reason = fn_loop().unwrap_err();
         info!("Stopping {:?}", stop_reason);
         (iterations, stop_reason)
     }
@@ -234,6 +216,7 @@ where
 pub struct SimpleRunner {
     iter_limit: usize,
     node_limit: usize,
+    i: usize,
 }
 
 impl Default for SimpleRunner {
@@ -241,6 +224,7 @@ impl Default for SimpleRunner {
         Self {
             iter_limit: 30,
             node_limit: 10_000,
+            i: 0,
         }
     }
 }
@@ -257,6 +241,7 @@ impl SimpleRunner {
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde-1", derive(serde::Serialize))]
 pub enum SimpleRunnerError {
+    Saturated,
     IterationLimit(usize),
     NodeLimit(usize),
 }
@@ -268,22 +253,37 @@ where
 {
     type Error = SimpleRunnerError;
 
-    fn pre_step(
-        &mut self,
-        iteration: usize,
-        _egraph: &mut EGraph<L, M>,
-    ) -> Result<(), Self::Error> {
-        if iteration >= self.iter_limit {
-            Err(SimpleRunnerError::IterationLimit(iteration))
+    fn pre_step(&mut self, egraph: &mut EGraph<L, M>) -> Result<(), Self::Error> {
+        info!(
+            "\n\nIteration {}, n={}, e={}",
+            self.i,
+            egraph.total_size(),
+            egraph.number_of_classes()
+        );
+        if self.i >= self.iter_limit {
+            Err(SimpleRunnerError::IterationLimit(self.i))
         } else {
             Ok(())
         }
     }
 
-    fn during_step(&mut self, _iteration: usize, egraph: &EGraph<L, M>) -> Result<(), Self::Error> {
+    fn during_step(&mut self, egraph: &EGraph<L, M>) -> Result<(), Self::Error> {
         let size = egraph.total_size();
         if size > self.node_limit {
             Err(SimpleRunnerError::NodeLimit(size))
+        } else {
+            Ok(())
+        }
+    }
+
+    fn post_step(
+        &mut self,
+        iteration: &Iteration,
+        _egraph: &mut EGraph<L, M>,
+    ) -> Result<(), Self::Error> {
+        self.i += 1;
+        if iteration.applied.is_empty() {
+            Err(SimpleRunnerError::Saturated)
         } else {
             Ok(())
         }
