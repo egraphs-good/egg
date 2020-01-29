@@ -14,6 +14,8 @@ test-egg:
 	cargo test           --features "parent-pointers"
 	cargo clippy --tests --features "parent-pointers"
 
+	cargo clippy --tests --features "serde-1"
+
 .PHONY: test-math
 test-math:
 	cd egg-math; cargo clippy --tests --features "parent-pointers"

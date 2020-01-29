@@ -29,7 +29,10 @@ pub struct Iteration {
 #[cfg_attr(
     feature = "serde-1",
     derive(serde::Serialize),
-    serde(bound(serialize = "L: Language + std::fmt::Display"))
+    serde(bound(serialize = "
+        L: Language + std::fmt::Display,
+        E: serde::Serialize
+    "))
 )]
 #[non_exhaustive]
 pub struct RunReport<L, E> {
