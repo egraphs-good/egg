@@ -10,7 +10,7 @@ log = "0.4"
 indexmap = "1.1"
 
 ordered-float = "1"
-env_logger = "0.6"
+env_logger = "0.7"
 
 [features]
 parent-pointers = ["egg/parent-pointers"]
