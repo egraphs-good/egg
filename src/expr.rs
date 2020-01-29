@@ -37,20 +37,20 @@ impl<L: Language + fmt::Display> serde::Serialize for RecExpr<L> {
     }
 }
 
-impl<L: Language> From<Inner<L>> for RecExpr<L> {
+impl<L> From<Inner<L>> for RecExpr<L> {
     fn from(inner: Inner<L>) -> Self {
         let rc = Rc::new(inner);
         RecExpr { rc }
     }
 }
 
-impl<L: Language> std::borrow::Borrow<Inner<L>> for RecExpr<L> {
+impl<L> std::borrow::Borrow<Inner<L>> for RecExpr<L> {
     fn borrow(&self) -> &Inner<L> {
         &self.rc
     }
 }
 
-impl<L: Language> AsRef<Inner<L>> for RecExpr<L> {
+impl<L> AsRef<Inner<L>> for RecExpr<L> {
     fn as_ref(&self) -> &Inner<L> {
         &self.rc
     }
