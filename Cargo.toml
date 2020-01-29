@@ -17,6 +17,7 @@ itertools = "0.8"
 smallvec = "0.6"
 indexmap = "1"
 instant = "0.1"
+# for the serde-1 feature
 serde = { version = "1", features = ["derive"], optional = true }
 
 [dev-dependencies]

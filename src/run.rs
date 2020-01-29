@@ -7,6 +7,7 @@ use log::*;
 use crate::{
     egraph::{EGraph, Metadata},
     expr::{Language, RecExpr},
+    pattern::EClassMatches,
     rewrite::Rewrite,
 };
 
@@ -61,44 +62,43 @@ where
     type Error: fmt::Debug;
     // TODO make it so Runners can add fields to Iteration data
 
-    fn pre_step(
-        &mut self,
-        _iteration: usize,
-        _egraph: &mut EGraph<L, M>,
-    ) -> Result<(), Self::Error> {
+    fn pre_step(&mut self, _iter: usize, _egraph: &mut EGraph<L, M>) -> Result<(), Self::Error> {
         Ok(())
     }
 
-    fn post_step(
-        &mut self,
-        _iteration: usize,
-        _egraph: &mut EGraph<L, M>,
-    ) -> Result<(), Self::Error> {
+    fn post_step(&mut self, _iter: usize, _egraph: &mut EGraph<L, M>) -> Result<(), Self::Error> {
         Ok(())
     }
 
-    fn during_step(
-        &mut self,
-        _iteration: usize,
-        _egraph: &EGraph<L, M>,
-    ) -> Result<(), Self::Error> {
+    fn during_step(&mut self, _iter: usize, _egraph: &EGraph<L, M>) -> Result<(), Self::Error> {
         Ok(())
+    }
+
+    /// Dictates how matches will be applied.
+    fn apply_matches(
+        &mut self,
+        _iter: usize,
+        egraph: &mut EGraph<L, M>,
+        rewrite: &Rewrite<L, M>,
+        matches: Vec<EClassMatches>,
+    ) -> usize {
+        rewrite.apply(egraph, &matches).len()
     }
 
     fn step(
         &mut self,
-        iteration: usize,
+        iter: usize,
         egraph: &mut EGraph<L, M>,
         rules: &[Rewrite<L, M>],
     ) -> Result<Iteration, Self::Error> {
         trace!("Running pre_step...");
-        self.pre_step(iteration, egraph)?;
+        self.pre_step(iter, egraph)?;
 
         let egraph_nodes = egraph.total_size();
         let egraph_classes = egraph.number_of_classes();
         info!(
             "\n\nIteration {}, n={}, e={}",
-            iteration, egraph_nodes, egraph_classes
+            iter, egraph_nodes, egraph_classes
         );
         trace!("EGraph {:?}", egraph.dump());
 
@@ -108,7 +108,7 @@ where
         for rule in rules.iter() {
             let ms = rule.search(egraph);
             matches.push(ms);
-            self.during_step(iteration, egraph)?
+            self.during_step(iter, egraph)?
         }
 
         let search_time = search_time.elapsed().as_secs_f64();
@@ -125,7 +125,7 @@ where
 
             debug!("Applying {} {} times", rw.name, total_matches);
 
-            let actually_matched = rw.apply(egraph, &ms).len();
+            let actually_matched = self.apply_matches(iter, egraph, rw, ms);
             if actually_matched > 0 {
                 // applications.push((&m.rewrite.name, actually_matched));
                 if let Some(count) = applied.get_mut(&rw.name) {
@@ -136,7 +136,7 @@ where
                 debug!("Applied {} {} times", rw.name, actually_matched);
             }
 
-            self.during_step(iteration, egraph)?
+            self.during_step(iter, egraph)?
         }
 
         let apply_time = apply_time.elapsed().as_secs_f64();
@@ -154,7 +154,7 @@ where
         );
 
         trace!("Running post_step...");
-        self.post_step(iteration, egraph)?;
+        self.post_step(iter, egraph)?;
 
         Ok(Iteration {
             applied,
