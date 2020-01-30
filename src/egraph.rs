@@ -5,6 +5,7 @@ use indexmap::{IndexMap, IndexSet};
 use log::*;
 
 use crate::{
+    dot::Dot,
     expr::{Expr, Id, Language, RecExpr},
     unionfind::{Key, UnionFind, Value},
 };
@@ -28,7 +29,7 @@ impl<L: Language, M: Debug> Debug for EGraph<L, M> {
     }
 }
 
-impl<L: Language, M> Default for EGraph<L, M> {
+impl<L, M> Default for EGraph<L, M> {
     fn default() -> EGraph<L, M> {
         EGraph {
             memo: IndexMap::default(),
@@ -82,7 +83,7 @@ pub struct EClass<L, M> {
     parents: IndexSet<usize>,
 }
 
-impl<L: Language, M> EClass<L, M> {
+impl<L, M> EClass<L, M> {
     pub fn is_empty(&self) -> bool {
         self.nodes.is_empty()
     }
@@ -130,7 +131,11 @@ impl<L: Language, M: Metadata<L>> Value for EClass<L, M> {
     }
 }
 
-impl<L: Language, M> EGraph<L, M> {
+impl<L, M> EGraph<L, M> {
+    pub fn dot(&self) -> Dot<L, M> {
+        Dot::new(self)
+    }
+
     pub fn classes(&self) -> impl Iterator<Item = &EClass<L, M>> {
         self.classes.values()
     }
@@ -448,22 +453,6 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
         }
     }
 
-    pub fn dump_dot(&self, filename: &str)
-    where
-        L: std::fmt::Display,
-    {
-        use std::fs::File;
-        use std::io::prelude::*;
-
-        let filename = format!("dots/{}", filename);
-        std::fs::create_dir_all("dots").unwrap();
-
-        let dot = crate::dot::Dot::new(self);
-        let mut file = File::create(&filename).unwrap();
-        write!(file, "{}", dot).unwrap();
-        trace!("Writing {}...\n{}", filename, dot);
-    }
-
     pub fn dump(&self) -> EGraphDump<L, M> {
         EGraphDump(self)
     }
@@ -504,7 +493,7 @@ mod tests {
         egraph.union(x, y);
         egraph.rebuild();
 
-        egraph.dump_dot("foo.dot");
+        egraph.dot().to_dot("target/foo.dot").unwrap();
 
         assert_eq!(2 + 2, 4);
     }
