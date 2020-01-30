@@ -1,68 +1,102 @@
-//! EGraph visualization with [GraphViz]
-//!
-//! Use the `Dot` struct to visualize an [`EGraph`]
-//!
-//! ```
-//! use egg::{
-//!   expr::tests::{TestLang, var, op},
-//!   egraph::EGraph,
-//!   dot::Dot,
-//! };
-//!
-//! // make an egraph
-//! let mut egraph = EGraph::<TestLang, ()>::default();
-//! let x = egraph.add(var("x"));
-//! let y = egraph.add(var("y"));
-//! egraph.add(op("+", vec![x.id, y.id]));
-//!
-//! // create a `Dot` and then compile it assuming `dot` is on the system
-//! egraph.dot().to_svg("target/doc/foo.svg").unwrap();
-//! ```
-//!
-//! [`EGraph`]: ../egraph/struct.EGraph.html
-//! [GraphViz]: https://graphviz.gitlab.io/
+/*!
+EGraph visualization with [GraphViz]
+
+Use the [`Dot`] struct to visualize an [`EGraph`]
+
+[`Dot`]: struct.Dot.html
+[`EGraph`]: ../egraph/struct.EGraph.html
+[GraphViz]: https://graphviz.gitlab.io/
+!*/
 
 use std::ffi::OsStr;
-use std::fmt::{self, Display, Formatter};
+use std::fmt::{self, Debug, Display, Formatter};
 use std::io::{Error, ErrorKind, Result, Write};
 use std::path::Path;
 
 use crate::{egraph::EGraph, expr::Language};
 
-/// A wrapper for an [`EGraph`] that implements `Display` so you can
-/// print it.
-///
-/// [`EGraph`]: ../egraph/struct.EGraph.html
+/**
+A wrapper for an [`EGraph`] that can output [GraphViz] for
+visualization.
+
+# Example
+
+```
+use egg::{
+  expr::tests::{TestLang, var, op},
+  egraph::EGraph,
+  dot::Dot,
+};
+
+let mut egraph = EGraph::<TestLang, ()>::default();
+let x = egraph.add(var("x")).id;
+let y = egraph.add(var("0")).id;
+let add = egraph.add(op("+", vec![x, y])).id;
+egraph.union(add, x);
+egraph.rebuild();
+
+// create a Dot and dump it to a file
+egraph.dot().to_png("target/foo.dot").unwrap();
+
+// Dot implements std::fmt::Display
+println!("My egraph dot file: {}", egraph.dot());
+
+// create a Dot and then compile it assuming `dot` is on the system
+egraph.dot().to_svg("target/foo.svg").unwrap();
+egraph.dot().to_png("target/foo.png").unwrap();
+egraph.dot().to_pdf("target/foo.pdf").unwrap();
+```
+
+Note that self-edges (from an enode to its containing eclass) will be
+rendered improperly due to a deficiency in GraphViz.
+So the example above will render with an from the "+" enode to itself
+instead of to its own eclass.
+
+[`EGraph`]: ../egraph/struct.EGraph.html
+[GraphViz]: https://graphviz.gitlab.io/
+**/
 pub struct Dot<'a, L, M> {
     egraph: &'a EGraph<L, M>,
 }
 
 impl<'a, L, M> Dot<'a, L, M> {
     /// Given a reference to an `EGraph`, makes a `Dot`.
+    /// See also the more convenient
+    /// [`EGraph::dot`](../egraph/struct.EGraph.html#method.dot).
     pub fn new(egraph: &EGraph<L, M>) -> Dot<L, M> {
         Dot { egraph }
     }
 }
 
 impl<'a, L: Language + Display, M> Dot<'a, L, M> {
-    pub fn to_png(&self, filename: impl AsRef<Path>) -> Result<()> {
-        self.run_dot(&["-Tpng".as_ref(), "-o".as_ref(), filename.as_ref()])
-    }
-
-    pub fn to_svg(&self, filename: impl AsRef<Path>) -> Result<()> {
-        self.run_dot(&["-Tsvg".as_ref(), "-o".as_ref(), filename.as_ref()])
-    }
-
-    pub fn to_pdf(&self, filename: impl AsRef<Path>) -> Result<()> {
-        self.run_dot(&["-Tpdf".as_ref(), "-o".as_ref(), filename.as_ref()])
-    }
-
+    /// Writes the `Dot` to a .dot file with the given filename.
+    /// Does _not_ require a `dot` binary.
     pub fn to_dot(&self, filename: impl AsRef<Path>) -> Result<()> {
         let mut file = std::fs::File::create(filename)?;
         write!(file, "{}", self)?;
         Ok(())
     }
 
+    /// Renders the `Dot` to a .png file with the given filename.
+    /// Requires a `dot` binary to be on your `$PATH`.
+    pub fn to_png(&self, filename: impl AsRef<Path>) -> Result<()> {
+        self.run_dot(&["-Tpng".as_ref(), "-o".as_ref(), filename.as_ref()])
+    }
+
+    /// Renders the `Dot` to a .svg file with the given filename.
+    /// Requires a `dot` binary to be on your `$PATH`.
+    pub fn to_svg(&self, filename: impl AsRef<Path>) -> Result<()> {
+        self.run_dot(&["-Tsvg".as_ref(), "-o".as_ref(), filename.as_ref()])
+    }
+
+    /// Renders the `Dot` to a .pdf file with the given filename.
+    /// Requires a `dot` binary to be on your `$PATH`.
+    pub fn to_pdf(&self, filename: impl AsRef<Path>) -> Result<()> {
+        self.run_dot(&["-Tpdf".as_ref(), "-o".as_ref(), filename.as_ref()])
+    }
+
+    /// Invokes `dot` with the given arguments, piping this formatted
+    /// `Dot` into stdin.
     pub fn run_dot<S, I>(&self, args: I) -> Result<()>
     where
         S: AsRef<OsStr>,
@@ -71,6 +105,18 @@ impl<'a, L: Language + Display, M> Dot<'a, L, M> {
         self.run("dot", args)
     }
 
+    /// Invokes some program with the given arguments, piping this
+    /// formatted `Dot` into stdin.
+    ///
+    /// Can be used to run a different binary than `dot`:
+    /// ```no_run
+    /// # use egg::{expr::tests::TestLang, egraph::EGraph};
+    /// # let egraph = EGraph::<TestLang, ()>::default();
+    /// egraph.dot().run(
+    ///     "/path/to/my/dot",
+    ///     &["arg1", "-o", "outfile"]
+    /// ).unwrap();
+    /// ```
     pub fn run<S1, S2, I>(&self, program: S1, args: I) -> Result<()>
     where
         S1: AsRef<OsStr>,
@@ -99,12 +145,19 @@ impl<'a, L: Language + Display, M> Dot<'a, L, M> {
     }
 }
 
+impl<'a, L: Language, M: Debug> Debug for Dot<'a, L, M> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "Dot({:?})", self.egraph)
+    }
+}
+
 impl<'a, L: Language + Display, M> Display for Dot<'a, L, M> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         writeln!(f, "digraph egraph {{")?;
 
         // set compound=true to enable edges to clusters
         writeln!(f, "  compound=true")?;
+        writeln!(f, "  clusterrank=local")?;
 
         // define all the nodes, clustered by eclass
         for class in self.egraph.classes() {
@@ -121,12 +174,22 @@ impl<'a, L: Language + Display, M> Display for Dot<'a, L, M> {
                 for (arg_i, child) in node.children.iter().enumerate() {
                     // write the edge to the child, but clip it to the eclass with lhead
                     let child_leader = self.egraph.find(*child);
-                    writeln!(
-                        f,
-                        // {}.0 to pick an arbitrary node in the cluster
-                        "  {}.{} -> {}.0 [lhead = cluster_{}, label = {}]",
-                        class.id, i_in_class, child, child_leader, arg_i
-                    )?;
+
+                    if child_leader == class.id {
+                        writeln!(
+                            f,
+                            // {}.0 to pick an arbitrary node in the cluster
+                            "  {}.{} -> {}.{}:n [lhead = cluster_{}, label = {}]",
+                            class.id, i_in_class, class.id, i_in_class, class.id, arg_i
+                        )?;
+                    } else {
+                        writeln!(
+                            f,
+                            // {}.0 to pick an arbitrary node in the cluster
+                            "  {}.{} -> {}.0 [lhead = cluster_{}, label = {}]",
+                            class.id, i_in_class, child, child_leader, arg_i
+                        )?;
+                    }
                 }
             }
         }
