@@ -18,5 +18,7 @@ jobs:
       run: which cargo-web || cargo install cargo-web
     - name: Install cargo deadlinks
       run: which cargo-deadlinks || cargo install cargo-deadlinks
+    - name: Install graphviz
+      run: sudo apt-get update && sudo apt-get install graphviz
     - name: Build and Test
       run: make
