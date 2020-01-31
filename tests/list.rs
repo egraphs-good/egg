@@ -1,14 +1,8 @@
-use egg::{
-    define_language,
-    expr::Name,
-    parse::ParsableLanguage,
-    rewrite::rw,
-    run::{Runner, SimpleRunner},
-};
+use egg::*;
 use log::*;
 
 type Meta = ();
-type Rewrite = egg::rewrite::Rewrite<List, Meta>;
+type Rewrite = egg::Rewrite<List, Meta>;
 
 define_language! {
     enum List {

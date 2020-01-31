@@ -4,12 +4,7 @@ use indexmap::IndexMap;
 use instant::Instant;
 use log::*;
 
-use crate::{
-    egraph::{EGraph, Metadata},
-    expr::{Id, Language, RecExpr},
-    pattern::EClassMatches,
-    rewrite::Rewrite,
-};
+use crate::{EClassMatches, EGraph, Id, Language, Metadata, RecExpr, Rewrite};
 
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde-1", derive(serde::Serialize))]

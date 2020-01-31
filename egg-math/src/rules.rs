@@ -1,7 +1,7 @@
 use indexmap::IndexMap;
 
 use crate::{Math, Rewrite};
-use egg::{egraph::Metadata, rewrite::rw};
+use egg::{rw, Metadata};
 
 fn mk_rules<M>(tuples: &[(&str, &str, &str)]) -> Vec<Rewrite<M>>
 where

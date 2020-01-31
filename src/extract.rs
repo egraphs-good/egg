@@ -1,10 +1,7 @@
 use std::cmp::Ordering;
 use std::fmt::Debug;
 
-use crate::{
-    egraph::{EClass, EGraph},
-    expr::{Expr, Id, Language, RecExpr},
-};
+use crate::{EClass, EGraph, ENode, Expr, Id, Language, RecExpr};
 
 use indexmap::IndexMap;
 
@@ -90,7 +87,7 @@ where
             .into()
     }
 
-    fn node_total_cost(&mut self, node: &Expr<L, Id>) -> Option<CF::Cost> {
+    fn node_total_cost(&mut self, node: &ENode<L>) -> Option<CF::Cost> {
         let expr = node
             .map_children_result(|id| self.costs.get(&id).cloned().ok_or(()))
             .ok()?;

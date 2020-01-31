@@ -14,12 +14,7 @@ and add them to the EGraph.
 [`ParsableLanguage`]: parse/trait.ParsableLanguage.html
 
 ```
-use egg::{
-    define_language,
-    rewrite::{rw, Rewrite},
-    parse::ParsableLanguage,
-    run::{Runner, SimpleRunner},
-};
+use egg::*;
 
 define_language! {
     enum SimpleLanguage {
@@ -54,16 +49,30 @@ println!(
 
 mod macros;
 
-mod unionfind;
+pub(crate) mod unionfind;
 
-pub mod dot;
-pub mod egraph;
-pub mod expr;
-pub mod extract;
-pub mod parse;
-pub mod pattern;
-pub mod rewrite;
-pub mod run;
+mod dot;
+mod eclass;
+mod egraph;
+mod expr;
+mod extract;
+mod parse;
+mod pattern;
+mod rewrite;
+mod run;
+
+pub use dot::Dot;
+pub use eclass::{EClass, Metadata};
+pub use egraph::{AddResult, EGraph};
+pub use expr::{
+    tests::{op, var, TestLang},
+    ENode, Expr, Id, Language, Name, QuestionMarkName, RecExpr,
+};
+pub use extract::*;
+pub use parse::{ParsableLanguage, ParseError};
+pub use pattern::{EClassMatches, Pattern, WildMap};
+pub use rewrite::{rw, Applier, Rewrite};
+pub use run::*;
 
 #[cfg(test)]
 fn init_logger() {

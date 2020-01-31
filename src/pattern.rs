@@ -5,11 +5,7 @@ use log::*;
 use smallvec::{smallvec, SmallVec};
 use symbolic_expressions::Sexp;
 
-use crate::{
-    egraph::{AddResult, EGraph, Metadata},
-    expr::{Expr, Id, Language, QuestionMarkName, RecExpr},
-    rewrite::Applier,
-};
+use crate::{AddResult, Applier, EGraph, Expr, Id, Language, Metadata, QuestionMarkName, RecExpr};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Pattern<L> {
@@ -30,6 +26,16 @@ impl<L: Language> Pattern<L> {
                 .map_children(|child| Pattern::from_expr(&child))
                 .into(),
         )
+    }
+
+    pub fn to_expr(&self) -> Result<RecExpr<L>, String> {
+        match self {
+            Pattern::Expr(e) => Ok(e.map_children_result(|p| p.to_expr())?.into()),
+            Pattern::Wildcard(w, _) => {
+                let msg = format!("Found wildcard {:?} instead of expr term", w);
+                Err(msg)
+            }
+        }
     }
 
     pub fn is_multi_wildcard(&self) -> bool {

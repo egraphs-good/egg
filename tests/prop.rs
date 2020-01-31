@@ -1,12 +1,4 @@
-use egg::{
-    define_language,
-    egraph::{EClass, EGraph, Metadata},
-    expr::{Expr, Name},
-    parse::ParsableLanguage,
-    rewrite::{rw, Rewrite},
-    run::{Runner, SimpleRunner},
-};
-use log::*;
+use egg::*;
 
 define_language! {
     enum Prop {
@@ -53,7 +45,7 @@ rule! {lem_imply, "(& (-> ?a ?b) (-> (~ ?a) ?c))", "(| ?b ?c)"}
 
 fn prove_something(name: &str, start: &str, rewrites: &[Rewrite<Prop, ()>], goals: &[&str]) {
     let _ = env_logger::builder().is_test(true).try_init();
-    info!("Proving {}", name);
+    println!("Proving {}", name);
 
     let start_expr = Prop::parse_expr(start).unwrap();
     let goal_exprs: Vec<_> = goals.iter().map(|g| Prop::parse_expr(g).unwrap()).collect();
@@ -64,7 +56,7 @@ fn prove_something(name: &str, start: &str, rewrites: &[Rewrite<Prop, ()>], goal
         .run_expr(start_expr.clone(), rewrites);
 
     for (i, (goal_expr, goal_str)) in goal_exprs.iter().zip(goals).enumerate() {
-        info!("Trying to prove goal {}: {}", i, goal_str);
+        println!("Trying to prove goal {}: {}", i, goal_str);
         let equivs = egraph.equivs(&start_expr, &goal_expr);
         if equivs.is_empty() {
             panic!("Couldn't prove goal {}: {}", i, goal_str);

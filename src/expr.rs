@@ -8,7 +8,7 @@ use symbolic_expressions::Sexp;
 use crate::unionfind::UnionFind;
 
 pub type Id = u32;
-pub type IdNode<L> = Expr<L, Id>;
+pub type ENode<L> = Expr<L, Id>;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct Expr<O, Child> {
@@ -155,7 +155,7 @@ impl<L: Language, Child> Expr<L, Child> {
     }
 }
 
-impl<L: Language> Expr<L, Id> {
+impl<L: Language> ENode<L> {
     pub fn update_ids<V>(&self, unionfind: &UnionFind<Id, V>) -> Self {
         self.map_children(|id| unionfind.find(id))
     }

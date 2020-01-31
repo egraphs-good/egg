@@ -1,9 +1,4 @@
-use egg::{
-    extract::{CostFunction, Extractor},
-    parse::ParsableLanguage,
-    pattern::Pattern,
-    run::{Runner, SimpleRunner},
-};
+use egg::{CostFunction, Extractor, ParsableLanguage, Pattern, Runner, SimpleRunner};
 use std::time::Instant;
 
 use egg_math::{EGraph, Math, MathCostFn};

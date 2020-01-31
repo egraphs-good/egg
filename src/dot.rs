@@ -22,11 +22,7 @@ visualization.
 # Example
 
 ```
-use egg::{
-  expr::tests::{TestLang, var, op},
-  egraph::EGraph,
-  dot::Dot,
-};
+use egg::{EGraph, TestLang, var, op};
 
 let mut egraph = EGraph::<TestLang, ()>::default();
 let x = egraph.add(var("x")).id;
@@ -110,7 +106,7 @@ impl<'a, L: Language + Display, M> Dot<'a, L, M> {
     ///
     /// Can be used to run a different binary than `dot`:
     /// ```no_run
-    /// # use egg::{expr::tests::TestLang, egraph::EGraph};
+    /// # use egg::*;
     /// # let egraph = EGraph::<TestLang, ()>::default();
     /// egraph.dot().run(
     ///     "/path/to/my/dot",

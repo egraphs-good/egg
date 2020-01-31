@@ -1,13 +1,8 @@
-use egg::{
-    define_language,
-    egraph::EClass,
-    expr::{Expr, Name, RecExpr},
-    extract::CostFunction,
-};
+use egg::{define_language, CostFunction, EClass, Expr, Name, RecExpr};
 
 use ordered_float::NotNan;
-pub type EGraph<M = Meta> = egg::egraph::EGraph<Math, M>;
-pub type Rewrite<M = Meta> = egg::rewrite::Rewrite<Math, M>;
+pub type EGraph<M = Meta> = egg::EGraph<Math, M>;
+pub type Rewrite<M = Meta> = egg::Rewrite<Math, M>;
 
 mod rules;
 pub use rules::rules;
@@ -139,7 +134,7 @@ fn eval(op: Math, args: &[Constant]) -> Option<Constant> {
     }
 }
 
-impl egg::egraph::Metadata<Math> for Meta {
+impl egg::Metadata<Math> for Meta {
     type Error = std::convert::Infallible;
     fn merge(&self, other: &Self) -> Self {
         if self.cost <= other.cost {

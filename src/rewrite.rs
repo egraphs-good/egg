@@ -4,10 +4,8 @@ use std::rc::Rc;
 use log::*;
 
 use crate::{
-    egraph::{AddResult, EGraph, Metadata},
-    expr::{Id, Language},
-    parse::{ParsableLanguage, ParseError},
-    pattern::{EClassMatches, Pattern, WildMap},
+    AddResult, EClassMatches, EGraph, Id, Language, Metadata, ParsableLanguage, ParseError,
+    Pattern, WildMap,
 };
 
 pub struct RewriteBuilder<L, M> {

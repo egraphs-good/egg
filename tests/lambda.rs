@@ -1,18 +1,7 @@
-use egg::{
-    define_language,
-    egraph::{AddResult, EClass, Metadata},
-    expr::{Expr, QuestionMarkName},
-    extract::{AstSize, CostFunction, Extractor},
-    parse::ParsableLanguage,
-    pattern::WildMap,
-    rewrite::{rw, Applier, Rewrite},
-    run::{Runner, SimpleRunner},
-};
-
-use log::*;
+use egg::*;
 use smallvec::smallvec;
 
-type EGraph = egg::egraph::EGraph<Lang, Meta>;
+type EGraph = egg::EGraph<Lang, Meta>;
 
 define_language! {
     enum Lang {
@@ -218,7 +207,7 @@ fn prove_something(start: &str, goals: &[&str]) {
     println!("End ({}): {}", cost, best.pretty(80));
 
     for (i, (goal_expr, goal_str)) in goal_exprs.iter().zip(goals).enumerate() {
-        info!("Trying to prove goal {}: {}", i, goal_str);
+        println!("Trying to prove goal {}: {}", i, goal_str);
         let equivs = egraph.equivs(&start_expr, &goal_expr);
         if equivs.is_empty() {
             panic!("Couldn't prove goal {}: {}", i, goal_str);

@@ -5,12 +5,7 @@ use stdweb::web::Date;
 use yew::services::ConsoleService;
 use yew::{html, Component, ComponentLink, Html, Renderable, ShouldRender};
 
-use egg::{
-    egraph::EClass,
-    expr::{Id, RecExpr},
-    parse::{pat_to_expr, ParsableLanguage},
-    pattern::{EClassMatches, Pattern},
-};
+use egg::{EClass, EClassMatches, Id, ParsableLanguage, Pattern, RecExpr};
 use egg_math::*;
 
 struct Queried {
@@ -152,7 +147,7 @@ impl Component for Model {
             }
             Msg::AddQuery => {
                 if let Ok(pat) = &self.query {
-                    match pat_to_expr(pat.pattern.clone()) {
+                    match pat.pattern.to_expr() {
                         Ok(expr) => {
                             let id = self.egraph.add_expr(&expr);
                             self.update(Msg::UpdateQuery(expr.to_sexp().to_string()));

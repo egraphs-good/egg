@@ -1,19 +1,14 @@
 use std::fmt::{self, Debug};
-use std::iter::ExactSizeIterator;
 
 use indexmap::{IndexMap, IndexSet};
 use log::*;
 
-use crate::{
-    dot::Dot,
-    expr::{Expr, Id, Language, RecExpr},
-    unionfind::{Key, UnionFind, Value},
-};
+use crate::{unionfind::UnionFind, Dot, EClass, ENode, Id, Language, Metadata, RecExpr};
 
 /// Data structure to keep track of equalities between expressions
 #[derive(Clone)]
 pub struct EGraph<L, M> {
-    memo: IndexMap<Expr<L, Id>, Id>,
+    memo: IndexMap<ENode<L>, Id>,
     classes: UnionFind<Id, EClass<L, M>>,
     unions_since_rebuild: usize,
 }
@@ -39,25 +34,10 @@ impl<L, M> Default for EGraph<L, M> {
     }
 }
 
-pub trait Metadata<L>: Sized + Debug {
-    type Error: Debug;
-    fn merge(&self, other: &Self) -> Self;
-    // TODO should make be allowed to modify?
-    fn make(expr: Expr<L, &Self>) -> Self;
-    fn modify(_eclass: &mut EClass<L, Self>) {}
-}
-
-impl<L: Language> Metadata<L> for () {
-    type Error = std::convert::Infallible;
-    fn merge(&self, _other: &()) {}
-    fn make(_expr: Expr<L, &()>) {}
-}
-
 /// Struct that tells you whether or not an [`add`] modified the EGraph
 ///
 /// ```
-/// # use egg::egraph::EGraph;
-/// # use egg::expr::tests::*;
+/// # use egg::*;
 /// let mut egraph = EGraph::<TestLang, ()>::default();
 /// let x1 = egraph.add(var("x"));
 /// let x2 = egraph.add(var("x"));
@@ -72,63 +52,6 @@ impl<L: Language> Metadata<L> for () {
 pub struct AddResult {
     pub was_there: bool,
     pub id: Id,
-}
-
-#[derive(Debug, Clone)]
-pub struct EClass<L, M> {
-    pub id: Id,
-    pub nodes: Vec<Expr<L, Id>>,
-    pub metadata: M,
-    #[cfg(feature = "parent-pointers")]
-    parents: IndexSet<usize>,
-}
-
-impl<L, M> EClass<L, M> {
-    pub fn is_empty(&self) -> bool {
-        self.nodes.is_empty()
-    }
-
-    pub fn len(&self) -> usize {
-        self.nodes.len()
-    }
-
-    pub fn iter(&self) -> impl ExactSizeIterator<Item = &Expr<L, Id>> {
-        self.nodes.iter()
-    }
-}
-
-impl<L: Language, M: Metadata<L>> Value for EClass<L, M> {
-    type Error = std::convert::Infallible;
-    fn merge<K: Key>(
-        _unionfind: &mut UnionFind<K, Self>,
-        to: Self,
-        from: Self,
-    ) -> Result<Self, Self::Error> {
-        let mut less = to.nodes;
-        let mut more = from.nodes;
-
-        // make sure less is actually smaller
-        if more.len() < less.len() {
-            std::mem::swap(&mut less, &mut more);
-        }
-
-        more.extend(less);
-
-        let mut eclass = EClass {
-            id: to.id,
-            nodes: more,
-            metadata: to.metadata.merge(&from.metadata),
-            #[cfg(feature = "parent-pointers")]
-            parents: {
-                let mut parents = to.parents;
-                parents.extend(from.parents);
-                parents
-            },
-        };
-
-        M::modify(&mut eclass);
-        Ok(eclass)
-    }
 }
 
 impl<L, M> EGraph<L, M> {
@@ -152,8 +75,7 @@ impl<L, M> EGraph<L, M> {
     ///
     /// Actually returns the size of the hash cons index.
     /// ```
-    /// # use egg::egraph::EGraph;
-    /// # use egg::expr::tests::*;
+    /// # use egg::*;
     /// let mut egraph = EGraph::<TestLang, ()>::default();
     /// let x = egraph.add(var("x"));
     /// let y = egraph.add(var("y"));
@@ -194,7 +116,7 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
         self.add(e).id
     }
 
-    fn add_unchecked(&mut self, enode: Expr<L, Id>) -> AddResult {
+    fn add_unchecked(&mut self, enode: ENode<L>) -> AddResult {
         // HACK knowing the next key like this is pretty bad
         let mut class = EClass {
             id: self.classes.total_size() as Id,
@@ -221,7 +143,7 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
         }
     }
 
-    pub fn add(&mut self, enode: Expr<L, Id>) -> AddResult {
+    pub fn add(&mut self, enode: ENode<L>) -> AddResult {
         trace!("Adding       {:?}", enode);
 
         // make sure that the enodes children are already in the set
@@ -453,12 +375,12 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
         }
     }
 
-    pub fn dump(&self) -> EGraphDump<L, M> {
+    pub fn dump<'a>(&'a self) -> impl Debug + 'a {
         EGraphDump(self)
     }
 }
 
-pub struct EGraphDump<'a, L, M>(&'a EGraph<L, M>);
+struct EGraphDump<'a, L, M>(&'a EGraph<L, M>);
 
 impl<'a, L, M> Debug for EGraphDump<'a, L, M>
 where

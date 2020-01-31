@@ -38,7 +38,7 @@ macro_rules! define_language {
             }
         }
 
-        impl $crate::expr::Language for $name {}
+        impl $crate::Language for $name {}
 
     };
     (@parse_arm $e:expr, $name:ident $variant:ident = $str:literal) => {
