@@ -47,8 +47,8 @@ fn prove_something(name: &str, start: &str, rewrites: &[Rewrite<Prop, ()>], goal
     let _ = env_logger::builder().is_test(true).try_init();
     println!("Proving {}", name);
 
-    let start_expr = Prop::parse_expr(start).unwrap();
-    let goal_exprs: Vec<_> = goals.iter().map(|g| Prop::parse_expr(g).unwrap()).collect();
+    let start_expr: RecExpr<Prop> = start.parse().unwrap();
+    let goal_exprs: Vec<RecExpr<Prop>> = goals.iter().map(|g| g.parse().unwrap()).collect();
 
     let (egraph, _) = SimpleRunner::default()
         .with_iter_limit(20)
@@ -150,9 +150,9 @@ impl Metadata<Prop> for ConstantFold {
 #[test]
 fn const_fold() {
     let start = "(| (& false true) (& true false))";
-    let start_expr = Prop::parse_expr(start).unwrap();
+    let start_expr = start.parse().unwrap();
     let end = "false";
-    let end_expr = Prop::parse_expr(end).unwrap();
+    let end_expr = end.parse().unwrap();
     let (eg, _) = EGraph::<Prop, ConstantFold>::from_expr(&start_expr);
     assert!(!eg.equivs(&start_expr, &end_expr).is_empty());
 }

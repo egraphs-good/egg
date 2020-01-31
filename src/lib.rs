@@ -4,14 +4,16 @@ parameterized over the language given by the user (by implementing
 the [`Language`] trait).
 
 A typical usage would either implement [`Language`] or use the
-provided [`TestLang`]. From there, you can use the functionality
-from the [`ParsableLanguage`] trait module to create expressions
-and add them to the EGraph.
+provided [`TestLang`].
+If your Language implements [`FromStr`] (and Languages derived using
+`define_language!` do), you can easily create [`RecExpr`]s to add to
+an [`EGraph`].
 
-[`EGraph`]: egraph/struct.EGraph.html
-[`Language`]: expr/trait.Language.html
-[`TestLang`]: expr/tests/struct.TestLang.html
-[`ParsableLanguage`]: parse/trait.ParsableLanguage.html
+[`EGraph`]: struct.EGraph.html
+[`Language`]: trait.Language.html
+[`RecExpr`]: struct.RecExpr.html
+[`TestLang`]: struct.TestLang.html
+[`FromStr`]: https://doc.rust-lang.org/std/str/trait.FromStr.html
 
 ```
 use egg::*;
@@ -36,8 +38,7 @@ let rules: &[Rewrite<SimpleLanguage, ()>] = &[
     rw("mul-1").p("(* ?a 1)").a("?a").mk(),
 ];
 
-let start = SimpleLanguage::parse_expr("(+ 0 (* 1 foo))").unwrap();
-
+let start = "(+ 0 (* 1 foo))".parse().unwrap();
 let (egraph, report) = SimpleRunner::default().run_expr(start, &rules);
 println!(
     "Stopped after {} iterations, reason: {:?}",
@@ -51,15 +52,15 @@ mod macros;
 
 pub(crate) mod unionfind;
 
-mod dot;
-mod eclass;
-mod egraph;
-mod expr;
-mod extract;
-mod parse;
-mod pattern;
-mod rewrite;
-mod run;
+pub mod dot;
+pub mod eclass;
+pub mod egraph;
+pub mod expr;
+pub mod extract;
+pub mod parse;
+pub mod pattern;
+pub mod rewrite;
+pub mod run;
 
 pub use dot::Dot;
 pub use eclass::{EClass, Metadata};
@@ -69,7 +70,7 @@ pub use expr::{
     ENode, Expr, Id, Language, Name, QuestionMarkName, RecExpr,
 };
 pub use extract::*;
-pub use parse::{ParsableLanguage, ParseError};
+pub use parse::ParseError;
 pub use pattern::{EClassMatches, Pattern, WildMap};
 pub use rewrite::{rw, Applier, Rewrite};
 pub use run::*;

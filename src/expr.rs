@@ -169,7 +169,7 @@ impl<L: Language> ENode<L> {
 /// TODO I think I can remove the requirements on Language itself if I
 /// manually derive these things for Expr
 ///
-/// [`TestLang`]: tests/struct.TestLang.html
+/// [`TestLang`]: ../struct.TestLang.html
 pub trait Language: Debug + PartialEq + Eq + Hash + Clone + 'static {}
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]

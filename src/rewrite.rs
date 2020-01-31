@@ -1,11 +1,11 @@
 use std::fmt;
 use std::rc::Rc;
+use std::str::FromStr;
 
 use log::*;
 
 use crate::{
-    AddResult, EClassMatches, EGraph, Id, Language, Metadata, ParsableLanguage, ParseError,
-    Pattern, WildMap,
+    AddResult, EClassMatches, EGraph, Id, Language, Metadata, ParseError, Pattern, WildMap,
 };
 
 pub struct RewriteBuilder<L, M> {
@@ -45,14 +45,18 @@ impl<L, M> RewriteBuilder<L, M> {
 
 impl<L, M> RewriteBuilder<L, M>
 where
-    L: ParsableLanguage,
+    L: Language + FromStr,
     M: Metadata<L>,
 {
     pub fn with_pattern_str(self, pattern_str: &str) -> Result<Self, ParseError> {
-        L::parse_pattern(pattern_str).map(|p| self.with_pattern(p))
+        pattern_str
+            .parse()
+            .map(|p: Pattern<L>| self.with_pattern(p))
     }
     pub fn with_applier_str(self, applier_str: &str) -> Result<Self, ParseError> {
-        L::parse_pattern(applier_str).map(|a| self.with_applier(a))
+        applier_str
+            .parse()
+            .map(|a: Pattern<L>| self.with_applier(a))
     }
     pub fn p(self, pattern_str: &str) -> Self {
         self.with_pattern_str(pattern_str).unwrap()
@@ -248,12 +252,10 @@ mod tests {
     #[test]
     fn fn_rewrite() {
         crate::init_logger();
-        use crate::parse::ParsableLanguage;
-
         let mut egraph = EGraph::<TestLang, ()>::default();
 
-        let start = TestLang::parse_expr("(+ x y)").unwrap();
-        let goal = TestLang::parse_expr("xy").unwrap();
+        let start = "(+ x y)".parse().unwrap();
+        let goal = "xy".parse().unwrap();
 
         let root = egraph.add_expr(&start);
 

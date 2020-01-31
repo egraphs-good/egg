@@ -5,7 +5,7 @@ use stdweb::web::Date;
 use yew::services::ConsoleService;
 use yew::{html, Component, ComponentLink, Html, Renderable, ShouldRender};
 
-use egg::{EClass, EClassMatches, Id, ParsableLanguage, Pattern, RecExpr};
+use egg::{EClass, EClassMatches, Id, Pattern, RecExpr};
 use egg_math::*;
 
 struct Queried {
@@ -138,8 +138,9 @@ impl Component for Model {
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         match msg {
             Msg::UpdateQuery(s) => {
-                self.query = Math::parse_pattern(&s)
-                    .map(|pattern| {
+                self.query = s
+                    .parse()
+                    .map(|pattern: Pattern<_>| {
                         let matches = pattern.search(&self.egraph);
                         Queried { pattern, matches }
                     })

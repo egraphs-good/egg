@@ -26,8 +26,8 @@ fn rules() -> Vec<Rewrite> {
 fn prove_something(start: &str, rewrites: &[Rewrite], goals: &[&str]) {
     let _ = env_logger::builder().is_test(true).try_init();
 
-    let start_expr = List::parse_expr(start).unwrap();
-    let goal_exprs: Vec<_> = goals.iter().map(|g| List::parse_expr(g).unwrap()).collect();
+    let start_expr: RecExpr<List> = start.parse().unwrap();
+    let goal_exprs: Vec<_> = goals.iter().map(|g| g.parse().unwrap()).collect();
 
     let (egraph, _) = SimpleRunner::default()
         .with_iter_limit(20)

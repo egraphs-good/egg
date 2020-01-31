@@ -193,10 +193,10 @@ impl Metadata<Lang> for Meta {
 fn prove_something(start: &str, goals: &[&str]) {
     let _ = env_logger::builder().is_test(true).try_init();
 
-    let start_expr = Lang::parse_expr(start).unwrap();
+    let start_expr = start.parse().unwrap();
     println!("Start ({}): {}", AstSize.cost_rec(&start_expr), start);
 
-    let goal_exprs: Vec<_> = goals.iter().map(|g| Lang::parse_expr(g).unwrap()).collect();
+    let goal_exprs: Vec<_> = goals.iter().map(|g| g.parse().unwrap()).collect();
 
     let (egraph, report) = SimpleRunner::default()
         .with_iter_limit(500)

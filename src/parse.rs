@@ -19,15 +19,7 @@ impl fmt::Display for ParseError {
     }
 }
 
-impl Error for ParseError {
-    fn description(&self) -> &str {
-        &self.0
-    }
-
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        None
-    }
-}
+impl Error for ParseError {}
 
 impl From<SexpError> for ParseError {
     fn from(e: SexpError) -> ParseError {
@@ -35,10 +27,23 @@ impl From<SexpError> for ParseError {
     }
 }
 
-fn parse_term<L: ParsableLanguage>(sexp: &Sexp) -> Result<Pattern<L>>
-where
-    L: FromStr,
-{
+impl<L: Language + FromStr> FromStr for Pattern<L> {
+    type Err = ParseError;
+    fn from_str(s: &str) -> Result<Self> {
+        let sexp = parse_str(s.trim())?;
+        parse_term(&sexp)
+    }
+}
+
+impl<L: Language + FromStr> FromStr for RecExpr<L> {
+    type Err = ParseError;
+    fn from_str(s: &str) -> Result<Self> {
+        let pat: Pattern<L> = s.parse()?;
+        pat.to_expr().map_err(ParseError)
+    }
+}
+
+fn parse_term<L: Language + FromStr>(sexp: &Sexp) -> Result<Pattern<L>> {
     match sexp {
         Sexp::String(s) => {
             if s.trim() != s || s.is_empty() {
@@ -76,30 +81,6 @@ where
     }
 }
 
-/// A trait to parse stuff from a `Language`.
-///
-/// This is blanket-impled for any `Language` whose domains all
-/// implement [`FromStr`]. [`TestLang`] is a parsable language.
-///
-/// [`FromStr`]: https://doc.rust-lang.org/std/str/trait.FromStr.html
-/// [`TestLang`]: ../expr/tests/struct.TestLang.html
-pub trait ParsableLanguage: Language
-where
-    Self: FromStr,
-{
-    fn parse_pattern(s: &str) -> Result<Pattern<Self>> {
-        let sexp = parse_str(s.trim())?;
-        parse_term(&sexp)
-    }
-
-    fn parse_expr(s: &str) -> Result<RecExpr<Self>> {
-        let pat = Self::parse_pattern(s)?;
-        pat.to_expr().map_err(ParseError)
-    }
-}
-
-impl<L: Language> ParsableLanguage for L where Self: FromStr {}
-
 #[cfg(test)]
 mod tests {
 
@@ -110,8 +91,7 @@ mod tests {
     #[test]
     fn simple_parse() {
         let expr: RecExpr<TestLang> = op("+", vec![var("x").into(), var("x").into()]);
-
-        let expr2 = TestLang::parse_expr("(+ x x)").unwrap();
+        let expr2 = "(+ x x)".parse().unwrap();
 
         assert_eq!(expr, expr2);
     }
