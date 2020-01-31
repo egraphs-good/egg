@@ -155,7 +155,7 @@ impl Component for Model {
                             self.added.push(Added { expr, id });
                         }
                         Err(err) => {
-                            self.query = Err(err.to_string());
+                            self.query = Err(err);
                         }
                     }
                 }
