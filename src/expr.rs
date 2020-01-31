@@ -1,7 +1,6 @@
 use std::fmt::{self, Debug};
 use std::hash::Hash;
 use std::rc::Rc;
-use std::str::FromStr;
 
 use smallvec::SmallVec;
 use symbolic_expressions::Sexp;
@@ -204,23 +203,4 @@ impl AsRef<str> for QuestionMarkName {
     fn as_ref(&self) -> &str {
         &self.0
     }
-}
-
-pub fn leaf<L, Child, Out>(v: &str) -> Out
-where
-    L: Language + FromStr,
-    <L as FromStr>::Err: Debug,
-    Out: From<ENode<L, Child>>,
-{
-    ENode::leaf(v.parse().unwrap()).into()
-}
-
-pub fn op<L, I, Child, Out>(op: &str, args: I) -> Out
-where
-    L: Language + FromStr,
-    I: IntoIterator<Item = Child>,
-    <L as FromStr>::Err: Debug,
-    Out: From<ENode<L, Child>>,
-{
-    ENode::new(op.parse().unwrap(), args).into()
 }

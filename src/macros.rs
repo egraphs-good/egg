@@ -69,6 +69,26 @@ macro_rules! define_language {
     };
 }
 
+#[macro_export]
+macro_rules! enode {
+    ($e:expr) => {
+        $crate::ENode::leaf($e.into())
+    };
+    ($e:expr, $($child:expr),*$(,)?) => {
+        $crate::ENode::new($e.into(), vec![$($child),*])
+    };
+}
+
+#[macro_export]
+macro_rules! recexpr {
+    ($e:expr) => {
+        RecExpr::from($crate::enode!($e))
+    };
+    ($e:expr, $($child:expr),*$(,)?) => {
+        RecExpr::from($crate::enode!($e, $($child),*))
+    };
+}
+
 #[cfg(test)]
 mod tests {
     define_language! { enum Term {

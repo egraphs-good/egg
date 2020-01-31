@@ -84,11 +84,11 @@ fn parse_term<L: Language + FromStr>(sexp: &Sexp) -> Result<Pattern<L>> {
 #[cfg(test)]
 mod tests {
 
-    use crate::*;
+    use crate::{recexpr as r, *};
 
     #[test]
     fn simple_parse() {
-        let expr: RecExpr<String> = op("+", vec![leaf("x"), leaf("x")]);
+        let expr: RecExpr<String> = r!("+", r!("x"), r!("x"));
         let expr2 = "(+ x x)".parse().unwrap();
 
         assert_eq!(expr, expr2);

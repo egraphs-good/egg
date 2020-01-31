@@ -318,7 +318,7 @@ impl<L: Language> Pattern<L> {
 mod tests {
 
     use super::WildcardKind;
-    use crate::*;
+    use crate::{enode as e, *};
 
     fn wc<L: Language>(name: &QuestionMarkName) -> Pattern<L> {
         Pattern::Wildcard(name.clone(), WildcardKind::Single)
@@ -329,13 +329,13 @@ mod tests {
         crate::init_logger();
         let mut egraph = EGraph::<String, ()>::default();
 
-        let x = egraph.add(leaf("x")).id;
-        let y = egraph.add(leaf("y")).id;
-        let plus = egraph.add(op("+", vec![x, y])).id;
+        let x = egraph.add(e!("x")).id;
+        let y = egraph.add(e!("y")).id;
+        let plus = egraph.add(e!("+", x, y)).id;
 
-        let z = egraph.add(leaf("z")).id;
-        let w = egraph.add(leaf("w")).id;
-        let plus2 = egraph.add(op("+", vec![z, w])).id;
+        let z = egraph.add(e!("z")).id;
+        let w = egraph.add(e!("w")).id;
+        let plus2 = egraph.add(e!("+", z, w)).id;
 
         egraph.union(plus, plus2);
         egraph.rebuild();
@@ -343,9 +343,10 @@ mod tests {
         let a: QuestionMarkName = "?a".parse().unwrap();
         let b: QuestionMarkName = "?b".parse().unwrap();
 
+        let pat = |e| Pattern::ENode(Box::new(e));
         let commute_plus = rw("commute_plus")
-            .with_pattern(Pattern::ENode(op("+", vec![wc(&a), wc(&b)])))
-            .with_applier(Pattern::ENode(op("+", vec![wc(&b), wc(&a)])))
+            .with_pattern(pat(e!("+", wc(&a), wc(&b))))
+            .with_applier(pat(e!("+", wc(&b), wc(&a))))
             .mk();
 
         let matches = commute_plus.search(&egraph);

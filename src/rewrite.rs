@@ -196,7 +196,7 @@ pub trait Applier<L: Language, M: Metadata<L>>: fmt::Debug {
 #[cfg(test)]
 mod tests {
 
-    use crate::*;
+    use crate::{enode as e, *};
 
     fn wc<L: Language>(name: &QuestionMarkName) -> Pattern<L> {
         Pattern::Wildcard(name.clone(), crate::pattern::WildcardKind::Single)
@@ -207,24 +207,22 @@ mod tests {
         crate::init_logger();
         let mut egraph = EGraph::<String, ()>::default();
 
-        let x = egraph.add(leaf("x")).id;
-        let y = egraph.add(leaf("2")).id;
-        let mul = egraph.add(op("*", vec![x, y])).id;
+        let pat = |e| Pattern::ENode(Box::new(e));
+        let x = egraph.add(e!("x")).id;
+        let y = egraph.add(e!("2")).id;
+        let mul = egraph.add(e!("*", x, y)).id;
 
-        let true_pat = Pattern::ENode(op("TRUE", vec![]));
-        let true_id = egraph.add(op("TRUE", vec![])).id;
+        let true_pat = pat(e!("TRUE"));
+        let true_id = egraph.add(e!("TRUE")).id;
 
         let a: QuestionMarkName = "?a".parse().unwrap();
         let b: QuestionMarkName = "?b".parse().unwrap();
 
         let mul_to_shift = rw("mul_to_shift")
-            .with_pattern(Pattern::ENode(op("*", vec![wc(&a), wc(&b)])))
-            .with_applier(Pattern::ENode(op(
-                ">>",
-                vec![wc(&a), Pattern::ENode(op("log2", vec![wc(&b)]))],
-            )))
+            .with_pattern(pat(e!("*", wc(&a), wc(&b))))
+            .with_applier(pat(e!(">>", wc(&a), pat(e!("log2", wc(&b))),)))
             .with_condition(Condition {
-                lhs: Pattern::ENode(op("is-power2", vec![wc(&b)])),
+                lhs: pat(e!("is-power2", wc(&b))),
                 rhs: true_pat,
             })
             .mk();
@@ -235,7 +233,7 @@ mod tests {
         assert_eq!(apps, vec![]);
 
         println!("Add the needed equality");
-        let two_ispow2 = egraph.add(op("is-power2", vec![y])).id;
+        let two_ispow2 = egraph.add(e!("is-power2", y)).id;
         egraph.union(two_ispow2, true_id);
 
         println!("Should fire now");
@@ -270,12 +268,13 @@ mod tests {
                 let a = get(&egraph, map[&a][0]);
                 let b = get(&egraph, map[&b][0]);
                 let s = format!("{}{}", a, b);
-                vec![egraph.add(leaf(&s))]
+                vec![egraph.add(e!(&s))]
             }
         }
 
+        let pat = |e| Pattern::ENode(Box::new(e));
         let fold_add = rw("fold_add")
-            .with_pattern(Pattern::ENode(op("+", vec![wc(&a), wc(&b)])))
+            .with_pattern(pat(e!("+", wc(&a), wc(&b))))
             .with_applier(Appender)
             .mk();
 

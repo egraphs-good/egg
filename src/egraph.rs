@@ -39,8 +39,8 @@ impl<L, M> Default for EGraph<L, M> {
 /// ```
 /// # use egg::*;
 /// let mut egraph = EGraph::<String, ()>::default();
-/// let x1 = egraph.add(leaf("x"));
-/// let x2 = egraph.add(leaf("x"));
+/// let x1 = egraph.add(enode!("x"));
+/// let x2 = egraph.add(enode!("x"));
 ///
 /// assert_eq!(x1.id, x2.id);
 /// assert!(!x1.was_there);
@@ -77,8 +77,8 @@ impl<L, M> EGraph<L, M> {
     /// ```
     /// # use egg::*;
     /// let mut egraph = EGraph::<String, ()>::default();
-    /// let x = egraph.add(leaf("x"));
-    /// let y = egraph.add(leaf("y"));
+    /// let x = egraph.add(enode!("x"));
+    /// let y = egraph.add(enode!("y"));
     /// // only one eclass
     /// egraph.union(x.id, y.id);
     ///
@@ -397,18 +397,18 @@ where
 #[cfg(test)]
 mod tests {
 
-    use crate::*;
+    use crate::{enode as e, *};
 
     #[test]
     fn simple_add() {
         crate::init_logger();
         let mut egraph = EGraph::<String, ()>::default();
 
-        let x = egraph.add(leaf("x")).id;
-        let x2 = egraph.add(leaf("x")).id;
-        let _plus = egraph.add(op("+", vec![x, x2])).id;
+        let x = egraph.add(e!("x")).id;
+        let x2 = egraph.add(e!("x")).id;
+        let _plus = egraph.add(e!("+", x, x2)).id;
 
-        let y = egraph.add(leaf("y")).id;
+        let y = egraph.add(e!("y")).id;
 
         egraph.union(x, y);
         egraph.rebuild();

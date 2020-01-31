@@ -162,10 +162,8 @@ impl egg::Metadata<Math> for Meta {
         };
 
         let best: RecExpr<_> = expr.map_children(|c| c.best.clone()).into();
-        Self {
-            best,
-            cost: MathCostFn.cost(&expr.map_children(|c| c.cost)),
-        }
+        let cost = MathCostFn.cost(&expr.map_children(|c| c.cost));
+        Self { best, cost }
     }
 
     fn modify(eclass: &mut EClass<Math, Self>) {
