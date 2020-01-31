@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 use std::fmt::Debug;
 
-use crate::{EClass, EGraph, ENode, Expr, Id, Language, RecExpr};
+use crate::{EClass, EGraph, ENode, Id, Language, RecExpr};
 
 use indexmap::IndexMap;
 
@@ -13,26 +13,26 @@ pub struct Extractor<'a, CF: CostFunction<L>, L: Language, M> {
 
 pub trait CostFunction<L: Language> {
     type Cost: Ord + Debug + Clone;
-    fn cost(&mut self, expr: &Expr<L, Self::Cost>) -> Self::Cost;
-    fn cost_rec(&mut self, expr: &RecExpr<L>) -> Self::Cost {
-        let child_cost_expr = expr.as_ref().map_children(|e| self.cost_rec(&e));
-        self.cost(&child_cost_expr)
+    fn cost(&mut self, enode: &ENode<L, Self::Cost>) -> Self::Cost;
+    fn cost_rec(&mut self, enode: &RecExpr<L>) -> Self::Cost {
+        let child_cost = enode.as_ref().map_children(|e| self.cost_rec(&e));
+        self.cost(&child_cost)
     }
 }
 
 pub struct AstSize;
 impl<L: Language> CostFunction<L> for AstSize {
     type Cost = usize;
-    fn cost(&mut self, expr: &Expr<L, Self::Cost>) -> Self::Cost {
-        1 + expr.children.iter().copied().sum::<usize>()
+    fn cost(&mut self, enode: &ENode<L, Self::Cost>) -> Self::Cost {
+        1 + enode.children.iter().copied().sum::<usize>()
     }
 }
 
 pub struct AstDepth;
 impl<L: Language> CostFunction<L> for AstDepth {
     type Cost = usize;
-    fn cost(&mut self, expr: &Expr<L, Self::Cost>) -> Self::Cost {
-        1 + expr.children.iter().copied().max().unwrap_or(0)
+    fn cost(&mut self, enode: &ENode<L, Self::Cost>) -> Self::Cost {
+        1 + enode.children.iter().copied().max().unwrap_or(0)
     }
 }
 

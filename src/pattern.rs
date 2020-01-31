@@ -5,11 +5,11 @@ use log::*;
 use smallvec::{smallvec, SmallVec};
 use symbolic_expressions::Sexp;
 
-use crate::{AddResult, Applier, EGraph, Expr, Id, Language, Metadata, QuestionMarkName, RecExpr};
+use crate::{AddResult, Applier, EGraph, ENode, Id, Language, Metadata, QuestionMarkName, RecExpr};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Pattern<L> {
-    Expr(Box<Expr<L, Pattern<L>>>),
+    ENode(Box<ENode<L, Pattern<L>>>),
     Wildcard(QuestionMarkName, WildcardKind),
 }
 
@@ -21,7 +21,7 @@ pub enum WildcardKind {
 
 impl<L: Language> Pattern<L> {
     pub fn from_expr(e: &RecExpr<L>) -> Self {
-        Pattern::Expr(
+        Pattern::ENode(
             e.as_ref()
                 .map_children(|child| Pattern::from_expr(&child))
                 .into(),
@@ -30,7 +30,7 @@ impl<L: Language> Pattern<L> {
 
     pub fn to_expr(&self) -> Result<RecExpr<L>, String> {
         match self {
-            Pattern::Expr(e) => Ok(e.map_children_result(|p| p.to_expr())?.into()),
+            Pattern::ENode(e) => Ok(e.map_children_result(|p| p.to_expr())?.into()),
             Pattern::Wildcard(w, _) => {
                 let msg = format!("Found wildcard {:?} instead of expr term", w);
                 Err(msg)
@@ -54,7 +54,7 @@ impl<L: Language> Pattern<L> {
                 assert_eq!(*kind, WildcardKind::Single);
                 mapping.get(w, *kind).unwrap()[0]
             }
-            Pattern::Expr(expr) => {
+            Pattern::ENode(expr) => {
                 let expr = expr.map_children(|pat| pat.subst_and_find(egraph, mapping));
                 let result = egraph.add(expr);
                 result.id
@@ -67,7 +67,7 @@ impl<L: Language> Pattern<L> {
     //         Pattern::Wildcard(w, _) => {
     //             set.insert(w.clone());
     //         }
-    //         Pattern::Expr(expr) => {
+    //         Pattern::ENode(expr) => {
     //             expr.map_children(|pat| pat.insert_wildcards(set));
     //         }
     //     }
@@ -76,7 +76,7 @@ impl<L: Language> Pattern<L> {
     // pub(crate) fn is_bound(&self, set: &IndexSet<QuestionMarkName>) -> bool {
     //     match self {
     //         Pattern::Wildcard(w, _) => set.contains(w),
-    //         Pattern::Expr(e) => e.children.iter().all(|p| p.is_bound(set)),
+    //         Pattern::ENode(e) => e.children.iter().all(|p| p.is_bound(set)),
     //     }
     // }
 }
@@ -85,7 +85,7 @@ impl<L: Language + fmt::Display> Pattern<L> {
     pub fn to_sexp(&self) -> Sexp {
         match self {
             Pattern::Wildcard(w, _) => Sexp::String(w.to_string()),
-            Pattern::Expr(e) => match e.children.len() {
+            Pattern::ENode(e) => match e.children.len() {
                 0 => Sexp::String(e.op.to_string()),
                 _ => {
                     let mut vec: Vec<_> = e.children.iter().map(Self::to_sexp).collect();
@@ -111,7 +111,7 @@ impl<L: Language, M: Metadata<L>> Applier<L, M> for Pattern<L> {
                     id,
                 })
                 .collect(),
-            Pattern::Expr(e) => {
+            Pattern::ENode(e) => {
                 // use the `was_there` field to keep track if we
                 // ever added anything to the egraph during this
                 // application
@@ -124,7 +124,7 @@ impl<L: Language, M: Metadata<L>> Applier<L, M> for Pattern<L> {
                         everything_was_there &= result.was_there;
                         result.id
                     });
-                let n = Expr::new(e.op.clone(), children);
+                let n = ENode::new(e.op.clone(), children);
                 trace!("adding: {:?}", n);
                 let mut op_add = egraph.add(n);
                 op_add.was_there &= everything_was_there;
@@ -224,7 +224,7 @@ impl<L: Language> Pattern<L> {
 
                 return smallvec![var_mapping];
             }
-            Pattern::Expr(e) => e,
+            Pattern::ENode(e) => e,
         };
 
         let mut new_mappings = SmallVec::new();
@@ -252,7 +252,7 @@ impl<L: Language> Pattern<L> {
                         .filter_map(|(i, p)| match p {
                             Pattern::Wildcard(q, WildcardKind::ZeroOrMore) => Some((i, q)),
                             Pattern::Wildcard(_, WildcardKind::Single) => None,
-                            Pattern::Expr(_) => None,
+                            Pattern::ENode(_) => None,
                         })
                         .next()
                         .unwrap();
@@ -344,8 +344,8 @@ mod tests {
         let b: QuestionMarkName = "?b".parse().unwrap();
 
         let commute_plus = rw("commute_plus")
-            .with_pattern(Pattern::Expr(op("+", vec![wc(&a), wc(&b)])))
-            .with_applier(Pattern::Expr(op("+", vec![wc(&b), wc(&a)])))
+            .with_pattern(Pattern::ENode(op("+", vec![wc(&a), wc(&b)])))
+            .with_applier(Pattern::ENode(op("+", vec![wc(&b), wc(&a)])))
             .mk();
 
         let matches = commute_plus.search(&egraph);

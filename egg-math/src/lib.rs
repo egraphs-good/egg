@@ -1,4 +1,4 @@
-use egg::{define_language, CostFunction, EClass, Expr, RecExpr};
+use egg::{define_language, CostFunction, EClass, ENode, RecExpr};
 
 use ordered_float::NotNan;
 pub type EGraph<M = Meta> = egg::EGraph<Math, M>;
@@ -62,7 +62,7 @@ pub struct MathCostFn;
 impl CostFunction<Math> for MathCostFn {
     type Cost = usize;
 
-    fn cost(&mut self, expr: &Expr<Math, Self::Cost>) -> Self::Cost {
+    fn cost(&mut self, expr: &ENode<Math, Self::Cost>) -> Self::Cost {
         let cost = match expr.op {
             Math::Constant(_) | Math::Variable(_) => 1,
             Math::Add => 40,
@@ -144,7 +144,7 @@ impl egg::Metadata<Math> for Meta {
         }
     }
 
-    fn make(expr: Expr<Math, &Self>) -> Self {
+    fn make(expr: ENode<Math, &Self>) -> Self {
         let expr = {
             let const_args: Option<Vec<Constant>> = expr
                 .children
@@ -157,7 +157,7 @@ impl egg::Metadata<Math> for Meta {
 
             const_args
                 .and_then(|a| eval(expr.op.clone(), &a))
-                .map(|c| Expr::leaf(Math::Constant(c)))
+                .map(|c| ENode::leaf(Math::Constant(c)))
                 .unwrap_or(expr)
         };
 
@@ -172,7 +172,7 @@ impl egg::Metadata<Math> for Meta {
         // NOTE pruning vs not pruning is decided right here
         let best = eclass.metadata.best.as_ref();
         if best.children.is_empty() {
-            eclass.nodes = vec![Expr::leaf(best.op.clone())]
+            eclass.nodes = vec![ENode::leaf(best.op.clone())]
         }
     }
 }

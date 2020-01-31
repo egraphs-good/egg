@@ -211,20 +211,20 @@ mod tests {
         let y = egraph.add(leaf("2")).id;
         let mul = egraph.add(op("*", vec![x, y])).id;
 
-        let true_pat = Pattern::Expr(op("TRUE", vec![]));
+        let true_pat = Pattern::ENode(op("TRUE", vec![]));
         let true_id = egraph.add(op("TRUE", vec![])).id;
 
         let a: QuestionMarkName = "?a".parse().unwrap();
         let b: QuestionMarkName = "?b".parse().unwrap();
 
         let mul_to_shift = rw("mul_to_shift")
-            .with_pattern(Pattern::Expr(op("*", vec![wc(&a), wc(&b)])))
-            .with_applier(Pattern::Expr(op(
+            .with_pattern(Pattern::ENode(op("*", vec![wc(&a), wc(&b)])))
+            .with_applier(Pattern::ENode(op(
                 ">>",
-                vec![wc(&a), Pattern::Expr(op("log2", vec![wc(&b)]))],
+                vec![wc(&a), Pattern::ENode(op("log2", vec![wc(&b)]))],
             )))
             .with_condition(Condition {
-                lhs: Pattern::Expr(op("is-power2", vec![wc(&b)])),
+                lhs: Pattern::ENode(op("is-power2", vec![wc(&b)])),
                 rhs: true_pat,
             })
             .mk();
@@ -275,7 +275,7 @@ mod tests {
         }
 
         let fold_add = rw("fold_add")
-            .with_pattern(Pattern::Expr(op("+", vec![wc(&a), wc(&b)])))
+            .with_pattern(Pattern::ENode(op("+", vec![wc(&a), wc(&b)])))
             .with_applier(Appender)
             .mk();
 

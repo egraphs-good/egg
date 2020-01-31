@@ -5,7 +5,7 @@ use std::str::FromStr;
 use symbolic_expressions::{parser::parse_str, Sexp, SexpError};
 
 use crate::{
-    expr::{Expr, Language, QuestionMarkName, RecExpr},
+    expr::{ENode, Language, QuestionMarkName, RecExpr},
     pattern::{Pattern, WildcardKind},
 };
 
@@ -58,7 +58,7 @@ fn parse_term<L: Language + FromStr>(sexp: &Sexp) -> Result<Pattern<L>> {
                     };
                     Pattern::Wildcard(q, kind)
                 })
-                .or_else(|_| s.parse().map(|t| Pattern::Expr(Box::new(Expr::leaf(t)))))
+                .or_else(|_| s.parse().map(|t| Pattern::ENode(ENode::leaf(t).into())))
                 .map_err(|_| ParseError(format!("Couldn't parse '{}'", s)))
         }
 
@@ -75,7 +75,7 @@ fn parse_term<L: Language + FromStr>(sexp: &Sexp) -> Result<Pattern<L>> {
 
             let children: Result<Vec<Pattern<L>>> = sexps.map(|s| parse_term(s)).collect();
 
-            Ok(Pattern::Expr(Expr::new(op, children?).into()))
+            Ok(Pattern::ENode(ENode::new(op, children?).into()))
         }
         Sexp::Empty => Err(ParseError("empty!".into())),
     }

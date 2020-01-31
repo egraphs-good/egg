@@ -3,21 +3,21 @@ use std::iter::ExactSizeIterator;
 
 use crate::{
     unionfind::{Key, UnionFind, Value},
-    ENode, Expr, Id, Language,
+    ENode, Id, Language,
 };
 
 pub trait Metadata<L>: Sized + Debug {
     type Error: Debug;
     fn merge(&self, other: &Self) -> Self;
     // TODO should make be allowed to modify?
-    fn make(expr: Expr<L, &Self>) -> Self;
+    fn make(enode: ENode<L, &Self>) -> Self;
     fn modify(_eclass: &mut EClass<L, Self>) {}
 }
 
 impl<L: Language> Metadata<L> for () {
     type Error = std::convert::Infallible;
     fn merge(&self, _other: &()) {}
-    fn make(_expr: Expr<L, &()>) {}
+    fn make(_enode: ENode<L, &()>) {}
 }
 
 #[derive(Debug, Clone)]

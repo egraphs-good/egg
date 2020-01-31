@@ -9,15 +9,14 @@ use symbolic_expressions::Sexp;
 use crate::unionfind::UnionFind;
 
 pub type Id = u32;
-pub type ENode<L> = Expr<L, Id>;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub struct Expr<O, Child> {
+pub struct ENode<O, Child = Id> {
     pub op: O,
     pub children: SmallVec<[Child; 2]>,
 }
 
-type Inner<L> = Expr<L, RecExpr<L>>;
+type Inner<L> = ENode<L, RecExpr<L>>;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct RecExpr<L> {
@@ -124,16 +123,16 @@ impl<L: Language> RecExpr<L> {
     }
 }
 
-impl<L: Language, Child> Expr<L, Child> {
+impl<L: Language, Child> ENode<L, Child> {
     #[inline(always)]
     pub fn leaf(op: L) -> Self {
-        Expr::new(op, vec![])
+        ENode::new(op, vec![])
     }
 
     #[inline(always)]
     pub fn new(op: L, children: impl IntoIterator<Item = Child>) -> Self {
         let children = children.into_iter().collect();
-        Expr { op, children }
+        ENode { op, children }
     }
 
     #[inline(always)]
@@ -142,20 +141,20 @@ impl<L: Language, Child> Expr<L, Child> {
         I: IntoIterator<Item = Result<Child, E>>,
     {
         let c: Result<_, E> = children.into_iter().collect();
-        c.map(|children| Expr { op, children })
+        c.map(|children| ENode { op, children })
     }
 
     #[inline(always)]
-    pub fn map_children_result<Child2, F, Error>(&self, f: F) -> Result<Expr<L, Child2>, Error>
+    pub fn map_children_result<Child2, F, Error>(&self, f: F) -> Result<ENode<L, Child2>, Error>
     where
         Child: Clone,
         F: FnMut(Child) -> Result<Child2, Error>,
     {
-        Expr::try_new(self.op.clone(), self.children.iter().cloned().map(f))
+        ENode::try_new(self.op.clone(), self.children.iter().cloned().map(f))
     }
 
     #[inline(always)]
-    pub fn map_children<Child2, F>(&self, mut f: F) -> Expr<L, Child2>
+    pub fn map_children<Child2, F>(&self, mut f: F) -> ENode<L, Child2>
     where
         Child: Clone,
         F: FnMut(Child) -> Child2,
@@ -211,9 +210,9 @@ pub fn leaf<L, Child, Out>(v: &str) -> Out
 where
     L: Language + FromStr,
     <L as FromStr>::Err: Debug,
-    Out: From<Expr<L, Child>>,
+    Out: From<ENode<L, Child>>,
 {
-    Expr::leaf(v.parse().unwrap()).into()
+    ENode::leaf(v.parse().unwrap()).into()
 }
 
 pub fn op<L, I, Child, Out>(op: &str, args: I) -> Out
@@ -221,7 +220,7 @@ where
     L: Language + FromStr,
     I: IntoIterator<Item = Child>,
     <L as FromStr>::Err: Debug,
-    Out: From<Expr<L, Child>>,
+    Out: From<ENode<L, Child>>,
 {
-    Expr::new(op.parse().unwrap(), args).into()
+    ENode::new(op.parse().unwrap(), args).into()
 }

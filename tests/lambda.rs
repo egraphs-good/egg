@@ -136,10 +136,10 @@ impl Applier<Lang, Meta> for VarSubst {
             let body = map[body][0];
             // substituting in a lambda
             if v1 == v2 {
-                egraph.add(Expr::new(Lang::Lambda, vec![v2, body]))
+                egraph.add(ENode::new(Lang::Lambda, vec![v2, body]))
             } else {
-                let sub_body = egraph.add(Expr::new(Lang::Subst, vec![e, v1, body]));
-                egraph.add(Expr::new(Lang::Lambda, vec![v2, sub_body.id]))
+                let sub_body = egraph.add(ENode::new(Lang::Subst, vec![e, v1, body]));
+                egraph.add(ENode::new(Lang::Lambda, vec![v2, sub_body.id]))
             }
         } else {
             // substituting for a variable
@@ -149,7 +149,7 @@ impl Applier<Lang, Meta> for VarSubst {
                     id: e,
                 }
             } else {
-                egraph.add(Expr::new(Lang::Var, vec![v2]))
+                egraph.add(ENode::new(Lang::Var, vec![v2]))
             }
         };
 
@@ -170,7 +170,7 @@ impl Metadata<Lang> for Meta {
         }
     }
 
-    fn make(expr: Expr<Lang, &Self>) -> Self {
+    fn make(expr: ENode<Lang, &Self>) -> Self {
         use Lang::*;
         let get = |i: usize| expr.children.get(i).and_then(|m| m.constant.clone());
         let constant = match (&expr.op, get(0), get(1)) {
@@ -184,7 +184,7 @@ impl Metadata<Lang> for Meta {
 
     fn modify(eclass: &mut EClass<Lang, Self>) {
         if let Some(c) = eclass.metadata.constant.clone() {
-            eclass.nodes.push(Expr::leaf(c));
+            eclass.nodes.push(ENode::leaf(c));
         }
     }
 }

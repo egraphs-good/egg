@@ -62,7 +62,7 @@ mod run;
 pub use dot::Dot;
 pub use eclass::{EClass, Metadata};
 pub use egraph::{AddResult, EGraph};
-pub use expr::{leaf, op, ENode, Expr, Id, Language, QuestionMarkName, RecExpr};
+pub use expr::{leaf, op, ENode, Id, Language, QuestionMarkName, RecExpr};
 pub use extract::*;
 pub use parse::ParseError;
 pub use pattern::{EClassMatches, Pattern, WildMap};

@@ -118,7 +118,7 @@ impl Metadata<Prop> for ConstantFold {
         println!("Merge");
         self.and(*other)
     }
-    fn make(expr: Expr<Prop, &Self>) -> Self {
+    fn make(expr: ENode<Prop, &Self>) -> Self {
         let result = match &expr.op {
             Prop::Bool(c) => Some(*c),
             Prop::Variable(_) => None,
@@ -142,7 +142,7 @@ impl Metadata<Prop> for ConstantFold {
     fn modify(eclass: &mut EClass<Prop, Self>) {
         println!("Modifying: {:#?}", eclass);
         if let Some(c) = eclass.metadata {
-            eclass.nodes.push(Expr::leaf(Prop::Bool(c)))
+            eclass.nodes.push(ENode::leaf(Prop::Bool(c)))
         }
     }
 }
