@@ -58,7 +58,7 @@ fn parse_term<L: Language + FromStr>(sexp: &Sexp) -> Result<Pattern<L>> {
                     };
                     Pattern::Wildcard(q, kind)
                 })
-                .or_else(|_| s.parse().map(|t| Pattern::Expr(Box::new(Expr::unit(t)))))
+                .or_else(|_| s.parse().map(|t| Pattern::Expr(Box::new(Expr::leaf(t)))))
                 .map_err(|_| ParseError(format!("Couldn't parse '{}'", s)))
         }
 
@@ -75,7 +75,7 @@ fn parse_term<L: Language + FromStr>(sexp: &Sexp) -> Result<Pattern<L>> {
 
             let children: Result<Vec<Pattern<L>>> = sexps.map(|s| parse_term(s)).collect();
 
-            Ok(Pattern::Expr(Expr::new(op, children?.into()).into()))
+            Ok(Pattern::Expr(Expr::new(op, children?).into()))
         }
         Sexp::Empty => Err(ParseError("empty!".into())),
     }
@@ -84,13 +84,11 @@ fn parse_term<L: Language + FromStr>(sexp: &Sexp) -> Result<Pattern<L>> {
 #[cfg(test)]
 mod tests {
 
-    use super::*;
-
-    use crate::expr::tests::{op, var, TestLang};
+    use crate::*;
 
     #[test]
     fn simple_parse() {
-        let expr: RecExpr<TestLang> = op("+", vec![var("x").into(), var("x").into()]);
+        let expr: RecExpr<String> = op("+", vec![leaf("x"), leaf("x")]);
         let expr2 = "(+ x x)".parse().unwrap();
 
         assert_eq!(expr, expr2);

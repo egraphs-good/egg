@@ -1,6 +1,7 @@
 use std::fmt::{self, Debug};
 use std::hash::Hash;
 use std::rc::Rc;
+use std::str::FromStr;
 
 use smallvec::SmallVec;
 use symbolic_expressions::Sexp;
@@ -125,13 +126,23 @@ impl<L: Language> RecExpr<L> {
 
 impl<L: Language, Child> Expr<L, Child> {
     #[inline(always)]
-    pub fn unit(op: L) -> Self {
-        Expr::new(op, Default::default())
+    pub fn leaf(op: L) -> Self {
+        Expr::new(op, vec![])
     }
 
     #[inline(always)]
-    pub fn new(op: L, children: SmallVec<[Child; 2]>) -> Self {
+    pub fn new(op: L, children: impl IntoIterator<Item = Child>) -> Self {
+        let children = children.into_iter().collect();
         Expr { op, children }
+    }
+
+    #[inline(always)]
+    pub fn try_new<E, I>(op: L, children: I) -> Result<Self, E>
+    where
+        I: IntoIterator<Item = Result<Child, E>>,
+    {
+        let c: Result<_, E> = children.into_iter().collect();
+        c.map(|children| Expr { op, children })
     }
 
     #[inline(always)]
@@ -140,8 +151,7 @@ impl<L: Language, Child> Expr<L, Child> {
         Child: Clone,
         F: FnMut(Child) -> Result<Child2, Error>,
     {
-        let ch2: Result<SmallVec<_>, Error> = self.children.iter().cloned().map(f).collect();
-        Ok(Expr::new(self.op.clone(), ch2?))
+        Expr::try_new(self.op.clone(), self.children.iter().cloned().map(f))
     }
 
     #[inline(always)]
@@ -161,45 +171,14 @@ impl<L: Language> ENode<L> {
     }
 }
 
-/// Trait that wraps up information from the client about the language
-/// we're working with.
-///
-/// [`TestLang`] is provided as a simple implementation.
-///
-/// TODO I think I can remove the requirements on Language itself if I
-/// manually derive these things for Expr
-///
-/// [`TestLang`]: ../struct.TestLang.html
+/// Trait defines a Language whose terms will be in the `EGraph`.
+/// Typically, you'll want your language to implement `FromStr` as well.
+/// Check out the [`define_language!`] macro for an easy way to create
+/// a `Language`.
+/// [`define_language!`]: macro.define_language.html
 pub trait Language: Debug + PartialEq + Eq + Hash + Clone + 'static {}
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub struct Name(pub Rc<str>);
-
-impl<S: std::borrow::Borrow<str>> From<S> for Name {
-    fn from(s: S) -> Self {
-        Name(s.borrow().into())
-    }
-}
-
-impl std::str::FromStr for Name {
-    type Err = std::convert::Infallible;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(s.into())
-    }
-}
-
-impl fmt::Display for Name {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl AsRef<str> for Name {
-    fn as_ref(&self) -> &str {
-        &self.0
-    }
-}
+impl Language for String {}
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct QuestionMarkName(pub Rc<str>);
@@ -228,37 +207,21 @@ impl AsRef<str> for QuestionMarkName {
     }
 }
 
-pub mod tests {
+pub fn leaf<L, Child, Out>(v: &str) -> Out
+where
+    L: Language + FromStr,
+    <L as FromStr>::Err: Debug,
+    Out: From<Expr<L, Child>>,
+{
+    Expr::leaf(v.parse().unwrap()).into()
+}
 
-    use super::*;
-    use std::fmt;
-    use std::str::FromStr;
-
-    #[derive(Debug, Clone, Hash, PartialEq, Eq)]
-    pub struct TestLang(String);
-    impl Language for TestLang {}
-
-    impl fmt::Display for TestLang {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            write!(f, "{}", self.0)
-        }
-    }
-
-    impl FromStr for TestLang {
-        type Err = ();
-        fn from_str(s: &str) -> Result<Self, Self::Err> {
-            Ok(TestLang(s.into()))
-        }
-    }
-
-    pub fn var<T>(v: &str) -> Expr<TestLang, T> {
-        Expr::unit(v.parse().unwrap())
-    }
-
-    pub fn op<E, Child>(o: &str, args: Vec<Child>) -> E
-    where
-        E: From<Expr<TestLang, Child>>,
-    {
-        Expr::new(o.parse().unwrap(), args.into()).into()
-    }
+pub fn op<L, I, Child, Out>(op: &str, args: I) -> Out
+where
+    L: Language + FromStr,
+    I: IntoIterator<Item = Child>,
+    <L as FromStr>::Err: Debug,
+    Out: From<Expr<L, Child>>,
+{
+    Expr::new(op.parse().unwrap(), args).into()
 }

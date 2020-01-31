@@ -1,5 +1,4 @@
 use egg::*;
-use smallvec::smallvec;
 
 type EGraph = egg::EGraph<Lang, Meta>;
 
@@ -137,10 +136,10 @@ impl Applier<Lang, Meta> for VarSubst {
             let body = map[body][0];
             // substituting in a lambda
             if v1 == v2 {
-                egraph.add(Expr::new(Lang::Lambda, smallvec![v2, body]))
+                egraph.add(Expr::new(Lang::Lambda, vec![v2, body]))
             } else {
-                let sub_body = egraph.add(Expr::new(Lang::Subst, smallvec![e, v1, body]));
-                egraph.add(Expr::new(Lang::Lambda, smallvec![v2, sub_body.id]))
+                let sub_body = egraph.add(Expr::new(Lang::Subst, vec![e, v1, body]));
+                egraph.add(Expr::new(Lang::Lambda, vec![v2, sub_body.id]))
             }
         } else {
             // substituting for a variable
@@ -150,7 +149,7 @@ impl Applier<Lang, Meta> for VarSubst {
                     id: e,
                 }
             } else {
-                egraph.add(Expr::new(Lang::Var, smallvec![v2]))
+                egraph.add(Expr::new(Lang::Var, vec![v2]))
             }
         };
 
@@ -185,7 +184,7 @@ impl Metadata<Lang> for Meta {
 
     fn modify(eclass: &mut EClass<Lang, Self>) {
         if let Some(c) = eclass.metadata.constant.clone() {
-            eclass.nodes.push(Expr::unit(c));
+            eclass.nodes.push(Expr::leaf(c));
         }
     }
 }

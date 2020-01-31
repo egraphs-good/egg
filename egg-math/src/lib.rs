@@ -1,4 +1,4 @@
-use egg::{define_language, CostFunction, EClass, Expr, Name, RecExpr};
+use egg::{define_language, CostFunction, EClass, Expr, RecExpr};
 
 use ordered_float::NotNan;
 pub type EGraph<M = Meta> = egg::EGraph<Math, M>;
@@ -53,7 +53,7 @@ define_language! {
         // PositMul = "*.p16",
         // PositDiv = "/.p16",
         RealToPosit = "real->posit",
-        Variable(Name),
+        Variable(String),
     }
 }
 
@@ -157,7 +157,7 @@ impl egg::Metadata<Math> for Meta {
 
             const_args
                 .and_then(|a| eval(expr.op.clone(), &a))
-                .map(|c| Expr::unit(Math::Constant(c)))
+                .map(|c| Expr::leaf(Math::Constant(c)))
                 .unwrap_or(expr)
         };
 
@@ -172,7 +172,7 @@ impl egg::Metadata<Math> for Meta {
         // NOTE pruning vs not pruning is decided right here
         let best = eclass.metadata.best.as_ref();
         if best.children.is_empty() {
-            eclass.nodes = vec![Expr::unit(best.op.clone())]
+            eclass.nodes = vec![Expr::leaf(best.op.clone())]
         }
     }
 }

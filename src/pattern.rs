@@ -123,8 +123,7 @@ impl<L: Language, M: Metadata<L>> Applier<L, M> for Pattern<L> {
                     .map(|result| {
                         everything_was_there &= result.was_there;
                         result.id
-                    })
-                    .collect();
+                    });
                 let n = Expr::new(e.op.clone(), children);
                 trace!("adding: {:?}", n);
                 let mut op_add = egraph.add(n);
@@ -318,14 +317,8 @@ impl<L: Language> Pattern<L> {
 #[cfg(test)]
 mod tests {
 
-    use super::*;
-    use crate::{
-        expr::{
-            tests::{op, var, TestLang},
-            QuestionMarkName,
-        },
-        rewrite::rw,
-    };
+    use super::WildcardKind;
+    use crate::*;
 
     fn wc<L: Language>(name: &QuestionMarkName) -> Pattern<L> {
         Pattern::Wildcard(name.clone(), WildcardKind::Single)
@@ -334,14 +327,14 @@ mod tests {
     #[test]
     fn simple_match() {
         crate::init_logger();
-        let mut egraph = EGraph::<TestLang, ()>::default();
+        let mut egraph = EGraph::<String, ()>::default();
 
-        let x = egraph.add(var("x")).id;
-        let y = egraph.add(var("y")).id;
+        let x = egraph.add(leaf("x")).id;
+        let y = egraph.add(leaf("y")).id;
         let plus = egraph.add(op("+", vec![x, y])).id;
 
-        let z = egraph.add(var("z")).id;
-        let w = egraph.add(var("w")).id;
+        let z = egraph.add(leaf("z")).id;
+        let w = egraph.add(leaf("w")).id;
         let plus2 = egraph.add(op("+", vec![z, w])).id;
 
         egraph.union(plus, plus2);
@@ -382,9 +375,9 @@ mod tests {
             assert_eq!(actual_mappings, vec![e1, e0])
         }
 
-        info!("Here are the mappings!");
+        println!("Here are the mappings!");
         for m in &actual_mappings {
-            info!("mappings: {:?}", m);
+            println!("mappings: {:?}", m);
         }
 
         egraph.dot().to_dot("target/simple-match.dot").unwrap();

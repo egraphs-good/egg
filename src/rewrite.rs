@@ -196,12 +196,7 @@ pub trait Applier<L: Language, M: Metadata<L>>: fmt::Debug {
 #[cfg(test)]
 mod tests {
 
-    use super::*;
-
-    use crate::expr::{
-        tests::{op, var, TestLang},
-        QuestionMarkName,
-    };
+    use crate::*;
 
     fn wc<L: Language>(name: &QuestionMarkName) -> Pattern<L> {
         Pattern::Wildcard(name.clone(), crate::pattern::WildcardKind::Single)
@@ -210,10 +205,10 @@ mod tests {
     #[test]
     fn conditional_rewrite() {
         crate::init_logger();
-        let mut egraph = EGraph::<TestLang, ()>::default();
+        let mut egraph = EGraph::<String, ()>::default();
 
-        let x = egraph.add(var("x")).id;
-        let y = egraph.add(var("2")).id;
+        let x = egraph.add(leaf("x")).id;
+        let y = egraph.add(leaf("2")).id;
         let mul = egraph.add(op("*", vec![x, y])).id;
 
         let true_pat = Pattern::Expr(op("TRUE", vec![]));
@@ -234,16 +229,16 @@ mod tests {
             })
             .mk();
 
-        info!("rewrite shouldn't do anything yet");
+        println!("rewrite shouldn't do anything yet");
         egraph.rebuild();
         let apps = mul_to_shift.run(&mut egraph);
         assert_eq!(apps, vec![]);
 
-        info!("Add the needed equality");
+        println!("Add the needed equality");
         let two_ispow2 = egraph.add(op("is-power2", vec![y])).id;
         egraph.union(two_ispow2, true_id);
 
-        info!("Should fire now");
+        println!("Should fire now");
         egraph.rebuild();
         let apps = mul_to_shift.run(&mut egraph);
         assert_eq!(apps, vec![mul]);
@@ -252,7 +247,7 @@ mod tests {
     #[test]
     fn fn_rewrite() {
         crate::init_logger();
-        let mut egraph = EGraph::<TestLang, ()>::default();
+        let mut egraph = EGraph::<String, ()>::default();
 
         let start = "(+ x y)".parse().unwrap();
         let goal = "xy".parse().unwrap();
@@ -262,20 +257,20 @@ mod tests {
         let a: QuestionMarkName = "?a".parse().unwrap();
         let b: QuestionMarkName = "?b".parse().unwrap();
 
-        fn get(egraph: &EGraph<TestLang, ()>, id: Id) -> TestLang {
-            egraph[id].nodes[0].op.clone()
+        fn get(egraph: &EGraph<String, ()>, id: Id) -> &str {
+            &egraph[id].nodes[0].op
         }
 
         #[derive(Debug)]
         struct Appender;
-        impl Applier<TestLang, ()> for Appender {
-            fn apply(&self, egraph: &mut EGraph<TestLang, ()>, map: &WildMap) -> Vec<AddResult> {
+        impl Applier<String, ()> for Appender {
+            fn apply(&self, egraph: &mut EGraph<String, ()>, map: &WildMap) -> Vec<AddResult> {
                 let a: QuestionMarkName = "?a".parse().unwrap();
                 let b: QuestionMarkName = "?b".parse().unwrap();
                 let a = get(&egraph, map[&a][0]);
                 let b = get(&egraph, map[&b][0]);
                 let s = format!("{}{}", a, b);
-                vec![egraph.add(var(&s))]
+                vec![egraph.add(leaf(&s))]
             }
         }
 

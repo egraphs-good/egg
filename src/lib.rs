@@ -3,8 +3,6 @@
 parameterized over the language given by the user (by implementing
 the [`Language`] trait).
 
-A typical usage would either implement [`Language`] or use the
-provided [`TestLang`].
 If your Language implements [`FromStr`] (and Languages derived using
 `define_language!` do), you can easily create [`RecExpr`]s to add to
 an [`EGraph`].
@@ -12,7 +10,6 @@ an [`EGraph`].
 [`EGraph`]: struct.EGraph.html
 [`Language`]: trait.Language.html
 [`RecExpr`]: struct.RecExpr.html
-[`TestLang`]: struct.TestLang.html
 [`FromStr`]: https://doc.rust-lang.org/std/str/trait.FromStr.html
 
 ```
@@ -52,27 +49,24 @@ mod macros;
 
 pub(crate) mod unionfind;
 
-pub mod dot;
-pub mod eclass;
-pub mod egraph;
-pub mod expr;
-pub mod extract;
-pub mod parse;
-pub mod pattern;
-pub mod rewrite;
-pub mod run;
+mod dot;
+mod eclass;
+mod egraph;
+mod expr;
+mod extract;
+mod parse;
+mod pattern;
+mod rewrite;
+mod run;
 
 pub use dot::Dot;
 pub use eclass::{EClass, Metadata};
 pub use egraph::{AddResult, EGraph};
-pub use expr::{
-    tests::{op, var, TestLang},
-    ENode, Expr, Id, Language, Name, QuestionMarkName, RecExpr,
-};
+pub use expr::{leaf, op, ENode, Expr, Id, Language, QuestionMarkName, RecExpr};
 pub use extract::*;
 pub use parse::ParseError;
 pub use pattern::{EClassMatches, Pattern, WildMap};
-pub use rewrite::{rw, Applier, Rewrite};
+pub use rewrite::{rw, Applier, Condition, Rewrite};
 pub use run::*;
 
 #[cfg(test)]

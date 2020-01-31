@@ -7,7 +7,7 @@ define_language! {
         Not = "~",
         Or = "|",
         Implies = "->",
-        Variable(Name),
+        Variable(String),
     }
 }
 
@@ -142,7 +142,7 @@ impl Metadata<Prop> for ConstantFold {
     fn modify(eclass: &mut EClass<Prop, Self>) {
         println!("Modifying: {:#?}", eclass);
         if let Some(c) = eclass.metadata {
-            eclass.nodes.push(Expr::unit(Prop::Bool(c)))
+            eclass.nodes.push(Expr::leaf(Prop::Bool(c)))
         }
     }
 }

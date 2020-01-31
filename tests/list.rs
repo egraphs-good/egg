@@ -9,7 +9,7 @@ define_language! {
         Nil = "nil",
         Cons = "cons",
         List = "list",
-        Variable(Name),
+        Variable(String),
     }
 }
 

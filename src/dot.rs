@@ -4,7 +4,7 @@ EGraph visualization with [GraphViz]
 Use the [`Dot`] struct to visualize an [`EGraph`]
 
 [`Dot`]: struct.Dot.html
-[`EGraph`]: ../egraph/struct.EGraph.html
+[`EGraph`]: struct.EGraph.html
 [GraphViz]: https://graphviz.gitlab.io/
 !*/
 
@@ -22,11 +22,11 @@ visualization.
 # Example
 
 ```
-use egg::{EGraph, TestLang, var, op};
+use egg::{EGraph, leaf, op};
 
-let mut egraph = EGraph::<TestLang, ()>::default();
-let x = egraph.add(var("x")).id;
-let y = egraph.add(var("0")).id;
+let mut egraph = EGraph::<String, ()>::default();
+let x = egraph.add(leaf("x")).id;
+let y = egraph.add(leaf("0")).id;
 let add = egraph.add(op("+", vec![x, y])).id;
 egraph.union(add, x);
 egraph.rebuild();
@@ -48,7 +48,7 @@ rendered improperly due to a deficiency in GraphViz.
 So the example above will render with an from the "+" enode to itself
 instead of to its own eclass.
 
-[`EGraph`]: ../egraph/struct.EGraph.html
+[`EGraph`]: struct.EGraph.html
 [GraphViz]: https://graphviz.gitlab.io/
 **/
 pub struct Dot<'a, L, M> {
@@ -58,7 +58,7 @@ pub struct Dot<'a, L, M> {
 impl<'a, L, M> Dot<'a, L, M> {
     /// Given a reference to an `EGraph`, makes a `Dot`.
     /// See also the more convenient
-    /// [`EGraph::dot`](../egraph/struct.EGraph.html#method.dot).
+    /// [`EGraph::dot`](struct.EGraph.html#method.dot).
     pub fn new(egraph: &EGraph<L, M>) -> Dot<L, M> {
         Dot { egraph }
     }
@@ -107,7 +107,7 @@ impl<'a, L: Language + Display, M> Dot<'a, L, M> {
     /// Can be used to run a different binary than `dot`:
     /// ```no_run
     /// # use egg::*;
-    /// # let egraph = EGraph::<TestLang, ()>::default();
+    /// # let egraph = EGraph::<String, ()>::default();
     /// egraph.dot().run(
     ///     "/path/to/my/dot",
     ///     &["arg1", "-o", "outfile"]

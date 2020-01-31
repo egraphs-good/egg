@@ -38,9 +38,9 @@ impl<L, M> Default for EGraph<L, M> {
 ///
 /// ```
 /// # use egg::*;
-/// let mut egraph = EGraph::<TestLang, ()>::default();
-/// let x1 = egraph.add(var("x"));
-/// let x2 = egraph.add(var("x"));
+/// let mut egraph = EGraph::<String, ()>::default();
+/// let x1 = egraph.add(leaf("x"));
+/// let x2 = egraph.add(leaf("x"));
 ///
 /// assert_eq!(x1.id, x2.id);
 /// assert!(!x1.was_there);
@@ -76,9 +76,9 @@ impl<L, M> EGraph<L, M> {
     /// Actually returns the size of the hash cons index.
     /// ```
     /// # use egg::*;
-    /// let mut egraph = EGraph::<TestLang, ()>::default();
-    /// let x = egraph.add(var("x"));
-    /// let y = egraph.add(var("y"));
+    /// let mut egraph = EGraph::<String, ()>::default();
+    /// let x = egraph.add(leaf("x"));
+    /// let y = egraph.add(leaf("y"));
     /// // only one eclass
     /// egraph.union(x.id, y.id);
     ///
@@ -116,33 +116,6 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
         self.add(e).id
     }
 
-    fn add_unchecked(&mut self, enode: ENode<L>) -> AddResult {
-        // HACK knowing the next key like this is pretty bad
-        let mut class = EClass {
-            id: self.classes.total_size() as Id,
-            nodes: vec![enode.clone()],
-            metadata: M::make(enode.map_children(|id| &self[id].metadata)),
-            #[cfg(feature = "parent-pointers")]
-            parents: IndexSet::new(),
-        };
-        M::modify(&mut class);
-        let next_id = self.classes.make_set(class);
-        trace!("Added  {:4}: {:?}", next_id, enode);
-
-        let (idx, old) = self.memo.insert_full(enode, next_id);
-        let _ = idx;
-        #[cfg(feature = "parent-pointers")]
-        for &child in &self.memo.get_index(idx).unwrap().0.children {
-            self.classes.get_mut(child).parents.insert(idx);
-        }
-
-        assert_eq!(old, None);
-        AddResult {
-            was_there: false,
-            id: next_id,
-        }
-    }
-
     pub fn add(&mut self, enode: ENode<L>) -> AddResult {
         trace!("Adding       {:?}", enode);
 
@@ -169,6 +142,33 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
                 }
             }
             None => self.add_unchecked(enode),
+        }
+    }
+
+    fn add_unchecked(&mut self, enode: ENode<L>) -> AddResult {
+        // HACK knowing the next key like this is pretty bad
+        let mut class = EClass {
+            id: self.classes.total_size() as Id,
+            nodes: vec![enode.clone()],
+            metadata: M::make(enode.map_children(|id| &self[id].metadata)),
+            #[cfg(feature = "parent-pointers")]
+            parents: IndexSet::new(),
+        };
+        M::modify(&mut class);
+        let next_id = self.classes.make_set(class);
+        trace!("Added  {:4}: {:?}", next_id, enode);
+
+        let (idx, old) = self.memo.insert_full(enode, next_id);
+        let _ = idx;
+        #[cfg(feature = "parent-pointers")]
+        for &child in &self.memo.get_index(idx).unwrap().0.children {
+            self.classes.get_mut(child).parents.insert(idx);
+        }
+
+        assert_eq!(old, None);
+        AddResult {
+            was_there: false,
+            id: next_id,
         }
     }
 
@@ -397,20 +397,18 @@ where
 #[cfg(test)]
 mod tests {
 
-    use super::*;
-
-    use crate::expr::tests::{op, var, TestLang};
+    use crate::*;
 
     #[test]
     fn simple_add() {
         crate::init_logger();
-        let mut egraph = EGraph::<TestLang, ()>::default();
+        let mut egraph = EGraph::<String, ()>::default();
 
-        let x = egraph.add(var("x")).id;
-        let x2 = egraph.add(var("x")).id;
+        let x = egraph.add(leaf("x")).id;
+        let x2 = egraph.add(leaf("x")).id;
         let _plus = egraph.add(op("+", vec![x, x2])).id;
 
-        let y = egraph.add(var("y")).id;
+        let y = egraph.add(leaf("y")).id;
 
         egraph.union(x, y);
         egraph.rebuild();
