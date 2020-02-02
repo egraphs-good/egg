@@ -5,12 +5,12 @@ use stdweb::web::Date;
 use yew::services::ConsoleService;
 use yew::{html, Component, ComponentLink, Html, Renderable, ShouldRender};
 
-use egg::{EClass, EClassMatches, Id, Pattern, RecExpr};
+use egg::{EClass, Id, Pattern, RecExpr, SearchMatches};
 use egg_math::*;
 
 struct Queried {
     pattern: Pattern<Math>,
-    matches: Vec<EClassMatches>,
+    matches: Vec<SearchMatches>,
 }
 
 struct Model {

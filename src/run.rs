@@ -4,7 +4,7 @@ use indexmap::IndexMap;
 use instant::Instant;
 use log::*;
 
-use crate::{EClassMatches, EGraph, Id, Language, Metadata, RecExpr, Rewrite};
+use crate::{EGraph, Id, Language, Metadata, RecExpr, Rewrite, SearchMatches};
 
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde-1", derive(serde::Serialize))]
@@ -74,7 +74,7 @@ where
         &mut self,
         egraph: &mut EGraph<L, M>,
         rewrite: &Rewrite<L, M>,
-        matches: Vec<EClassMatches>,
+        matches: Vec<SearchMatches>,
     ) -> usize {
         rewrite.apply(egraph, &matches).len()
     }

@@ -138,7 +138,7 @@ impl<L: Language, M: Metadata<L>> Applier<L, M> for Pattern<L> {
 }
 
 #[derive(Debug)]
-pub struct EClassMatches {
+pub struct SearchMatches {
     pub eclass: Id,
     pub mappings: Vec<WildMap>,
 }
@@ -190,19 +190,19 @@ impl<'a> std::ops::Index<&'a QuestionMarkName> for WildMap {
 }
 
 impl<L: Language> Pattern<L> {
-    pub fn search<M>(&self, egraph: &EGraph<L, M>) -> Vec<EClassMatches> {
+    pub fn search<M>(&self, egraph: &EGraph<L, M>) -> Vec<SearchMatches> {
         egraph
             .classes()
             .filter_map(|e| self.search_eclass(egraph, e.id))
             .collect()
     }
 
-    pub fn search_eclass<M>(&self, egraph: &EGraph<L, M>, eclass: Id) -> Option<EClassMatches> {
+    pub fn search_eclass<M>(&self, egraph: &EGraph<L, M>, eclass: Id) -> Option<SearchMatches> {
         let mappings = self.search_pat(0, egraph, eclass);
         if mappings.is_empty() {
             None
         } else {
-            Some(EClassMatches {
+            Some(SearchMatches {
                 eclass,
                 mappings: mappings.into_vec(),
             })
@@ -381,7 +381,7 @@ mod tests {
             println!("mappings: {:?}", m);
         }
 
-        egraph.dot().to_dot("target/simple-match.dot").unwrap();
+        egraph.dot().to_dot(tmp("simple-match.dot")).unwrap();
 
         use crate::extract::{AstSize, Extractor};
 

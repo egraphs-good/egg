@@ -413,7 +413,7 @@ mod tests {
         egraph.union(x, y);
         egraph.rebuild();
 
-        egraph.dot().to_dot("target/foo.dot").unwrap();
+        egraph.dot().to_dot(tmp("foo.dot")).unwrap();
 
         assert_eq!(2 + 2, 4);
     }

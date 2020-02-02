@@ -65,11 +65,20 @@ pub use egraph::{AddResult, EGraph};
 pub use expr::{ENode, Id, Language, QuestionMarkName, RecExpr};
 pub use extract::*;
 pub use parse::ParseError;
-pub use pattern::{EClassMatches, Pattern, WildMap};
+pub use pattern::{Pattern, SearchMatches, WildMap};
 pub use rewrite::{rw, Applier, Condition, Rewrite};
 pub use run::*;
 
 #[cfg(test)]
 fn init_logger() {
     let _ = env_logger::builder().is_test(true).try_init();
+}
+
+#[cfg(test)]
+use std::path::{Path, PathBuf};
+#[cfg(test)]
+fn tmp(filename: impl AsRef<Path>) -> PathBuf {
+    let mut path = std::env::temp_dir();
+    path.push(filename);
+    path
 }

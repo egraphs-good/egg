@@ -32,15 +32,16 @@ egraph.union(add, x);
 egraph.rebuild();
 
 // create a Dot and dump it to a file
-egraph.dot().to_png("target/foo.dot").unwrap();
+let tmp = |f| { let mut p = std::env::temp_dir(); p.push(f); p };
+egraph.dot().to_png(tmp("foo.dot")).unwrap();
 
 // Dot implements std::fmt::Display
 println!("My egraph dot file: {}", egraph.dot());
 
 // create a Dot and then compile it assuming `dot` is on the system
-egraph.dot().to_svg("target/foo.svg").unwrap();
-egraph.dot().to_png("target/foo.png").unwrap();
-egraph.dot().to_pdf("target/foo.pdf").unwrap();
+// egraph.dot().to_svg(tmp("foo.svg")).unwrap();
+// egraph.dot().to_png(tmp("foo.png")).unwrap();
+// egraph.dot().to_pdf(tmp("foo.pdf")).unwrap();
 ```
 
 Note that self-edges (from an enode to its containing eclass) will be

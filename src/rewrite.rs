@@ -5,7 +5,7 @@ use std::str::FromStr;
 use log::*;
 
 use crate::{
-    AddResult, EClassMatches, EGraph, Id, Language, Metadata, ParseError, Pattern, WildMap,
+    AddResult, EGraph, Id, Language, Metadata, ParseError, Pattern, SearchMatches, WildMap,
 };
 
 pub struct RewriteBuilder<L, M> {
@@ -133,14 +133,14 @@ impl<L: Language, M: Metadata<L>> Rewrite<L, M> {
         ids
     }
 
-    pub fn search(&self, egraph: &EGraph<L, M>) -> Vec<EClassMatches> {
+    pub fn search(&self, egraph: &EGraph<L, M>) -> Vec<SearchMatches> {
         self.patterns
             .iter()
             .flat_map(|p| p.search(egraph))
             .collect()
     }
 
-    pub fn apply(&self, egraph: &mut EGraph<L, M>, ematches: &[EClassMatches]) -> Vec<Id> {
+    pub fn apply(&self, egraph: &mut EGraph<L, M>, ematches: &[SearchMatches]) -> Vec<Id> {
         let mut applications = Vec::new();
         'outer: for ematch in ematches {
             for mapping in &ematch.mappings {

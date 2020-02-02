@@ -26,8 +26,6 @@ fn associate_adds() {
 
     // there are exactly 127 non-empty subsets of 7 things
     assert_eq!(egraph.number_of_classes(), 127);
-
-    egraph.dot().to_dot("target/associate.dot").unwrap();
 }
 
 #[must_use]

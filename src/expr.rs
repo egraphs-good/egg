@@ -170,6 +170,7 @@ impl<L: Language> ENode<L> {
 }
 
 /// Trait defines a Language whose terms will be in the `EGraph`.
+///
 /// Typically, you'll want your language to implement `FromStr` as well.
 /// Check out the [`define_language!`] macro for an easy way to create
 /// a `Language`.
