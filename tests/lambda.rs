@@ -1,4 +1,4 @@
-use egg::*;
+use egg::{rewrite as rw, *};
 
 type EGraph = egg::EGraph<Lang, Meta>;
 
@@ -30,91 +30,49 @@ fn rules() -> Vec<Rewrite<Lang, Meta>> {
         // open term rules
 
         // NOTE I can't write a false rule here
-        rw("if-true")
-            .p("(if (bool true) ?then ?else)")
-            .a("?then")
-            .mk(),
-        rw("if-false")
-            .p("(if (bool false) ?then ?else)")
-            .a("?else")
-            .mk(),
-        rw("add-int")
-            .p("(+ (int ?a) (int ?b)))")
-            .a("(int (+ ?a ?b))")
-            .mk(),
-        rw("eq-int")
-            .p("(= (int ?a) (int ?b)))")
-            .a("(bool (= ?a ?b))")
-            .mk(),
-        rw("add-comm").p("(+ ?a ?b)").a("(+ ?b ?a)").mk(),
-        rw("add-assoc")
-            .p("(+ (+ ?a ?b) ?c)")
-            .a("(+ ?a (+ ?b ?c))")
-            .mk(),
+        rw!("if-true";  "(if (bool  true) ?then ?else)" => "?then"),
+        rw!("if-false"; "(if (bool false) ?then ?else)" => "?else"),
+        rw!("add-int"; "(+ (int ?a) (int ?b)))" => "(int (+ ?a ?b))"),
+        rw!("eq-int";  "(= (int ?a) (int ?b)))" => "(bool (= ?a ?b))"),
+        rw!("add-comm";  "(+ ?a ?b)"        => "(+ ?b ?a)"),
+        rw!("add-assoc"; "(+ (+ ?a ?b) ?c)" => "(+ ?a (+ ?b ?c))"),
         // subst rules
-        rw("fix")
-            .p("(fix ?v ?e)")
-            .a("(subst (fix ?v ?e) ?v ?e)")
-            .mk(),
-        rw("beta")
-            .p("(app (lam ?v ?body) ?e)")
-            .a("(subst ?e ?v ?body)")
-            .mk(),
-        rw("let-lam")
-            .p("(let ?v ?e ?body)")
-            .a("(app (lam ?v ?body) ?e)")
-            .mk(),
-        rw("lam-let")
-            .p("(app (lam ?v ?body) ?e)")
-            .a("(let ?v ?e ?body)")
-            .mk(),
-        rw("subst-app")
-            .p("(subst ?e ?v (app ?a ?b))")
-            .a("(app (subst ?e ?v ?a) (subst ?e ?v ?b))")
-            .mk(),
-        rw("subst-add")
-            .p("(subst ?e ?v (+ ?a ?b))")
-            .a("(+ (subst ?e ?v ?a) (subst ?e ?v ?b))")
-            .mk(),
-        rw("subst-eq")
-            .p("(subst ?e ?v (= ?a ?b))")
-            .a("(= (subst ?e ?v ?a) (subst ?e ?v ?b))")
-            .mk(),
-        rw("subst-if")
-            .p("(subst ?e ?v (if ?cond ?then ?else))")
-            .a("(if (subst ?e ?v ?cond) (subst ?e ?v ?then) (subst ?e ?v ?else))")
-            .mk(),
-        rw("subst-int")
-            .p("(subst ?e ?v (int ?i))")
-            .a("(int ?i)")
-            .mk(),
-        rw("subst-bool")
-            .p("(subst ?e ?v (bool ?b))")
-            .a("(bool ?b)")
-            .mk(),
+        rw!("fix";     "(fix ?v ?e)"             => "(subst (fix ?v ?e) ?v ?e)"),
+        rw!("beta";    "(app (lam ?v ?body) ?e)" => "(subst ?e ?v ?body)"),
+        rw!("let-lam"; "(let ?v ?e ?body)"       => "(app (lam ?v ?body) ?e)"),
+        rw!("lam-let"; "(app (lam ?v ?body) ?e)" => "(let ?v ?e ?body)"),
+        rw!("subst-app";  "(subst ?e ?v (app ?a ?b))" => "(app (subst ?e ?v ?a) (subst ?e ?v ?b))"),
+        rw!("subst-add";  "(subst ?e ?v (+ ?a ?b))"   => "(+ (subst ?e ?v ?a) (subst ?e ?v ?b))"),
+        rw!("subst-eq";   "(subst ?e ?v (= ?a ?b))"   => "(= (subst ?e ?v ?a) (subst ?e ?v ?b))"),
+        rw!("subst-int";  "(subst ?e ?v (int ?i))"    => "(int ?i)"),
+        rw!("subst-bool"; "(subst ?e ?v (bool ?b))"   => "(bool ?b)"),
+        rw!("subst-if";
+            "(subst ?e ?v (if ?cond ?then ?else))" =>
+            "(if (subst ?e ?v ?cond) (subst ?e ?v ?then) (subst ?e ?v ?else))"
+        ),
         // NOTE variable substitution has to be done by a dynamic
         // pattern, because it knows that if the two variables aren't
         // equal by name, they never will be because names are
         // unique. Egg doesn't have a way for you to write inequality
         // contraints
-        rw("var-subst")
-            .p("(subst ?e ?v1 (var ?v2))")
-            .with_applier(VarSubst {
+        rw!("var-subst";
+            "(subst ?e ?v1 (var ?v2))" =>
+            { VarSubst {
                 e: "?e".parse().unwrap(),
                 v1: "?v1".parse().unwrap(),
                 v2: "?v2".parse().unwrap(),
                 body: None,
-            })
-            .mk(),
-        rw("var-subst")
-            .p("(subst ?e ?v1 (lam ?v2 ?body))")
-            .with_applier(VarSubst {
+            } }
+        ),
+        rw!("var-subst";
+            "(subst ?e ?v1 (lam ?v2 ?body))" =>
+            { VarSubst {
                 e: "?e".parse().unwrap(),
                 v1: "?v1".parse().unwrap(),
                 v2: "?v2".parse().unwrap(),
                 body: Some("?body".parse().unwrap()),
-            })
-            .mk(),
+            } }
+        ),
     ]
 }
 

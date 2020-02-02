@@ -344,10 +344,11 @@ mod tests {
         let b: QuestionMarkName = "?b".parse().unwrap();
 
         let pat = |e| Pattern::ENode(Box::new(e));
-        let commute_plus = rw("commute_plus")
+        let commute_plus = RewriteBuilder::new("commute_plus")
             .with_pattern(pat(e!("+", wc(&a), wc(&b))))
             .with_applier(pat(e!("+", wc(&b), wc(&a))))
-            .mk();
+            .build()
+            .unwrap();
 
         let matches = commute_plus.search(&egraph);
         let n_matches: usize = matches.iter().map(|m| m.mappings.len()).sum();

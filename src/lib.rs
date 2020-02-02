@@ -27,12 +27,12 @@ define_language! {
 }
 
 let rules: &[Rewrite<SimpleLanguage, ()>] = &[
-    rw("commute-add").p("(+ ?a ?b)").a("(+ ?b ?a)").mk(),
-    rw("commute-mul").p("(* ?a ?b)").a("(* ?b ?a)").mk(),
+    rewrite!("commute-add"; "(+ ?a ?b)" => "(+ ?b ?a)"),
+    rewrite!("commute-mul"; "(* ?a ?b)" => "(* ?b ?a)"),
 
-    rw("add-0").p("(+ ?a 0)").a("?a").mk(),
-    rw("mul-0").p("(* ?a 0)").a("0").mk(),
-    rw("mul-1").p("(* ?a 1)").a("?a").mk(),
+    rewrite!("add-0"; "(+ ?a 0)" => "?a"),
+    rewrite!("mul-0"; "(* ?a 0)" => "0"),
+    rewrite!("mul-1"; "(* ?a 1)" => "?a"),
 ];
 
 let start = "(+ 0 (* 1 foo))".parse().unwrap();
@@ -66,7 +66,7 @@ pub use expr::{ENode, Id, Language, QuestionMarkName, RecExpr};
 pub use extract::*;
 pub use parse::ParseError;
 pub use pattern::{Pattern, SearchMatches, WildMap};
-pub use rewrite::{rw, Applier, Condition, Rewrite};
+pub use rewrite::{Applier, Condition, Rewrite, RewriteBuilder};
 pub use run::*;
 
 #[cfg(test)]

@@ -12,19 +12,13 @@ define_language! {
 }
 
 macro_rules! rule {
-    ($name:ident, $left:expr, $right:expr) => {
+    ($name:ident, $left:literal, $right:literal) => {
         #[allow(dead_code)]
         fn $name<M: Metadata<Prop>>() -> Rewrite<Prop, M> {
-            rw(stringify!($name))
-                .with_pattern_str($left)
-                .unwrap()
-                .with_applier_str($right)
-                .unwrap()
-                .build()
-                .unwrap()
+            rewrite!(stringify!($name); $left => $right)
         }
     };
-    ($name:ident, $name2:ident, $left:expr, $right:expr) => {
+    ($name:ident, $name2:ident, $left:literal, $right:literal) => {
         rule!($name, $left, $right);
         rule!($name2, $right, $left);
     };

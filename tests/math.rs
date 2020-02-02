@@ -1,4 +1,4 @@
-use egg::*;
+use egg::{rewrite as rw, *};
 
 use ordered_float::NotNan;
 
@@ -89,28 +89,30 @@ impl Metadata<Math> for Meta {
 
 #[rustfmt::skip]
 pub fn rules() -> Vec<Rewrite> { vec![
-    rw("comm-add").p("(+ ?a ?b)").a("(+ ?b ?a)").mk(),
-    rw("comm-mul").p("(* ?a ?b)").a("(* ?b ?a)").mk(),
-    rw("assoc-add").p("(+ ?a (+ ?b ?c))").a("(+ (+ ?a ?b) ?c)").mk(),
-    rw("assoc-mul").p("(* ?a (* ?b ?c))").a("(* (* ?a ?b) ?c)").mk(),
-    rw("canon-sub").p("(- ?a ?b)").a("(+ ?a (- 0 ?b))").mk(),
-    rw("canon-div").p("(/ ?a ?b)").a("(* ?a (/ 1 ?b))").mk(),
+    rw!("comm-add";  "(+ ?a ?b)"        => "(+ ?b ?a)"),
+    rw!("comm-mul";  "(* ?a ?b)"        => "(* ?b ?a)"),
+    rw!("assoc-add"; "(+ ?a (+ ?b ?c))" => "(+ (+ ?a ?b) ?c)"),
+    rw!("assoc-mul"; "(* ?a (* ?b ?c))" => "(* (* ?a ?b) ?c)"),
+    rw!("canon-sub"; "(- ?a ?b)"        => "(+ ?a (- 0 ?b))"),
+    rw!("canon-div"; "(/ ?a ?b)"        => "(* ?a (/ 1 ?b))"),
 
-    rw("zero-add").p("(+ ?a 0)").a("?a").mk(),
-    rw("zero-mul").p("(* ?a 0)").a("0").mk(),
-    rw("one-mul").p("(* ?a 1)").a("?a").mk(),
+    rw!("zero-add"; "(+ ?a 0)" => "?a"),
+    rw!("zero-mul"; "(* ?a 0)" => "0"),
+    rw!("one-mul";  "(* ?a 1)" => "?a"),
 
-    rw("add-zero").p("?a").a("(+ ?a 0)").mk(),
-    rw("mul-one").p("?a").a("(* ?a 1)").mk(),
+    rw!("add-zero"; "?a" => "(+ ?a 0)"),
+    rw!("mul-one";  "?a" => "(* ?a 1)"),
 
-    rw("cancel-sub").p("(- ?a ?a)").a("0").mk(),
-    rw("cancel-div").p("(/ ?a ?a)").a("1").mk(),
+    rw!("cancel-sub"; "(- ?a ?a)" => "0"),
+    rw!("cancel-div"; "(/ ?a ?a)" => "1"),
 
-    rw("negate").p("(- 0 ?a)").a("(* -1 ?a)").mk(),
+    rw!("negate"; "(- 0 ?a)" => "(* -1 ?a)"),
 
-    rw("distribute").p("(* ?a (+ ?b ?c))").a("(+ (* ?a ?b) (* ?a ?c))").mk(),
-    rw("factor").p("(+ (* ?a ?b) (* ?a ?c))").a("(* ?a (+ ?b ?c))").mk(),
-    rw("sqrt-cancel").p("(* (sqrt ?a) (sqrt ?a))").a("?a").mk(),
+    rw!("sqrt-cancel"; "(* (sqrt ?a) (sqrt ?a))" => "?a"),
+
+    rw!("distribute"; "(* ?a (+ ?b ?c))"        => "(+ (* ?a ?b) (* ?a ?c))"),
+    rw!("factor"    ; "(+ (* ?a ?b) (* ?a ?c))" => "(* ?a (+ ?b ?c))"),
+
 ]}
 
 #[test]
@@ -120,11 +122,8 @@ fn associate_adds() {
     let start_expr = start.parse().unwrap();
 
     let rules = &[
-        rw("comm-add").p("(+ ?a ?b)").a("(+ ?b ?a)").mk(),
-        rw("assoc-add")
-            .p("(+ ?a (+ ?b ?c))")
-            .a("(+ (+ ?a ?b) ?c)")
-            .mk(),
+        rw!("comm-add"; "(+ ?a ?b)" => "(+ ?b ?a)"),
+        rw!("assoc-add"; "(+ ?a (+ ?b ?c))" => "(+ (+ ?a ?b) ?c)"),
     ];
 
     // Must specfify the () metadata so pruning doesn't mess us up here

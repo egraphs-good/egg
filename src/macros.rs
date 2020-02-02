@@ -89,6 +89,22 @@ macro_rules! recexpr {
     };
 }
 
+#[macro_export]
+macro_rules! rewrite {
+    ( $name:expr; $($lhs:tt),+ => $($rhs:tt),+)  => {
+        $crate::RewriteBuilder::new($name)
+            $( .with_pattern(rewrite!(@parse $lhs)) )+
+            $( .with_applier(rewrite!(@parse $rhs)) )+
+            .build()
+            .unwrap()
+    };
+    (@parse $rhs:literal) => {{
+        let pat: $crate::Pattern<_> = $rhs.parse().unwrap();
+        pat
+    }};
+    (@parse $rhs:expr) => { $rhs };
+}
+
 #[cfg(test)]
 mod tests {
     define_language! { enum Term {
@@ -97,4 +113,19 @@ mod tests {
         Foo = "f",
         Num(i32),
     }}
+
+    #[test]
+    fn some_rewrites() {
+        use crate::{Pattern, Rewrite};
+
+        let pat = Pattern::ENode(Box::new(enode!(Term::Num(3))));
+        let _: Vec<Rewrite<Term, ()>> = vec![
+            // here it should parse the rhs
+            rewrite!("rule"; "cons" => "f"),
+            // here it should just accept the rhs without trying to parse
+            rewrite!("rule"; "f" => { pat.clone() }),
+            // try multiple lhs and rhs
+            rewrite!("rule"; "cons", "nil" => "f", { pat }),
+        ];
+    }
 }

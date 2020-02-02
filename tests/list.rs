@@ -15,11 +15,11 @@ define_language! {
 
 fn rules() -> Vec<Rewrite> {
     vec![
-        rw("fold_nil").p("nil").a("list").mk(),
-        rw("fold_cons")
-            .p("(cons ?a (list ?tail...))")
-            .a("(list ?a ?tail...)")
-            .mk(),
+        rewrite!("fold_nil"; "nil" => "list"),
+        rewrite!(
+            "fold_cons";
+            "(cons ?a (list ?tail...))" => "(list ?a ?tail...)"
+        ),
     ]
 }
 

@@ -1,12 +1,9 @@
 use std::fmt;
 use std::rc::Rc;
-use std::str::FromStr;
 
 use log::*;
 
-use crate::{
-    AddResult, EGraph, Id, Language, Metadata, ParseError, Pattern, SearchMatches, WildMap,
-};
+use crate::{AddResult, EGraph, Id, Language, Metadata, Pattern, SearchMatches, WildMap};
 
 pub struct RewriteBuilder<L, M> {
     name: String,
@@ -26,11 +23,6 @@ pub struct Rewrite<L, M> {
     pub application_limit: usize,
 }
 
-/// Shorthand for `RewriteBuilder::new`.
-pub fn rw<L, M>(name: impl Into<String>) -> RewriteBuilder<L, M> {
-    RewriteBuilder::new(name)
-}
-
 impl<L, M> RewriteBuilder<L, M> {
     pub fn new(name: impl Into<String>) -> Self {
         Self {
@@ -40,29 +32,6 @@ impl<L, M> RewriteBuilder<L, M> {
             conditions: vec![],
             application_limit: 10_000,
         }
-    }
-}
-
-impl<L, M> RewriteBuilder<L, M>
-where
-    L: Language + FromStr,
-    M: Metadata<L>,
-{
-    pub fn with_pattern_str(self, pattern_str: &str) -> Result<Self, ParseError> {
-        pattern_str
-            .parse()
-            .map(|p: Pattern<L>| self.with_pattern(p))
-    }
-    pub fn with_applier_str(self, applier_str: &str) -> Result<Self, ParseError> {
-        applier_str
-            .parse()
-            .map(|a: Pattern<L>| self.with_applier(a))
-    }
-    pub fn p(self, pattern_str: &str) -> Self {
-        self.with_pattern_str(pattern_str).unwrap()
-    }
-    pub fn a(self, applier_str: &str) -> Self {
-        self.with_applier_str(applier_str).unwrap()
     }
 }
 
@@ -218,14 +187,15 @@ mod tests {
         let a: QuestionMarkName = "?a".parse().unwrap();
         let b: QuestionMarkName = "?b".parse().unwrap();
 
-        let mul_to_shift = rw("mul_to_shift")
+        let mul_to_shift = RewriteBuilder::new("mul_to_shift")
             .with_pattern(pat(e!("*", wc(&a), wc(&b))))
             .with_applier(pat(e!(">>", wc(&a), pat(e!("log2", wc(&b))),)))
             .with_condition(Condition {
                 lhs: pat(e!("is-power2", wc(&b))),
                 rhs: true_pat,
             })
-            .mk();
+            .build()
+            .unwrap();
 
         println!("rewrite shouldn't do anything yet");
         egraph.rebuild();
@@ -273,10 +243,11 @@ mod tests {
         }
 
         let pat = |e| Pattern::ENode(Box::new(e));
-        let fold_add = rw("fold_add")
+        let fold_add = RewriteBuilder::new("fold_add")
             .with_pattern(pat(e!("+", wc(&a), wc(&b))))
             .with_applier(Appender)
-            .mk();
+            .build()
+            .unwrap();
 
         fold_add.run(&mut egraph);
         assert_eq!(egraph.equivs(&start, &goal), vec![root]);
