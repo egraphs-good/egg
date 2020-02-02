@@ -6,7 +6,11 @@ use yew::services::ConsoleService;
 use yew::{html, Component, ComponentLink, Html, Renderable, ShouldRender};
 
 use egg::{EClass, Id, Pattern, RecExpr, SearchMatches};
-use egg_math::*;
+
+#[path = "../../tests/math.rs"]
+#[allow(dead_code)]
+mod math;
+use math::*;
 
 struct Queried {
     pattern: Pattern<Math>,
@@ -19,42 +23,7 @@ struct Model {
     query: Result<Queried, String>,
     added: Vec<Added>,
     examples: Vec<&'static str>,
-    rewrite_groups: Vec<RewriteGroup>,
-}
-
-struct RewriteGroup {
-    name: String,
-    enabled: bool,
     rewrites: Vec<OptionalRewrite>,
-}
-
-fn rewrite_groups() -> Vec<RewriteGroup> {
-    egg_math::rules()
-        .iter()
-        .map(|(&name, vec)| RewriteGroup {
-            name: name.to_string(),
-            enabled: true,
-            rewrites: vec.iter().cloned().map(OptionalRewrite::new).collect(),
-        })
-        .collect()
-}
-
-impl RewriteGroup {
-    fn render(&self, i: usize) -> Html<Model> {
-        let applied: usize = self.rewrites.iter().map(|r| r.applied).sum();
-        let matched: usize = self.rewrites.iter().map(|r| r.matched).sum();
-        let percent = percent(applied, matched);
-        let counts = format!("{}/{} ({:.0}%)", applied, matched, percent);
-        html! {
-            <div class="rewrite-group",>
-                <input type="checkbox", checked=self.enabled, onclick=|_| Msg::ToggleRewriteGroup(i),></input>
-                <details>
-                    <summary> {counts} {" "} {&self.name} </summary>
-                    { for self.rewrites.iter().enumerate().map(|(j, r)| r.render(i, j)) }
-                </details>
-            </div>
-        }
-    }
 }
 
 struct OptionalRewrite {
@@ -84,12 +53,12 @@ impl OptionalRewrite {
 }
 
 impl OptionalRewrite {
-    fn render(&self, gi: usize, i: usize) -> Html<Model> {
+    fn render(&self, i: usize) -> Html<Model> {
         let percent = percent(self.applied, self.matched);
         let counts = format!("{}/{} ({:.0}%)", self.applied, self.matched, percent);
         html! {
             <div class="rewrite",>
-                <input type="checkbox", checked=self.enabled, onclick=|_| Msg::ToggleRewrite(gi, i),></input>
+                <input type="checkbox", checked=self.enabled, onclick=|_| Msg::ToggleRewrite(i),></input>
                 <details>
                     <summary> {counts} {" "} {&self.rewrite.name}</summary>
                     <div class="lhs",> {self.rewrite.patterns[0].to_sexp()} </div>
@@ -116,8 +85,7 @@ enum Msg {
     AddQuery,
     RunRewrites,
     UpdateQuery(String),
-    ToggleRewrite(usize, usize),
-    ToggleRewriteGroup(usize),
+    ToggleRewrite(usize),
 }
 
 impl Component for Model {
@@ -131,7 +99,10 @@ impl Component for Model {
             query: Err("enter a pattern or expression".into()),
             added: vec![],
             examples: vec!["(+ 1 2)", "(* x (+ y z))", "(+ x (+ x (+ x x)))"],
-            rewrite_groups: rewrite_groups(),
+            rewrites: math::rules()
+                .into_iter()
+                .map(OptionalRewrite::new)
+                .collect(),
         }
     }
 
@@ -164,27 +135,18 @@ impl Component for Model {
                 self.update(Msg::UpdateQuery(s));
                 self.update(Msg::AddQuery);
             }
-            Msg::ToggleRewrite(gi, i) => {
-                self.rewrite_groups[gi].rewrites[i].enabled ^= true;
-            }
-            Msg::ToggleRewriteGroup(gi) => {
-                self.rewrite_groups[gi].enabled ^= true;
+            Msg::ToggleRewrite(i) => {
+                self.rewrites[i].enabled ^= true;
             }
             Msg::RunRewrites => {
                 let start_time = Date::now();
                 let mut matches = Vec::new();
 
-                for group in &mut self.rewrite_groups {
-                    if !group.enabled {
-                        continue;
-                    }
-
-                    for rule in &mut group.rewrites {
-                        if rule.enabled {
-                            let ms = rule.rewrite.search(&self.egraph);
-                            rule.matched += ms.len();
-                            matches.push((&rule.rewrite, &mut rule.applied, ms));
-                        }
+                for rule in &mut self.rewrites {
+                    if rule.enabled {
+                        let ms = rule.rewrite.search(&self.egraph);
+                        rule.matched += ms.len();
+                        matches.push((&rule.rewrite, &mut rule.applied, ms));
                     }
                 }
 
@@ -244,7 +206,7 @@ impl Component for Model {
                 <h3> {"Rewrites"} </h3>
                 <button onclick=|_| Msg::RunRewrites,>{"Run"}</button>
                 <div>
-                    { for self.rewrite_groups.iter().enumerate().map(|(i, g)| g.render(i)) }
+                    { for self.rewrites.iter().enumerate().map(|(i, r)| r.render(i)) }
                 </div>
             </section>
         </div>

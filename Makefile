@@ -1,5 +1,5 @@
 .PHONY:
-test: test-egg test-math test-web
+test: test-egg test-web
 	cargo fmt -- --check
 	cargo doc --no-deps
 	cargo deadlinks
@@ -15,11 +15,6 @@ test-egg:
 	cargo clippy --tests --features "parent-pointers"
 
 	cargo clippy --tests --features "serde-1"
-
-.PHONY: test-math
-test-math:
-	cd egg-math; cargo clippy --tests --features "parent-pointers"
-	cd egg-math; cargo test	          --features "parent-pointers"
 
 .PHONY: test-web
 test-web:

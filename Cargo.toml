@@ -22,6 +22,7 @@ serde = { version = "1", features = ["derive"], optional = true }
 
 [dev-dependencies]
 env_logger = "0.7"
+ordered-float = "1"
 
 [features]
 parent-pointers = []
@@ -31,7 +32,6 @@ serde-1 = [ "serde", "indexmap/serde-1" ]
 [workspace]
 members = [
     ".",
-    "egg-math",
     "web-demo",
 ]
 
