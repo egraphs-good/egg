@@ -5,7 +5,7 @@ use stdweb::web::Date;
 use yew::services::ConsoleService;
 use yew::{html, Component, ComponentLink, Html, Renderable, ShouldRender};
 
-use egg::{EClass, Id, Pattern, RecExpr, SearchMatches};
+use egg::{EClass, Id, Pattern, RecExpr, SearchMatches, Searcher};
 
 #[path = "../../tests/math.rs"]
 #[allow(dead_code)]
@@ -60,9 +60,8 @@ impl OptionalRewrite {
             <div class="rewrite",>
                 <input type="checkbox", checked=self.enabled, onclick=|_| Msg::ToggleRewrite(i),></input>
                 <details>
-                    <summary> {counts} {" "} {&self.rewrite.name}</summary>
-                    <div class="lhs",> {self.rewrite.patterns[0].to_sexp()} </div>
-                    <div class="rhs",> {format!("{:?}", self.rewrite.appliers[0])} </div>
+                    <summary> {counts} {" "} {self.rewrite.name()}</summary>
+                    <div class="longname",> {self.rewrite.long_name()} </div>
                 </details>
             </div>
         }

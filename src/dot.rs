@@ -25,9 +25,9 @@ visualization.
 use egg::{EGraph, enode as e};
 
 let mut egraph = EGraph::<String, ()>::default();
-let x = egraph.add(e!("x")).id;
-let y = egraph.add(e!("0")).id;
-let add = egraph.add(e!("+", x, y)).id;
+let x = egraph.add(e!("x"));
+let y = egraph.add(e!("0"));
+let add = egraph.add(e!("+", x, y));
 egraph.union(add, x);
 egraph.rebuild();
 

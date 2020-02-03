@@ -113,6 +113,11 @@ pub fn rules() -> Vec<Rewrite> { vec![
     rw!("distribute"; "(* ?a (+ ?b ?c))"        => "(+ (* ?a ?b) (* ?a ?c))"),
     rw!("factor"    ; "(+ (* ?a ?b) (* ?a ?c))" => "(* ?a (+ ?b ?c))"),
 
+    rw!("d-variable"; "(d ?x ?x)" => "1"),
+    // rw!("d-constant"; "(d ?x ?c)" => "0" if c_is_constant),
+    // RewriteBuilder::new("d-
+
+
 ]}
 
 #[test]

@@ -61,12 +61,12 @@ mod run;
 
 pub use dot::Dot;
 pub use eclass::{EClass, Metadata};
-pub use egraph::{AddResult, EGraph};
+pub use egraph::EGraph;
 pub use expr::{ENode, Id, Language, QuestionMarkName, RecExpr};
 pub use extract::*;
 pub use parse::ParseError;
 pub use pattern::{Pattern, SearchMatches, WildMap};
-pub use rewrite::{Applier, Condition, Rewrite, RewriteBuilder};
+pub use rewrite::{Applier, Condition, ConditionEqual, ConditionalApplier, Rewrite, Searcher};
 pub use run::*;
 
 #[cfg(test)]

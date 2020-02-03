@@ -34,26 +34,6 @@ impl<L, M> Default for EGraph<L, M> {
     }
 }
 
-/// Struct that tells you whether or not an [`add`] modified the EGraph
-///
-/// ```
-/// # use egg::*;
-/// let mut egraph = EGraph::<String, ()>::default();
-/// let x1 = egraph.add(enode!("x"));
-/// let x2 = egraph.add(enode!("x"));
-///
-/// assert_eq!(x1.id, x2.id);
-/// assert!(!x1.was_there);
-/// assert!(x2.was_there);
-/// ```
-///
-/// [`add`]: struct.EGraph.html#method.add
-#[derive(Debug)]
-pub struct AddResult {
-    pub was_there: bool,
-    pub id: Id,
-}
-
 impl<L, M> EGraph<L, M> {
     pub fn dot(&self) -> Dot<L, M> {
         Dot::new(self)
@@ -80,7 +60,7 @@ impl<L, M> EGraph<L, M> {
     /// let x = egraph.add(enode!("x"));
     /// let y = egraph.add(enode!("y"));
     /// // only one eclass
-    /// egraph.union(x.id, y.id);
+    /// egraph.union(x, y);
     ///
     /// assert_eq!(egraph.total_size(), 2);
     /// ```
@@ -113,10 +93,10 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
 
     pub fn add_expr(&mut self, expr: &RecExpr<L>) -> Id {
         let e = expr.as_ref().map_children(|child| self.add_expr(&child));
-        self.add(e).id
+        self.add(e)
     }
 
-    pub fn add(&mut self, enode: ENode<L>) -> AddResult {
+    pub fn add(&mut self, enode: ENode<L>) -> Id {
         trace!("Adding       {:?}", enode);
 
         // make sure that the enodes children are already in the set
@@ -136,16 +116,13 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
         match self.memo.get(&enode) {
             Some(&id) => {
                 trace!("Found     {}: {:?}", id, enode);
-                AddResult {
-                    was_there: true,
-                    id: self.classes.find(id),
-                }
+                self.classes.find(id)
             }
             None => self.add_unchecked(enode),
         }
     }
 
-    fn add_unchecked(&mut self, enode: ENode<L>) -> AddResult {
+    fn add_unchecked(&mut self, enode: ENode<L>) -> Id {
         // HACK knowing the next key like this is pretty bad
         let mut class = EClass {
             id: self.classes.total_size() as Id,
@@ -166,14 +143,11 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
         }
 
         assert_eq!(old, None);
-        AddResult {
-            was_there: false,
-            id: next_id,
-        }
+        next_id
     }
 
     pub fn equivs(&self, expr1: &RecExpr<L>, expr2: &RecExpr<L>) -> Vec<Id> {
-        use crate::pattern::Pattern;
+        use crate::{Pattern, Searcher};
         // debug!("Searching for expr1: {}", expr1.to_sexp());
         let matches1 = Pattern::from_expr(expr1).search(self);
         info!("Matches1: {:?}", matches1);
@@ -294,9 +268,18 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
         );
     }
 
-    #[inline(always)]
     pub fn union(&mut self, id1: Id, id2: Id) -> Id {
         self.union_depth(0, id1, id2)
+    }
+
+    pub fn union_if_different(&mut self, id1: Id, id2: Id) -> Option<Id> {
+        let id1 = self.find(id1);
+        let id2 = self.find(id2);
+        if id1 == id2 {
+            None
+        } else {
+            Some(self.union(id1, id2))
+        }
     }
 
     fn union_depth(&mut self, depth: usize, id1: Id, id2: Id) -> Id {
@@ -404,11 +387,11 @@ mod tests {
         crate::init_logger();
         let mut egraph = EGraph::<String, ()>::default();
 
-        let x = egraph.add(e!("x")).id;
-        let x2 = egraph.add(e!("x")).id;
-        let _plus = egraph.add(e!("+", x, x2)).id;
+        let x = egraph.add(e!("x"));
+        let x2 = egraph.add(e!("x"));
+        let _plus = egraph.add(e!("+", x, x2));
 
-        let y = egraph.add(e!("y")).id;
+        let y = egraph.add(e!("y"));
 
         egraph.union(x, y);
         egraph.rebuild();

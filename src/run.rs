@@ -109,17 +109,16 @@ where
                 continue;
             }
 
-            debug!("Applying {} {} times", rw.name, total_matches);
+            debug!("Applying {} {} times", rw.name(), total_matches);
 
             let actually_matched = self.apply_matches(egraph, rw, ms);
             if actually_matched > 0 {
-                // applications.push((&m.rewrite.name, actually_matched));
-                if let Some(count) = applied.get_mut(&rw.name) {
+                if let Some(count) = applied.get_mut(rw.name()) {
                     *count += 1;
                 } else {
-                    applied.insert(rw.name.to_owned(), 1);
+                    applied.insert(rw.name().to_owned(), 1);
                 }
-                debug!("Applied {} {} times", rw.name, actually_matched);
+                debug!("Applied {} {} times", rw.name(), actually_matched);
             }
 
             self.during_step(egraph)?

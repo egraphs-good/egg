@@ -85,7 +85,7 @@ struct VarSubst {
 }
 
 impl Applier<Lang, Meta> for VarSubst {
-    fn apply(&self, egraph: &mut EGraph, map: &WildMap) -> Vec<AddResult> {
+    fn apply_one(&self, egraph: &mut EGraph, _eclass: Id, map: &WildMap) -> Vec<Id> {
         let v1 = map[&self.v1][0];
         let v2 = map[&self.v2][0];
         let e = map[&self.e][0];
@@ -97,15 +97,12 @@ impl Applier<Lang, Meta> for VarSubst {
                 egraph.add(ENode::new(Lang::Lambda, vec![v2, body]))
             } else {
                 let sub_body = egraph.add(ENode::new(Lang::Subst, vec![e, v1, body]));
-                egraph.add(ENode::new(Lang::Lambda, vec![v2, sub_body.id]))
+                egraph.add(ENode::new(Lang::Lambda, vec![v2, sub_body]))
             }
         } else {
             // substituting for a variable
             if v1 == v2 {
-                AddResult {
-                    was_there: true,
-                    id: e,
-                }
+                e
             } else {
                 egraph.add(ENode::new(Lang::Var, vec![v2]))
             }

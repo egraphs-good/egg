@@ -1,85 +1,48 @@
-use std::fmt;
 use std::rc::Rc;
 
-use log::*;
+use crate::{EGraph, Id, Language, Metadata, SearchMatches, WildMap};
 
-use crate::{AddResult, EGraph, Id, Language, Metadata, Pattern, SearchMatches, WildMap};
-
-pub struct RewriteBuilder<L, M> {
-    name: String,
-    patterns: Vec<Pattern<L>>,
-    appliers: Vec<Rc<dyn Applier<L, M>>>,
-    conditions: Vec<Condition<L>>,
-    application_limit: usize,
-}
-
-#[derive(Debug, Clone)]
+// TODO display
+#[derive(Clone)]
 #[non_exhaustive]
 pub struct Rewrite<L, M> {
-    pub name: String,
-    pub patterns: Vec<Pattern<L>>,
-    pub appliers: Vec<Rc<dyn Applier<L, M>>>,
-    pub conditions: Vec<Condition<L>>,
-    pub application_limit: usize,
-}
-
-impl<L, M> RewriteBuilder<L, M> {
-    pub fn new(name: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            patterns: vec![],
-            appliers: vec![],
-            conditions: vec![],
-            application_limit: 10_000,
-        }
-    }
-}
-
-impl<L, M> RewriteBuilder<L, M>
-where
-    L: Language,
-    M: Metadata<L>,
-{
-    pub fn with_pattern(mut self, pattern: Pattern<L>) -> Self {
-        self.patterns.push(pattern);
-        self
-    }
-    pub fn with_applier(mut self, applier: impl Applier<L, M> + 'static) -> Self {
-        self.appliers.push(Rc::new(applier));
-        self
-    }
-    pub fn with_condition(mut self, condition: Condition<L>) -> Self {
-        self.conditions.push(condition);
-        self
-    }
-    /// Default is 10_000.
-    pub fn with_application_limit(mut self, application_limit: usize) -> Self {
-        self.application_limit = application_limit;
-        self
-    }
-
-    pub fn build(self) -> Result<Rewrite<L, M>, ()> {
-        assert_ne!(self.patterns.len(), 0);
-        assert_ne!(self.appliers.len(), 0);
-        // TODO check binding here
-        Ok(Rewrite {
-            name: self.name,
-            patterns: self.patterns,
-            appliers: self.appliers,
-            conditions: self.conditions,
-            application_limit: self.application_limit,
-        })
-    }
-
-    // TODO is this needed? We could check binding on calls to the
-    // builder methods
-    /// Shorthand for `.build().unwrap()`.
-    pub fn mk(self) -> Rewrite<L, M> {
-        self.build().unwrap()
-    }
+    name: String,
+    long_name: String,
+    searcher: Rc<dyn Searcher<L, M>>,
+    applier: Rc<dyn Applier<L, M>>,
 }
 
 impl<L: Language, M: Metadata<L>> Rewrite<L, M> {
+    pub fn new(
+        name: impl Into<String>,
+        long_name: impl Into<String>,
+        searcher: impl Searcher<L, M> + 'static,
+        applier: impl Applier<L, M> + 'static,
+    ) -> Self {
+        Self {
+            name: name.into(),
+            long_name: long_name.into(),
+            searcher: Rc::new(searcher),
+            applier: Rc::new(applier),
+        }
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn long_name(&self) -> &str {
+        &self.long_name
+    }
+
+    pub fn search(&self, egraph: &EGraph<L, M>) -> Vec<SearchMatches> {
+        self.searcher.search(egraph)
+    }
+
+    pub fn apply(&self, egraph: &mut EGraph<L, M>, matches: &[SearchMatches]) -> Vec<Id> {
+        self.applier.apply_matches(egraph, matches)
+    }
+
     /// This `run` is for testing use only. You should use things
     /// from the `egg::run` module
     #[cfg(test)]
@@ -101,65 +64,99 @@ impl<L: Language, M: Metadata<L>> Rewrite<L, M> {
 
         ids
     }
+}
 
-    pub fn search(&self, egraph: &EGraph<L, M>) -> Vec<SearchMatches> {
-        self.patterns
-            .iter()
-            .flat_map(|p| p.search(egraph))
+pub trait Searcher<L, M>
+where
+    L: Language,
+    M: Metadata<L>,
+{
+    fn search_eclass(&self, egraph: &EGraph<L, M>, eclass: Id) -> Option<SearchMatches>;
+    fn search(&self, egraph: &EGraph<L, M>) -> Vec<SearchMatches> {
+        egraph
+            .classes()
+            .filter_map(|e| self.search_eclass(egraph, e.id))
             .collect()
     }
+}
 
-    pub fn apply(&self, egraph: &mut EGraph<L, M>, ematches: &[SearchMatches]) -> Vec<Id> {
-        let mut applications = Vec::new();
-        'outer: for ematch in ematches {
-            for mapping in &ematch.mappings {
-                if self.conditions.iter().all(|c| c.check(egraph, mapping)) {
-                    for applier in &self.appliers {
-                        for applied_root in applier.apply(egraph, mapping) {
-                            // only union and return the id if we
-                            // learned something from this application
-                            if applied_root.id != ematch.eclass {
-                                let leader = egraph.union(ematch.eclass, applied_root.id);
-                                applications.push(leader);
-                            }
-
-                            if applications.len() > self.application_limit {
-                                warn!(
-                                    "Rule {} exceeded the limit: {}",
-                                    self.name,
-                                    applications.len()
-                                );
-                                break 'outer;
-                            }
-                        }
-                    }
-                }
+pub trait Applier<L, M>
+where
+    L: Language,
+    M: Metadata<L>,
+{
+    fn apply_matches(&self, egraph: &mut EGraph<L, M>, matches: &[SearchMatches]) -> Vec<Id> {
+        let mut added = vec![];
+        for mat in matches {
+            for mapping in &mat.mappings {
+                let ids = self
+                    .apply_one(egraph, mat.eclass, mapping)
+                    .into_iter()
+                    .filter_map(|id| egraph.union_if_different(id, mat.eclass));
+                added.extend(ids)
             }
         }
+        added
+    }
+    fn apply_one(&self, egraph: &mut EGraph<L, M>, eclass: Id, mapping: &WildMap) -> Vec<Id>;
+}
 
-        applications
+#[derive(Clone, Debug)]
+pub struct ConditionalApplier<C, A> {
+    pub condition: C,
+    pub applier: A,
+}
+
+impl<C, A, L, M> Applier<L, M> for ConditionalApplier<C, A>
+where
+    L: Language,
+    M: Metadata<L>,
+    A: Applier<L, M>,
+    C: Condition<L, M>,
+{
+    fn apply_one(&self, egraph: &mut EGraph<L, M>, eclass: Id, mapping: &WildMap) -> Vec<Id> {
+        if self.condition.check(egraph, eclass, mapping) {
+            self.applier.apply_one(egraph, eclass, mapping)
+        } else {
+            vec![]
+        }
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
-pub struct Condition<L> {
-    pub lhs: Pattern<L>,
-    pub rhs: Pattern<L>,
+pub trait Condition<L, M>
+where
+    L: Language,
+    M: Metadata<L>,
+{
+    fn check(&self, egraph: &mut EGraph<L, M>, eclass: Id, mapping: &WildMap) -> bool;
 }
 
-impl<L: Language> Condition<L> {
-    fn check<M>(&self, egraph: &mut EGraph<L, M>, mapping: &WildMap) -> bool
-    where
-        M: Metadata<L>,
-    {
-        let lhs_id = self.lhs.subst_and_find(egraph, mapping);
-        let rhs_id = self.rhs.subst_and_find(egraph, mapping);
-        lhs_id == rhs_id
+impl<L, M, F> Condition<L, M> for F
+where
+    L: Language,
+    M: Metadata<L>,
+    F: Fn(&mut EGraph<L, M>, Id, &WildMap) -> bool,
+{
+    fn check(&self, egraph: &mut EGraph<L, M>, eclass: Id, mapping: &WildMap) -> bool {
+        self(egraph, eclass, mapping)
     }
 }
 
-pub trait Applier<L: Language, M: Metadata<L>>: fmt::Debug {
-    fn apply(&self, egraph: &mut EGraph<L, M>, mapping: &WildMap) -> Vec<AddResult>;
+pub struct ConditionEqual<A1, A2>(pub A1, pub A2);
+impl<L, M, A1, A2> Condition<L, M> for ConditionEqual<A1, A2>
+where
+    L: Language,
+    M: Metadata<L>,
+    A1: Applier<L, M>,
+    A2: Applier<L, M>,
+{
+    fn check(&self, egraph: &mut EGraph<L, M>, eclass: Id, mapping: &WildMap) -> bool {
+        let a1 = self.0.apply_one(egraph, eclass, mapping);
+        let a2 = self.1.apply_one(egraph, eclass, mapping);
+        assert_eq!(a1.len(), 1);
+        assert_eq!(a2.len(), 1);
+        a1[0] == a2[0]
+    }
 }
 
 #[cfg(test)]
@@ -177,25 +174,25 @@ mod tests {
         let mut egraph = EGraph::<String, ()>::default();
 
         let pat = |e| Pattern::ENode(Box::new(e));
-        let x = egraph.add(e!("x")).id;
-        let y = egraph.add(e!("2")).id;
-        let mul = egraph.add(e!("*", x, y)).id;
+        let x = egraph.add(e!("x"));
+        let y = egraph.add(e!("2"));
+        let mul = egraph.add(e!("*", x, y));
 
         let true_pat = pat(e!("TRUE"));
-        let true_id = egraph.add(e!("TRUE")).id;
+        let true_id = egraph.add(e!("TRUE"));
 
         let a: QuestionMarkName = "?a".parse().unwrap();
         let b: QuestionMarkName = "?b".parse().unwrap();
 
-        let mul_to_shift = RewriteBuilder::new("mul_to_shift")
-            .with_pattern(pat(e!("*", wc(&a), wc(&b))))
-            .with_applier(pat(e!(">>", wc(&a), pat(e!("log2", wc(&b))),)))
-            .with_condition(Condition {
-                lhs: pat(e!("is-power2", wc(&b))),
-                rhs: true_pat,
-            })
-            .build()
-            .unwrap();
+        let mul_to_shift = rewrite!(
+            "mul_to_shift";
+            { pat(e!("*", wc(&a), wc(&b))) } =>
+            { pat(e!(">>", wc(&a), pat(e!("log2", wc(&b))),)) }
+            if ConditionEqual(
+                pat(e!("is-power2", wc(&b))),
+                true_pat,
+            )
+        );
 
         println!("rewrite shouldn't do anything yet");
         egraph.rebuild();
@@ -203,13 +200,13 @@ mod tests {
         assert_eq!(apps, vec![]);
 
         println!("Add the needed equality");
-        let two_ispow2 = egraph.add(e!("is-power2", y)).id;
+        let two_ispow2 = egraph.add(e!("is-power2", y));
         egraph.union(two_ispow2, true_id);
 
         println!("Should fire now");
         egraph.rebuild();
         let apps = mul_to_shift.run(&mut egraph);
-        assert_eq!(apps, vec![mul]);
+        assert_eq!(apps, vec![egraph.find(mul)]);
     }
 
     #[test]
@@ -232,7 +229,12 @@ mod tests {
         #[derive(Debug)]
         struct Appender;
         impl Applier<String, ()> for Appender {
-            fn apply(&self, egraph: &mut EGraph<String, ()>, map: &WildMap) -> Vec<AddResult> {
+            fn apply_one(
+                &self,
+                egraph: &mut EGraph<String, ()>,
+                _eclass: Id,
+                map: &WildMap,
+            ) -> Vec<Id> {
                 let a: QuestionMarkName = "?a".parse().unwrap();
                 let b: QuestionMarkName = "?b".parse().unwrap();
                 let a = get(&egraph, map[&a][0]);
@@ -243,13 +245,13 @@ mod tests {
         }
 
         let pat = |e| Pattern::ENode(Box::new(e));
-        let fold_add = RewriteBuilder::new("fold_add")
-            .with_pattern(pat(e!("+", wc(&a), wc(&b))))
-            .with_applier(Appender)
-            .build()
-            .unwrap();
+        let fold_add = rewrite!(
+            "fold_add";
+            { pat(e!("+", wc(&a), wc(&b))) } =>
+            { Appender }
+        );
 
         fold_add.run(&mut egraph);
-        assert_eq!(egraph.equivs(&start, &goal), vec![root]);
+        assert_eq!(egraph.equivs(&start, &goal), vec![egraph.find(root)]);
     }
 }

@@ -91,17 +91,20 @@ macro_rules! recexpr {
 
 #[macro_export]
 macro_rules! rewrite {
-    ( $name:expr; $($lhs:tt),+ => $($rhs:tt),+)  => {
-        $crate::RewriteBuilder::new($name)
-            $( .with_pattern(rewrite!(@parse $lhs)) )+
-            $( .with_applier(rewrite!(@parse $rhs)) )+
-            .build()
-            .unwrap()
-    };
-    (@parse $rhs:literal) => {{
-        let pat: $crate::Pattern<_> = $rhs.parse().unwrap();
-        pat
+    (
+        $name:expr;
+        $lhs:tt => $rhs:tt
+        $(if $cond:expr)*
+    )  => {{
+        let long_name = format!("{} => {}", stringify!($lhs), stringify!($rhs));
+        let searcher = $crate::rewrite!(@parse $lhs);
+        let applier = $crate::rewrite!(@parse $rhs);
+        $( let applier = $crate::ConditionalApplier {applier, condition: $cond}; )*
+        $crate::Rewrite::new($name, long_name, searcher, applier)
     }};
+    (@parse $rhs:literal) => {
+        $rhs.parse::<$crate::Pattern<_>>().unwrap()
+    };
     (@parse $rhs:expr) => { $rhs };
 }
 
@@ -123,9 +126,7 @@ mod tests {
             // here it should parse the rhs
             rewrite!("rule"; "cons" => "f"),
             // here it should just accept the rhs without trying to parse
-            rewrite!("rule"; "f" => { pat.clone() }),
-            // try multiple lhs and rhs
-            rewrite!("rule"; "cons", "nil" => "f", { pat }),
+            rewrite!("rule"; "f" => { pat }),
         ];
     }
 }
