@@ -32,14 +32,14 @@ define_language! {
     }
 }
 
+// You could use egg::AstSize, but this is useful for debugging, since
+// it will really try to get rid of the Diff operator
 struct MathCostFn;
 impl egg::CostFunction<Math> for MathCostFn {
     type Cost = usize;
     fn cost(&mut self, enode: &ENode<Math, Self::Cost>) -> Self::Cost {
         let op_cost = match enode.op {
             Math::Diff => 100,
-            // Math::Div => 100,
-            // Math::Sub => 100,
             _ => 1,
         };
         op_cost + enode.children.iter().sum::<usize>()
@@ -99,17 +99,10 @@ impl Metadata<Math> for Meta {
 
     fn modify(eclass: &mut EClass<Math, Self>) {
         // NOTE pruning vs not pruning is decided right here
+        // not pruning would be just pushing instead of replacing
         let best = eclass.metadata.best.as_ref();
-        // println!("size: {}", eclass.nodes.len());
-        // if eclass.nodes.len() > 1000 {
-        //     println!("nodes: {:?}", eclass.nodes);
-        // }
         if best.children.is_empty() {
             eclass.nodes = vec![ENode::leaf(best.op.clone())]
-            // let enode = ENode::leaf(best.op.clone());
-            // if !eclass.nodes.contains(&enode) {
-            //     eclass.nodes.push(enode)
-            // }
         }
     }
 }

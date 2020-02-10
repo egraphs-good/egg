@@ -350,8 +350,6 @@ where
                     threshold,
                     total_len,
                 );
-                // limit.times_applied += 1;
-                // matches
                 vec![]
             } else {
                 limit.times_applied += 1;
