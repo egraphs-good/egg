@@ -1,5 +1,6 @@
 use egg::{rewrite as rw, *};
 
+use log::trace;
 use ordered_float::NotNan;
 
 pub type EGraph = egg::EGraph<Math, Meta>;
@@ -9,6 +10,8 @@ type Constant = NotNan<f64>;
 
 define_language! {
     pub enum Math {
+        Diff = "d",
+
         Constant(Constant),
         Add = "+",
         Sub = "-",
@@ -29,6 +32,20 @@ define_language! {
     }
 }
 
+struct MathCostFn;
+impl egg::CostFunction<Math> for MathCostFn {
+    type Cost = usize;
+    fn cost(&mut self, enode: &ENode<Math, Self::Cost>) -> Self::Cost {
+        let op_cost = match enode.op {
+            Math::Diff => 100,
+            // Math::Div => 100,
+            // Math::Sub => 100,
+            _ => 1,
+        };
+        op_cost + enode.children.iter().sum::<usize>()
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Meta {
     pub cost: usize,
@@ -37,13 +54,15 @@ pub struct Meta {
 
 fn eval(op: Math, args: &[Constant]) -> Option<Constant> {
     let a = |i| args.get(i).cloned();
-    match op {
+    let res = match op {
         Math::Add => Some(a(0)? + a(1)?),
         Math::Sub => Some(a(0)? - a(1)?),
         Math::Mul => Some(a(0)? * a(1)?),
         Math::Div => Some(a(0)? / a(1)?),
         _ => None,
-    }
+    };
+    trace!("{} {:?} = {:?}", op, args, res);
+    res
 }
 
 impl Metadata<Math> for Meta {
@@ -74,17 +93,41 @@ impl Metadata<Math> for Meta {
         };
 
         let best: RecExpr<_> = expr.map_children(|c| c.best.clone()).into();
-        let cost = AstSize.cost(&expr.map_children(|c| c.cost));
+        let cost = MathCostFn.cost(&expr.map_children(|c| c.cost));
         Self { best, cost }
     }
 
     fn modify(eclass: &mut EClass<Math, Self>) {
         // NOTE pruning vs not pruning is decided right here
         let best = eclass.metadata.best.as_ref();
+        // println!("size: {}", eclass.nodes.len());
+        // if eclass.nodes.len() > 1000 {
+        //     println!("nodes: {:?}", eclass.nodes);
+        // }
         if best.children.is_empty() {
             eclass.nodes = vec![ENode::leaf(best.op.clone())]
+            // let enode = ENode::leaf(best.op.clone());
+            // if !eclass.nodes.contains(&enode) {
+            //     eclass.nodes.push(enode)
+            // }
         }
     }
+}
+
+fn c_is_const_or_var_and_not_x(egraph: &mut EGraph, _: Id, mapping: &WildMap) -> bool {
+    let c = "?c".parse().unwrap();
+    let x = "?x".parse().unwrap();
+    let is_const_or_var = egraph[mapping[&c][0]].nodes.iter().any(|n| match n.op {
+        Math::Constant(_) | Math::Variable(_) => true,
+        _ => false,
+    });
+    is_const_or_var && mapping[&x] != mapping[&c]
+}
+
+fn is_not_zero(var: &'static str) -> impl Fn(&mut EGraph, Id, &WildMap) -> bool {
+    let var = var.parse().unwrap();
+    let zero = enode!(Math::Constant(0.0.into()));
+    move |egraph, _, mapping| !egraph[mapping[&var][0]].nodes.contains(&zero)
 }
 
 #[rustfmt::skip]
@@ -93,8 +136,11 @@ pub fn rules() -> Vec<Rewrite> { vec![
     rw!("comm-mul";  "(* ?a ?b)"        => "(* ?b ?a)"),
     rw!("assoc-add"; "(+ ?a (+ ?b ?c))" => "(+ (+ ?a ?b) ?c)"),
     rw!("assoc-mul"; "(* ?a (* ?b ?c))" => "(* (* ?a ?b) ?c)"),
-    rw!("canon-sub"; "(- ?a ?b)"        => "(+ ?a (- 0 ?b))"),
-    rw!("canon-div"; "(/ ?a ?b)"        => "(* ?a (/ 1 ?b))"),
+
+    rw!("sub-canon"; "(- ?a ?b)" => "(+ ?a (* -1 ?b))"),
+    rw!("div-canon"; "(/ ?a ?b)" => "(* ?a (pow ?b -1))"),
+    // rw!("canon-sub"; "(+ ?a (* -1 ?b))"   => "(- ?a ?b)"),
+    // rw!("canon-div"; "(* ?a (pow ?b -1))" => "(/ ?a ?b)" if is_not_zero("?b")),
 
     rw!("zero-add"; "(+ ?a 0)" => "?a"),
     rw!("zero-mul"; "(* ?a 0)" => "0"),
@@ -106,18 +152,31 @@ pub fn rules() -> Vec<Rewrite> { vec![
     rw!("cancel-sub"; "(- ?a ?a)" => "0"),
     rw!("cancel-div"; "(/ ?a ?a)" => "1"),
 
-    rw!("negate"; "(- 0 ?a)" => "(* -1 ?a)"),
-
-    rw!("sqrt-cancel"; "(* (sqrt ?a) (sqrt ?a))" => "?a"),
-
     rw!("distribute"; "(* ?a (+ ?b ?c))"        => "(+ (* ?a ?b) (* ?a ?c))"),
     rw!("factor"    ; "(+ (* ?a ?b) (* ?a ?c))" => "(* ?a (+ ?b ?c))"),
 
+    rw!("pow-intro"; "?a" => "(pow ?a 1)"),
+    rw!("pow-mul"; "(* (pow ?a ?b) (pow ?a ?c))" => "(pow ?a (+ ?b ?c))"),
+    rw!("pow0"; "(pow ?x 0)" => "1"),
+    rw!("pow1"; "(pow ?x 1)" => "?x"),
+    rw!("pow2"; "(pow ?x 2)" => "(* ?x ?x)"),
+    rw!("pow-recip"; "(pow ?x -1)" => "(/ 1 ?x)" if is_not_zero("?x")),
+
     rw!("d-variable"; "(d ?x ?x)" => "1"),
-    // rw!("d-constant"; "(d ?x ?c)" => "0" if c_is_constant),
-    // RewriteBuilder::new("d-
+    rw!("d-constant"; "(d ?x ?c)" => "0" if c_is_const_or_var_and_not_x),
 
+    rw!("d-add"; "(d ?x (+ ?a ?b))" => "(+ (d ?x ?a) (d ?x ?b))"),
+    rw!("d-mul"; "(d ?x (* ?a ?b))" => "(+ (* ?a (d ?x ?b)) (* ?b (d ?x ?a)))"),
 
+    rw!("d-power";
+        "(d ?x (pow ?f ?g))" =>
+        "(* (pow ?f ?g)
+            (+ (* (d ?x ?f)
+                  (/ ?g ?f))
+               (* (d ?x ?g)
+                  (log ?f))))"
+        if is_not_zero("?f")
+    ),
 ]}
 
 #[test]
@@ -135,6 +194,7 @@ fn associate_adds() {
     let egraph: egg::EGraph<Math, ()> = SimpleRunner::default()
         .with_iter_limit(7)
         .with_node_limit(8_000)
+        .with_initial_match_limit(100_000) // disable banning
         .run_expr(start_expr, rules)
         .0;
 
@@ -156,13 +216,16 @@ macro_rules! check {
             let end_expr = $end.parse().expect(concat!("Failed to parse ", $end));
 
             let (mut egraph, root) = EGraph::from_expr(&start_expr);
+            // add the end expr as well
+            let _goal = egraph.add_expr(&end_expr);
+
             let (_, reason) = SimpleRunner::default()
                 .with_iter_limit($iters)
                 .with_node_limit($limit)
                 .run(&mut egraph, &rules());
 
             println!("Stopped because {:?}", reason);
-            let (cost, best) = Extractor::new(&egraph, AstSize).find_best(root);
+            let (cost, best) = Extractor::new(&egraph, MathCostFn).find_best(root);
             println!("Best ({}): {}", cost, best.to_sexp());
 
             // make sure that pattern search also works
@@ -173,7 +236,7 @@ macro_rules! check {
                 println!("start: {}", start_expr.to_sexp());
                 println!("start: {:?}", start_expr);
                 panic!(
-                    "Could not simplify {} to {}, found:\n{}",
+                    "\nCould not simplify\n{}\nto\n{}\nfound:\n{}",
                     $start,
                     $end,
                     best.pretty(40)
@@ -190,7 +253,7 @@ check!(
 
 check!(
     #[cfg_attr(feature = "parent-pointers", ignore)]
-    simplify_add,   20,  1_000, "(+ x (+ x (+ x x)))" => "(* 4 x)"
+    simplify_add,   10,  1_000, "(+ x (+ x (+ x x)))" => "(* 4 x)"
 );
 check!(
     #[cfg_attr(feature = "parent-pointers", ignore)]
@@ -198,7 +261,7 @@ check!(
 );
 check!(
     #[cfg_attr(feature = "parent-pointers", ignore)]
-    simplify_root,  10, 75_000, r#"
+    simplify_root, 10, 75_000, r#"
           (/ 1
              (- (/ (+ 1 (sqrt five))
                    2)
@@ -206,4 +269,22 @@ check!(
                    2)))
         "#
        => "(/ 1 (sqrt five))"
+);
+
+check!(powers,         10, 1_000, "(* (pow 2 x) (pow 2 y))" => "(pow 2 (+ x y))");
+
+check!(diff_same,      10, 1_000, "(d x x)" => "1");
+check!(diff_different, 10, 1_000, "(d x y)" => "0");
+check!(diff_simple1,   10, 5_000, "(d x (+ 1 (* 2 x)))" => "2");
+check!(diff_simple2,   10, 5_000, "(d x (+ 1 (* y x)))" => "y");
+
+check!(
+    #[cfg_attr(feature = "parent-pointers", ignore)]
+    diff_power_simple, 20, 50_000, "(d x (pow x 3))" => "(* 3 (pow x 2))"
+);
+check!(
+    #[cfg_attr(feature = "parent-pointers", ignore)]
+    diff_power_harder, 50, 50_000,
+    "(d x (- (pow x 3) (* 7 (pow x 2))))" =>
+    "(* x (- (* 3 x) 14))"
 );

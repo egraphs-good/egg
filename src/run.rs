@@ -69,8 +69,17 @@ where
         Ok(())
     }
 
+    /// Dictates search behavior
+    fn search_rewrite(
+        &mut self,
+        egraph: &mut EGraph<L, M>,
+        rewrite: &Rewrite<L, M>,
+    ) -> Vec<SearchMatches> {
+        rewrite.search(egraph)
+    }
+
     /// Dictates how matches will be applied.
-    fn apply_matches(
+    fn apply_rewrite(
         &mut self,
         egraph: &mut EGraph<L, M>,
         rewrite: &Rewrite<L, M>,
@@ -92,7 +101,7 @@ where
 
         let mut matches = Vec::new();
         for rule in rules.iter() {
-            let ms = rule.search(egraph);
+            let ms = self.search_rewrite(egraph, rule);
             matches.push(ms);
             self.during_step(egraph)?
         }
@@ -111,7 +120,7 @@ where
 
             debug!("Applying {} {} times", rw.name(), total_matches);
 
-            let actually_matched = self.apply_matches(egraph, rw, ms);
+            let actually_matched = self.apply_rewrite(egraph, rw, ms);
             if actually_matched > 0 {
                 if let Some(count) = applied.get_mut(rw.name()) {
                     *count += 1;
@@ -211,11 +220,19 @@ where
     }
 }
 
-#[non_exhaustive]
 pub struct SimpleRunner {
     iter_limit: usize,
     node_limit: usize,
     i: usize,
+    stats: IndexMap<String, RuleStats>,
+    initial_match_limit: usize,
+    ban_length: usize,
+}
+
+struct RuleStats {
+    times_applied: usize,
+    banned_until: usize,
+    times_banned: usize,
 }
 
 impl Default for SimpleRunner {
@@ -224,6 +241,9 @@ impl Default for SimpleRunner {
             iter_limit: 30,
             node_limit: 10_000,
             i: 0,
+            stats: Default::default(),
+            initial_match_limit: 1_000,
+            ban_length: 5,
         }
     }
 }
@@ -234,6 +254,12 @@ impl SimpleRunner {
     }
     pub fn with_node_limit(self, node_limit: usize) -> Self {
         Self { node_limit, ..self }
+    }
+    pub fn with_initial_match_limit(self, initial_match_limit: usize) -> Self {
+        Self {
+            initial_match_limit,
+            ..self
+        }
     }
 }
 
@@ -280,11 +306,67 @@ where
         iteration: &Iteration,
         _egraph: &mut EGraph<L, M>,
     ) -> Result<(), Self::Error> {
+        let is_banned = |s: &RuleStats| s.banned_until > self.i;
+        let any_bans = self.stats.values().any(is_banned);
+
         self.i += 1;
-        if iteration.applied.is_empty() {
+        if !any_bans && iteration.applied.is_empty() {
             Err(SimpleRunnerError::Saturated)
         } else {
             Ok(())
+        }
+    }
+
+    fn search_rewrite(
+        &mut self,
+        egraph: &mut EGraph<L, M>,
+        rewrite: &Rewrite<L, M>,
+    ) -> Vec<SearchMatches> {
+        if let Some(limit) = self.stats.get_mut(rewrite.name()) {
+            if self.i < limit.banned_until {
+                debug!(
+                    "Skipping {} ({}-{}), banned until {}...",
+                    rewrite.name(),
+                    limit.times_applied,
+                    limit.times_banned,
+                    limit.banned_until,
+                );
+                return vec![];
+            }
+
+            let matches = rewrite.search(egraph);
+            let total_len: usize = matches.iter().map(|m| m.mappings.len()).sum();
+            let threshold = self.initial_match_limit << limit.times_banned;
+            if total_len > threshold {
+                let ban_length = self.ban_length << limit.times_banned;
+                limit.times_banned += 1;
+                limit.banned_until = self.i + ban_length;
+                info!(
+                    "Banning {} ({}-{}) for {} iters: {} < {}",
+                    rewrite.name(),
+                    limit.times_applied,
+                    limit.times_banned,
+                    ban_length,
+                    threshold,
+                    total_len,
+                );
+                // limit.times_applied += 1;
+                // matches
+                vec![]
+            } else {
+                limit.times_applied += 1;
+                matches
+            }
+        } else {
+            self.stats.insert(
+                rewrite.name().into(),
+                RuleStats {
+                    times_applied: 0,
+                    banned_until: 0,
+                    times_banned: 0,
+                },
+            );
+            rewrite.search(egraph)
         }
     }
 }
