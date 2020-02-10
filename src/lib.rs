@@ -4,12 +4,13 @@ parameterized over the language given by the user (by implementing
 the [`Language`] trait).
 
 If your Language implements [`FromStr`] (and Languages derived using
-`define_language!` do), you can easily create [`RecExpr`]s to add to
+[`define_language!`] do), you can easily create [`RecExpr`]s to add to
 an [`EGraph`].
 
 [`EGraph`]: struct.EGraph.html
 [`Language`]: trait.Language.html
 [`RecExpr`]: struct.RecExpr.html
+[`define_language!`]: macro.define_language.html
 [`FromStr`]: https://doc.rust-lang.org/std/str/trait.FromStr.html
 
 ```
