@@ -12,7 +12,7 @@ categories = ["data-structures"]
 
 [dependencies]
 symbolic_expressions = "5"
-log = "0.4.0"
+log = "0.4"
 itertools = "0.8"
 smallvec = "1"
 indexmap = "1"
