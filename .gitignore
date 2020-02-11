@@ -8,3 +8,6 @@ egg/data/
 # nix stuff
 .envrc
 default.nix
+
+# other stuff
+TODO.md
