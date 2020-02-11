@@ -13,6 +13,12 @@ an [`EGraph`].
 [`define_language!`]: macro.define_language.html
 [`FromStr`]: https://doc.rust-lang.org/std/str/trait.FromStr.html
 
+Add `egg` to your `Cargo.toml` like this:
+```toml
+[dependencies]
+egg = "0.0.0"
+```
+
 ```
 use egg::{*, rewrite as rw};
 
