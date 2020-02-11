@@ -14,7 +14,7 @@ an [`EGraph`].
 [`FromStr`]: https://doc.rust-lang.org/std/str/trait.FromStr.html
 
 ```
-use egg::*;
+use egg::{*, rewrite as rw};
 
 define_language! {
     enum SimpleLanguage {
@@ -28,12 +28,12 @@ define_language! {
 }
 
 let rules: &[Rewrite<SimpleLanguage, ()>] = &[
-    rewrite!("commute-add"; "(+ ?a ?b)" => "(+ ?b ?a)"),
-    rewrite!("commute-mul"; "(* ?a ?b)" => "(* ?b ?a)"),
+    rw!("commute-add"; "(+ ?a ?b)" => "(+ ?b ?a)"),
+    rw!("commute-mul"; "(* ?a ?b)" => "(* ?b ?a)"),
 
-    rewrite!("add-0"; "(+ ?a 0)" => "?a"),
-    rewrite!("mul-0"; "(* ?a 0)" => "0"),
-    rewrite!("mul-1"; "(* ?a 1)" => "?a"),
+    rw!("add-0"; "(+ ?a 0)" => "?a"),
+    rw!("mul-0"; "(* ?a 0)" => "0"),
+    rw!("mul-1"; "(* ?a 1)" => "?a"),
 ];
 
 let start = "(+ 0 (* 1 foo))".parse().unwrap();

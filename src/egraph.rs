@@ -5,7 +5,21 @@ use log::*;
 
 use crate::{unionfind::UnionFind, Dot, EClass, ENode, Id, Language, Metadata, RecExpr};
 
-/// Data structure to keep track of equalities between expressions
+/** Data structure to keep track of equalities between expressions.
+
+An egraph ([`EGraph`]) is a data structure to maintain equivalence
+classes of expressions.
+An egraph conceptually is a set of eclasses ([`EClass`]) each of which
+contains equivalent enodes ([`ENode`]).
+
+An enode is conceptually and operator with children, but instead of
+children being other operators or values, the children are eclasses.
+
+
+[`EGraph`]: struct.EGraph.html
+[`EClass`]: struct.EClass.html
+[`ENode`]: struct.ENode.html
+**/
 #[derive(Clone)]
 pub struct EGraph<L, M> {
     memo: IndexMap<ENode<L>, Id>,
@@ -35,10 +49,6 @@ impl<L, M> Default for EGraph<L, M> {
 }
 
 impl<L, M> EGraph<L, M> {
-    pub fn dot(&self) -> Dot<L, M> {
-        Dot::new(self)
-    }
-
     pub fn classes(&self) -> impl Iterator<Item = &EClass<L, M>> {
         self.classes.values()
     }
@@ -56,7 +66,7 @@ impl<L, M> EGraph<L, M> {
     /// Actually returns the size of the hash cons index.
     /// ```
     /// # use egg::*;
-    /// let mut egraph = EGraph::<String, ()>::default();
+    /// let mut egraph = EGraph::<&str, ()>::default();
     /// let x = egraph.add(enode!("x"));
     /// let y = egraph.add(enode!("y"));
     /// // only one eclass
@@ -74,6 +84,10 @@ impl<L, M> EGraph<L, M> {
 
     pub fn find(&self, id: Id) -> Id {
         self.classes.find(id)
+    }
+
+    pub fn dot(&self) -> Dot<L, M> {
+        Dot::new(self)
     }
 }
 

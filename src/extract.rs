@@ -5,13 +5,49 @@ use crate::{EClass, EGraph, ENode, Id, Language, RecExpr};
 
 use indexmap::IndexMap;
 
+/** Extracting a single [`RecExpr`] from an [`EGraph`].
+
+```
+use egg::*;
+
+define_language! {
+    enum SimpleLanguage {
+        Num(i32),
+        Add = "+",
+        Mul = "*",
+    }
+}
+
+let rules: &[Rewrite<SimpleLanguage, ()>] = &[
+    rewrite!("commute-add"; "(+ ?a ?b)" => "(+ ?b ?a)"),
+    rewrite!("commute-mul"; "(* ?a ?b)" => "(* ?b ?a)"),
+
+    rewrite!("add-0"; "(+ ?a 0)" => "?a"),
+    rewrite!("mul-0"; "(* ?a 0)" => "0"),
+    rewrite!("mul-1"; "(* ?a 1)" => "?a"),
+];
+
+let start = "(+ 0 (* 1 10))".parse().unwrap();
+let (mut egraph, root) = EGraph::from_expr(&start);
+
+SimpleRunner::default().run(&mut egraph, &rules);
+
+let mut extractor = Extractor::new(&egraph, AstSize);
+let (best_cost, best) = extractor.find_best(root);
+assert_eq!(best_cost, 1);
+assert_eq!(best, "10".parse().unwrap());
+```
+
+[`RecExpr`]: struct.RecExpr.html
+[`EGraph`]: struct.EGraph.html
+**/
 pub struct Extractor<'a, CF: CostFunction<L>, L: Language, M> {
     cost_function: CF,
     costs: IndexMap<Id, CF::Cost>,
     egraph: &'a EGraph<L, M>,
 }
 
-/** A cost function that can be used by an [`Extractor`]
+/** A cost function that can be used by an [`Extractor`].
 
 To extract an expression from an [`EGraph`], the [`Extractor`]
 requires a cost function to performs its greedy search.
@@ -50,8 +86,6 @@ assert_eq!(AstDepth.cost_rec(&e), 2);
 [`Extractor`]: struct.Extractor.html
 [`EGraph`]: struct.EGraph.html
 [`ENode`]: struct.ENode.html
-[`cost`]: trait.CostFunction.html#tymethod.cost
-[`cost_rec`]: trait.CostFunction.html#tymethod.cost_rec
 **/
 pub trait CostFunction<L: Language> {
     /// The `Cost` type. It only requires `PartialOrd` so you can use
@@ -59,12 +93,23 @@ pub trait CostFunction<L: Language> {
     /// result in a panic.
     type Cost: PartialOrd + Debug + Clone;
 
+    /// Calculates the cost of an [`ENode`] whose children are `Cost`s.
+    ///
     /// For this to work properly, your cost function should be
-    /// _monotonic_, i.e. [`cost`] should return a `Cost` greater than
+    /// _monotonic_, i.e. `cost` should return a `Cost` greater than
     /// any of the child costs of the given [`ENode`].
+    ///
+    /// [`ENode`]: struct.ENode.html
     fn cost(&mut self, enode: &ENode<L, Self::Cost>) -> Self::Cost;
-    fn cost_rec(&mut self, enode: &RecExpr<L>) -> Self::Cost {
-        let child_cost = enode.as_ref().map_children(|e| self.cost_rec(&e));
+
+    /// Calculates the total cost of a [`RecExpr`].
+    ///
+    /// As provided, this just recursively calls `cost` all the way
+    /// down the [`RecExpr`].
+    ///
+    /// [`RecExpr`]: struct.RecExpr.html
+    fn cost_rec(&mut self, expr: &RecExpr<L>) -> Self::Cost {
+        let child_cost = expr.as_ref().map_children(|e| self.cost_rec(&e));
         self.cost(&child_cost)
     }
 }
@@ -122,6 +167,12 @@ where
     CF: CostFunction<L>,
     L: Language,
 {
+    /// Create a new `Extractor` given an `EGraph` and a
+    /// `CostFunction`.
+    ///
+    /// The extraction does all the work on creation, so this function
+    /// performs the greedy search for cheapest representative of each
+    /// eclass.
     pub fn new(egraph: &'a EGraph<L, M>, cost_function: CF) -> Self {
         let costs = IndexMap::default();
         let mut extractor = Extractor {
@@ -134,6 +185,8 @@ where
         extractor
     }
 
+    /// Find the cheapest (lowest cost) represented `RecExpr` in the
+    /// given eclass.
     pub fn find_best(&mut self, eclass: Id) -> (CF::Cost, RecExpr<L>) {
         let expr = self.find_best_expr(eclass);
         let cost = self.cost_function.cost_rec(&expr);
