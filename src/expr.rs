@@ -102,26 +102,6 @@ impl<L: Language + fmt::Display> RecExpr<L> {
     }
 }
 
-impl<L: Language> RecExpr<L> {
-    pub fn ast_size(&self) -> usize {
-        1 + self
-            .as_ref()
-            .children
-            .iter()
-            .map(|c| c.ast_size())
-            .sum::<usize>()
-    }
-    pub fn ast_depth(&self) -> usize {
-        1 + self
-            .as_ref()
-            .children
-            .iter()
-            .map(|c| c.ast_depth())
-            .max()
-            .unwrap_or(0)
-    }
-}
-
 impl<L: Language, Child> ENode<L, Child> {
     #[inline(always)]
     pub fn leaf(op: L) -> Self {
@@ -178,6 +158,7 @@ impl<L: Language> ENode<L> {
 pub trait Language: Debug + PartialEq + Eq + Hash + Clone + 'static {}
 
 impl Language for String {}
+impl Language for &'static str {}
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct QuestionMarkName(pub Rc<str>);

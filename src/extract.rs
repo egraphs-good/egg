@@ -11,8 +11,57 @@ pub struct Extractor<'a, CF: CostFunction<L>, L: Language, M> {
     egraph: &'a EGraph<L, M>,
 }
 
+/** A cost function that can be used by an [`Extractor`]
+
+To extract an expression from an [`EGraph`], the [`Extractor`]
+requires a cost function to performs its greedy search.
+`egg` provides the simple [`AstSize`] and [`AstDepth`] cost functions.
+
+The example below illustrates a silly but realistic example of
+implementing a cost function that is essentially AST size weighted by
+the operator:
+```
+use egg::{*, recexpr as r};
+
+type Lang = &'static str;
+
+struct SillyCostFn;
+impl CostFunction<Lang> for SillyCostFn {
+    type Cost = f64;
+    // you're passed in an ENode whose children are costs instead of eclass ids
+    fn cost(&mut self, enode: &ENode<Lang, Self::Cost>) -> Self::Cost {
+        let op_cost = match enode.op {
+            "foo" => 100.0,
+            "bar" => 0.7,
+            _ => 1.0
+        };
+        op_cost + enode.children.iter().sum::<f64>()
+    }
+}
+
+let e: RecExpr<Lang> = r!("+", r!("foo"), r!("bar"), r!("baz"));
+assert_eq!(SillyCostFn.cost_rec(&e), 102.7);
+assert_eq!(AstSize.cost_rec(&e), 4);
+assert_eq!(AstDepth.cost_rec(&e), 2);
+```
+
+[`AstSize`]: struct.AstSize.html
+[`AstDepth`]: struct.AstDepth.html
+[`Extractor`]: struct.Extractor.html
+[`EGraph`]: struct.EGraph.html
+[`ENode`]: struct.ENode.html
+[`cost`]: trait.CostFunction.html#tymethod.cost
+[`cost_rec`]: trait.CostFunction.html#tymethod.cost_rec
+**/
 pub trait CostFunction<L: Language> {
-    type Cost: Ord + Debug + Clone;
+    /// The `Cost` type. It only requires `PartialOrd` so you can use
+    /// floating point types, but failed comparisons (`NaN`s) will
+    /// result in a panic.
+    type Cost: PartialOrd + Debug + Clone;
+
+    /// For this to work properly, your cost function should be
+    /// _monotonic_, i.e. [`cost`] should return a `Cost` greater than
+    /// any of the child costs of the given [`ENode`].
     fn cost(&mut self, enode: &ENode<L, Self::Cost>) -> Self::Cost;
     fn cost_rec(&mut self, enode: &RecExpr<L>) -> Self::Cost {
         let child_cost = enode.as_ref().map_children(|e| self.cost_rec(&e));
@@ -20,6 +69,17 @@ pub trait CostFunction<L: Language> {
     }
 }
 
+/** A simple [`CostFunction`] that counts total ast size.
+
+```
+use egg::{*, recexpr as r};
+
+let e: RecExpr<&str> = r!("+", r!("foo"), r!("bar"), r!("baz"));
+assert_eq!(AstSize.cost_rec(&e), 4);
+```
+
+[`CostFunction`]: trait.CostFunction.html
+**/
 pub struct AstSize;
 impl<L: Language> CostFunction<L> for AstSize {
     type Cost = usize;
@@ -28,6 +88,17 @@ impl<L: Language> CostFunction<L> for AstSize {
     }
 }
 
+/** A simple [`CostFunction`] that counts maximum ast depth.
+
+```
+use egg::{*, recexpr as r};
+
+let e: RecExpr<&str> = r!("+", r!("foo"), r!("bar"), r!("baz"));
+assert_eq!(AstDepth.cost_rec(&e), 2);
+```
+
+[`CostFunction`]: trait.CostFunction.html
+**/
 pub struct AstDepth;
 impl<L: Language> CostFunction<L> for AstDepth {
     type Cost = usize;
@@ -36,7 +107,7 @@ impl<L: Language> CostFunction<L> for AstDepth {
     }
 }
 
-fn cmp<T: Ord>(a: &Option<T>, b: &Option<T>) -> Ordering {
+fn cmp<T: PartialOrd>(a: &Option<T>, b: &Option<T>) -> Ordering {
     // None is high
     match (a, b) {
         (None, None) => Ordering::Equal,
