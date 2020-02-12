@@ -1,3 +1,5 @@
+#![warn(missing_docs)]
+
 use std::fmt::{self, Debug};
 
 use indexmap::{IndexMap, IndexSet};
@@ -5,20 +7,119 @@ use log::*;
 
 use crate::{unionfind::UnionFind, Dot, EClass, ENode, Id, Language, Metadata, RecExpr};
 
-/** Data structure to keep track of equalities between expressions.
+/** A data structure to keep track of equalities between expressions.
 
-An egraph ([`EGraph`]) is a data structure to maintain equivalence
+# What's an egraph?
+
+An egraph ([/'igraf/][sound]) is a data structure to maintain equivalence
 classes of expressions.
-An egraph conceptually is a set of eclasses ([`EClass`]) each of which
-contains equivalent enodes ([`ENode`]).
-
+An egraph conceptually is a set of eclasses, each of which
+contains equivalent enodes.
 An enode is conceptually and operator with children, but instead of
 children being other operators or values, the children are eclasses.
 
+In `egg`, these are respresented by the [`EGraph`], [`EClass`], and
+[`ENode`] types.
+
+
+Here's an egraph created and rendered by [this example](struct.Dot.html).
+As described in the documentation for [egraph visualization][dot] and
+in the academic literature, we picture eclasses as dotted boxes
+surrounding the equivalent enodes:
+
+<img src="https://mwillsey.com/assets/simple-egraph.svg"/>
+
+We say a term _t_ is _represented_ in an eclass _e_ if you can pick a
+single enode from each eclass such that _t_ is in _e_.
+A term is represented in the egraph if it's represented in any eclass.
+In the image above, the terms `2 * a`, `a * 2`, and `a << 1` are all
+represented in the same eclass and thus are equivalent.
+The terms `1`, `(a * 2) / 2`, and `(a << 1) / 2` are represented in
+the egraph, but not in the same eclass as the prior three terms, so
+these three are not equivalent to those three.
+
+Egraphs are useful when you have a bunch of very similar expressions,
+some of which are equivalent, and you'd like a compactly store them.
+This compactness allows rewrite systems based on egraphs to
+efficiently "remember" the expression before and after rewriting, so
+you can essentially apply all rewrites at once.
+See [`Rewrite`] and [`Runner`] for more details about rewrites and
+running rewrite systems, respectively.
+
+# Invariants and Rebuilding
+
+An egraph has two core operations that modify the egraph:
+[`add`] which adds enodes to the egraph, and
+[`union`] which merges two eclasses.
+These operations maintains two key (related) invariants:
+
+1. **Uniqueness of enodes**
+
+   There do not exist two distinct enodes with equal operators and equal
+   children in the eclass, either in the same eclass or different eclasses.
+   This is maintained in part by the hashconsing performed by [`add`],
+   and by deduplication performed by [`union`] and [`rebuild`].
+
+2. **Congruence closure**
+
+   An egraph maintains not just an [equivalence relation] over
+   expressions, but a [congruence relation].
+   So as the user calls [`union`], many eclasses other than the given
+   two may need to merge to maintain congruence.
+
+   For example, suppose terms `a + x` and `a + y` are represented in
+   eclasses 1 and 2, respectively.
+   At some later point, `x` and `y` become
+   equivalent (perhaps the user called [`union`] on their containing
+   eclasses).
+   Eclasses 1 and 2 must merge, because now the two `+`
+   operators have equivalent arguments, making them equivalent.
+
+`egg` takes a delayed approach to maintaining these invariants.
+Specifically, the effects of calling [`union`] (or applying a rewrite,
+which calls [`union`]) may not be reflected immediately.
+To restore the egraph invariants and make these effects visible, the
+user *must* call the [`rebuild`] method.
+
+`egg`s choice here allows for a higher performance implementation.
+Maintaining the congruence relation complicates the core egraph data
+structure and requires an expensive traversal through the egraph on
+every [`union`].
+`egg` chooses to relax these invariants for better performance, only
+restoring the invariants on a call to [`rebuild`].
+See the [`rebuild`] documentation for more information.
+Note also that [`Runner`]s take care of this for you, calling
+[`rebuild`] between rewrite iterations.
+
+# egraphs in `egg`
+
+In `egg`, the main types associated with egraphs are
+[`EGraph`], [`EClass`], [`ENode`], and [`Id`].
+
+[`EGraph`], [`EClass`], and [`ENode`] are all generic over a
+[`Language`], meaning that types actually floating around in the
+egraph are all user-defined.
+In particular, [`ENode`]s contain operators from your [`Language`].
+
+Many methods of [`EGraph`] deal with [`Id`]s, which represent eclasses.
+Because eclasses are frequently merged, many [`Id`]s will refer to the
+same eclass.
 
 [`EGraph`]: struct.EGraph.html
 [`EClass`]: struct.EClass.html
 [`ENode`]: struct.ENode.html
+[`Rewrite`]: struct.Rewrite.html
+[`Runner`]: trait.Runner.html
+[`Language`]: trait.Language.html
+[`Id`]: type.Id.html
+[`add`]: struct.EGraph.html#method.add
+[`union`]: struct.EGraph.html#method.union
+[`rebuild`]: struct.EGraph.html#method.rebuild
+[equivalence relation]: https://en.wikipedia.org/wiki/Equivalence_relation
+[congruence relation]: https://en.wikipedia.org/wiki/Congruence_relation
+[dot]: struct.Dot.html
+[extract]: struct.Extractor.html
+[sound]: https://itinerarium.github.io/phoneme-synthesis/?w=/'igraf/
 **/
 #[derive(Clone)]
 pub struct EGraph<L, M> {
@@ -39,6 +140,7 @@ impl<L: Language, M: Debug> Debug for EGraph<L, M> {
 }
 
 impl<L, M> Default for EGraph<L, M> {
+    /// Returns an empty egraph.
     fn default() -> EGraph<L, M> {
         EGraph {
             memo: IndexMap::default(),
@@ -49,21 +151,33 @@ impl<L, M> Default for EGraph<L, M> {
 }
 
 impl<L, M> EGraph<L, M> {
+    /// Returns an iterator over the eclasses in the egraph.
     pub fn classes(&self) -> impl Iterator<Item = &EClass<L, M>> {
         self.classes.values()
     }
 
+    /// Returns an mutating iterator over the eclasses in the egraph.
     pub fn classes_mut(&mut self) -> impl Iterator<Item = &mut EClass<L, M>> {
         self.classes.values_mut()
     }
 
+    /// Returns true if the egraph is empty
+    /// # Example
+    /// ```
+    /// # use egg::*;
+    /// let mut egraph = EGraph::<&str, ()>::default();
+    /// assert!(egraph.is_empty());
+    /// egraph.add(enode!("foo"));
+    /// assert!(!egraph.is_empty());
+    /// ```
     pub fn is_empty(&self) -> bool {
         self.memo.is_empty()
     }
 
-    /// Returns the number of nodes in the `EGraph`.
+    /// Returns the number of enodes in the `EGraph`.
     ///
-    /// Actually returns the size of the hash cons index.
+    /// Actually returns the size of the hashcons index.
+    /// # Example
     /// ```
     /// # use egg::*;
     /// let mut egraph = EGraph::<&str, ()>::default();
@@ -73,19 +187,40 @@ impl<L, M> EGraph<L, M> {
     /// egraph.union(x, y);
     ///
     /// assert_eq!(egraph.total_size(), 2);
+    /// assert_eq!(egraph.number_of_classes(), 1);
     /// ```
     pub fn total_size(&self) -> usize {
         self.classes.total_size()
     }
 
+    /// Returns the number of eclasses in the egraph.
     pub fn number_of_classes(&self) -> usize {
         self.classes.number_of_classes()
     }
 
+    /// Canonicalizes an eclass id.
+    ///
+    /// This corresponds to the `find` operation on the egraph's
+    /// underlying unionfind data structure.
+    ///
+    /// # Example
+    /// ```
+    /// # use egg::*;
+    /// let mut egraph = EGraph::<&str, ()>::default();
+    /// let x = egraph.add(enode!("x"));
+    /// let y = egraph.add(enode!("y"));
+    /// assert_ne!(egraph.find(x), egraph.find(y));
+    ///
+    /// egraph.union(x, y);
+    /// assert_eq!(egraph.find(x), egraph.find(y));
+    /// ```
     pub fn find(&self, id: Id) -> Id {
         self.classes.find(id)
     }
 
+    /// Creates a [`Dot`] to visualize this egraph. See [`Dot`].
+    ///
+    /// [`Dot`]: struct.Dot.html
     pub fn dot(&self) -> Dot<L, M> {
         Dot::new(self)
     }
@@ -99,17 +234,54 @@ impl<L: Language, M> std::ops::Index<Id> for EGraph<L, M> {
 }
 
 impl<L: Language, M: Metadata<L>> EGraph<L, M> {
+
+    /// Create an egraph from a [`RecExpr`].
+    /// Equivalent to calling [`add_expr`] on an empty [`EGraph`].
+    ///
+    /// [`EGraph`]: struct.EGraph.html
+    /// [`RecExpr`]: struct.RecExpr.html
+    /// [`add_expr`]: struct.EGraph.html#method.add_expr
     pub fn from_expr(expr: &RecExpr<L>) -> (Self, Id) {
         let mut egraph = EGraph::default();
         let root = egraph.add_expr(expr);
         (egraph, root)
     }
 
+    /// Adds a [`RecExpr`] to the [`EGraph`].
+    ///
+    /// # Example
+    /// ```
+    /// # use egg::*;
+    /// let mut egraph = EGraph::<String, ()>::default();
+    /// let x = egraph.add(enode!("x"));
+    /// let y = egraph.add(enode!("y"));
+    /// let plus = egraph.add(enode!("+", x, y));
+    /// let plus_recexpr = "(+ x y)".parse().unwrap();
+    /// assert_eq!(plus, egraph.add_expr(&plus_recexpr));
+    /// ```
+    ///
+    /// [`EGraph`]: struct.EGraph.html
+    /// [`RecExpr`]: struct.RecExpr.html
+    /// [`add_expr`]: struct.EGraph.html#method.add_expr
     pub fn add_expr(&mut self, expr: &RecExpr<L>) -> Id {
         let e = expr.as_ref().map_children(|child| self.add_expr(&child));
         self.add(e)
     }
 
+    /// Adds an [`ENode`] to the [`EGraph`].
+    ///
+    /// When adding an enode, to the egraph, [`add`] it performs
+    /// _hashconsing_ (sometimes called interning in other contexts).
+    ///
+    /// Hashconsing ensures that only one copy of that enode is in the egraph.
+    /// If a copy is in the egraph, then [`add`] simply returns the id of the
+    /// eclass in which the enode was found.
+    /// Otherwise
+    ///
+    /// [`EGraph`]: struct.EGraph.html
+    /// [`EClass`]: struct.EClass.html
+    /// [`ENode`]: struct.ENode.html
+    /// [`add`]: struct.EGraph.html#method.add
     pub fn add(&mut self, enode: ENode<L>) -> Id {
         trace!("Adding       {:?}", enode);
 
@@ -160,6 +332,11 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
         next_id
     }
 
+    /// Checks whether two [`RecExpr`]s are equivalent.
+    /// Returns a list of id where both expression are represented.
+    /// In most cases, there will none or exactly one id.
+    ///
+    /// [`RecExpr`]: struct.RecExpr.html
     pub fn equivs(&self, expr1: &RecExpr<L>, expr2: &RecExpr<L>) -> Vec<Id> {
         use crate::{Pattern, Searcher};
         // debug!("Searching for expr1: {}", expr1.to_sexp());
@@ -229,12 +406,43 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
         trimmed
     }
 
+    /// Does very little since you're in parent-pointers mode.
     #[cfg(feature = "parent-pointers")]
     pub fn rebuild(&mut self) {
         info!("Skipping rebuild because we have parent pointers");
         self.rebuild_classes();
     }
 
+    /// Restores the egraph invariants of congruence and enode uniqueness.
+    ///
+    /// As mentioned [above](struct.EGraph.html#invariants-and-rebuilding),
+    /// `egg` takes a lazy approach to maintaining the egraph invariants.
+    /// The `rebuild` method allows the user to manually restore those
+    /// invariants at a time of their choosing. It's a reasonably
+    /// fast, linear-ish traversal through the egraph.
+    ///
+    /// # Example
+    /// ```
+    /// # use egg::*;
+    /// let mut egraph = EGraph::<String, ()>::default();
+    /// let x = egraph.add(enode!("x"));
+    /// let y = egraph.add(enode!("y"));
+    /// let ax = egraph.add_expr(&"(+ a x)".parse().unwrap());
+    /// let ay = egraph.add_expr(&"(+ a y)".parse().unwrap());
+    ///
+    /// // The effects of this union aren't yet visible; ax and ay
+    /// // should be equivalent by congruence since x = y.
+    /// egraph.union(x, y);
+    /// // Classes: [x y] [ax] [ay] [a]
+    /// assert_eq!(egraph.number_of_classes(), 4);
+    /// assert_ne!(egraph.find(ax), egraph.find(ay));
+    ///
+    /// // Rebuilding restores the invariants, finding the "missing" equivalence
+    /// egraph.rebuild();
+    /// // Classes: [x y] [ax ay] [a]
+    /// assert_eq!(egraph.number_of_classes(), 3);
+    /// assert_eq!(egraph.find(ax), egraph.find(ay));
+    /// ```
     #[cfg(not(feature = "parent-pointers"))]
     pub fn rebuild(&mut self) {
         if self.unions_since_rebuild == 0 {
@@ -282,10 +490,20 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
         );
     }
 
+
+    /// Unions two eclasses given their ids.
+    ///
+    /// The given ids need not be canonical.
+    /// If the two eclasses were actually the same, this does nothing.
+    /// This returns the canonical id of the merged eclass.
     pub fn union(&mut self, id1: Id, id2: Id) -> Id {
         self.union_depth(0, id1, id2)
     }
 
+    /// Unions two eclasses given their ids.
+    ///
+    /// Same as [`union`](struct.EGraph.html#method.union), but it
+    /// returns None if the two given ids refer to the same eclass.
     pub fn union_if_different(&mut self, id1: Id, id2: Id) -> Option<Id> {
         let id1 = self.find(id1);
         let id2 = self.find(id2);
@@ -372,6 +590,15 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
         }
     }
 
+    /// Returns a more debug-able representation of the egraph.
+    ///
+    /// [`EGraph`]s implement [`Debug`], but it ain't pretty. It
+    /// prints a lot of stuff you probably don't care about.
+    /// This method returns a wrapper that implements [`Debug`] in a
+    /// slightly nicer way, just dumping enodes in each eclass.
+    ///
+    /// [`Debug`]: https://doc.rust-lang.org/stable/std/fmt/trait.Debug.html
+    /// [`EGraph`]: struct.EGraph.html
     pub fn dump<'a>(&'a self) -> impl Debug + 'a {
         EGraphDump(self)
     }

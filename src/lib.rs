@@ -19,6 +19,8 @@ Add `egg` to your `Cargo.toml` like this:
 egg = "0.1.0"
 ```
 
+# Example
+
 ```
 use egg::{*, rewrite as rw};
 
