@@ -234,7 +234,6 @@ impl<L: Language, M> std::ops::Index<Id> for EGraph<L, M> {
 }
 
 impl<L: Language, M: Metadata<L>> EGraph<L, M> {
-
     /// Create an egraph from a [`RecExpr`].
     /// Equivalent to calling [`add_expr`] on an empty [`EGraph`].
     ///
@@ -489,7 +488,6 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
             trimmed_nodes,
         );
     }
-
 
     /// Unions two eclasses given their ids.
     ///
