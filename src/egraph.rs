@@ -1,5 +1,3 @@
-#![warn(missing_docs)]
-
 use std::fmt::{self, Debug};
 
 use indexmap::{IndexMap, IndexSet};
@@ -100,6 +98,8 @@ In `egg`, the main types associated with egraphs are
 [`Language`], meaning that types actually floating around in the
 egraph are all user-defined.
 In particular, [`ENode`]s contain operators from your [`Language`].
+[`EGraph`]s and [`EClass`]es are additionally parameterized by some
+[`Metadata`], abritrary data associated with each eclass.
 
 Many methods of [`EGraph`] deal with [`Id`]s, which represent eclasses.
 Because eclasses are frequently merged, many [`Id`]s will refer to the
@@ -111,6 +111,7 @@ same eclass.
 [`Rewrite`]: struct.Rewrite.html
 [`Runner`]: trait.Runner.html
 [`Language`]: trait.Language.html
+[`Metadata`]: trait.Metadata.html
 [`Id`]: type.Id.html
 [`add`]: struct.EGraph.html#method.add
 [`union`]: struct.EGraph.html#method.union
@@ -161,7 +162,7 @@ impl<L, M> EGraph<L, M> {
         self.classes.values_mut()
     }
 
-    /// Returns true if the egraph is empty
+    /// Returns `true` if the egraph is empty
     /// # Example
     /// ```
     /// # use egg::*;

@@ -1,3 +1,4 @@
+#![warn(missing_docs)]
 /*!
 [`EGraph`]s (and almost everything else in this crate) are
 parameterized over the language given by the user (by implementing
