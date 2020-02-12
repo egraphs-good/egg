@@ -22,26 +22,25 @@ visualization.
 # Example
 
 ```
-use egg::{EGraph, enode as e};
+use egg::{*, rewrite as rw};
+
+let rules = &[
+    rw!("mul-commutes"; "(* ?x ?y)" => "(* ?y ?x)"),
+    rw!("mul-two";      "(* ?x 2)" => "(<< ?x 1)"),
+];
 
 let mut egraph = EGraph::<String, ()>::default();
-let x = egraph.add(e!("x"));
-let y = egraph.add(e!("0"));
-let add = egraph.add(e!("+", x, y));
-egraph.union(add, x);
-egraph.rebuild();
-
-// create a Dot and dump it to a file
-let tmp = |f| { let mut p = std::env::temp_dir(); p.push(f); p };
-egraph.dot().to_png(tmp("foo.dot")).unwrap();
+egraph.add_expr(&"(/ (* 2 a) 2)".parse().unwrap());
+SimpleRunner::default().run(&mut egraph, rules);
 
 // Dot implements std::fmt::Display
 println!("My egraph dot file: {}", egraph.dot());
 
 // create a Dot and then compile it assuming `dot` is on the system
-// egraph.dot().to_svg(tmp("foo.svg")).unwrap();
-// egraph.dot().to_png(tmp("foo.png")).unwrap();
-// egraph.dot().to_pdf(tmp("foo.pdf")).unwrap();
+egraph.dot().to_svg("target/foo.svg").unwrap();
+// egraph.dot().to_png("target/foo.png").unwrap();
+// egraph.dot().to_pdf("target/foo.pdf").unwrap();
+// egraph.dot().to_dot("target/foo.dot").unwrap();
 ```
 
 Note that self-edges (from an enode to its containing eclass) will be
@@ -148,6 +147,21 @@ impl<'a, L: Language, M: Debug> Debug for Dot<'a, L, M> {
     }
 }
 
+// gives back the appropriate label and anchor
+fn edge(i: usize, len: usize) -> (String, String) {
+    assert!(i < len);
+    let s = |s: &str| s.to_string();
+    match (len, i) {
+        (1, 0) => (s(""), s("")),
+        (2, 0) => (s(":sw"), s("")),
+        (2, 1) => (s(":se"), s("")),
+        (3, 0) => (s(":sw"), s("")),
+        (3, 1) => (s(":s"), s("")),
+        (3, 2) => (s(":se"), s("")),
+        (_, _) => (s(""), format!("label={}", i)),
+    }
+}
+
 impl<'a, L: Language + Display, M> Display for Dot<'a, L, M> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         writeln!(f, "digraph egraph {{")?;
@@ -170,21 +184,22 @@ impl<'a, L: Language + Display, M> Display for Dot<'a, L, M> {
             for (i_in_class, node) in class.iter().enumerate() {
                 for (arg_i, child) in node.children.iter().enumerate() {
                     // write the edge to the child, but clip it to the eclass with lhead
+                    let (anchor, label) = edge(arg_i, node.children.len());
                     let child_leader = self.egraph.find(*child);
 
                     if child_leader == class.id {
                         writeln!(
                             f,
                             // {}.0 to pick an arbitrary node in the cluster
-                            "  {}.{} -> {}.{}:n [lhead = cluster_{}, label = {}]",
-                            class.id, i_in_class, class.id, i_in_class, class.id, arg_i
+                            "  {}.{}{} -> {}.{}:n [lhead = cluster_{}, {}]",
+                            class.id, i_in_class, anchor, class.id, i_in_class, class.id, label
                         )?;
                     } else {
                         writeln!(
                             f,
                             // {}.0 to pick an arbitrary node in the cluster
-                            "  {}.{} -> {}.0 [lhead = cluster_{}, label = {}]",
-                            class.id, i_in_class, child, child_leader, arg_i
+                            "  {}.{}{} -> {}.0 [lhead = cluster_{}, {}]",
+                            class.id, i_in_class, anchor, child, child_leader, label
                         )?;
                     }
                 }
