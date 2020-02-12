@@ -6,7 +6,7 @@ use crate::{
     ENode, Id, Language,
 };
 
-/** A trait to associate arbitrary data with an [`EClass`].
+/** Arbitrary data associated with an [`EClass`].
 
 `egg` allows you to associate arbitrary data with each eclass.
 The [`Metadata`] allows that data to behave well even across eclasses merges.
