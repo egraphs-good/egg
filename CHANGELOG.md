@@ -4,6 +4,14 @@
 
 ## [Unreleased] - ReleaseDate
 
+### Added
+- A lot of documentation
+
+### Changed
+- The graphviz visualization now looks a lot better; enode argument
+  come out from the "correct" position based on which argument they
+  are.
+
 ## [0.1.0] - 2020-02-11
 
 This is egg's first real release!
