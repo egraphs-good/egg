@@ -50,66 +50,24 @@ fn rules() -> Vec<Rewrite<Lang, Meta>> {
             "(subst ?e ?v (if ?cond ?then ?else))" =>
             "(if (subst ?e ?v ?cond) (subst ?e ?v ?then) (subst ?e ?v ?else))"
         ),
-        // NOTE variable substitution has to be done by a dynamic
-        // pattern, because it knows that if the two variables aren't
-        // equal by name, they never will be because names are
-        // unique. Egg doesn't have a way for you to write inequality
-        // contraints
-        rw!("var-subst";
-            "(subst ?e ?v1 (var ?v2))" =>
-            { VarSubst {
-                e: "?e".parse().unwrap(),
-                v1: "?v1".parse().unwrap(),
-                v2: "?v2".parse().unwrap(),
-                body: None,
-            } }
-        ),
-        rw!("var-subst";
+        rw!("subst-var-same"; "(subst ?e ?v1 (var ?v1))" => "?e"),
+        rw!("subst-var-diff"; "(subst ?e ?v1 (var ?v2))" => "(var ?v2)"
+            if is_not_same_var("?v1", "?v2")),
+        rw!("subst-lam-same"; "(subst ?e ?v1 (lam ?v1 ?body))" => "(lam ?v1 ?body)"),
+        rw!("subst-lam-diff";
             "(subst ?e ?v1 (lam ?v2 ?body))" =>
-            { VarSubst {
-                e: "?e".parse().unwrap(),
-                v1: "?v1".parse().unwrap(),
-                v2: "?v2".parse().unwrap(),
-                body: Some("?body".parse().unwrap()),
-            } }
-        ),
+            "(lam ?v2 (subst ?e ?v1 ?body))"
+            if is_not_same_var("?v1", "?v2")),
     ]
 }
 
-#[derive(Debug)]
-struct VarSubst {
-    e: QuestionMarkName,
-    v1: QuestionMarkName,
-    v2: QuestionMarkName,
-    body: Option<QuestionMarkName>,
-}
-
-impl Applier<Lang, Meta> for VarSubst {
-    fn apply_one(&self, egraph: &mut EGraph, _eclass: Id, map: &WildMap) -> Vec<Id> {
-        let v1 = map[&self.v1][0];
-        let v2 = map[&self.v2][0];
-        let e = map[&self.e][0];
-
-        let res = if let Some(body) = &self.body {
-            let body = map[body][0];
-            // substituting in a lambda
-            if v1 == v2 {
-                egraph.add(ENode::new(Lang::Lambda, vec![v2, body]))
-            } else {
-                let sub_body = egraph.add(ENode::new(Lang::Subst, vec![e, v1, body]));
-                egraph.add(ENode::new(Lang::Lambda, vec![v2, sub_body]))
-            }
-        } else {
-            // substituting for a variable
-            if v1 == v2 {
-                e
-            } else {
-                egraph.add(ENode::new(Lang::Var, vec![v2]))
-            }
-        };
-
-        vec![res]
-    }
+fn is_not_same_var(
+    v1: &'static str,
+    v2: &'static str,
+) -> impl Fn(&mut EGraph, Id, &WildMap) -> bool {
+    let v1 = v1.parse().unwrap();
+    let v2 = v2.parse().unwrap();
+    move |_, _, mapping| mapping[&v1][0] != mapping[&v2][0]
 }
 
 #[derive(Debug, Clone)]
@@ -164,7 +122,14 @@ fn prove_something(start: &str, goals: &[&str]) {
         println!("Trying to prove goal {}: {}", i, goal_str);
         let equivs = egraph.equivs(&start_expr, &goal_expr);
         if equivs.is_empty() {
-            panic!("Couldn't prove goal {}: {}", i, goal_str);
+            let root = report.initial_expr_eclass;
+            let best = Extractor::new(&egraph, AstSize).find_best(root).1;
+            panic!(
+                "Couldn't prove goal {}: {}\nFound {}",
+                i,
+                goal_str,
+                best.pretty(40)
+            );
         }
     }
 }
