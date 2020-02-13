@@ -491,7 +491,7 @@ impl SimpleRunner {
         Self { node_limit, ..self }
     }
 
-    /// Sets the initial match limit before a rule is banned. Default: 1_000
+    /// Sets the initial match limit before a rule is banned. Default: 1,000
     ///
     /// Setting this to a really big number will effectively disable
     /// rule backoff.
