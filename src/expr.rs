@@ -144,7 +144,7 @@ impl<L: Language, Child> ENode<L, Child> {
 }
 
 impl<L: Language> ENode<L> {
-    pub fn update_ids<V>(&self, unionfind: &UnionFind<Id, V>) -> Self {
+    pub(crate) fn update_ids<V>(&self, unionfind: &UnionFind<Id, V>) -> Self {
         self.map_children(|id| unionfind.find(id))
     }
 }

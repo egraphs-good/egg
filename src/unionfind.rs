@@ -1,8 +1,5 @@
 use std::cell::Cell;
 use std::fmt::Debug;
-use std::hash::Hash;
-
-use indexmap::{IndexMap, IndexSet};
 
 // The Key bound on UnionFind is necessary to derive clone. We only
 // instantiate UnionFind in one place (EGraph), so this type bound
@@ -76,10 +73,6 @@ fn find<K: Key>(parents: &[Cell<K>], mut current: K) -> K {
 }
 
 impl<K: Key, V> UnionFind<K, V> {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
     pub fn total_size(&self) -> usize {
         debug_assert_eq!(self.parents.len(), self.sizes.len());
         debug_assert_eq!(self.parents.len(), self.values.len());
@@ -108,6 +101,7 @@ impl<K: Key, V> UnionFind<K, V> {
         self.values[leader.index()].as_ref().unwrap()
     }
 
+    #[allow(dead_code)]
     pub fn get_mut(&mut self, query: K) -> &mut V {
         let leader = self.find(query);
         self.values[leader.index()].as_mut().unwrap()
@@ -168,29 +162,30 @@ impl<K: Key, V: Value> UnionFind<K, V> {
     }
 }
 
-impl<K: Key + Eq + Hash, V> UnionFind<K, V> {
-    pub fn build_sets(&self) -> IndexMap<K, IndexSet<K>> {
-        let mut map: IndexMap<K, IndexSet<K>> = IndexMap::default();
-
-        for i in (0..self.total_size()).map(Key::from_index) {
-            let leader = self.find(i);
-            let actual_set = map.entry(leader).or_default();
-            actual_set.insert(i);
-        }
-
-        map
-    }
-}
-
 #[cfg(test)]
 mod tests {
 
     use super::*;
 
-    use indexmap::{indexmap, indexset};
+    use indexmap::{indexmap, indexset, IndexMap, IndexSet};
+    use std::hash::Hash;
+
+    impl<K: Key + Eq + Hash, V> UnionFind<K, V> {
+        fn build_sets(&self) -> IndexMap<K, IndexSet<K>> {
+            let mut map: IndexMap<K, IndexSet<K>> = IndexMap::default();
+
+            for i in (0..self.total_size()).map(Key::from_index) {
+                let leader = self.find(i);
+                let actual_set = map.entry(leader).or_default();
+                actual_set.insert(i);
+            }
+
+            map
+        }
+    }
 
     fn make_union_find(n: u32) -> UnionFind<u32, ()> {
-        let mut uf = UnionFind::new();
+        let mut uf = UnionFind::default();
         for _ in 0..n {
             uf.make_set(());
         }
