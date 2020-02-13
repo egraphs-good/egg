@@ -112,7 +112,7 @@ fn prove_something(start: &str, goals: &[&str]) {
 
     let (egraph, report) = SimpleRunner::default()
         .with_iter_limit(500)
-        .with_node_limit(5_000)
+        .with_node_limit(6_000)
         .run_expr(start_expr.clone(), &rules());
 
     let (cost, best) = Extractor::new(&egraph, AstSize).find_best(report.initial_expr_eclass);
@@ -204,9 +204,6 @@ fn lambda_if() {
     );
 }
 
-// NOTE, for some reason this breaks the parent pointers version,
-// namely it's missing a union (would require more rebuilds)
-#[cfg_attr(feature = "parent-pointers", ignore)]
 #[test]
 fn lambda_fib() {
     prove_something(
