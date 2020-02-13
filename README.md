@@ -32,3 +32,4 @@ There are a couple interesting tests in the `tests` directory:
 - `prop.rs` implements propositional logic and proves some simple
   theorems.
 - `math.rs` implements real arithmetic, with a little bit of symbolic differentiation.
+- `lambda.rs` implements a small lambda calculus, using `egg` as a partial evaluator.
