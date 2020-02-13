@@ -75,7 +75,7 @@ struct Added {
 
 impl Renderable<Model> for Added {
     fn render(&self) -> Html<Model> {
-        html! { <tr> <td> {self.expr.to_sexp()} </td> <td> {self.id} </td> </tr> }
+        html! { <tr> <td> {self.expr.pretty(100)} </td> <td> {self.id} </td> </tr> }
     }
 }
 
@@ -121,7 +121,7 @@ impl Component for Model {
                     match pat.pattern.to_expr() {
                         Ok(expr) => {
                             let id = self.egraph.add_expr(&expr);
-                            self.update(Msg::UpdateQuery(expr.to_sexp().to_string()));
+                            self.update(Msg::UpdateQuery(expr.pretty(100)));
                             self.added.push(Added { expr, id });
                         }
                         Err(err) => {
@@ -222,7 +222,7 @@ fn render_eclass(eclass: &EClass<Math, Meta>) -> Html<Model> {
         <details class="eclass",>
             <summary> {eclass.id} </summary>
             <p>{format!("Size: {}", eclass.len())}</p>
-            <p>{format!("Best: {}", eclass.metadata.best.to_sexp())}</p>
+            <p>{format!("Best: {}", eclass.metadata.best.pretty(100))}</p>
             <p>{format!("Cost: {}", eclass.metadata.cost)}</p>
         </details>
     }

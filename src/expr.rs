@@ -54,7 +54,7 @@ impl<L> AsRef<Inner<L>> for RecExpr<L> {
 }
 
 impl<L: Language + fmt::Display> RecExpr<L> {
-    pub fn to_sexp(&self) -> Sexp {
+    fn to_sexp(&self) -> Sexp {
         let e = self.as_ref();
         let mut vec: Vec<_> = e.children.iter().map(Self::to_sexp).collect();
         let op = Sexp::String(e.op.to_string());

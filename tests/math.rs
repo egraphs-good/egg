@@ -219,14 +219,14 @@ macro_rules! check {
 
             println!("Stopped because {:?}", reason);
             let (cost, best) = Extractor::new(&egraph, MathCostFn).find_best(root);
-            println!("Best ({}): {}", cost, best.to_sexp());
+            println!("Best ({}): {}", cost, best.pretty(40));
 
             // make sure that pattern search also works
             let pattern = Pattern::from_expr(&end_expr);
             let matches = pattern.search_eclass(&egraph, root);
 
             if matches.is_none() {
-                println!("start: {}", start_expr.to_sexp());
+                println!("start: {}", start_expr.pretty(40));
                 println!("start: {:?}", start_expr);
                 panic!(
                     "\nCould not simplify\n{}\nto\n{}\nfound:\n{}",
