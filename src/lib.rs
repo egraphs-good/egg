@@ -82,12 +82,3 @@ pub use run::*;
 fn init_logger() {
     let _ = env_logger::builder().is_test(true).try_init();
 }
-
-#[cfg(test)]
-use std::path::{Path, PathBuf};
-#[cfg(test)]
-fn tmp(filename: impl AsRef<Path>) -> PathBuf {
-    let mut path = std::env::temp_dir();
-    path.push(filename);
-    path
-}

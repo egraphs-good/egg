@@ -375,7 +375,7 @@ mod tests {
             println!("mappings: {:?}", m);
         }
 
-        egraph.dot().to_dot(tmp("simple-match.dot")).unwrap();
+        egraph.dot().to_dot("target/simple-match.dot").unwrap();
 
         use crate::extract::{AstSize, Extractor};
 
