@@ -4,6 +4,8 @@
 
 ## [Unreleased] - ReleaseDate
 
+## [0.1.2] - 2020-02-14
+
 This release completes the documentation
 (at least every public item is documented).
 
@@ -31,6 +33,7 @@ But hopefully things will be a little more stable from here on out
 since the API is a lot nicer.
 
 <!-- next-url -->
-[Unreleased]: https://github.com/mwillsey/egg/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/mwillsey/egg/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/mwillsey/egg/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/mwillsey/egg/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/mwillsey/egg/tree/v0.1.0
