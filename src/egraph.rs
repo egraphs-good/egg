@@ -166,7 +166,7 @@ impl<L, M> EGraph<L, M> {
     /// # Example
     /// ```
     /// # use egg::*;
-    /// let mut egraph = EGraph::<&str, ()>::default();
+    /// let mut egraph = EGraph::<String, ()>::default();
     /// assert!(egraph.is_empty());
     /// egraph.add(enode!("foo"));
     /// assert!(!egraph.is_empty());
@@ -181,7 +181,7 @@ impl<L, M> EGraph<L, M> {
     /// # Example
     /// ```
     /// # use egg::*;
-    /// let mut egraph = EGraph::<&str, ()>::default();
+    /// let mut egraph = EGraph::<String, ()>::default();
     /// let x = egraph.add(enode!("x"));
     /// let y = egraph.add(enode!("y"));
     /// // only one eclass
@@ -207,7 +207,7 @@ impl<L, M> EGraph<L, M> {
     /// # Example
     /// ```
     /// # use egg::*;
-    /// let mut egraph = EGraph::<&str, ()>::default();
+    /// let mut egraph = EGraph::<String, ()>::default();
     /// let x = egraph.add(enode!("x"));
     /// let y = egraph.add(enode!("y"));
     /// assert_ne!(egraph.find(x), egraph.find(y));

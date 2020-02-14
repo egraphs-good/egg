@@ -158,7 +158,6 @@ impl<L: Language> ENode<L> {
 pub trait Language: Debug + PartialEq + Eq + Hash + Clone + 'static {}
 
 impl Language for String {}
-impl Language for &'static str {}
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct QuestionMarkName(pub Rc<str>);

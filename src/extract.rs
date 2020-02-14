@@ -59,14 +59,14 @@ the operator:
 ```
 use egg::{*, recexpr as r};
 
-type Lang = &'static str;
+type Lang = String;
 
 struct SillyCostFn;
 impl CostFunction<Lang> for SillyCostFn {
     type Cost = f64;
     // you're passed in an ENode whose children are costs instead of eclass ids
     fn cost(&mut self, enode: &ENode<Lang, Self::Cost>) -> Self::Cost {
-        let op_cost = match enode.op {
+        let op_cost = match enode.op.as_ref() {
             "foo" => 100.0,
             "bar" => 0.7,
             _ => 1.0
@@ -119,7 +119,7 @@ pub trait CostFunction<L: Language> {
 ```
 use egg::{*, recexpr as r};
 
-let e: RecExpr<&str> = r!("+", r!("foo"), r!("bar"), r!("baz"));
+let e: RecExpr<String> = r!("+", r!("foo"), r!("bar"), r!("baz"));
 assert_eq!(AstSize.cost_rec(&e), 4);
 ```
 
@@ -138,7 +138,7 @@ impl<L: Language> CostFunction<L> for AstSize {
 ```
 use egg::{*, recexpr as r};
 
-let e: RecExpr<&str> = r!("+", r!("foo"), r!("bar"), r!("baz"));
+let e: RecExpr<String> = r!("+", r!("foo"), r!("bar"), r!("baz"));
 assert_eq!(AstDepth.cost_rec(&e), 2);
 ```
 
