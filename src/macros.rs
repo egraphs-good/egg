@@ -236,7 +236,7 @@ and [`Applier`].
 The macro also accepts any number of `if <expr>` forms at the end,
 where the given expression should implement [`Condition`].
 For each of these, the macro will wrap the given applier in a
-[`ConditionalApplier`] with the given condiiton.
+[`ConditionalApplier`] with the given condition.
 
 ```
 # use egg::*;
