@@ -4,6 +4,9 @@
 
 ## [Unreleased] - ReleaseDate
 
+This release completes the documentation
+(at least every public item is documented).
+
 ### Changed
 - Replaced `Pattern::{from_expr, to_expr}` with `From` and `TryFrom`
   implementations.
