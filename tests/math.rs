@@ -222,7 +222,7 @@ macro_rules! check {
             println!("Best ({}): {}", cost, best.pretty(40));
 
             // make sure that pattern search also works
-            let pattern = Pattern::from_expr(&end_expr);
+            let pattern = Pattern::from(end_expr);
             let matches = pattern.search_eclass(&egraph, root);
 
             if matches.is_none() {

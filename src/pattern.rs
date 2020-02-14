@@ -1,3 +1,4 @@
+use std::convert::TryFrom;
 use std::fmt;
 
 use itertools::Itertools;
@@ -19,24 +20,27 @@ pub enum WildcardKind {
     ZeroOrMore,
 }
 
-impl<L: Language> Pattern<L> {
-    pub fn from_expr(e: &RecExpr<L>) -> Self {
-        Pattern::ENode(
-            e.as_ref()
-                .map_children(|child| Pattern::from_expr(&child))
-                .into(),
-        )
+impl<L: Language> From<RecExpr<L>> for Pattern<L> {
+    fn from(e: RecExpr<L>) -> Self {
+        Pattern::ENode(e.as_ref().map_children(Pattern::from).into())
     }
+}
 
-    pub fn to_expr(&self) -> Result<RecExpr<L>, String> {
-        match self {
-            Pattern::ENode(e) => Ok(e.map_children_result(|p| p.to_expr())?.into()),
+impl<L: Language> TryFrom<Pattern<L>> for RecExpr<L> {
+    type Error = String;
+    fn try_from(pat: Pattern<L>) -> Result<RecExpr<L>, String> {
+        match pat {
+            Pattern::ENode(e) => {
+                let rec_enode = e.map_children_result(RecExpr::try_from);
+                Ok(rec_enode?.into())
+            }
             Pattern::Wildcard(w, _) => {
                 let msg = format!("Found wildcard {:?} instead of expr term", w);
                 Err(msg)
             }
         }
     }
+}
 
     pub fn is_multi_wildcard(&self) -> bool {
         match self {

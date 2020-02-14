@@ -1,5 +1,7 @@
 #![recursion_limit = "512"]
 
+use std::convert::TryInto;
+
 use stdweb::traits::IEvent;
 use stdweb::web::Date;
 use yew::services::ConsoleService;
@@ -118,7 +120,7 @@ impl Component for Model {
             }
             Msg::AddQuery => {
                 if let Ok(pat) = &self.query {
-                    match pat.pattern.to_expr() {
+                    match pat.pattern.clone().try_into() {
                         Ok(expr) => {
                             let id = self.egraph.add_expr(&expr);
                             self.update(Msg::UpdateQuery(expr.pretty(100)));

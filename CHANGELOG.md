@@ -4,6 +4,10 @@
 
 ## [Unreleased] - ReleaseDate
 
+### Changed
+- Replaced `Pattern::{from_expr, to_expr}` with `From` and `TryFrom`
+  implementations.
+
 ## [0.1.1] - 2020-02-13
 
 ### Added

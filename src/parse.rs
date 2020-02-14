@@ -1,3 +1,4 @@
+use std::convert::TryInto;
 use std::error::Error;
 use std::fmt;
 use std::str::FromStr;
@@ -39,7 +40,7 @@ impl<L: Language + FromStr> FromStr for RecExpr<L> {
     type Err = ParseError;
     fn from_str(s: &str) -> Result<Self> {
         let pat: Pattern<L> = s.parse()?;
-        pat.to_expr().map_err(ParseError)
+        pat.try_into().map_err(ParseError)
     }
 }
 

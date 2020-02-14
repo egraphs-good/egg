@@ -339,10 +339,10 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
     /// [`RecExpr`]: struct.RecExpr.html
     pub fn equivs(&self, expr1: &RecExpr<L>, expr2: &RecExpr<L>) -> Vec<Id> {
         use crate::{Pattern, Searcher};
-        let matches1 = Pattern::from_expr(expr1).search(self);
+        let matches1 = Pattern::from(expr1.clone()).search(self);
         trace!("Matches1: {:?}", matches1);
 
-        let matches2 = Pattern::from_expr(expr2).search(self);
+        let matches2 = Pattern::from(expr2.clone()).search(self);
         trace!("Matches2: {:?}", matches2);
 
         let mut equiv_eclasses = Vec::new();
