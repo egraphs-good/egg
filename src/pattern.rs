@@ -1,20 +1,80 @@
 use std::convert::TryFrom;
-use std::fmt;
 
 use itertools::Itertools;
 use log::*;
 use smallvec::{smallvec, SmallVec};
-use symbolic_expressions::Sexp;
 
 use crate::{Applier, EGraph, ENode, Id, Language, Metadata, QuestionMarkName, RecExpr, Searcher};
 
+/// A pattern that can function as either a [`Searcher`] or [`Applier`].
+///
+/// A [`Pattern`] is essentially a for-all quantified expression with
+/// [`QuestionMarkName`]s as the variables (in the logical sense).
+///
+/// When creating a [`Rewrite`], the most common thing to use as either
+/// the left hand side (the [`Searcher`]) or the right hand side
+/// (the [`Applier`]) is a [`Pattern`].
+///
+/// As a [`Searcher`], a [`Pattern`] does the intuitive
+/// thing.
+/// Here is a somewhat verbose formal-ish statement:
+/// Searching for a pattern in an egraph yields substitutions
+/// (a.k.a [`WildMap`]s) _s_ such that, for any _s'_—where instead of
+/// mapping a variables to an eclass as _s_ does, _s'_ maps
+/// a variable to an arbitrary expression represented by that
+/// eclass—_p[s']_ (the pattern under substitution _s'_) is also
+/// represented by the egraph.
+///
+/// As an [`Applier`], a [`Pattern`] performs the given substitution
+/// and adds the result to the [`EGraph`].
+///
+/// Importantly, [`Pattern`] implements [`FromStr`] if the
+/// [`Language`] does.
+/// This is probably how you'll create most [`Pattern`]s.
+///
+/// ```
+/// use egg::*;
+/// define_language! {
+///     enum Math {
+///         Num(i32),
+///         Add = "+",
+///     }
+/// }
+///
+/// let mut egraph = EGraph::<Math, ()>::default();
+/// let a11 = egraph.add_expr(&"(+ 1 1)".parse().unwrap());
+/// let a22 = egraph.add_expr(&"(+ 2 2)".parse().unwrap());
+///
+/// // use QuestionMarkName syntax (leading question mark) to get a
+/// // variable in the Pattern
+/// let same_add: Pattern<Math> = "(+ ?a ?a)".parse().unwrap();
+///
+/// // This is the search method from the Searcher trait
+/// let matches = same_add.search(&egraph);
+/// let matched_eclasses: Vec<Id> = matches.iter().map(|m| m.eclass).collect();
+/// assert_eq!(matched_eclasses, vec![a11, a22]);
+/// ```
+///
+/// [`Pattern`]: enum.Pattern.html
+/// [`Rewrite`]: struct.Rewrite.html
+/// [`EGraph`]: struct.EGraph.html
+/// [`WildMap`]: struct.WildMap.html
+/// [`FromStr`]: https://doc.rust-lang.org/std/str/trait.FromStr.html
+/// [`QuestionMarkName`]: struct.QuestionMarkName.html
+/// [`Searcher`]: trait.Searcher.html
+/// [`Applier`]: trait.Applier.html
+/// [`Language`]: trait.Language.html
 #[derive(Debug, PartialEq, Clone)]
+#[non_exhaustive]
 pub enum Pattern<L> {
+    #[doc(hidden)]
     ENode(Box<ENode<L, Pattern<L>>>),
+    #[doc(hidden)]
     Wildcard(QuestionMarkName, WildcardKind),
 }
 
 #[derive(Debug, PartialEq, Clone, Copy, Hash)]
+#[doc(hidden)]
 pub enum WildcardKind {
     Single,
     ZeroOrMore,
@@ -42,70 +102,36 @@ impl<L: Language> TryFrom<Pattern<L>> for RecExpr<L> {
     }
 }
 
-    pub fn is_multi_wildcard(&self) -> bool {
+impl<L: Language> Pattern<L> {
+    fn is_multi_wildcard(&self) -> bool {
         match self {
             Pattern::Wildcard(_, WildcardKind::ZeroOrMore) => true,
             _ => false,
         }
     }
-
-    pub fn subst_and_find<M>(&self, egraph: &mut EGraph<L, M>, mapping: &WildMap) -> Id
-    where
-        M: Metadata<L>,
-    {
-        match self {
-            Pattern::Wildcard(w, kind) => {
-                assert_eq!(*kind, WildcardKind::Single);
-                mapping.get(w, *kind).unwrap()[0]
-            }
-            Pattern::ENode(expr) => {
-                let expr = expr.map_children(|pat| pat.subst_and_find(egraph, mapping));
-                egraph.add(expr)
-            }
-        }
-    }
-
-    // pub(crate) fn insert_wildcards(&self, set: &mut IndexSet<QuestionMarkName>) {
-    //     match self {
-    //         Pattern::Wildcard(w, _) => {
-    //             set.insert(w.clone());
-    //         }
-    //         Pattern::ENode(expr) => {
-    //             expr.map_children(|pat| pat.insert_wildcards(set));
-    //         }
-    //     }
-    // }
-
-    // pub(crate) fn is_bound(&self, set: &IndexSet<QuestionMarkName>) -> bool {
-    //     match self {
-    //         Pattern::Wildcard(w, _) => set.contains(w),
-    //         Pattern::ENode(e) => e.children.iter().all(|p| p.is_bound(set)),
-    //     }
-    // }
 }
 
-impl<L: Language + fmt::Display> Pattern<L> {
-    pub fn to_sexp(&self) -> Sexp {
-        match self {
-            Pattern::Wildcard(w, _) => Sexp::String(w.to_string()),
-            Pattern::ENode(e) => match e.children.len() {
-                0 => Sexp::String(e.op.to_string()),
-                _ => {
-                    let mut vec: Vec<_> = e.children.iter().map(Self::to_sexp).collect();
-                    vec.insert(0, Sexp::String(e.op.to_string()));
-                    Sexp::List(vec)
-                }
-            },
-        }
-    }
-}
-
+/// The result of searching a [`Searcher`] over one eclass.
+///
+/// Note that one [`SearchMatches`] can contain many found
+/// substititions. So taking the length of a list of [`SearchMatches`]
+/// tells you how many eclasses something was matched in, _not_ how
+/// many matches were found total.
+///
+/// [`SearchMatches`]: struct.SearchMatches.html
+/// [`Searcher`]: trait.Searcher.html
 #[derive(Debug)]
 pub struct SearchMatches {
+    /// The eclass id that these matches were found in.
     pub eclass: Id,
+    /// The matches themselves.
     pub mappings: Vec<WildMap>,
 }
 
+/// A substitition mapping [`QuestionMarkName`]s to eclass [`Id`]s.
+///
+/// [`QuestionMarkName`]: struct.QuestionMarkName.html
+/// [`Id`]: type.Id.html
 #[derive(Debug, Clone, PartialEq, Hash)]
 pub struct WildMap {
     vec: SmallVec<[(QuestionMarkName, WildcardKind, Vec<Id>); 2]>,

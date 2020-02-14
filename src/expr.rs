@@ -310,6 +310,16 @@ pub trait Language: Debug + PartialEq + Eq + Hash + Clone + 'static {}
 
 impl Language for String {}
 
+/// A wildcard for use in [`Pattern`]s or [`WildMap`]s.
+///
+/// [`QuestionMarkName`] is essentially a string with a "?" at the
+/// front. Its [`FromStr`] implementation will only parse strings with
+/// a leading "?".
+///
+/// [`Pattern`]: enum.Pattern.html
+/// [`QuestionMarkName`]: struct.QuestionMarkName.html
+/// [`WildMap`]: struct.WildMap.html
+/// [`FromStr`]: https://doc.rust-lang.org/std/str/trait.FromStr.html
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct QuestionMarkName(pub Rc<str>);
 

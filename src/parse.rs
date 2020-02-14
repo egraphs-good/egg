@@ -10,6 +10,10 @@ use crate::{
     pattern::{Pattern, WildcardKind},
 };
 
+/// An error resulting from parsing a [`Pattern`] or [`RecExpr`].
+///
+/// [`Pattern`]: enum.Pattern.html
+/// [`RecExpr`]: struct.RecExpr.html
 #[derive(Debug, Clone)]
 pub struct ParseError(String);
 pub type Result<T> = std::result::Result<T, ParseError>;
