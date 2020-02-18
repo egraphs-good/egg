@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::{EGraph, Id, Language, Metadata, SearchMatches, WildMap};
+use crate::{EGraph, Id, Language, Metadata, SearchMatches, Subst};
 
 /// A rewrite that searches for the lefthand side and applies the righthand side.
 ///
@@ -113,7 +113,7 @@ where
     M: Metadata<L>,
 {
     /// Search one eclass, returning None if no matches can be found.
-    /// This should not return a SearchMatches with no mappings.
+    /// This should not return a SearchMatches with no substs.
     fn search_eclass(&self, egraph: &EGraph<L, M>, eclass: Id) -> Option<SearchMatches>;
 
     /// Search the whole [`EGraph`], returning a list of all the
@@ -134,7 +134,7 @@ where
 /// The righthand side of a [`Rewrite`].
 ///
 /// An [`Applier`] is anything that can do something with a
-/// substitition ([`WildMap`]). This allows you to implement rewrites
+/// substitition ([`Subst`]). This allows you to implement rewrites
 /// that determine when and how to respond to a match using custom
 /// logic, including access to the [`Metadata`] of an [`EClass`].
 ///
@@ -194,13 +194,13 @@ where
 /// ];
 ///
 /// struct Funky {
-///     a: QuestionMarkName,
-///     b: QuestionMarkName,
-///     c: QuestionMarkName,
+///     a: Var,
+///     b: Var,
+///     c: Var,
 /// }
 /// impl Applier<Math, Meta> for Funky {
-///     fn apply_one(&self, egraph: &mut EGraph, matched_id: Id, mapping: &WildMap) -> Vec<Id> {
-///         let a: Id = mapping[&self.a][0];
+///     fn apply_one(&self, egraph: &mut EGraph, matched_id: Id, subst: &Subst) -> Vec<Id> {
+///         let a: Id = subst[&self.a];
 ///         // In a custom Applier, you can inspect the Metadata,
 ///         // which is powerful combination!
 ///         let meta_for_a: &Meta = &egraph[a].metadata;
@@ -212,8 +212,8 @@ where
 ///             // (+ (+ ?a 0) (* (+ ?b 0) (+ ?c 0)))
 ///             // to be unified with the original:
 ///             // (+    ?a    (*    ?b       ?c   ))
-///             let b: Id = mapping[&self.b][0];
-///             let c: Id = mapping[&self.c][0];
+///             let b: Id = subst[&self.b];
+///             let c: Id = subst[&self.c];
 ///             let zero = egraph.add(enode!(Math::Num(0)));
 ///             let a0 = egraph.add(enode!(Math::Add, a, zero));
 ///             let b0 = egraph.add(enode!(Math::Add, b, zero));
@@ -235,7 +235,7 @@ where
 /// [`EClass`]: struct.EClass.html
 /// [`Rewrite`]: struct.Rewrite.html
 /// [`ConditionalApplier`]: struct.ConditionalApplier.html
-/// [`WildMap`]: struct.WildMap.html
+/// [`Subst`]: struct.Subst.html
 /// [`Applier`]: trait.Applier.html
 /// [`Condition`]: trait.Condition.html
 /// [`Metadata`]: trait.Metadata.html
@@ -259,9 +259,9 @@ where
     fn apply_matches(&self, egraph: &mut EGraph<L, M>, matches: &[SearchMatches]) -> Vec<Id> {
         let mut added = vec![];
         for mat in matches {
-            for mapping in &mat.mappings {
+            for subst in &mat.substs {
                 let ids = self
-                    .apply_one(egraph, mat.eclass, mapping)
+                    .apply_one(egraph, mat.eclass, subst)
                     .into_iter()
                     .filter_map(|id| egraph.union_if_different(id, mat.eclass));
                 added.extend(ids)
@@ -284,7 +284,7 @@ where
     /// [`Applier`]: trait.Applier.html
     /// [`Id`]: type.Id.html
     /// [`apply_matches`]: trait.Applier.html#method.apply_matches
-    fn apply_one(&self, egraph: &mut EGraph<L, M>, eclass: Id, mapping: &WildMap) -> Vec<Id>;
+    fn apply_one(&self, egraph: &mut EGraph<L, M>, eclass: Id, subst: &Subst) -> Vec<Id>;
 }
 
 /// An [`Applier`] that checks a [`Condition`] before applying.
@@ -323,9 +323,9 @@ where
     A: Applier<L, M>,
     C: Condition<L, M>,
 {
-    fn apply_one(&self, egraph: &mut EGraph<L, M>, eclass: Id, mapping: &WildMap) -> Vec<Id> {
-        if self.condition.check(egraph, eclass, mapping) {
-            self.applier.apply_one(egraph, eclass, mapping)
+    fn apply_one(&self, egraph: &mut EGraph<L, M>, eclass: Id, subst: &Subst) -> Vec<Id> {
+        if self.condition.check(egraph, eclass, subst) {
+            self.applier.apply_one(egraph, eclass, subst)
         } else {
             vec![]
         }
@@ -350,22 +350,22 @@ where
 {
     /// Check a condition.
     ///
-    /// `eclass` is the eclass [`Id`] where the match (`mapping`) occured.
+    /// `eclass` is the eclass [`Id`] where the match (`subst`) occured.
     /// If this is true, then the [`ConditionalApplier`] will fire.
     ///
     /// [`Id`]: type.Id.html
     /// [`ConditionalApplier`]: struct.ConditionalApplier.html
-    fn check(&self, egraph: &mut EGraph<L, M>, eclass: Id, mapping: &WildMap) -> bool;
+    fn check(&self, egraph: &mut EGraph<L, M>, eclass: Id, subst: &Subst) -> bool;
 }
 
 impl<L, M, F> Condition<L, M> for F
 where
     L: Language,
     M: Metadata<L>,
-    F: Fn(&mut EGraph<L, M>, Id, &WildMap) -> bool,
+    F: Fn(&mut EGraph<L, M>, Id, &Subst) -> bool,
 {
-    fn check(&self, egraph: &mut EGraph<L, M>, eclass: Id, mapping: &WildMap) -> bool {
-        self(egraph, eclass, mapping)
+    fn check(&self, egraph: &mut EGraph<L, M>, eclass: Id, subst: &Subst) -> bool {
+        self(egraph, eclass, subst)
     }
 }
 
@@ -385,9 +385,9 @@ where
     A1: Applier<L, M>,
     A2: Applier<L, M>,
 {
-    fn check(&self, egraph: &mut EGraph<L, M>, eclass: Id, mapping: &WildMap) -> bool {
-        let a1 = self.0.apply_one(egraph, eclass, mapping);
-        let a2 = self.1.apply_one(egraph, eclass, mapping);
+    fn check(&self, egraph: &mut EGraph<L, M>, eclass: Id, subst: &Subst) -> bool {
+        let a1 = self.0.apply_one(egraph, eclass, subst);
+        let a2 = self.1.apply_one(egraph, eclass, subst);
         assert_eq!(a1.len(), 1);
         assert_eq!(a2.len(), 1);
         a1[0] == a2[0]
@@ -399,8 +399,8 @@ mod tests {
 
     use crate::{enode as e, *};
 
-    fn wc<L: Language>(name: &QuestionMarkName) -> Pattern<L> {
-        Pattern::Wildcard(name.clone(), crate::pattern::WildcardKind::Single)
+    fn wc<L: Language>(name: &Var) -> Pattern<L> {
+        Pattern::Var(name.clone())
     }
 
     #[test]
@@ -416,8 +416,8 @@ mod tests {
         let true_pat = pat(e!("TRUE"));
         let true_id = egraph.add(e!("TRUE"));
 
-        let a: QuestionMarkName = "?a".parse().unwrap();
-        let b: QuestionMarkName = "?b".parse().unwrap();
+        let a: Var = "?a".parse().unwrap();
+        let b: Var = "?b".parse().unwrap();
 
         let mul_to_shift = rewrite!(
             "mul_to_shift";
@@ -454,8 +454,8 @@ mod tests {
 
         let root = egraph.add_expr(&start);
 
-        let a: QuestionMarkName = "?a".parse().unwrap();
-        let b: QuestionMarkName = "?b".parse().unwrap();
+        let a: Var = "?a".parse().unwrap();
+        let b: Var = "?b".parse().unwrap();
 
         fn get(egraph: &EGraph<String, ()>, id: Id) -> &str {
             &egraph[id].nodes[0].op
@@ -468,12 +468,12 @@ mod tests {
                 &self,
                 egraph: &mut EGraph<String, ()>,
                 _eclass: Id,
-                map: &WildMap,
+                subst: &Subst,
             ) -> Vec<Id> {
-                let a: QuestionMarkName = "?a".parse().unwrap();
-                let b: QuestionMarkName = "?b".parse().unwrap();
-                let a = get(&egraph, map[&a][0]);
-                let b = get(&egraph, map[&b][0]);
+                let a: Var = "?a".parse().unwrap();
+                let b: Var = "?b".parse().unwrap();
+                let a = get(&egraph, subst[&a]);
+                let b = get(&egraph, subst[&b]);
                 let s = format!("{}{}", a, b);
                 vec![egraph.add(e!(&s))]
             }

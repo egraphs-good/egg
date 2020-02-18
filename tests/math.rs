@@ -107,20 +107,20 @@ impl Metadata<Math> for Meta {
     }
 }
 
-fn c_is_const_or_var_and_not_x(egraph: &mut EGraph, _: Id, mapping: &WildMap) -> bool {
+fn c_is_const_or_var_and_not_x(egraph: &mut EGraph, _: Id, subst: &Subst) -> bool {
     let c = "?c".parse().unwrap();
     let x = "?x".parse().unwrap();
-    let is_const_or_var = egraph[mapping[&c][0]].nodes.iter().any(|n| match n.op {
+    let is_const_or_var = egraph[subst[&c]].nodes.iter().any(|n| match n.op {
         Math::Constant(_) | Math::Variable(_) => true,
         _ => false,
     });
-    is_const_or_var && mapping[&x] != mapping[&c]
+    is_const_or_var && subst[&x] != subst[&c]
 }
 
-fn is_not_zero(var: &'static str) -> impl Fn(&mut EGraph, Id, &WildMap) -> bool {
+fn is_not_zero(var: &'static str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let var = var.parse().unwrap();
     let zero = enode!(Math::Constant(0.0.into()));
-    move |egraph, _, mapping| !egraph[mapping[&var][0]].nodes.contains(&zero)
+    move |egraph, _, subst| !egraph[subst[&var]].nodes.contains(&zero)
 }
 
 #[rustfmt::skip]

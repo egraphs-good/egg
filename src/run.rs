@@ -245,7 +245,7 @@ where
 
         let mut applied = IndexMap::new();
         for (rw, ms) in rules.iter().zip(matches) {
-            let total_matches: usize = ms.iter().map(|m| m.mappings.len()).sum();
+            let total_matches: usize = ms.iter().map(|m| m.substs.len()).sum();
             if total_matches == 0 {
                 continue;
             }
@@ -582,7 +582,7 @@ where
             }
 
             let matches = rewrite.search(egraph);
-            let total_len: usize = matches.iter().map(|m| m.mappings.len()).sum();
+            let total_len: usize = matches.iter().map(|m| m.substs.len()).sum();
             let threshold = self.initial_match_limit << limit.times_banned;
             if total_len > threshold {
                 let ban_length = self.ban_length << limit.times_banned;

@@ -5,10 +5,7 @@ use std::str::FromStr;
 
 use symbolic_expressions::{parser::parse_str, Sexp, SexpError};
 
-use crate::{
-    expr::{ENode, Language, QuestionMarkName, RecExpr},
-    pattern::{Pattern, WildcardKind},
-};
+use crate::{ENode, Language, Pattern, RecExpr, Var};
 
 /// An error resulting from parsing a [`Pattern`] or [`RecExpr`].
 ///
@@ -54,15 +51,8 @@ fn parse_term<L: Language + FromStr>(sexp: &Sexp) -> Result<Pattern<L>> {
             if s.trim() != s || s.is_empty() {
                 panic!("There's whitespace!")
             }
-            s.parse::<QuestionMarkName>()
-                .map(|q| {
-                    let kind = if q.as_ref().ends_with("...") {
-                        WildcardKind::ZeroOrMore
-                    } else {
-                        WildcardKind::Single
-                    };
-                    Pattern::Wildcard(q, kind)
-                })
+            s.parse::<Var>()
+                .map(Pattern::Var)
                 .or_else(|_| s.parse().map(|t| Pattern::ENode(ENode::leaf(t).into())))
                 .map_err(|_| ParseError(format!("Couldn't parse '{}'", s)))
         }

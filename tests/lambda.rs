@@ -61,13 +61,10 @@ fn rules() -> Vec<Rewrite<Lang, Meta>> {
     ]
 }
 
-fn is_not_same_var(
-    v1: &'static str,
-    v2: &'static str,
-) -> impl Fn(&mut EGraph, Id, &WildMap) -> bool {
+fn is_not_same_var(v1: &'static str, v2: &'static str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let v1 = v1.parse().unwrap();
     let v2 = v2.parse().unwrap();
-    move |_, _, mapping| mapping[&v1][0] != mapping[&v2][0]
+    move |_, _, subst| subst[&v1] != subst[&v2]
 }
 
 #[derive(Debug, Clone)]

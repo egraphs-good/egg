@@ -270,16 +270,16 @@ let rules: &[Rewrite<SimpleLanguage, ()>] = &[
 #[derive(Debug)]
 struct MySillyApplier(&'static str);
 impl Applier<SimpleLanguage, ()> for MySillyApplier {
-    fn apply_one(&self, _: &mut EGraph, _: Id, _: &WildMap) -> Vec<Id> {
+    fn apply_one(&self, _: &mut EGraph, _: Id, _: &Subst) -> Vec<Id> {
         panic!()
     }
 }
 
 // This returns a function that implements Condition
-fn is_not_zero(var: &'static str) -> impl Fn(&mut EGraph, Id, &WildMap) -> bool {
+fn is_not_zero(var: &'static str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let var = var.parse().unwrap();
     let zero = enode!(SimpleLanguage::Num(0));
-    move |egraph, _, mapping| !egraph[mapping[&var][0]].nodes.contains(&zero)
+    move |egraph, _, subst| !egraph[subst[&var]].nodes.contains(&zero)
 }
 ```
 

@@ -4,12 +4,12 @@ use itertools::Itertools;
 use log::*;
 use smallvec::{smallvec, SmallVec};
 
-use crate::{Applier, EGraph, ENode, Id, Language, Metadata, QuestionMarkName, RecExpr, Searcher};
+use crate::{Applier, EGraph, ENode, Id, Language, Metadata, RecExpr, Searcher, Subst, Var};
 
 /// A pattern that can function as either a [`Searcher`] or [`Applier`].
 ///
 /// A [`Pattern`] is essentially a for-all quantified expression with
-/// [`QuestionMarkName`]s as the variables (in the logical sense).
+/// [`Var`]s as the variables (in the logical sense).
 ///
 /// When creating a [`Rewrite`], the most common thing to use as either
 /// the left hand side (the [`Searcher`]) or the right hand side
@@ -19,7 +19,7 @@ use crate::{Applier, EGraph, ENode, Id, Language, Metadata, QuestionMarkName, Re
 /// thing.
 /// Here is a somewhat verbose formal-ish statement:
 /// Searching for a pattern in an egraph yields substitutions
-/// (a.k.a [`WildMap`]s) _s_ such that, for any _s'_—where instead of
+/// ([`Subst`]s) _s_ such that, for any _s'_—where instead of
 /// mapping a variables to an eclass as _s_ does, _s'_ maps
 /// a variable to an arbitrary expression represented by that
 /// eclass—_p[s']_ (the pattern under substitution _s'_) is also
@@ -45,7 +45,7 @@ use crate::{Applier, EGraph, ENode, Id, Language, Metadata, QuestionMarkName, Re
 /// let a11 = egraph.add_expr(&"(+ 1 1)".parse().unwrap());
 /// let a22 = egraph.add_expr(&"(+ 2 2)".parse().unwrap());
 ///
-/// // use QuestionMarkName syntax (leading question mark) to get a
+/// // use Var syntax (leading question mark) to get a
 /// // variable in the Pattern
 /// let same_add: Pattern<Math> = "(+ ?a ?a)".parse().unwrap();
 ///
@@ -58,9 +58,9 @@ use crate::{Applier, EGraph, ENode, Id, Language, Metadata, QuestionMarkName, Re
 /// [`Pattern`]: enum.Pattern.html
 /// [`Rewrite`]: struct.Rewrite.html
 /// [`EGraph`]: struct.EGraph.html
-/// [`WildMap`]: struct.WildMap.html
+/// [`Subst`]: struct.Subst.html
 /// [`FromStr`]: https://doc.rust-lang.org/std/str/trait.FromStr.html
-/// [`QuestionMarkName`]: struct.QuestionMarkName.html
+/// [`Var`]: struct.Var.html
 /// [`Searcher`]: trait.Searcher.html
 /// [`Applier`]: trait.Applier.html
 /// [`Language`]: trait.Language.html
@@ -70,14 +70,7 @@ pub enum Pattern<L> {
     #[doc(hidden)]
     ENode(Box<ENode<L, Pattern<L>>>),
     #[doc(hidden)]
-    Wildcard(QuestionMarkName, WildcardKind),
-}
-
-#[derive(Debug, PartialEq, Clone, Copy, Hash)]
-#[doc(hidden)]
-pub enum WildcardKind {
-    Single,
-    ZeroOrMore,
+    Var(Var),
 }
 
 impl<L: Language> From<RecExpr<L>> for Pattern<L> {
@@ -94,19 +87,10 @@ impl<L: Language> TryFrom<Pattern<L>> for RecExpr<L> {
                 let rec_enode = e.map_children_result(RecExpr::try_from);
                 Ok(rec_enode?.into())
             }
-            Pattern::Wildcard(w, _) => {
-                let msg = format!("Found wildcard {:?} instead of expr term", w);
+            Pattern::Var(v) => {
+                let msg = format!("Found variable {:?} instead of expr term", v);
                 Err(msg)
             }
-        }
-    }
-}
-
-impl<L: Language> Pattern<L> {
-    fn is_multi_wildcard(&self) -> bool {
-        match self {
-            Pattern::Wildcard(_, WildcardKind::ZeroOrMore) => true,
-            _ => false,
         }
     }
 }
@@ -125,57 +109,7 @@ pub struct SearchMatches {
     /// The eclass id that these matches were found in.
     pub eclass: Id,
     /// The matches themselves.
-    pub mappings: Vec<WildMap>,
-}
-
-/// A substitition mapping [`QuestionMarkName`]s to eclass [`Id`]s.
-///
-/// [`QuestionMarkName`]: struct.QuestionMarkName.html
-/// [`Id`]: type.Id.html
-#[derive(Debug, Clone, PartialEq, Hash)]
-pub struct WildMap {
-    vec: SmallVec<[(QuestionMarkName, WildcardKind, Vec<Id>); 2]>,
-}
-
-impl Default for WildMap {
-    fn default() -> Self {
-        Self {
-            vec: Default::default(),
-        }
-    }
-}
-
-impl WildMap {
-    fn insert(&mut self, w: QuestionMarkName, kind: WildcardKind, ids: Vec<Id>) -> Option<&[Id]> {
-        // HACK double get is annoying here but you need it for lifetime reasons
-        if self.get(&w, kind).is_some() {
-            self.get(&w, kind)
-        } else {
-            self.vec.push((w, kind, ids));
-            None
-        }
-    }
-    fn get(&self, w: &QuestionMarkName, kind: WildcardKind) -> Option<&[Id]> {
-        for (w2, kind2, ids2) in &self.vec {
-            if w == w2 {
-                assert_eq!(kind, *kind2);
-                return Some(&ids2);
-            }
-        }
-        None
-    }
-}
-
-impl<'a> std::ops::Index<&'a QuestionMarkName> for WildMap {
-    type Output = [Id];
-    fn index(&self, q: &QuestionMarkName) -> &Self::Output {
-        for (w2, _kind, ids2) in &self.vec {
-            if q == w2 {
-                return &ids2;
-            }
-        }
-        panic!("Didn't find wildcard {}", q)
-    }
+    pub substs: Vec<Subst>,
 }
 
 impl<L, M> Searcher<L, M> for Pattern<L>
@@ -191,21 +125,21 @@ where
     }
 
     fn search_eclass(&self, egraph: &EGraph<L, M>, eclass: Id) -> Option<SearchMatches> {
-        let mappings = search_pat(self, 0, egraph, eclass);
-        if mappings.is_empty() {
+        let substs = search_pat(self, 0, egraph, eclass);
+        if substs.is_empty() {
             None
         } else {
             Some(SearchMatches {
                 eclass,
-                mappings: mappings.into_vec(),
+                substs: substs.into_vec(),
             })
         }
     }
 }
 
 impl<L: Language, M: Metadata<L>> Applier<L, M> for Pattern<L> {
-    fn apply_one(&self, egraph: &mut EGraph<L, M>, _: Id, mapping: &WildMap) -> Vec<Id> {
-        apply_pat(self, egraph, mapping)
+    fn apply_one(&self, egraph: &mut EGraph<L, M>, _: Id, subst: &Subst) -> Vec<Id> {
+        apply_pat(self, egraph, subst)
     }
 }
 
@@ -214,119 +148,64 @@ fn search_pat<L: Language, M>(
     depth: usize,
     egraph: &EGraph<L, M>,
     eclass: Id,
-) -> SmallVec<[WildMap; 1]> {
+) -> SmallVec<[Subst; 1]> {
     let pat_expr = match pat {
-        Pattern::Wildcard(w, kind) => {
-            assert_eq!(*kind, WildcardKind::Single);
-            let mut var_mapping = WildMap::default();
-            let was_there = var_mapping.insert(w.clone(), *kind, vec![eclass]);
-            assert_eq!(was_there, None);
-
-            return smallvec![var_mapping];
-        }
+        Pattern::Var(v) => return smallvec![Subst::singleton(v.clone(), eclass)],
         Pattern::ENode(e) => e,
     };
 
-    let mut new_mappings = SmallVec::new();
+    let mut new_substs = SmallVec::new();
 
     if pat_expr.children.is_empty() {
         for e in egraph[eclass].iter() {
             if e.children.is_empty() && pat_expr.op == e.op {
-                new_mappings.push(WildMap::default());
+                new_substs.push(Subst::default());
                 break;
             }
         }
     } else {
         for e in egraph[eclass].iter().filter(|e| e.op == pat_expr.op) {
-            let n_multi = pat_expr
+            let arg_substs: Vec<_> = pat_expr
                 .children
-                .iter()
-                .filter(|p| p.is_multi_wildcard())
-                .count();
-            let (range, multi_mapping) = if n_multi > 0 {
-                assert_eq!(n_multi, 1, "Patterns can only have one multi match");
-                let (position, q) = pat_expr
-                    .children
-                    .iter()
-                    .enumerate()
-                    .filter_map(|(i, p)| match p {
-                        Pattern::Wildcard(q, WildcardKind::ZeroOrMore) => Some((i, q)),
-                        Pattern::Wildcard(_, WildcardKind::Single) => None,
-                        Pattern::ENode(_) => None,
-                    })
-                    .next()
-                    .unwrap();
-                assert_eq!(
-                    position,
-                    pat_expr.children.len() - 1,
-                    "Multi matches must be in the tail position for now"
-                );
-
-                // if the pattern is more than one longer, then we
-                // can't match the multi matcher
-                let len = pat_expr.children.len();
-                if len - 1 > e.children.len() {
-                    continue;
-                }
-                let ids = e.children[len - 1..].to_vec();
-                (
-                    (0..len - 1),
-                    Some((q.clone(), WildcardKind::ZeroOrMore, ids)),
-                )
-            } else {
-                let len = pat_expr.children.len();
-                if len != e.children.len() {
-                    continue;
-                }
-                ((0..len), None)
-            };
-
-            let mut arg_mappings: Vec<_> = pat_expr.children[range]
                 .iter()
                 .zip(&e.children)
                 .map(|(pa, ea)| search_pat(pa, depth + 1, egraph, *ea))
                 .collect();
 
-            if let Some((q, kind, ids)) = multi_mapping {
-                let mut m = WildMap::default();
-                m.vec.push((q, kind, ids));
-                arg_mappings.push(smallvec![m]);
-            }
-
-            'outer: for ms in arg_mappings.iter().multi_cartesian_product() {
+            'outer: for ms in arg_substs.iter().multi_cartesian_product() {
                 let mut combined = ms[0].clone();
                 for m in &ms[1..] {
-                    for (w, kind, ids) in &m.vec {
-                        if let Some(old_ids) = combined.insert(w.clone(), *kind, ids.clone()) {
-                            if old_ids != ids.as_slice() {
+                    for (w, id) in m.iter() {
+                        if let Some(old_id) = combined.insert(w.clone(), id.clone()) {
+                            if old_id != *id {
                                 continue 'outer;
                             }
                         }
                     }
                 }
-                new_mappings.push(combined)
+                new_substs.push(combined)
             }
         }
     }
 
-    trace!("new_mapping for {:?}: {:?}", pat_expr, new_mappings);
-    new_mappings
+    trace!("new_subst for {:?}: {:?}", pat_expr, new_substs);
+    new_substs
 }
 
 fn apply_pat<L: Language, M: Metadata<L>>(
     pat: &Pattern<L>,
     egraph: &mut EGraph<L, M>,
-    mapping: &WildMap,
+    subst: &Subst,
 ) -> Vec<Id> {
-    trace!("apply_rec {:2?} {:?}", pat, mapping);
+    trace!("apply_rec {:2?} {:?}", pat, subst);
 
     let result = match &pat {
-        Pattern::Wildcard(w, kind) => mapping.get(&w, *kind).unwrap().iter().copied().collect(),
+        Pattern::Var(w) => vec![subst[&w]],
         Pattern::ENode(e) => {
             let children = e
                 .children
                 .iter()
-                .flat_map(|child| apply_pat(child, egraph, mapping));
+                .flat_map(|child| apply_pat(child, egraph, subst));
             let n = ENode::new(e.op.clone(), children);
             trace!("adding: {:?}", n);
             vec![egraph.add(n)]
@@ -340,11 +219,10 @@ fn apply_pat<L: Language, M: Metadata<L>>(
 #[cfg(test)]
 mod tests {
 
-    use super::WildcardKind;
     use crate::{enode as e, *};
 
-    fn wc<L: Language>(name: &QuestionMarkName) -> Pattern<L> {
-        Pattern::Wildcard(name.clone(), WildcardKind::Single)
+    fn wc<L: Language>(name: &Var) -> Pattern<L> {
+        Pattern::Var(name.clone())
     }
 
     #[test]
@@ -363,8 +241,8 @@ mod tests {
         egraph.union(plus, plus2);
         egraph.rebuild();
 
-        let a: QuestionMarkName = "?a".parse().unwrap();
-        let b: QuestionMarkName = "?b".parse().unwrap();
+        let a: Var = "?a".parse().unwrap();
+        let b: Var = "?b".parse().unwrap();
 
         let pat = |e| Pattern::ENode(Box::new(e));
         let commute_plus = rewrite!(
@@ -374,35 +252,18 @@ mod tests {
         );
 
         let matches = commute_plus.search(&egraph);
-        let n_matches: usize = matches.iter().map(|m| m.mappings.len()).sum();
+        let n_matches: usize = matches.iter().map(|m| m.substs.len()).sum();
         assert_eq!(n_matches, 2, "matches is wrong: {:#?}", matches);
 
         let applications = commute_plus.apply(&mut egraph, &matches);
         egraph.rebuild();
         assert_eq!(applications.len(), 2);
 
-        let wm = |pairs: &[_]| WildMap { vec: pairs.into() };
+        let actual_substs: Vec<Subst> = matches.iter().flat_map(|m| m.substs.clone()).collect();
 
-        use WildcardKind::Single;
-        let expected_mappings = vec![
-            wm(&[(a.clone(), Single, vec![x]), (b.clone(), Single, vec![y])]),
-            wm(&[(a.clone(), Single, vec![z]), (b.clone(), Single, vec![w])]),
-        ];
-        std::mem::drop((a, b));
-
-        let actual_mappings: Vec<WildMap> =
-            matches.iter().flat_map(|m| m.mappings.clone()).collect();
-
-        // for now, I have to check mappings both ways
-        if actual_mappings != expected_mappings {
-            let e0 = expected_mappings[0].clone();
-            let e1 = expected_mappings[1].clone();
-            assert_eq!(actual_mappings, vec![e1, e0])
-        }
-
-        println!("Here are the mappings!");
-        for m in &actual_mappings {
-            println!("mappings: {:?}", m);
+        println!("Here are the substs!");
+        for m in &actual_substs {
+            println!("substs: {:?}", m);
         }
 
         egraph.dot().to_dot("target/simple-match.dot").unwrap();

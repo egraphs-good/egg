@@ -68,16 +68,18 @@ mod parse;
 mod pattern;
 mod rewrite;
 mod run;
+mod subst;
 
 pub use dot::Dot;
 pub use eclass::{EClass, Metadata};
 pub use egraph::EGraph;
-pub use expr::{ENode, Id, Language, QuestionMarkName, RecExpr};
+pub use expr::{ENode, Id, Language, RecExpr};
 pub use extract::*;
 pub use parse::ParseError;
-pub use pattern::{Pattern, SearchMatches, WildMap};
+pub use pattern::{Pattern, SearchMatches};
 pub use rewrite::{Applier, Condition, ConditionEqual, ConditionalApplier, Rewrite, Searcher};
 pub use run::*;
+pub use subst::{Subst, Var};
 
 #[cfg(test)]
 fn init_logger() {
