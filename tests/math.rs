@@ -208,14 +208,18 @@ macro_rules! check {
             let start_expr = $start.parse().expect(concat!("Failed to parse ", $start));
             let end_expr = $end.parse().expect(concat!("Failed to parse ", $end));
 
-            let (mut egraph, root) = EGraph::from_expr(&start_expr);
-            // add the end expr as well
-            let _goal = egraph.add_expr(&end_expr);
+            let (egraph, root, reason) = egg_bench(stringify!($name), || {
+                let (mut egraph, root) = EGraph::from_expr(&start_expr);
+                // add the end expr as well
+                let _goal = egraph.add_expr(&end_expr);
 
-            let (_, reason) = SimpleRunner::default()
-                .with_iter_limit($iters)
-                .with_node_limit($limit)
-                .run(&mut egraph, &rules());
+                let (_, reason) = SimpleRunner::default()
+                    .with_iter_limit($iters)
+                    .with_node_limit($limit)
+                    .run(&mut egraph, &rules());
+
+                (egraph, root, reason)
+            });
 
             println!("Stopped because {:?}", reason);
             let (cost, best) = Extractor::new(&egraph, MathCostFn).find_best(root);

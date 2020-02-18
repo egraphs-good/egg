@@ -28,3 +28,7 @@ deploy-web-demo:
 	cd web-demo; cargo web deploy --release
 	rsync -a target/deploy/ ~/src/site/stuff/egg/
 	cd ~/src/site; make deploy
+
+# makefile hack to run my hacky benchmarks
+bench-%:
+	cargo test --release -- --test-threads=1 --nocapture $*
