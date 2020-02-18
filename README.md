@@ -25,6 +25,7 @@ Before committing/pushing, make sure to run `make`, which runs all the tests and
 
 ### Tests
 
+You will need [`graphviz`](https://www.graphviz.org/download/) to run the tests.
 Running `cargo test` will run the tests.
 
 There are a couple interesting tests in the `tests` directory:
