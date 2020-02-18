@@ -191,7 +191,9 @@ impl<L, M> EGraph<L, M> {
     /// assert_eq!(egraph.number_of_classes(), 1);
     /// ```
     pub fn total_size(&self) -> usize {
-        self.classes.total_size()
+        let union_find_size = self.classes.total_size();
+        debug_assert_eq!(union_find_size, self.memo.len());
+        union_find_size
     }
 
     /// Returns the number of eclasses in the egraph.
