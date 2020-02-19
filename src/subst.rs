@@ -1,6 +1,8 @@
 use crate::Id;
 use indexmap::IndexSet;
 use once_cell::sync::Lazy;
+
+use std::fmt;
 use std::str::FromStr;
 use std::sync::Mutex;
 
@@ -28,6 +30,15 @@ impl FromStr for Var {
         } else {
             Err(format!("{} doesn't start with '?'", s))
         }
+    }
+}
+
+impl fmt::Display for Var {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let i = self.0 as usize;
+        let strings = STRINGS.lock().unwrap();
+        let s = strings.get_index(i).unwrap();
+        write!(f, "{}", s)
     }
 }
 
@@ -72,6 +83,9 @@ impl std::ops::Index<&Var> for Subst {
     type Output = Id;
 
     fn index(&self, var: &Var) -> &Self::Output {
-        self.get(var).unwrap()
+        match self.get(var) {
+            Some(id) => id,
+            None => panic!("Var '{}={}' not found in {:?}", var.0, var, self),
+        }
     }
 }

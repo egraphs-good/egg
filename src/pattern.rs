@@ -164,7 +164,10 @@ fn search_pat<L: Language, M>(
             }
         }
     } else {
-        for e in egraph[eclass].iter().filter(|e| e.op == pat_expr.op) {
+        let p_len = pat_expr.children.len();
+        let is_compatible = |e: &&ENode<L>| e.op == pat_expr.op && e.children.len() == p_len;
+
+        for e in egraph[eclass].iter().filter(is_compatible) {
             let arg_substs: Vec<_> = pat_expr
                 .children
                 .iter()
