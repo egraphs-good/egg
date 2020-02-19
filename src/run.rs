@@ -1,7 +1,7 @@
 use std::fmt;
 
 use indexmap::IndexMap;
-use instant::Instant;
+use instant::{Duration, Instant};
 use log::*;
 
 use crate::{EGraph, Id, Language, Metadata, RecExpr, Rewrite, SearchMatches};
@@ -397,6 +397,12 @@ from behaving badly and eating your computer:
   If this limit is hit, it stops with
   [`SimpleRunnerError::NodeLimit`](enum.SimpleRunnerError.html#variant.NodeLimit).
 
+- Time limit
+
+  You can set a time limit on the runner.
+  If this limit is hit, it stops with
+  [`SimpleRunnerError::TimeLimit`](enum.SimpleRunnerError.html#variant.TimeLimit).
+
 - Rule backoff
 
   Some rules enable themselves, blowing up the [`EGraph`] and
@@ -455,6 +461,8 @@ println!(
 pub struct SimpleRunner {
     iter_limit: usize,
     node_limit: usize,
+    time_limit: Duration,
+    start_time: Instant,
     i: usize,
     stats: IndexMap<String, RuleStats>,
     initial_match_limit: usize,
@@ -473,6 +481,8 @@ impl Default for SimpleRunner {
             iter_limit: 30,
             node_limit: 10_000,
             i: 0,
+            start_time: Instant::now(),
+            time_limit: Duration::from_secs(60),
             stats: Default::default(),
             initial_match_limit: 1_000,
             ban_length: 5,
@@ -489,6 +499,11 @@ impl SimpleRunner {
     /// Sets the egraph size limit (in enodes). Default: 10,000
     pub fn with_node_limit(self, node_limit: usize) -> Self {
         Self { node_limit, ..self }
+    }
+
+    /// Sets the runner time limit. Default: 60 seconds
+    pub fn with_time_limit(self, time_limit: Duration) -> Self {
+        Self { time_limit, ..self }
     }
 
     /// Sets the initial match limit before a rule is banned. Default: 1,000
@@ -516,6 +531,8 @@ pub enum SimpleRunnerError {
     IterationLimit(usize),
     /// The enode limit was hit. The data is the enode limit.
     NodeLimit(usize),
+    /// The time limit was hit. The data is the time limit in seconds.
+    TimeLimit(f64),
 }
 
 impl<L, M> Runner<L, M> for SimpleRunner
@@ -541,8 +558,11 @@ where
 
     fn during_step(&mut self, egraph: &EGraph<L, M>) -> Result<(), Self::Error> {
         let size = egraph.total_size();
+        let elapsed = self.start_time.elapsed();
         if size > self.node_limit {
             Err(SimpleRunnerError::NodeLimit(size))
+        } else if elapsed > self.time_limit {
+            Err(SimpleRunnerError::TimeLimit(elapsed.as_secs_f64()))
         } else {
             Ok(())
         }

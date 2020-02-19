@@ -10,6 +10,7 @@
   benchmark tests.
 - String interning for `Var`s (née `QuestionMarkName`s).
   This speeds up things by ~35%.
+- Add a configurable time limit to `SimpleRunner`
 
 ### Changed
 
