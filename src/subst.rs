@@ -1,15 +1,35 @@
 use crate::Id;
+use indexmap::IndexSet;
+use once_cell::sync::Lazy;
 use std::str::FromStr;
+use std::sync::Mutex;
+
+static STRINGS: Lazy<Mutex<IndexSet<String>>> = Lazy::new(Default::default);
 
 /// A variable for use in [`Pattern`]s or [`Subst`]s.
 ///
-/// This implements [`FromStr`].
+/// This implements [`FromStr`], and will only parse if it has a
+/// leading `?`.
 ///
 /// [`Pattern`]: enum.Pattern.html
 /// [`Subst`]: struct.Subst.html
 /// [`FromStr`]: https://doc.rust-lang.org/std/str/trait.FromStr.html
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub struct Var(String);
+pub struct Var(u32);
+
+impl FromStr for Var {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.starts_with('?') {
+            let mut strings = STRINGS.lock().unwrap();
+            let (i, _) = strings.insert_full(s.to_owned());
+            Ok(Var(i as u32))
+        } else {
+            Err(format!("{} doesn't start with '?'", s))
+        }
+    }
+}
 
 /// A substitition mapping [`Var`]s to eclass [`Id`]s.
 ///
@@ -45,18 +65,6 @@ impl Subst {
 
     pub(crate) fn iter(&self) -> impl Iterator<Item = (&Var, &Id)> {
         self.vec.iter().map(|pair| (&pair.0, &pair.1))
-    }
-}
-
-impl FromStr for Var {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.starts_with('?') {
-            Ok(Var(s.to_owned()))
-        } else {
-            Err(format!("{} doesn't start with '?'", s))
-        }
     }
 }
 
