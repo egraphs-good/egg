@@ -4,6 +4,23 @@
 
 ## [Unreleased] - ReleaseDate
 
+### Added
+
+- A dumb little benchmarking system called `egg_bench` that can help
+  benchmark tests.
+- String interning for `Var`s (née `QuestionMarkName`s).
+  This speeds up things by ~35%.
+
+### Changed
+
+- Renamed `WildMap` to `Subst`, `QuestionMarkName` to `Var`.
+
+### Removed
+
+- Multi-matching patterns (ex: `?a...`).
+  They were a hack and undocumented.
+  If we can come up with better way to do it, then we can put them back.
+
 ## [0.1.2] - 2020-02-14
 
 This release completes the documentation
