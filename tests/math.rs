@@ -208,6 +208,7 @@ macro_rules! check {
             let start_expr = $start.parse().expect(concat!("Failed to parse ", $start));
             let end_expr = $end.parse().expect(concat!("Failed to parse ", $end));
 
+            let rules = rules();
             let (egraph, root, reason) = egg_bench(stringify!($name), || {
                 let (mut egraph, root) = EGraph::from_expr(&start_expr);
                 // add the end expr as well
@@ -216,7 +217,7 @@ macro_rules! check {
                 let (_, reason) = SimpleRunner::default()
                     .with_iter_limit($iters)
                     .with_node_limit($limit)
-                    .run(&mut egraph, &rules());
+                    .run(&mut egraph, &rules);
 
                 (egraph, root, reason)
             });
