@@ -107,10 +107,13 @@ fn prove_something(start: &str, goals: &[&str]) {
 
     let goal_exprs: Vec<_> = goals.iter().map(|g| g.parse().unwrap()).collect();
 
-    let (egraph, report) = SimpleRunner::default()
-        .with_iter_limit(500)
-        .with_node_limit(6_000)
-        .run_expr(start_expr.clone(), &rules());
+    let rules = rules();
+    let (egraph, report) = egg_bench("lambda", || {
+        SimpleRunner::default()
+            .with_iter_limit(500)
+            .with_node_limit(6_000)
+            .run_expr(start_expr.clone(), &rules)
+    });
 
     let (cost, best) = Extractor::new(&egraph, AstSize).find_best(report.initial_expr_eclass);
     println!("End ({}): {}", cost, best.pretty(80));
