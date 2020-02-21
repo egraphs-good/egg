@@ -52,12 +52,6 @@ pub struct Subst {
 }
 
 impl Subst {
-    pub(crate) fn singleton(var: Var, id: Id) -> Self {
-        let mut subst = Self::default();
-        subst.insert(var, id);
-        subst
-    }
-
     pub(crate) fn insert(&mut self, var: Var, id: Id) -> Option<Id> {
         for pair in &mut self.vec {
             if pair.0 == var {
@@ -72,10 +66,6 @@ impl Subst {
         self.vec
             .iter()
             .find_map(|(v, id)| if v == var { Some(id) } else { None })
-    }
-
-    pub(crate) fn iter(&self) -> impl Iterator<Item = (&Var, &Id)> {
-        self.vec.iter().map(|pair| (&pair.0, &pair.1))
     }
 }
 

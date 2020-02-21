@@ -13,20 +13,21 @@ categories = ["data-structures"]
 [dependencies]
 symbolic_expressions = "5"
 log = "0.4"
-itertools = "0.8"
 smallvec = "1"
 indexmap = "1"
 instant = "0.1"
 once_cell = "1"
 # for the serde-1 feature
 serde = { version = "1", features = ["derive"], optional = true }
+# for the parent-pointers feature
+itertools = { version = "0.8", optional = true }
 
 [dev-dependencies]
 env_logger = "0.7"
 ordered-float = "1"
 
 [features]
-parent-pointers = []
+parent-pointers = [ "itertools" ]
 stdweb = [ "instant/stdweb" ]
 serde-1 = [ "serde", "indexmap/serde-1" ]
 

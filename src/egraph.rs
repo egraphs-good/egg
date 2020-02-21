@@ -229,7 +229,15 @@ impl<L, M> EGraph<L, M> {
     }
 }
 
-impl<L: Language, M> std::ops::Index<Id> for EGraph<L, M> {
+// TODO use this for searching ground terms instead
+#[allow(dead_code)]
+impl<L: Language, M> EGraph<L, M> {
+    pub(crate) fn get_leaf(&self, leaf: L) -> Option<Id> {
+        self.memo.get(&ENode::leaf(leaf)).copied()
+    }
+}
+
+impl<L, M> std::ops::Index<Id> for EGraph<L, M> {
     type Output = EClass<L, M>;
     fn index(&self, id: Id) -> &Self::Output {
         self.classes.get(id)
@@ -351,7 +359,7 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
 
         for m1 in &matches1 {
             for m2 in &matches2 {
-                if m1.eclass == m2.eclass {
+                if self.find(m1.eclass) == self.find(m2.eclass) {
                     equiv_eclasses.push(m1.eclass)
                 }
             }

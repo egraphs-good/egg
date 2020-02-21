@@ -5,7 +5,7 @@ use std::str::FromStr;
 
 use symbolic_expressions::{parser::parse_str, Sexp, SexpError};
 
-use crate::{ENode, Language, Pattern, RecExpr, Var};
+use crate::{ENode, Language, Pattern, PatternAst, RecExpr, Var};
 
 /// An error resulting from parsing a [`Pattern`] or [`RecExpr`].
 ///
@@ -33,7 +33,7 @@ impl<L: Language + FromStr> FromStr for Pattern<L> {
     type Err = ParseError;
     fn from_str(s: &str) -> Result<Self> {
         let sexp = parse_str(s.trim())?;
-        parse_term(&sexp)
+        parse_term(&sexp).map(PatternAst::compile)
     }
 }
 
@@ -45,15 +45,15 @@ impl<L: Language + FromStr> FromStr for RecExpr<L> {
     }
 }
 
-fn parse_term<L: Language + FromStr>(sexp: &Sexp) -> Result<Pattern<L>> {
+fn parse_term<L: Language + FromStr>(sexp: &Sexp) -> Result<PatternAst<L>> {
     match sexp {
         Sexp::String(s) => {
             if s.trim() != s || s.is_empty() {
                 panic!("There's whitespace!")
             }
             s.parse::<Var>()
-                .map(Pattern::Var)
-                .or_else(|_| s.parse().map(|t| Pattern::ENode(ENode::leaf(t).into())))
+                .map(PatternAst::Var)
+                .or_else(|_| s.parse().map(|t| PatternAst::ENode(ENode::leaf(t).into())))
                 .map_err(|_| ParseError(format!("Couldn't parse '{}'", s)))
         }
 
@@ -68,9 +68,9 @@ fn parse_term<L: Language + FromStr>(sexp: &Sexp) -> Result<Pattern<L>> {
                 op_sexp => return Err(ParseError(format!("expected op, got {}", op_sexp))),
             };
 
-            let children: Result<Vec<Pattern<L>>> = sexps.map(|s| parse_term(s)).collect();
+            let children: Result<Vec<PatternAst<L>>> = sexps.map(|s| parse_term(s)).collect();
 
-            Ok(Pattern::ENode(ENode::new(op, children?).into()))
+            Ok(PatternAst::ENode(ENode::new(op, children?).into()))
         }
         Sexp::Empty => Err(ParseError("empty!".into())),
     }

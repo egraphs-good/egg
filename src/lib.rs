@@ -57,7 +57,10 @@ println!(
 
 mod macros;
 
+pub(crate) mod machine;
 pub(crate) mod unionfind;
+
+pub(crate) use pattern::PatternAst;
 
 mod dot;
 mod eclass;

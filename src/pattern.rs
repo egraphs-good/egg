@@ -1,10 +1,10 @@
 use std::convert::TryFrom;
 
-use itertools::Itertools;
 use log::*;
-use smallvec::{smallvec, SmallVec};
 
-use crate::{Applier, EGraph, ENode, Id, Language, Metadata, RecExpr, Searcher, Subst, Var};
+use crate::{
+    machine, Applier, EGraph, ENode, Id, Language, Metadata, RecExpr, Searcher, Subst, Var,
+};
 
 /// A pattern that can function as either a [`Searcher`] or [`Applier`].
 ///
@@ -64,34 +64,61 @@ use crate::{Applier, EGraph, ENode, Id, Language, Metadata, RecExpr, Searcher, S
 /// [`Searcher`]: trait.Searcher.html
 /// [`Applier`]: trait.Applier.html
 /// [`Language`]: trait.Language.html
+
 #[derive(Debug, PartialEq, Clone)]
-#[non_exhaustive]
-pub enum Pattern<L> {
+pub struct Pattern<L> {
+    ast: PatternAst<L>,
+    program: machine::Program<L>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub(crate) enum PatternAst<L> {
     #[doc(hidden)]
-    ENode(Box<ENode<L, Pattern<L>>>),
+    ENode(Box<ENode<L, PatternAst<L>>>),
     #[doc(hidden)]
     Var(Var),
 }
 
+impl<L: Language> PatternAst<L> {
+    pub(crate) fn compile(self) -> Pattern<L> {
+        let program = machine::Program::compile_from_pat(&self);
+        Pattern { ast: self, program }
+    }
+}
+
+impl<L: Language> From<RecExpr<L>> for PatternAst<L> {
+    fn from(e: RecExpr<L>) -> Self {
+        PatternAst::ENode(e.as_ref().map_children(PatternAst::from).into())
+    }
+}
+
 impl<L: Language> From<RecExpr<L>> for Pattern<L> {
     fn from(e: RecExpr<L>) -> Self {
-        Pattern::ENode(e.as_ref().map_children(Pattern::from).into())
+        let ast = PatternAst::from(e);
+        ast.compile()
+    }
+}
+
+impl<L: Language> TryFrom<PatternAst<L>> for RecExpr<L> {
+    type Error = String;
+    fn try_from(ast: PatternAst<L>) -> Result<RecExpr<L>, String> {
+        match ast {
+            PatternAst::ENode(e) => {
+                let rec_enode = e.map_children_result(RecExpr::try_from);
+                Ok(rec_enode?.into())
+            }
+            PatternAst::Var(v) => {
+                let msg = format!("Found variable {:?} instead of expr term", v);
+                Err(msg)
+            }
+        }
     }
 }
 
 impl<L: Language> TryFrom<Pattern<L>> for RecExpr<L> {
     type Error = String;
     fn try_from(pat: Pattern<L>) -> Result<RecExpr<L>, String> {
-        match pat {
-            Pattern::ENode(e) => {
-                let rec_enode = e.map_children_result(RecExpr::try_from);
-                Ok(rec_enode?.into())
-            }
-            Pattern::Var(v) => {
-                let msg = format!("Found variable {:?} instead of expr term", v);
-                Err(msg)
-            }
-        }
+        RecExpr::try_from(pat.ast)
     }
 }
 
@@ -125,86 +152,31 @@ where
     }
 
     fn search_eclass(&self, egraph: &EGraph<L, M>, eclass: Id) -> Option<SearchMatches> {
-        let substs = search_pat(self, 0, egraph, eclass);
+        let substs = self.program.run(egraph, eclass);
         if substs.is_empty() {
             None
         } else {
-            Some(SearchMatches {
-                eclass,
-                substs: substs.into_vec(),
-            })
+            Some(SearchMatches { eclass, substs })
         }
     }
 }
 
 impl<L: Language, M: Metadata<L>> Applier<L, M> for Pattern<L> {
     fn apply_one(&self, egraph: &mut EGraph<L, M>, _: Id, subst: &Subst) -> Vec<Id> {
-        apply_pat(self, egraph, subst)
+        apply_pat(&self.ast, egraph, subst)
     }
-}
-
-fn search_pat<L: Language, M>(
-    pat: &Pattern<L>,
-    depth: usize,
-    egraph: &EGraph<L, M>,
-    eclass: Id,
-) -> SmallVec<[Subst; 1]> {
-    let pat_expr = match pat {
-        Pattern::Var(v) => return smallvec![Subst::singleton(v.clone(), eclass)],
-        Pattern::ENode(e) => e,
-    };
-
-    let mut new_substs = SmallVec::new();
-
-    if pat_expr.children.is_empty() {
-        for e in egraph[eclass].iter() {
-            if e.children.is_empty() && pat_expr.op == e.op {
-                new_substs.push(Subst::default());
-                break;
-            }
-        }
-    } else {
-        let p_len = pat_expr.children.len();
-        let is_compatible = |e: &&ENode<L>| e.op == pat_expr.op && e.children.len() == p_len;
-
-        for e in egraph[eclass].iter().filter(is_compatible) {
-            let arg_substs: Vec<_> = pat_expr
-                .children
-                .iter()
-                .zip(&e.children)
-                .map(|(pa, ea)| search_pat(pa, depth + 1, egraph, *ea))
-                .collect();
-
-            'outer: for ms in arg_substs.iter().multi_cartesian_product() {
-                let mut combined = ms[0].clone();
-                for m in &ms[1..] {
-                    for (w, id) in m.iter() {
-                        if let Some(old_id) = combined.insert(w.clone(), id.clone()) {
-                            if old_id != *id {
-                                continue 'outer;
-                            }
-                        }
-                    }
-                }
-                new_substs.push(combined)
-            }
-        }
-    }
-
-    trace!("new_subst for {:?}: {:?}", pat_expr, new_substs);
-    new_substs
 }
 
 fn apply_pat<L: Language, M: Metadata<L>>(
-    pat: &Pattern<L>,
+    pat: &PatternAst<L>,
     egraph: &mut EGraph<L, M>,
     subst: &Subst,
 ) -> Vec<Id> {
     trace!("apply_rec {:2?} {:?}", pat, subst);
 
     let result = match &pat {
-        Pattern::Var(w) => vec![subst[&w]],
-        Pattern::ENode(e) => {
+        PatternAst::Var(w) => vec![subst[&w]],
+        PatternAst::ENode(e) => {
             let children = e
                 .children
                 .iter()
@@ -224,10 +196,6 @@ mod tests {
 
     use crate::{enode as e, *};
 
-    fn wc<L: Language>(name: &Var) -> Pattern<L> {
-        Pattern::Var(name.clone())
-    }
-
     #[test]
     fn simple_match() {
         crate::init_logger();
@@ -244,14 +212,9 @@ mod tests {
         egraph.union(plus, plus2);
         egraph.rebuild();
 
-        let a: Var = "?a".parse().unwrap();
-        let b: Var = "?b".parse().unwrap();
-
-        let pat = |e| Pattern::ENode(Box::new(e));
         let commute_plus = rewrite!(
             "commute_plus";
-            { pat(e!("+", wc(&a), wc(&b))) } =>
-            { pat(e!("+", wc(&b), wc(&a))) }
+            "(+ ?a ?b)" => "(+ ?b ?a)"
         );
 
         let matches = commute_plus.search(&egraph);
