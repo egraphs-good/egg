@@ -55,7 +55,7 @@ use crate::{
 /// assert_eq!(matched_eclasses, vec![a11, a22]);
 /// ```
 ///
-/// [`Pattern`]: enum.Pattern.html
+/// [`Pattern`]: struct.Pattern.html
 /// [`Rewrite`]: struct.Rewrite.html
 /// [`EGraph`]: struct.EGraph.html
 /// [`Subst`]: struct.Subst.html
@@ -64,7 +64,6 @@ use crate::{
 /// [`Searcher`]: trait.Searcher.html
 /// [`Applier`]: trait.Applier.html
 /// [`Language`]: trait.Language.html
-
 #[derive(Debug, PartialEq, Clone)]
 pub struct Pattern<L> {
     ast: PatternAst<L>,

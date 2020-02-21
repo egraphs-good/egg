@@ -17,7 +17,7 @@ use crate::{EGraph, Id, Language, Metadata, SearchMatches, Subst};
 /// [`Condition`]: trait.Condition.html
 /// [`ConditionalApplier`]: struct.ConditionalApplier.html
 /// [`Rewrite`]: struct.Rewrite.html
-/// [`Pattern`]: enum.Pattern.html
+/// [`Pattern`]: struct.Pattern.html
 // TODO display
 #[derive(Clone)]
 #[non_exhaustive]
@@ -106,7 +106,7 @@ impl<L: Language, M: Metadata<L>> Rewrite<L, M> {
 ///
 /// [`Rewrite`]: struct.Rewrite.html
 /// [`Searcher`]: trait.Searcher.html
-/// [`Pattern`]: enum.Pattern.html
+/// [`Pattern`]: struct.Pattern.html
 pub trait Searcher<L, M>
 where
     L: Language,
@@ -231,7 +231,7 @@ where
 /// let start = "(+ x (* y z))".parse().unwrap();
 /// SimpleRunner::default().run_expr(start, rules);
 /// ```
-/// [`Pattern`]: enum.Pattern.html
+/// [`Pattern`]: struct.Pattern.html
 /// [`EClass`]: struct.EClass.html
 /// [`Rewrite`]: struct.Rewrite.html
 /// [`ConditionalApplier`]: struct.ConditionalApplier.html

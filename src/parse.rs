@@ -9,7 +9,7 @@ use crate::{ENode, Language, Pattern, PatternAst, RecExpr, Var};
 
 /// An error resulting from parsing a [`Pattern`] or [`RecExpr`].
 ///
-/// [`Pattern`]: enum.Pattern.html
+/// [`Pattern`]: struct.Pattern.html
 /// [`RecExpr`]: struct.RecExpr.html
 #[derive(Debug, Clone)]
 pub struct ParseError(String);

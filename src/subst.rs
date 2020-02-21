@@ -13,7 +13,7 @@ static STRINGS: Lazy<Mutex<IndexSet<String>>> = Lazy::new(Default::default);
 /// This implements [`FromStr`], and will only parse if it has a
 /// leading `?`.
 ///
-/// [`Pattern`]: enum.Pattern.html
+/// [`Pattern`]: struct.Pattern.html
 /// [`Subst`]: struct.Subst.html
 /// [`FromStr`]: https://doc.rust-lang.org/std/str/trait.FromStr.html
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]

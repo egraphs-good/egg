@@ -288,7 +288,7 @@ fn is_not_zero(var: &'static str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
 [`Condition`]: trait.Condition.html
 [`ConditionalApplier`]: struct.ConditionalApplier.html
 [`Rewrite`]: struct.Rewrite.html
-[`Pattern`]: enum.Pattern.html
+[`Pattern`]: struct.Pattern.html
 [macro]: https://doc.rust-lang.org/stable/reference/macros-by-example.html#metavariables
 **/
 #[macro_export]
