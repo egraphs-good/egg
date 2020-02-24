@@ -68,32 +68,36 @@ impl<'a, L: Language, M> Machine<'a, L, M> {
     }
 
     #[must_use]
-    #[inline(always)]
     fn backtrack(&mut self) -> Option<()> {
         trace!("Backtracking, stack size: {}", self.stack.len());
-        let Binder {
-            out,
-            next,
-            searcher,
-        } = self.stack.last_mut()?;
+        loop {
+            let Binder {
+                out,
+                next,
+                searcher,
+            } = self.stack.last_mut()?;
 
-        if let Some(matched) = searcher.next() {
-            trace!("Binding: {:?}", matched);
-            let new_len = *out + matched.len();
-            self.reg.resize(new_len, 0);
-            let out_regs = &mut self.reg[*out..new_len];
-            out_regs.copy_from_slice(&matched);
-            self.pc = *next;
-            Some(())
-        } else {
-            self.stack.pop().expect("we know the stack isn't empty");
-            self.backtrack()
+            if let Some(matched) = searcher.next() {
+                trace!("Binding: {:?}", matched);
+                let new_len = *out + matched.len();
+                self.reg.resize(new_len, 0);
+                self.reg[*out..new_len].copy_from_slice(&matched);
+                self.pc = *next;
+                return Some(())
+            } else {
+                self.stack.pop().expect("we know the stack isn't empty");
+            }
         }
     }
 
-    fn next(&mut self) -> Option<Vec<Id>> {
+    fn run(&mut self, mut yield_fn: impl FnMut(&Self, &[Reg])) {
+
+        macro_rules! backtrack {
+            () => { if self.backtrack().is_none() { return } };
+        }
+
         loop {
-            let instr = &self.program.get(self.pc)?;
+            let instr = &self.program[self.pc];
             self.pc += 1;
 
             trace!("Executing {:?}", instr);
@@ -110,7 +114,7 @@ impl<'a, L: Language, M> Machine<'a, L, M> {
                             nodes: &eclass.nodes,
                         },
                     });
-                    self.backtrack()?;
+                    backtrack!();
                 }
                 Check(i, t) => {
                     let id = self.reg[*i];
@@ -123,7 +127,7 @@ impl<'a, L: Language, M> Machine<'a, L, M> {
                         trace!("Check(r{} = e{}, {:?}) passed", i, id, t);
                     } else {
                         trace!("Check(r{} = e{}, {:?}) failed", i, id, t);
-                        self.backtrack()?;
+                        backtrack!()
                     }
                     // TODO the below is more efficient, but is broken
                     // because we don't support look up of ground
@@ -136,19 +140,20 @@ impl<'a, L: Language, M> Machine<'a, L, M> {
                     //     trace!("Check(r{} = e{}, {:?}) passed", i, id1, t);
                     // } else {
                     //     trace!("Check(r{} = e{}, {:?}) failed", i, id1, t);
-                    //     self.backtrack()?;
+                    //     // self.backtrack()?;
                     // }
                 }
                 Compare(i, j) => {
                     if self.find_reg(*i) != self.find_reg(*j) {
-                        self.backtrack()?;
+                        backtrack!()
                     }
                 }
                 Yield(regs) => {
-                    let ids = regs.iter().map(|r| self.reg[*r]).collect();
+                    // let ids = regs.iter().map(|r| self.reg[*r]).collect();
                     // backtrack, but don't fail so we can yield
-                    let _ = self.backtrack();
-                    return Some(ids);
+                    yield_fn(self, regs);
+                    backtrack!()
+                    // return Some(ids);
                 }
             }
         }
@@ -165,8 +170,17 @@ fn size<L>(p: &PatternAst<L>) -> usize {
     }
 }
 
-fn rank<L>(_v2r: &VarToReg, p1: &PatternAst<L>, p2: &PatternAst<L>) -> Ordering {
-    size(p1).cmp(&size(p2))
+fn n_free<L>(v2r: &VarToReg, p: &PatternAst<L>) -> usize {
+    match p {
+        PatternAst::ENode(e) => e.children.iter().map(|c| n_free(v2r, c)).sum::<usize>(),
+        PatternAst::Var(v) => !v2r.contains_key(v) as usize,
+    }
+}
+
+fn rank<L>(v2r: &VarToReg, p1: &PatternAst<L>, p2: &PatternAst<L>) -> Ordering {
+    let cost1 = (n_free(v2r, p1), size(p1));
+    let cost2 = (n_free(v2r, p2), size(p2));
+    cost1.cmp(&cost2)
 }
 
 fn compile<L>(
@@ -203,7 +217,6 @@ fn compile<L>(
                 // sort in reverse order so we pop the cheapest
                 // NOTE, this doesn't seem to have a very large effect right now
                 r2p.sort_by(|_, p1, _, p2| rank(v2r, p1, p2).reverse());
-
                 next_reg += len;
             }
         }
@@ -254,14 +267,15 @@ impl<L: Language> Program<L> {
         machine.reg.push(eclass);
 
         let mut substs = Vec::new();
-        while let Some(ids) = machine.next() {
+        machine.run(|machine, regs| {
             let mut s = Subst::default();
-            for (i, id) in ids.into_iter().enumerate() {
+            let ids = regs.iter().map(|r| machine.reg[*r]);
+            for (i, id) in ids.enumerate() {
                 let var = self.v2r.get_index(i).unwrap().0;
                 s.insert(var.clone(), id);
             }
             substs.push(s)
-        }
+        });
 
         trace!("Ran program, found {:?}", substs);
         substs
