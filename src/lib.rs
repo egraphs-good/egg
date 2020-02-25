@@ -1,4 +1,4 @@
-#![warn(missing_docs)]
+// #![warn(missing_docs)]
 /*!
 [`EGraph`]s (and almost everything else in this crate) are
 parameterized over the language given by the user (by implementing
@@ -46,7 +46,7 @@ let rules: &[Rewrite<SimpleLanguage, ()>] = &[
 ];
 
 let start = "(+ 0 (* 1 foo))".parse().unwrap();
-let (egraph, report) = SimpleRunner::default().run_expr(start, &rules);
+let (egraph, report) = Runner::default().run_expr(start, &rules);
 println!(
     "Stopped after {} iterations, reason: {:?}",
     report.iterations.len(),

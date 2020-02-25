@@ -108,21 +108,23 @@ fn prove_something(start: &str, goals: &[&str]) {
     let goal_exprs: Vec<_> = goals.iter().map(|g| g.parse().unwrap()).collect();
 
     let rules = rules();
-    let (egraph, report) = egg_bench("lambda", || {
-        SimpleRunner::default()
+
+    let (egraph, root) = egg_bench("lambda", || {
+        let runner = Runner::default()
             .with_iter_limit(500)
             .with_node_limit(6_000)
-            .run_expr(start_expr.clone(), &rules)
+            .with_expr(&start_expr)
+            .run(&rules);
+        (runner.egraph, runner.roots[0])
     });
 
-    let (cost, best) = Extractor::new(&egraph, AstSize).find_best(report.initial_expr_eclass);
+    let (cost, best) = Extractor::new(&egraph, AstSize).find_best(root);
     println!("End ({}): {}", cost, best.pretty(80));
 
     for (i, (goal_expr, goal_str)) in goal_exprs.iter().zip(goals).enumerate() {
         println!("Trying to prove goal {}: {}", i, goal_str);
         let equivs = egraph.equivs(&start_expr, &goal_expr);
         if equivs.is_empty() {
-            let root = report.initial_expr_eclass;
             let best = Extractor::new(&egraph, AstSize).find_best(root).1;
             panic!(
                 "Couldn't prove goal {}: {}\nFound {}",

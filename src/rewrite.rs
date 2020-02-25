@@ -229,7 +229,7 @@ where
 /// }
 ///
 /// let start = "(+ x (* y z))".parse().unwrap();
-/// SimpleRunner::default().run_expr(start, rules);
+/// Runner::default().with_expr(&start).run(start, rules);
 /// ```
 /// [`Pattern`]: enum.Pattern.html
 /// [`EClass`]: struct.EClass.html

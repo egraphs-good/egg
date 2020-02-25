@@ -30,7 +30,7 @@ let rules: &[Rewrite<SimpleLanguage, ()>] = &[
 let start = "(+ 0 (* 1 10))".parse().unwrap();
 let (mut egraph, root) = EGraph::from_expr(&start);
 
-SimpleRunner::default().run(&mut egraph, &rules);
+Runner::default().run(&mut egraph, &rules);
 
 let mut extractor = Extractor::new(&egraph, AstSize);
 let (best_cost, best) = extractor.find_best(root);

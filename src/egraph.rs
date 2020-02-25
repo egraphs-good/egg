@@ -315,7 +315,7 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
         let mut class = EClass {
             id: self.classes.total_size() as Id,
             nodes: vec![enode.clone()],
-            metadata: M::make(enode.map_children(|id| &self[id].metadata)),
+            metadata: M::make(self, &enode),
             #[cfg(feature = "parent-pointers")]
             parents: IndexSet::new(),
         };

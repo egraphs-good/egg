@@ -184,12 +184,13 @@ fn associate_adds() {
     ];
 
     // Must specfify the () metadata so pruning doesn't mess us up here
-    let egraph: egg::EGraph<Math, ()> = SimpleRunner::default()
+    let egraph: egg::EGraph<Math, ()> = Runner::default()
         .with_iter_limit(7)
         .with_node_limit(8_000)
-        .with_initial_match_limit(100_000) // disable banning
-        .run_expr(start_expr, rules)
-        .0;
+        .with_scheduler(SimpleScheduler) // disable banning
+        .with_expr(&start_expr)
+        .run(rules)
+        .egraph;
 
     // there are exactly 127 non-empty subsets of 7 things
     assert_eq!(egraph.number_of_classes(), 127);
@@ -205,21 +206,19 @@ macro_rules! check {
         #[test]
         fn $name() {
             let _ = env_logger::builder().is_test(true).try_init();
-            let start_expr = $start.parse().expect(concat!("Failed to parse ", $start));
-            let end_expr = $end.parse().expect(concat!("Failed to parse ", $end));
+            let start_expr: RecExpr<_> = $start.parse().expect(concat!("Failed to parse ", $start));
+            let end_expr: RecExpr<_> = $end.parse().expect(concat!("Failed to parse ", $end));
 
             let rules = rules();
             let (egraph, root, reason) = egg_bench(stringify!($name), || {
-                let (mut egraph, root) = EGraph::from_expr(&start_expr);
-                // add the end expr as well
-                let _goal = egraph.add_expr(&end_expr);
-
-                let (_, reason) = SimpleRunner::default()
+                let runner = Runner::default()
                     .with_iter_limit($iters)
                     .with_node_limit($limit)
-                    .run(&mut egraph, &rules);
+                    .with_expr(&start_expr)
+                    .with_expr(&end_expr)
+                    .run(&rules);
 
-                (egraph, root, reason)
+                (runner.egraph, runner.roots[0], runner.stop_reason.unwrap())
             });
 
             println!("Stopped because {:?}", reason);

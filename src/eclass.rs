@@ -3,7 +3,7 @@ use std::iter::ExactSizeIterator;
 
 use crate::{
     unionfind::{Key, UnionFind, Value},
-    ENode, Id, Language,
+    EGraph, ENode, Id, Language,
 };
 
 /** Arbitrary data associated with an [`EClass`].
@@ -71,7 +71,7 @@ let rules: &[Rewrite<EasyMath, Meta>] = &[
 
 let mut egraph = EGraph::<EasyMath, Meta>::default();
 let whole_thing = egraph.add_expr(&"(+ 0 (* (+ 4 -3) foo))".parse().unwrap());
-SimpleRunner::default().run(&mut egraph, &rules);
+Runner::default().run(&mut egraph, &rules);
 let just_foo = egraph.add(enode!(Variable("foo".into())));
 assert_eq!(egraph.find(whole_thing), egraph.find(just_foo));
 ```
@@ -97,7 +97,7 @@ pub trait Metadata<L>: Sized + Debug {
     /// [`Metadata`].
     ///
     /// [`Metadata`]: trait.Metadata.html
-    fn make(enode: ENode<L, &Self>) -> Self;
+    fn make(egraph: &EGraph<L, Self>, enode: &ENode<L>) -> Self;
 
     /// A hook that allow a [`Metadata`] to modify its containing
     /// [`EClass`].
@@ -112,7 +112,7 @@ pub trait Metadata<L>: Sized + Debug {
 impl<L: Language> Metadata<L> for () {
     type Error = std::convert::Infallible;
     fn merge(&self, _other: &()) {}
-    fn make(_enode: ENode<L, &()>) {}
+    fn make(_: &EGraph<L, Self>, _: &ENode<L>) {}
 }
 
 /// An equivalence class of [`ENode`]s
