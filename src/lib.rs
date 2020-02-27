@@ -17,7 +17,7 @@ an [`EGraph`].
 Add `egg` to your `Cargo.toml` like this:
 ```toml
 [dependencies]
-egg = "0.2.0"
+egg = "0.3.0"
 ```
 
 # Example
