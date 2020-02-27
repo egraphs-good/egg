@@ -11,6 +11,9 @@
 ### Changed
 - Reworked the `Runner` API. It's now a generic struct instead of a
   trait.
+- Patterns are now compiled into a small virtual machine bytecode inspired
+  by [this paper](https://link.springer.com/chapter/10.1007/978-3-540-73595-3_13).
+  This gets about a 40% speed up.
 
 ## [0.2.0] - 2020-02-19
 

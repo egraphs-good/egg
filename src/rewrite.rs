@@ -17,7 +17,7 @@ use crate::{EGraph, Id, Language, Metadata, SearchMatches, Subst};
 /// [`Condition`]: trait.Condition.html
 /// [`ConditionalApplier`]: struct.ConditionalApplier.html
 /// [`Rewrite`]: struct.Rewrite.html
-/// [`Pattern`]: enum.Pattern.html
+/// [`Pattern`]: struct.Pattern.html
 // TODO display
 #[derive(Clone)]
 #[non_exhaustive]
@@ -106,7 +106,7 @@ impl<L: Language, M: Metadata<L>> Rewrite<L, M> {
 ///
 /// [`Rewrite`]: struct.Rewrite.html
 /// [`Searcher`]: trait.Searcher.html
-/// [`Pattern`]: enum.Pattern.html
+/// [`Pattern`]: struct.Pattern.html
 pub trait Searcher<L, M>
 where
     L: Language,
@@ -232,7 +232,7 @@ where
 /// let start = "(+ x (* y z))".parse().unwrap();
 /// Runner::new().with_expr(&start).run(rules);
 /// ```
-/// [`Pattern`]: enum.Pattern.html
+/// [`Pattern`]: struct.Pattern.html
 /// [`EClass`]: struct.EClass.html
 /// [`Rewrite`]: struct.Rewrite.html
 /// [`ConditionalApplier`]: struct.ConditionalApplier.html
@@ -400,34 +400,23 @@ mod tests {
 
     use crate::{enode as e, *};
 
-    fn wc<L: Language>(name: &Var) -> Pattern<L> {
-        Pattern::Var(name.clone())
-    }
-
     #[test]
     fn conditional_rewrite() {
         crate::init_logger();
         let mut egraph = EGraph::<String, ()>::default();
 
-        let pat = |e| Pattern::ENode(Box::new(e));
         let x = egraph.add(e!("x"));
         let y = egraph.add(e!("2"));
         let mul = egraph.add(e!("*", x, y));
 
-        let true_pat = pat(e!("TRUE"));
+        let true_pat: Pattern<String> = "TRUE".parse().unwrap();
         let true_id = egraph.add(e!("TRUE"));
 
-        let a: Var = "?a".parse().unwrap();
-        let b: Var = "?b".parse().unwrap();
-
+        let pow2b: Pattern<String> = "(is-power2 ?b)".parse().unwrap();
         let mul_to_shift = rewrite!(
             "mul_to_shift";
-            { pat(e!("*", wc(&a), wc(&b))) } =>
-            { pat(e!(">>", wc(&a), pat(e!("log2", wc(&b))),)) }
-            if ConditionEqual(
-                pat(e!("is-power2", wc(&b))),
-                true_pat,
-            )
+            "(* ?a ?b)" => "(>> ?a (log2 ?b))"
+            if ConditionEqual(pow2b, true_pat)
         );
 
         println!("rewrite shouldn't do anything yet");
@@ -455,9 +444,6 @@ mod tests {
 
         let root = egraph.add_expr(&start);
 
-        let a: Var = "?a".parse().unwrap();
-        let b: Var = "?b".parse().unwrap();
-
         fn get(egraph: &EGraph<String, ()>, id: Id) -> &str {
             &egraph[id].nodes[0].op
         }
@@ -480,11 +466,8 @@ mod tests {
             }
         }
 
-        let pat = |e| Pattern::ENode(Box::new(e));
         let fold_add = rewrite!(
-            "fold_add";
-            { pat(e!("+", wc(&a), wc(&b))) } =>
-            { Appender }
+            "fold_add"; "(+ ?a ?b)" => { Appender }
         );
 
         fold_add.run(&mut egraph);

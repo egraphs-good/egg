@@ -288,7 +288,7 @@ fn is_not_zero(var: &'static str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
 [`Condition`]: trait.Condition.html
 [`ConditionalApplier`]: struct.ConditionalApplier.html
 [`Rewrite`]: struct.Rewrite.html
-[`Pattern`]: enum.Pattern.html
+[`Pattern`]: struct.Pattern.html
 [macro]: https://doc.rust-lang.org/stable/reference/macros-by-example.html#metavariables
 **/
 #[macro_export]
@@ -321,9 +321,9 @@ mod tests {
 
     #[test]
     fn some_rewrites() {
-        use crate::{Pattern, Rewrite};
+        use crate::{PatternAst, Rewrite};
 
-        let pat = Pattern::ENode(Box::new(enode!(Term::Num(3))));
+        let pat = PatternAst::ENode(Box::new(enode!(Term::Num(3)))).compile();
         let _: Vec<Rewrite<Term, ()>> = vec![
             // here it should parse the rhs
             rewrite!("rule"; "cons" => "f"),
