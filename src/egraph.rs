@@ -109,7 +109,7 @@ same eclass.
 [`EClass`]: struct.EClass.html
 [`ENode`]: struct.ENode.html
 [`Rewrite`]: struct.Rewrite.html
-[`Runner`]: trait.Runner.html
+[`Runner`]: struct.Runner.html
 [`Language`]: trait.Language.html
 [`Metadata`]: trait.Metadata.html
 [`Id`]: type.Id.html
