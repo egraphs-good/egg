@@ -83,7 +83,7 @@ impl<'a, L: Language, M> Machine<'a, L, M> {
                 self.reg.resize(new_len, 0);
                 self.reg[*out..new_len].copy_from_slice(&matched);
                 self.pc = *next;
-                return Some(())
+                return Some(());
             } else {
                 self.stack.pop().expect("we know the stack isn't empty");
             }
@@ -91,9 +91,12 @@ impl<'a, L: Language, M> Machine<'a, L, M> {
     }
 
     fn run(&mut self, mut yield_fn: impl FnMut(&Self, &[Reg])) {
-
         macro_rules! backtrack {
-            () => { if self.backtrack().is_none() { return } };
+            () => {
+                if self.backtrack().is_none() {
+                    return;
+                }
+            };
         }
 
         loop {
