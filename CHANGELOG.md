@@ -4,6 +4,14 @@
 
 ## [Unreleased] - ReleaseDate
 
+### Added
+- `Runner` can now be configured with user-defined `RewriteScheduler`s
+  and `IterationData`.
+
+### Changed
+- Reworked the `Runner` API. It's now a generic struct instead of a
+  trait.
+
 ## [0.2.0] - 2020-02-19
 
 ### Added

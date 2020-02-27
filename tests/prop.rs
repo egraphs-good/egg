@@ -11,6 +11,8 @@ define_language! {
     }
 }
 
+type EGraph = egg::EGraph<Prop, ConstantFold>;
+
 macro_rules! rule {
     ($name:ident, $left:literal, $right:literal) => {
         #[allow(dead_code)]
@@ -44,7 +46,7 @@ fn prove_something(name: &str, start: &str, rewrites: &[Rewrite<Prop, ()>], goal
     let start_expr: RecExpr<Prop> = start.parse().unwrap();
     let goal_exprs: Vec<RecExpr<Prop>> = goals.iter().map(|g| g.parse().unwrap()).collect();
 
-    let egraph = Runner::default()
+    let egraph = Runner::new()
         .with_iter_limit(20)
         .with_node_limit(5_000)
         .with_expr(&start_expr)
@@ -114,25 +116,23 @@ impl Metadata<Prop> for ConstantFold {
         println!("Merge");
         self.and(*other)
     }
-    fn make(expr: ENode<Prop, &Self>) -> Self {
-        let result = match &expr.op {
+    fn make(egraph: &EGraph, enode: &ENode<Prop>) -> Self {
+        let a = |i: usize| egraph[enode.children[i]].metadata;
+        let result = match &enode.op {
             Prop::Bool(c) => Some(*c),
             Prop::Variable(_) => None,
-            op => {
-                let a = |i: usize| *expr.children[i];
-                Some(match op {
-                    Prop::And => a(0)? && a(1)?,
-                    Prop::Or => a(0)? || a(1)?,
-                    Prop::Implies => a(1)? || !a(0)?,
-                    Prop::Not => {
-                        assert_eq!(expr.children.len(), 1);
-                        !a(0)?
-                    }
-                    _ => panic!("Unknown op: {:?}", op),
-                })
-            }
+            op => Some(match op {
+                Prop::And => a(0)? && a(1)?,
+                Prop::Or => a(0)? || a(1)?,
+                Prop::Implies => a(1)? || !a(0)?,
+                Prop::Not => {
+                    assert_eq!(enode.children.len(), 1);
+                    !a(0)?
+                }
+                _ => panic!("Unknown op: {:?}", op),
+            }),
         };
-        println!("Make: {:?} -> {:?}", expr, result);
+        println!("Make: {:?} -> {:?}", enode, result);
         result
     }
     fn modify(eclass: &mut EClass<Prop, Self>) {
@@ -149,6 +149,6 @@ fn const_fold() {
     let start_expr = start.parse().unwrap();
     let end = "false";
     let end_expr = end.parse().unwrap();
-    let (eg, _) = EGraph::<Prop, ConstantFold>::from_expr(&start_expr);
+    let (eg, _) = EGraph::from_expr(&start_expr);
     assert!(!eg.equivs(&start_expr, &end_expr).is_empty());
 }

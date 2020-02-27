@@ -75,25 +75,26 @@ impl Metadata<Math> for Meta {
         }
     }
 
-    fn make(expr: ENode<Math, &Self>) -> Self {
-        let expr = {
-            let const_args: Option<Vec<Constant>> = expr
+    fn make(egraph: &EGraph, enode: &ENode<Math>) -> Self {
+        let meta = |i: Id| &egraph[i].metadata;
+        let enode = {
+            let const_args: Option<Vec<Constant>> = enode
                 .children
                 .iter()
-                .map(|meta| match meta.best.as_ref().op {
+                .map(|id| match meta(*id).best.as_ref().op {
                     Math::Constant(c) => Some(c),
                     _ => None,
                 })
                 .collect();
 
             const_args
-                .and_then(|a| eval(expr.op.clone(), &a))
+                .and_then(|a| eval(enode.op.clone(), &a))
                 .map(|c| ENode::leaf(Math::Constant(c)))
-                .unwrap_or(expr)
+                .unwrap_or_else(|| enode.clone())
         };
 
-        let best: RecExpr<_> = expr.map_children(|c| c.best.clone()).into();
-        let cost = MathCostFn.cost(&expr.map_children(|c| c.cost));
+        let best: RecExpr<_> = enode.map_children(|c| meta(c).best.clone()).into();
+        let cost = MathCostFn.cost(&enode.map_children(|c| meta(c).cost));
         Self { best, cost }
     }
 
@@ -184,7 +185,7 @@ fn associate_adds() {
     ];
 
     // Must specfify the () metadata so pruning doesn't mess us up here
-    let egraph: egg::EGraph<Math, ()> = Runner::default()
+    let egraph: egg::EGraph<Math, ()> = Runner::new()
         .with_iter_limit(7)
         .with_node_limit(8_000)
         .with_scheduler(SimpleScheduler) // disable banning
@@ -211,7 +212,7 @@ macro_rules! check {
 
             let rules = rules();
             let (egraph, root, reason) = egg_bench(stringify!($name), || {
-                let runner = Runner::default()
+                let runner = Runner::new()
                     .with_iter_limit($iters)
                     .with_node_limit($limit)
                     .with_expr(&start_expr)

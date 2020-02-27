@@ -31,7 +31,7 @@ let rules = &[
 
 let mut egraph = EGraph::<String, ()>::default();
 egraph.add_expr(&"(/ (* 2 a) 2)".parse().unwrap());
-Runner::default().run(&mut egraph, rules);
+let egraph = Runner::new().with_egraph(egraph).run(rules).egraph;
 
 // Dot implements std::fmt::Display
 println!("My egraph dot file: {}", egraph.dot());

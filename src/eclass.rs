@@ -44,8 +44,11 @@ impl Metadata<EasyMath> for Meta {
     fn merge(&self, other: &Self) -> Self {
         self.clone().and(other.clone())
     }
-    fn make(enode: ENode<EasyMath, &Self>) -> Self {
-         let c = |i: usize| enode.children[i].clone();
+    fn make(egraph: &EGraph<EasyMath, Self>, enode: &ENode<EasyMath>) -> Self {
+         let c = |i: usize| {
+             let eclass = &egraph[enode.children[i]];
+             eclass.metadata.clone()
+         };
          match enode.op {
              Num(i) => Some(i),
              Add => Some(c(0)? + c(1)?),
@@ -69,11 +72,10 @@ let rules: &[Rewrite<EasyMath, Meta>] = &[
     rw!("mul-1"; "(* ?a 1)" => "?a"),
 ];
 
-let mut egraph = EGraph::<EasyMath, Meta>::default();
-let whole_thing = egraph.add_expr(&"(+ 0 (* (+ 4 -3) foo))".parse().unwrap());
-Runner::default().run(&mut egraph, &rules);
-let just_foo = egraph.add(enode!(Variable("foo".into())));
-assert_eq!(egraph.find(whole_thing), egraph.find(just_foo));
+let expr = "(+ 0 (* (+ 4 -3) foo))".parse().unwrap();
+let mut runner = Runner::new().with_expr(&expr).run(&rules);
+let just_foo = runner.egraph.add(enode!(Variable("foo".into())));
+assert_eq!(runner.egraph.find(runner.roots[0]), runner.egraph.find(just_foo));
 ```
 
 [`Metadata`]: trait.Metadata.html

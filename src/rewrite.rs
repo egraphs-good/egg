@@ -172,8 +172,9 @@ where
 ///         let size = self.size.min(other.size);
 ///         Meta { size }
 ///     }
-///     fn make(enode: ENode<Math, &Self>) -> Self {
-///         let size = AstSize.cost(&enode.map_children(|c| c.size));
+///     fn make(egraph: &EGraph, enode: &ENode<Math>) -> Self {
+///         let meta = |i: Id| &egraph[i].metadata;
+///         let size = AstSize.cost(&enode.map_children(|c| meta(c).size));
 ///         Meta { size }
 ///     }
 /// }
@@ -229,7 +230,7 @@ where
 /// }
 ///
 /// let start = "(+ x (* y z))".parse().unwrap();
-/// Runner::default().with_expr(&start).run(start, rules);
+/// Runner::new().with_expr(&start).run(rules);
 /// ```
 /// [`Pattern`]: enum.Pattern.html
 /// [`EClass`]: struct.EClass.html

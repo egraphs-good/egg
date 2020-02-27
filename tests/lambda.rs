@@ -80,10 +80,13 @@ impl Metadata<Lang> for Meta {
         }
     }
 
-    fn make(expr: ENode<Lang, &Self>) -> Self {
+    fn make(egraph: &EGraph, enode: &ENode<Lang>) -> Self {
         use Lang::*;
-        let get = |i: usize| expr.children.get(i).and_then(|m| m.constant.clone());
-        let constant = match (&expr.op, get(0), get(1)) {
+        let get = |i: usize| -> Option<Lang> {
+            let eclass = &egraph[*enode.children.get(i)?];
+            eclass.metadata.constant.clone()
+        };
+        let constant = match (&enode.op, get(0), get(1)) {
             (Num(i), _, _) => Some(Num(*i)),
             (Add, Some(Num(i1)), Some(Num(i2))) => Some(Num(i1 + i2)),
             (Eq, Some(Num(i1)), Some(Num(i2))) => Some(Bool(i1 == i2)),
@@ -110,7 +113,7 @@ fn prove_something(start: &str, goals: &[&str]) {
     let rules = rules();
 
     let (egraph, root) = egg_bench("lambda", || {
-        let runner = Runner::default()
+        let runner = Runner::new()
             .with_iter_limit(500)
             .with_node_limit(6_000)
             .with_expr(&start_expr)
