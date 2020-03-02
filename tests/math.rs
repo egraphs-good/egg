@@ -46,7 +46,7 @@ impl egg::CostFunction<Math> for MathCostFn {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Meta {
     pub cost: usize,
     pub best: RecExpr<Math>,

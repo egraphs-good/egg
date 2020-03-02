@@ -159,7 +159,7 @@ where
 ///
 /// // Our metadata in this case will be size of the smallest
 /// // represented expression in the eclass.
-/// #[derive(Debug)]
+/// #[derive(Debug, Clone, PartialEq, Eq)]
 /// struct Meta {
 ///     size: usize,
 /// }
@@ -194,11 +194,13 @@ where
 ///     }}),
 /// ];
 ///
+/// #[derive(Debug, Clone, PartialEq, Eq)]
 /// struct Funky {
 ///     a: Var,
 ///     b: Var,
 ///     c: Var,
 /// }
+///
 /// impl Applier<Math, Meta> for Funky {
 ///     fn apply_one(&self, egraph: &mut EGraph, matched_id: Id, subst: &Subst) -> Vec<Id> {
 ///         let a: Id = subst[&self.a];

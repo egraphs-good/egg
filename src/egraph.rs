@@ -372,6 +372,7 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
     fn rebuild_once(&mut self) -> usize {
         let mut new_memo = IndexMap::new();
         let mut to_union = Vec::new();
+        let mut new_metas = Vec::new();
 
         for (leader, class) in self.classes.iter() {
             for node in &class.nodes {
@@ -382,6 +383,13 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
                     }
                 }
             }
+
+            let mut metas = class.nodes.iter().map(|n| M::make(self, n));
+            let first_meta = metas.next().expect("eclass shouldn't be empty");
+            let meta = metas.fold(first_meta, |m1, m2| m1.merge(&m2));
+            if meta != class.metadata {
+                new_metas.push((class.id, meta))
+            }
         }
 
         let n_unions = to_union.len();
@@ -389,7 +397,12 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
             self.union(id1, id2);
         }
 
-        n_unions
+        let n_metas = new_metas.len();
+        for (id, meta) in new_metas {
+            self.classes.get_mut(id).metadata = meta;
+        }
+
+        n_unions + n_metas
     }
 
     fn rebuild_classes(&mut self) -> usize {
@@ -571,6 +584,11 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
             if t > 1000 && t % 1000 == 0 {
                 warn!("Long time: {}, to do: {}", t, ids.len());
             }
+
+            let mut metas = self[id].nodes.iter().map(|n| M::make(self, n));
+            let first_meta = metas.next().expect("eclass shouldn't be empty");
+            let meta = metas.fold(first_meta, |m1, m2| m1.merge(&m2));
+            self.classes.get_mut(id).metadata = meta;
 
             let map = self[id]
                 .parents

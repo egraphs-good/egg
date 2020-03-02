@@ -4,6 +4,11 @@
 
 ## [Unreleased] - ReleaseDate
 
+### Changed
+- **Fix:** An eclass's metadata will now get updated by
+  congruence. This unfortunately results in a little bit slower code,
+  but it's the right thing.
+
 ## [0.3.0] - 2020-02-27
 
 ### Added

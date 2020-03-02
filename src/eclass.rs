@@ -84,7 +84,7 @@ assert_eq!(runner.egraph.find(runner.roots[0]), runner.egraph.find(just_foo));
 [`math.rs`]: https://github.com/mwillsey/egg/blob/master/tests/math.rs
 [`prop.rs`]: https://github.com/mwillsey/egg/blob/master/tests/prop.rs
 */
-pub trait Metadata<L>: Sized + Debug {
+pub trait Metadata<L>: Sized + Debug + PartialEq + Eq {
     /// Unused for now, probably just make this `()`.
     type Error: Debug;
 

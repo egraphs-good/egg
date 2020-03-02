@@ -304,6 +304,7 @@ where
         // TODO check that we haven't
         loop {
             if let Err(stop_reason) = self.run_one(rules) {
+                info!("Stopping: {:?}", stop_reason);
                 self.stop_reason = Some(stop_reason);
                 break;
             }
