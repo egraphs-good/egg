@@ -7,7 +7,6 @@ define_language! {
         Bool(bool),
         Num(i32),
 
-        Int = "int",
         Var = "var",
 
         Add = "+",
@@ -28,12 +27,8 @@ define_language! {
 fn rules() -> Vec<Rewrite<Lang, Meta>> {
     vec![
         // open term rules
-
-        // NOTE I can't write a false rule here
-        rw!("if-true";  "(if (bool  true) ?then ?else)" => "?then"),
-        rw!("if-false"; "(if (bool false) ?then ?else)" => "?else"),
-        rw!("add-int"; "(+ (int ?a) (int ?b)))" => "(int (+ ?a ?b))"),
-        rw!("eq-int";  "(= (int ?a) (int ?b)))" => "(bool (= ?a ?b))"),
+        rw!("if-true";  "(if  true ?then ?else)" => "?then"),
+        rw!("if-false"; "(if false ?then ?else)" => "?else"),
         rw!("add-comm";  "(+ ?a ?b)"        => "(+ ?b ?a)"),
         rw!("add-assoc"; "(+ (+ ?a ?b) ?c)" => "(+ ?a (+ ?b ?c))"),
         // subst rules
@@ -44,8 +39,8 @@ fn rules() -> Vec<Rewrite<Lang, Meta>> {
         rw!("subst-app";  "(subst ?e ?v (app ?a ?b))" => "(app (subst ?e ?v ?a) (subst ?e ?v ?b))"),
         rw!("subst-add";  "(subst ?e ?v (+ ?a ?b))"   => "(+ (subst ?e ?v ?a) (subst ?e ?v ?b))"),
         rw!("subst-eq";   "(subst ?e ?v (= ?a ?b))"   => "(= (subst ?e ?v ?a) (subst ?e ?v ?b))"),
-        rw!("subst-int";  "(subst ?e ?v (int ?i))"    => "(int ?i)"),
-        rw!("subst-bool"; "(subst ?e ?v (bool ?b))"   => "(bool ?b)"),
+        rw!("subst-const";
+            "(subst ?e ?v ?c)" => "?c" if is_const("?c")),
         rw!("subst-if";
             "(subst ?e ?v (if ?cond ?then ?else))" =>
             "(if (subst ?e ?v ?cond) (subst ?e ?v ?then) (subst ?e ?v ?else))"
@@ -67,7 +62,12 @@ fn is_not_same_var(v1: &'static str, v2: &'static str) -> impl Fn(&mut EGraph, I
     move |_, _, subst| subst[&v1] != subst[&v2]
 }
 
-#[derive(Debug, Clone)]
+fn is_const(v1: &'static str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
+    let v1 = v1.parse().unwrap();
+    move |egraph, _, subst| egraph[subst[&v1]].metadata.constant.is_some()
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct Meta {
     constant: Option<Lang>,
 }
@@ -88,6 +88,7 @@ impl Metadata<Lang> for Meta {
         };
         let constant = match (&enode.op, get(0), get(1)) {
             (Num(i), _, _) => Some(Num(*i)),
+            (Bool(b), _, _) => Some(Bool(*b)),
             (Add, Some(Num(i1)), Some(Num(i2))) => Some(Num(i1 + i2)),
             (Eq, Some(Num(i1)), Some(Num(i2))) => Some(Bool(i1 == i2)),
             _ => None,
@@ -142,13 +143,13 @@ fn prove_something(start: &str, goals: &[&str]) {
 #[test]
 fn lambda_under() {
     prove_something(
-        "(lam x (+ (int 4)
+        "(lam x (+ 4
                    (app (lam y (var y))
-                        (int 4))))",
+                        4)))",
         &[
-            "(lam x (+ (int 4) (subst (int 4) y (var y))))",
-            "(lam x (+ (int 4) (int 4)))",
-            "(lam x (int 8)))",
+            "(lam x (+ 4 (subst 4 y (var y))))",
+            "(lam x (+ 4 4))",
+            "(lam x 8))",
         ],
     );
 }
@@ -156,14 +157,14 @@ fn lambda_under() {
 #[test]
 fn lambda_let_simple() {
     prove_something(
-        "(let x (int 0)
-         (let y (int 1)
+        "(let x 0
+         (let y 1
          (+ (var x) (var y))))",
         &[
-            "(let y (int 1)
-             (+ (int 0) (var y)))",
-            "(+ (int 0) (int 1))",
-            "(int 1)",
+            "(let y 1
+             (+ 0 (var y)))",
+            "(+ 0 1)",
+            "1",
         ],
     );
 }
@@ -171,7 +172,7 @@ fn lambda_let_simple() {
 #[test]
 #[should_panic(expected = "Couldn't prove goal 0")]
 fn lambda_capture() {
-    prove_something("(subst (int 1) x (lam x (var x)))", &["(lam x (int 1))"]);
+    prove_something("(subst 1 x (lam x (var x)))", &["(lam x 1)"]);
 }
 
 #[test]
@@ -179,32 +180,37 @@ fn lambda_compose() {
     prove_something(
         "(let compose (lam f (lam g (lam x (app (var f)
                                            (app (var g) (var x))))))
-         (let add1 (lam y (+ (var y) (int 1)))
+         (let add1 (lam y (+ (var y) 1))
          (app (app (var compose) (var add1)) (var add1))))",
         &[
-            "(lam x (+ (int 1)
-                       (app (lam y (+ (int 1) (var y)))
+            "(lam x (+ 1
+                       (app (lam y (+ 1 (var y)))
                             (var x))))",
-            "(lam x (+ (var x) (int 2)))",
+            "(lam x (+ (var x) 2))",
         ],
     );
+}
+
+#[test]
+fn lambda_if_simple() {
+    prove_something("(if (= 1 1) 7 9)", &["7"]);
 }
 
 #[test]
 fn lambda_if() {
     prove_something(
         "(let zeroone (lam x
-           (if (= (var x) (int 0))
-               (int 0)
-               (int 1)))
-         (+ (app (var zeroone) (int 0))
-            (app (var zeroone) (int 10))))",
+           (if (= (var x) 0)
+               0
+               1))
+         (+ (app (var zeroone) 0)
+            (app (var zeroone) 10)))",
         &[
             "(+
-               (if (bool false) (int 0) (int 1))
-               (if (bool true) (int 0) (int 1)))",
-            "(+ (int 1) (int 0))",
-            "(int 1)",
+               (if false 0 1)
+               (if true 0 1))",
+            "(+ 1 0)",
+            "1",
         ],
     );
 }
@@ -213,15 +219,15 @@ fn lambda_if() {
 fn lambda_fib() {
     prove_something(
         "(let fib (fix fib (lam n
-           (if (= (var n) (int 0))
-               (int 0)
-           (if (= (var n) (int 1))
-               (int 1)
+           (if (= (var n) 0)
+               0
+           (if (= (var n) 1)
+               1
            (+ (app (var fib)
-                   (+ (var n) (int -1)))
+                   (+ (var n) -1))
               (app (var fib)
-                   (+ (var n) (int -2))))))))
-         (app (var fib) (int 4)))",
-        &["(int 3)"],
+                   (+ (var n) -2)))))))
+         (app (var fib) 4))",
+        &["3"],
     );
 }
