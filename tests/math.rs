@@ -54,11 +54,13 @@ pub struct Meta {
 
 fn eval(op: Math, args: &[Constant]) -> Option<Constant> {
     let a = |i| args.get(i).cloned();
+    trace!("{} {:?} = ...", op, args);
+    let zero = Some(0.0.into());
     let res = match op {
         Math::Add => Some(a(0)? + a(1)?),
         Math::Sub => Some(a(0)? - a(1)?),
         Math::Mul => Some(a(0)? * a(1)?),
-        Math::Div => Some(a(0)? / a(1)?),
+        Math::Div if a(1) != zero => Some(a(0)? / a(1)?),
         _ => None,
     };
     trace!("{} {:?} = {:?}", op, args, res);
