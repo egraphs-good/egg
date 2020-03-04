@@ -242,6 +242,8 @@ pub struct Iteration<IterData> {
     /// Seconds spent [`rebuild`](struct.EGraph.html#method.rebuild)ing
     /// the egraph in this iteration.
     pub rebuild_time: f64,
+    /// Total time spent in this iteration, including data generation time.
+    pub total_time: f64,
     /// The user provided annotation for this iteration
     pub data: IterData,
 }
@@ -326,7 +328,7 @@ where
         let egraph_classes = self.egraph.number_of_classes();
         trace!("EGraph {:?}", self.egraph.dump());
 
-        let search_time = Instant::now();
+        let start_time = Instant::now();
 
         let mut matches = Vec::new();
         for rule in rules {
@@ -335,7 +337,7 @@ where
             self.check_limits()?;
         }
 
-        let search_time = search_time.elapsed().as_secs_f64();
+        let search_time = start_time.elapsed().as_secs_f64();
         info!("Search time: {}", search_time);
 
         let apply_time = Instant::now();
@@ -386,7 +388,7 @@ where
             apply_time,
             rebuild_time,
             data: IterData::make(&self),
-            // best_cost,
+            total_time: start_time.elapsed().as_secs_f64(),
         });
 
         if saturated {

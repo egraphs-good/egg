@@ -175,116 +175,69 @@ pub fn rules() -> Vec<Rewrite> { vec![
     ),
 ]}
 
-#[test]
-#[cfg_attr(feature = "parent-pointers", ignore)]
-fn associate_adds() {
-    let start = "(+ 1 (+ 2 (+ 3 (+ 4 (+ 5 (+ 6 7))))))";
-    let start_expr = start.parse().unwrap();
-
-    let rules = &[
+egg::test_fn! {
+    #[cfg_attr(feature = "parent-pointers", ignore)]
+    math_associate_adds, [
         rw!("comm-add"; "(+ ?a ?b)" => "(+ ?b ?a)"),
         rw!("assoc-add"; "(+ ?a (+ ?b ?c))" => "(+ (+ ?a ?b) ?c)"),
-    ];
-
-    // Must specfify the () metadata so pruning doesn't mess us up here
-    let egraph: egg::EGraph<Math, ()> = Runner::new()
+    ],
+    runner = Runner::new()
         .with_iter_limit(7)
-        .with_node_limit(8_000)
-        .with_scheduler(SimpleScheduler) // disable banning
-        .with_expr(&start_expr)
-        .run(rules)
-        .egraph;
-
-    // there are exactly 127 non-empty subsets of 7 things
-    assert_eq!(egraph.number_of_classes(), 127);
+        .with_scheduler(SimpleScheduler),
+    "(+ 1 (+ 2 (+ 3 (+ 4 (+ 5 (+ 6 7))))))"
+    =>
+    "(+ 7 (+ 6 (+ 5 (+ 4 (+ 3 (+ 2 1))))))"
+    @check |r: Runner<Math, ()>| assert_eq!(r.egraph.number_of_classes(), 127)
 }
 
-macro_rules! check {
-    (
-        $(#[$meta:meta])*
-        $name:ident, $iters:literal, $limit:literal,
-        $start:literal => $end:literal
-    ) => {
-        $(#[$meta])*
-        #[test]
-        fn $name() {
-            let _ = env_logger::builder().is_test(true).try_init();
-            let start_expr: RecExpr<_> = $start.parse().expect(concat!("Failed to parse ", $start));
-            let end_expr: RecExpr<_> = $end.parse().expect(concat!("Failed to parse ", $end));
-
-            let rules = rules();
-            let (egraph, root, reason) = egg_bench(stringify!($name), || {
-                let runner = Runner::new()
-                    .with_iter_limit($iters)
-                    .with_node_limit($limit)
-                    .with_expr(&start_expr)
-                    .with_expr(&end_expr)
-                    .run(&rules);
-
-                (runner.egraph, runner.roots[0], runner.stop_reason.unwrap())
-            });
-
-            println!("Stopped because {:?}", reason);
-            let (cost, best) = Extractor::new(&egraph, MathCostFn).find_best(root);
-            println!("Best ({}): {}", cost, best.pretty(40));
-
-            // make sure that pattern search also works
-            let pattern = Pattern::from(end_expr);
-            let matches = pattern.search_eclass(&egraph, root);
-
-            if matches.is_none() {
-                println!("start: {}", start_expr.pretty(40));
-                println!("start: {:?}", start_expr);
-                panic!(
-                    "\nCould not simplify\n{}\nto\n{}\nfound:\n{}",
-                    $start,
-                    $end,
-                    best.pretty(40)
-                );
-            }
-        }
-    };
+egg::test_fn! {
+    #[should_panic(expected = "Could not prove goal 0")]
+    math_fail, rules(),
+    "(+ x y)" => "(/ x y)"
 }
 
-check!(
-    #[should_panic(expected = "Could not simplify")]
-    simplify_fail, 5, 1_000, "(+ x y)" => "(/ x y)"
-);
+egg::test_fn! {math_simplify_add, rules(), "(+ x (+ x (+ x x)))" => "(* 4 x)" }
+egg::test_fn! {math_powers, rules(), "(* (pow 2 x) (pow 2 y))" => "(pow 2 (+ x y))"}
 
-check!(
+egg::test_fn! {
     #[cfg_attr(feature = "parent-pointers", ignore)]
-    simplify_add,   10,  1_000, "(+ x (+ x (+ x x)))" => "(* 4 x)"
-);
-check!(
-    #[cfg_attr(feature = "parent-pointers", ignore)]
-    simplify_const,  4,  1_000, "(+ 1 (- a (* (- 2 1) a)))" => "1"
-);
-check!(
-    #[cfg_attr(feature = "parent-pointers", ignore)]
-    simplify_root, 10, 75_000, r#"
-          (/ 1
-             (- (/ (+ 1 (sqrt five))
-                   2)
-                (/ (- 1 (sqrt five))
-                   2)))
-        "#
-       => "(/ 1 (sqrt five))"
-);
+    math_simplify_const, rules(),
+    "(+ 1 (- a (* (- 2 1) a)))" => "1"
+}
 
-check!(powers,         10, 1_000, "(* (pow 2 x) (pow 2 y))" => "(pow 2 (+ x y))");
-
-check!(diff_same,      10, 1_000, "(d x x)" => "1");
-check!(diff_different, 10, 1_000, "(d x y)" => "0");
-check!(diff_simple1,   10, 5_000, "(d x (+ 1 (* 2 x)))" => "2");
-check!(diff_simple2,   10, 5_000, "(d x (+ 1 (* y x)))" => "y");
-
-check!(
+egg::test_fn! {
     #[cfg_attr(feature = "parent-pointers", ignore)]
-    diff_power_simple, 20, 50_000, "(d x (pow x 3))" => "(* 3 (pow x 2))"
-);
-check!(
+    math_simplify_root, rules(),
+    runner = Runner::new().with_node_limit(75_000),
+    r#"
+    (/ 1
+       (- (/ (+ 1 (sqrt five))
+             2)
+          (/ (- 1 (sqrt five))
+             2)))"#
+    =>
+    "(/ 1 (sqrt five))"
+}
+
+egg::test_fn! {math_diff_same,      rules(), "(d x x)" => "1"}
+egg::test_fn! {math_diff_different, rules(), "(d x y)" => "0"}
+egg::test_fn! {math_diff_simple1,   rules(), "(d x (+ 1 (* 2 x)))" => "2"}
+egg::test_fn! {math_diff_simple2,   rules(), "(d x (+ 1 (* y x)))" => "y"}
+
+egg::test_fn! {
     #[cfg_attr(feature = "parent-pointers", ignore)]
-    diff_power_harder, 50, 50_000,
-    "(d x (- (pow x 3) (* 7 (pow x 2))))" =>
+    diff_power_simple, rules(),
+    "(d x (pow x 3))" => "(* 3 (pow x 2))"
+}
+egg::test_fn! {
+    #[cfg_attr(feature = "parent-pointers", ignore)]
+    diff_power_harder, rules(),
+    runner = Runner::new()
+        .with_iter_limit(50)
+        .with_node_limit(50_000)
+        // HACK this needs to "see" the end expression
+        .with_expr(&"(* x (- (* 3 x) 14))".parse().unwrap()),
+    "(d x (- (pow x 3) (* 7 (pow x 2))))"
+    =>
     "(* x (- (* 3 x) 14))"
-);
+}

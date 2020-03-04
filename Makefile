@@ -10,11 +10,14 @@ test-egg:
 	cargo test
 	cargo clippy --tests
 
+	cargo test           --features "reports"
+
 	cargo build          --features "parent-pointers"
 	cargo test           --features "parent-pointers"
 	cargo clippy --tests --features "parent-pointers"
 
 	cargo clippy --tests --features "serde-1"
+	cargo clippy --tests --features "reports"
 
 .PHONY: test-web
 test-web:
@@ -30,5 +33,7 @@ deploy-web-demo:
 	cd ~/src/site; make deploy
 
 # makefile hack to run my hacky benchmarks
+bench:
+	cargo test --features "reports" --release -- --test-threads=1 --nocapture
 bench-%:
-	cargo test --release -- --test-threads=1 --nocapture $*
+	cargo test --features "reports" --release -- --test-threads=1 --nocapture $*

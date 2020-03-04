@@ -103,131 +103,80 @@ impl Metadata<Lang> for Meta {
     }
 }
 
-fn prove_something(start: &str, goals: &[&str]) {
-    let _ = env_logger::builder().is_test(true).try_init();
-
-    let start_expr = start.parse().unwrap();
-    println!("Start ({}): {}", AstSize.cost_rec(&start_expr), start);
-
-    let goal_exprs: Vec<_> = goals.iter().map(|g| g.parse().unwrap()).collect();
-
-    let rules = rules();
-
-    let (egraph, root) = egg_bench("lambda", || {
-        let runner = Runner::new()
-            .with_iter_limit(500)
-            .with_node_limit(6_000)
-            .with_expr(&start_expr)
-            .run(&rules);
-        (runner.egraph, runner.roots[0])
-    });
-
-    let (cost, best) = Extractor::new(&egraph, AstSize).find_best(root);
-    println!("End ({}): {}", cost, best.pretty(80));
-
-    for (i, (goal_expr, goal_str)) in goal_exprs.iter().zip(goals).enumerate() {
-        println!("Trying to prove goal {}: {}", i, goal_str);
-        let equivs = egraph.equivs(&start_expr, &goal_expr);
-        if equivs.is_empty() {
-            let best = Extractor::new(&egraph, AstSize).find_best(root).1;
-            panic!(
-                "Couldn't prove goal {}: {}\nFound {}",
-                i,
-                goal_str,
-                best.pretty(40)
-            );
-        }
-    }
+egg::test_fn! {
+    lambda_under, rules(),
+    "(lam x (+ 4
+               (app (lam y (var y))
+                    4)))"
+    =>
+    "(lam x (+ 4 (subst 4 y (var y))))",
+    "(lam x (+ 4 4))",
+    "(lam x 8))",
 }
 
-#[test]
-fn lambda_under() {
-    prove_something(
-        "(lam x (+ 4
-                   (app (lam y (var y))
-                        4)))",
-        &[
-            "(lam x (+ 4 (subst 4 y (var y))))",
-            "(lam x (+ 4 4))",
-            "(lam x 8))",
-        ],
-    );
+egg::test_fn! {
+    lambda_let_simple, rules(),
+    "(let x 0
+     (let y 1
+     (+ (var x) (var y))))"
+    =>
+    "(let y 1
+     (+ 0 (var y)))",
+    "(+ 0 1)",
+    "1",
 }
 
-#[test]
-fn lambda_let_simple() {
-    prove_something(
-        "(let x 0
-         (let y 1
-         (+ (var x) (var y))))",
-        &[
-            "(let y 1
-             (+ 0 (var y)))",
-            "(+ 0 1)",
-            "1",
-        ],
-    );
+egg::test_fn! {
+    #[should_panic(expected = "Could not prove goal 0")]
+    lambda_capture, rules(),
+    "(subst 1 x (lam x (var x)))" => "(lam x 1)"
 }
 
-#[test]
-#[should_panic(expected = "Couldn't prove goal 0")]
-fn lambda_capture() {
-    prove_something("(subst 1 x (lam x (var x)))", &["(lam x 1)"]);
+egg::test_fn! {
+    lambda_compose, rules(),
+    "(let compose (lam f (lam g (lam x (app (var f)
+                                       (app (var g) (var x))))))
+     (let add1 (lam y (+ (var y) 1))
+     (app (app (var compose) (var add1)) (var add1))))"
+    =>
+    "(lam x (+ 1
+               (app (lam y (+ 1 (var y)))
+                    (var x))))",
+    "(lam x (+ (var x) 2))"
 }
 
-#[test]
-fn lambda_compose() {
-    prove_something(
-        "(let compose (lam f (lam g (lam x (app (var f)
-                                           (app (var g) (var x))))))
-         (let add1 (lam y (+ (var y) 1))
-         (app (app (var compose) (var add1)) (var add1))))",
-        &[
-            "(lam x (+ 1
-                       (app (lam y (+ 1 (var y)))
-                            (var x))))",
-            "(lam x (+ (var x) 2))",
-        ],
-    );
+egg::test_fn! {
+    lambda_if_simple, rules(),
+    "(if (= 1 1) 7 9)" => "7"
 }
 
-#[test]
-fn lambda_if_simple() {
-    prove_something("(if (= 1 1) 7 9)", &["7"]);
+egg::test_fn! {
+    lambda_if, rules(),
+    "(let zeroone (lam x
+        (if (= (var x) 0)
+            0
+            1))
+        (+ (app (var zeroone) 0)
+        (app (var zeroone) 10)))"
+    =>
+    "(+
+        (if false 0 1)
+        (if true 0 1))",
+    "(+ 1 0)",
+    "1",
 }
 
-#[test]
-fn lambda_if() {
-    prove_something(
-        "(let zeroone (lam x
-           (if (= (var x) 0)
-               0
-               1))
-         (+ (app (var zeroone) 0)
-            (app (var zeroone) 10)))",
-        &[
-            "(+
-               (if false 0 1)
-               (if true 0 1))",
-            "(+ 1 0)",
-            "1",
-        ],
-    );
-}
-
-#[test]
-fn lambda_fib() {
-    prove_something(
-        "(let fib (fix fib (lam n
-           (if (= (var n) 0)
-               0
-           (if (= (var n) 1)
-               1
-           (+ (app (var fib)
-                   (+ (var n) -1))
-              (app (var fib)
-                   (+ (var n) -2)))))))
-         (app (var fib) 4))",
-        &["3"],
-    );
+egg::test_fn! {
+    lambda_fib, rules(),
+    "(let fib (fix fib (lam n
+        (if (= (var n) 0)
+            0
+        (if (= (var n) 1)
+            1
+        (+ (app (var fib)
+                (+ (var n) -1))
+            (app (var fib)
+                (+ (var n) -2)))))))
+        (app (var fib) 4))"
+    => "3"
 }
