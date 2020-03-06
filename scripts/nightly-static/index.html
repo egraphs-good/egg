@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Egg Nightly</title>
+  <script src="https://d3js.org/d3.v5.min.js"></script>
+  <script src="https://d3js.org/d3-array.v2.min.js"></script>
+  <script src="https://unpkg.com/@popperjs/core@2"></script>
+  <script src="https://unpkg.com/tippy.js@6"></script>
+  <script defer src="main.js"></script>
+  <style>
+    body {
+        font-family: sans-serif;
+        color: #444;
+    }
+
+    .line {
+        fill: none;
+        stroke: #ffab00;
+        stroke-width: 3;
+    }
+
+    .line:hover {
+        stroke: #000;
+    }
+
+    .axis path,
+    .axis line {
+        fill: none;
+        stroke: #000;
+        shape-rendering: crispEdges;
+    }
+    .axis text {
+        font-size: 10px;
+    }
+
+    .tippy-box {
+        border-radius: 8px;
+    }
+    .tippy-content a {
+        color: lightgray;
+    }
+  </style>
+</head>
+<body>
+  <ul id="runs"></ul>
+  <svg id="plot"></svg>
+</body>
+</html>

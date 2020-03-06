@@ -32,6 +32,14 @@ deploy-web-demo:
 	rsync -a target/deploy/ ~/src/site/stuff/egg/
 	cd ~/src/site; make deploy
 
+.PHONY: deploy-nightlies
+deploy-nightlies:
+	rsync -ri --exclude=".*" scripts/nightly-static/ ~/public/egg-nightlies/
+
+.PHONY: nightly
+nightly:
+	bash scripts/run-nightly.sh
+
 # makefile hack to run my hacky benchmarks
 bench:
 	cargo test --features "reports" --release -- --test-threads=1 --nocapture
