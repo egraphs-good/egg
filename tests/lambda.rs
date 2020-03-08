@@ -29,6 +29,16 @@ fn rules() -> Vec<Rewrite<Lang, Meta>> {
         // open term rules
         rw!("if-true";  "(if  true ?then ?else)" => "?then"),
         rw!("if-false"; "(if false ?then ?else)" => "?else"),
+        rw!("if-elim1"; "(if (= (var ?x) (var ?y)) ?then ?else)" => "?else" if {
+            let thn: Pattern<_> = "(subst (var ?x) ?y ?then)".parse().unwrap();
+            let els: Pattern<_> = "(subst (var ?x) ?y ?else)".parse().unwrap();
+            ConditionEqual(thn, els)
+        }),
+        rw!("if-elim2"; "(if (= (var ?x) (var ?y)) ?then ?else)" => "?else" if {
+            let thn: Pattern<_> = "(subst (var ?y) ?x ?then)".parse().unwrap();
+            let els: Pattern<_> = "(subst (var ?y) ?x ?else)".parse().unwrap();
+            ConditionEqual(thn, els)
+        }),
         rw!("add-comm";  "(+ ?a ?b)"        => "(+ ?b ?a)"),
         rw!("add-assoc"; "(+ (+ ?a ?b) ?c)" => "(+ ?a (+ ?b ?c))"),
         // subst rules
@@ -138,6 +148,14 @@ fn prove_something(start: &str, goals: &[&str]) {
             );
         }
     }
+}
+
+#[test]
+fn lambda_if_elim() {
+    prove_something(
+        "(if (= (var a) (var b)) (+ (var a) (var a)) (+ (var a) (var b)))",
+        &["(+ (var a) (var b))"],
+    );
 }
 
 #[test]
