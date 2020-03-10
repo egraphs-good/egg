@@ -42,6 +42,6 @@ for suite in $suites; do
     suite=${suite/%.rs/}
     test_dir="$run_dir/$suite/"
     mkdir $test_dir
-    cmd="cargo test --features 'reports' --release --test ${suite} -- --test-threads=1"
+    cmd="cargo test --features reports --release --test ${suite} -- --test-threads=1"
     EGG_BENCH_DIR=$test_dir run $cmd
 done
