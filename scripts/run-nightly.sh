@@ -28,6 +28,7 @@ run_dir="${data_dir}/${now}___${branch}___${rev}"
 echo "Running nightly into ${run_dir}"
 if [ -d "$run_dir" ]; then
     echo "Already exists: $run_dir"
+    exit 0
 else
     mkdir "$run_dir"
 fi
