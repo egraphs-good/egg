@@ -184,7 +184,7 @@ where
         Self {
             iter_limit: 30,
             node_limit: 10_000,
-            time_limit: Duration::from_secs(60),
+            time_limit: Duration::from_secs(5),
 
             egraph: EGraph::default(),
             roots: vec![],
@@ -266,7 +266,7 @@ where
         Self { node_limit, ..self }
     }
 
-    /// Sets the runner time limit. Default: 60 seconds
+    /// Sets the runner time limit. Default: 5 seconds
     pub fn with_time_limit(self, time_limit: Duration) -> Self {
         Self { time_limit, ..self }
     }
@@ -318,7 +318,7 @@ where
     fn run_one(&mut self, rules: &[Rewrite<L, M>]) -> RunnerResult<()> {
         assert!(self.stop_reason.is_none());
 
-        info!("Iteration {}", self.iterations.len());
+        info!("\nIteration {}", self.iterations.len());
 
         self.try_start();
         self.check_limits()?;
@@ -440,8 +440,9 @@ where
     /// Whether or not the [`Runner`](struct.Runner.html) is allowed
     /// to say it has saturated.
     ///
+    /// This is only called when the runner is otherwise saturated.
     /// Default implementation just returns `true`.
-    fn can_stop(&self, iteration: usize) -> bool {
+    fn can_stop(&mut self, iteration: usize) -> bool {
         true
     }
 
@@ -563,10 +564,47 @@ where
     L: Language,
     M: Metadata<L>,
 {
-    fn can_stop(&self, iteration: usize) -> bool {
-        let is_banned = |s: &RuleStats| s.banned_until > iteration;
-        let any_bans = self.stats.values().any(is_banned);
-        !any_bans
+    fn can_stop(&mut self, iteration: usize) -> bool {
+        let n_stats = self.stats.len();
+        assert!(n_stats > 0);
+
+        let mut banned: Vec<_> = self
+            .stats
+            .iter_mut()
+            .filter(|(_, s)| s.banned_until > iteration)
+            .collect();
+
+        if banned.is_empty() {
+            true
+        } else {
+            let min_ban = banned
+                .iter()
+                .map(|(_, s)| s.banned_until)
+                .min()
+                .expect("banned cannot be empty here");
+
+            assert!(min_ban >= iteration);
+            let delta = min_ban - iteration;
+
+            let mut unbanned = vec![];
+            for (name, s) in &mut banned {
+                s.banned_until -= delta;
+                if s.banned_until == iteration {
+                    unbanned.push(name.as_str());
+                }
+            }
+
+            assert!(!unbanned.is_empty());
+            info!(
+                "Banned {}/{}, fast-forwarded by {} to unban {}",
+                banned.len(),
+                n_stats,
+                delta,
+                unbanned.join(", "),
+            );
+
+            false
+        }
     }
 
     fn search_rewrite(
