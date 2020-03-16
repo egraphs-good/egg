@@ -271,7 +271,22 @@ egg::test_fn! {
     "(* x (- (* 3 x) 14))"
 }
 
-egg::test_fn! {integ_sin, rules(), "(i (cos x) x)" => "(sin x)"}
-egg::test_fn! {integ_x, rules(), "(i (pow x 1) x)" => "(/ (pow x 2) 2)"}
-egg::test_fn! {integ_part1, rules(), "(i (* x (cos x)) x)" => "(+ (* x (sin x)) (cos x))"}
-egg::test_fn! {integ_part2, rules(), "(i (* (cos x) x) x)" => "(+ (* x (sin x)) (cos x))"}
+egg::test_fn! {
+    #[cfg_attr(feature = "parent-pointers", ignore)]
+    integ_sin, rules(), "(i (cos x) x)" => "(sin x)"
+}
+
+egg::test_fn! {
+    #[cfg_attr(feature = "parent-pointers", ignore)]
+    integ_x, rules(), "(i (pow x 1) x)" => "(/ (pow x 2) 2)"
+}
+
+egg::test_fn! {
+    #[cfg_attr(feature = "parent-pointers", ignore)]
+    integ_part1, rules(), "(i (* x (cos x)) x)" => "(+ (* x (sin x)) (cos x))"
+}
+
+egg::test_fn! {
+    #[cfg_attr(feature = "parent-pointers", ignore)]
+    integ_part2, rules(), "(i (* (cos x) x) x)" => "(+ (* x (sin x)) (cos x))"
+}
