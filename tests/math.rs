@@ -11,6 +11,7 @@ type Constant = NotNan<f64>;
 define_language! {
     pub enum Math {
         Diff = "d",
+        Integral = "i",
 
         Constant(Constant),
         Add = "+",
@@ -27,6 +28,12 @@ define_language! {
         Log1p = "log1p",
         Expm1 = "expm1",
 
+        Sin = "sin",
+        Cos = "cos",
+        Tan = "tan",
+        Sec = "sec",
+        Cot = "cot",
+
         RealToPosit = "real->posit",
         Variable(String),
     }
@@ -40,6 +47,7 @@ impl egg::CostFunction<Math> for MathCostFn {
     fn cost(&mut self, enode: &ENode<Math, Self::Cost>) -> Self::Cost {
         let op_cost = match enode.op {
             Math::Diff => 100,
+            Math::Integral => 100,
             _ => 1,
         };
         op_cost + enode.children.iter().sum::<usize>()
@@ -110,6 +118,15 @@ impl Metadata<Math> for Meta {
     }
 }
 
+fn c_is_const(egraph: &mut EGraph, _: Id, subst: &Subst) -> bool {
+    let c = "?c".parse().unwrap();
+    let is_const = egraph[subst[&c]].nodes.iter().any(|n| match n.op {
+        Math::Constant(_) => true,
+        _ => false,
+    });
+    is_const
+}
+
 fn c_is_const_or_var_and_not_x(egraph: &mut EGraph, _: Id, subst: &Subst) -> bool {
     let c = "?c".parse().unwrap();
     let x = "?x".parse().unwrap();
@@ -164,6 +181,9 @@ pub fn rules() -> Vec<Rewrite> { vec![
     rw!("d-add"; "(d ?x (+ ?a ?b))" => "(+ (d ?x ?a) (d ?x ?b))"),
     rw!("d-mul"; "(d ?x (* ?a ?b))" => "(+ (* ?a (d ?x ?b)) (* ?b (d ?x ?a)))"),
 
+    rw!("d-sin"; "(d ?x (sin ?x))" => "(cos ?x)"),
+    rw!("d-cos"; "(d ?x (cos ?x))" => "(* -1 (sin ?x))"),
+
     rw!("d-power";
         "(d ?x (pow ?f ?g))" =>
         "(* (pow ?f ?g)
@@ -173,6 +193,17 @@ pub fn rules() -> Vec<Rewrite> { vec![
                   (log ?f))))"
         if is_not_zero("?f")
     ),
+
+    rw!("i-power-const"; "(i (pow ?x ?c) ?x)" =>
+        "(/ (pow ?x (+ ?c 1)) (+ ?c 1))" if c_is_const),
+    rw!("i-cos"; "(i (cos ?x) ?x)" => "(sin ?x)"),
+    rw!("i-sin"; "(i (sin ?x) ?x)" => "(* -1 (cos ?x))"),
+    rw!("i-sum"; "(i (+ ?f ?g) ?x)" => "(+ (i ?f ?x) (i ?g ?x))"),
+    rw!("i-dif"; "(i (- ?f ?g) ?x)" => "(- (i ?f ?x) (i ?g ?x))"),
+    rw!("i-parts1"; "(i (* ?a ?b) ?x)" =>
+        "(- (* ?a (i ?b ?x)) (i (* (d ?x ?a) (i ?b ?x)) ?x))"),
+    rw!("i-parts2"; "(i (* ?a ?b) ?x)" =>
+        "(- (* ?b (i ?a ?x)) (i (* (d ?x ?b) (i ?a ?x)) ?x))"),
 ]}
 
 egg::test_fn! {
@@ -241,3 +272,8 @@ egg::test_fn! {
     =>
     "(* x (- (* 3 x) 14))"
 }
+
+egg::test_fn! {integ_sin, rules(), "(i (cos x) x)" => "(sin x)"}
+egg::test_fn! {integ_x, rules(), "(i (pow x 1) x)" => "(/ (pow x 2) 2)"}
+egg::test_fn! {integ_part1, rules(), "(i (* x (cos x)) x)" => "(+ (* x (sin x)) (cos x))"}
+egg::test_fn! {integ_part2, rules(), "(i (* (cos x) x) x)" => "(+ (* x (sin x)) (cos x))"}
