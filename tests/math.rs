@@ -202,8 +202,6 @@ pub fn rules() -> Vec<Rewrite> { vec![
     rw!("i-dif"; "(i (- ?f ?g) ?x)" => "(- (i ?f ?x) (i ?g ?x))"),
     rw!("i-parts1"; "(i (* ?a ?b) ?x)" =>
         "(- (* ?a (i ?b ?x)) (i (* (d ?x ?a) (i ?b ?x)) ?x))"),
-    rw!("i-parts2"; "(i (* ?a ?b) ?x)" =>
-        "(- (* ?b (i ?a ?x)) (i (* (d ?x ?b) (i ?a ?x)) ?x))"),
 ]}
 
 egg::test_fn! {
