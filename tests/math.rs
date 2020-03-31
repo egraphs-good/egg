@@ -21,6 +21,7 @@ define_language! {
         Pow = "pow",
         Exp = "exp",
         Log = "log",
+        Ln = "ln",
         Sqrt = "sqrt",
         Cbrt = "cbrt",
         Fabs = "fabs",
@@ -174,6 +175,7 @@ pub fn rules() -> Vec<Rewrite> { vec![
     rw!("pow1"; "(pow ?x 1)" => "?x"),
     rw!("pow2"; "(pow ?x 2)" => "(* ?x ?x)"),
     rw!("pow-recip"; "(pow ?x -1)" => "(/ 1 ?x)" if is_not_zero("?x")),
+    rw!("recip-mul-div"; "(* ?x (/ 1 ?x))" => "1"),
 
     rw!("d-variable"; "(d ?x ?x)" => "1"),
     rw!("d-constant"; "(d ?x ?c)" => "0" if c_is_const_or_var_and_not_x),
@@ -183,6 +185,8 @@ pub fn rules() -> Vec<Rewrite> { vec![
 
     rw!("d-sin"; "(d ?x (sin ?x))" => "(cos ?x)"),
     rw!("d-cos"; "(d ?x (cos ?x))" => "(* -1 (sin ?x))"),
+
+    rw!("d-ln"; "(d ?x (ln ?x))" => "(/ 1 ?x)"),
 
     rw!("d-power";
         "(d ?x (pow ?f ?g))" =>
@@ -194,13 +198,14 @@ pub fn rules() -> Vec<Rewrite> { vec![
         if is_not_zero("?f")
     ),
 
+    rw!("i-one"; "(i 1 ?x)" => "?x"),
     rw!("i-power-const"; "(i (pow ?x ?c) ?x)" =>
         "(/ (pow ?x (+ ?c 1)) (+ ?c 1))" if c_is_const),
     rw!("i-cos"; "(i (cos ?x) ?x)" => "(sin ?x)"),
     rw!("i-sin"; "(i (sin ?x) ?x)" => "(* -1 (cos ?x))"),
     rw!("i-sum"; "(i (+ ?f ?g) ?x)" => "(+ (i ?f ?x) (i ?g ?x))"),
     rw!("i-dif"; "(i (- ?f ?g) ?x)" => "(- (i ?f ?x) (i ?g ?x))"),
-    rw!("i-parts1"; "(i (* ?a ?b) ?x)" =>
+    rw!("i-parts"; "(i (* ?a ?b) ?x)" =>
         "(- (* ?a (i ?b ?x)) (i (* (d ?x ?a) (i ?b ?x)) ?x))"),
 ]}
 
@@ -252,6 +257,7 @@ egg::test_fn! {math_diff_same,      rules(), "(d x x)" => "1"}
 egg::test_fn! {math_diff_different, rules(), "(d x y)" => "0"}
 egg::test_fn! {math_diff_simple1,   rules(), "(d x (+ 1 (* 2 x)))" => "2"}
 egg::test_fn! {math_diff_simple2,   rules(), "(d x (+ 1 (* y x)))" => "y"}
+egg::test_fn! {math_diff_ln,        rules(), "(d x (ln x))" => "(/ 1 x)"}
 
 egg::test_fn! {
     #[cfg_attr(feature = "parent-pointers", ignore)]
@@ -273,6 +279,11 @@ egg::test_fn! {
 
 egg::test_fn! {
     #[cfg_attr(feature = "parent-pointers", ignore)]
+    integ_one, rules(), "(i 1 x)" => "x"
+}
+
+egg::test_fn! {
+    #[cfg_attr(feature = "parent-pointers", ignore)]
     integ_sin, rules(), "(i (cos x) x)" => "(sin x)"
 }
 
@@ -289,4 +300,9 @@ egg::test_fn! {
 egg::test_fn! {
     #[cfg_attr(feature = "parent-pointers", ignore)]
     integ_part2, rules(), "(i (* (cos x) x) x)" => "(+ (* x (sin x)) (cos x))"
+}
+
+egg::test_fn! {
+    #[cfg_attr(feature = "parent-pointers", ignore)]
+    integ_part3, rules(), "(i (ln x) x)" => "(- (* x (ln x)) x)"
 }
