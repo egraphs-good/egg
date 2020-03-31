@@ -94,7 +94,7 @@ impl<T> Reporter<T> {
 
         let report = serde_json::json!({
             "name": &self.name,
-            "times": self.times.as_ref().map(Vec::as_slice),
+            "times": self.times.as_deref(),
             "data": to_report(&self.result),
         });
 
