@@ -484,7 +484,7 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
         loop {
             let u = self.rebuild_once();
             n_unions += u;
-            n_rebuilds += 1;
+            n_rebuilds += self.number_of_classes();
             if u == 0 {
                 break;
             }
