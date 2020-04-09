@@ -429,9 +429,10 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
 
     /// Does very little since you're in parent-pointers mode.
     #[cfg(feature = "parent-pointers")]
-    pub fn rebuild(&mut self) {
+    pub fn rebuild(&mut self) -> usize {
         info!("Skipping rebuild because we have parent pointers");
         self.rebuild_classes();
+        0
     }
 
     /// Restores the egraph invariants of congruence and enode uniqueness.
@@ -465,10 +466,10 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
     /// assert_eq!(egraph.find(ax), egraph.find(ay));
     /// ```
     #[cfg(not(feature = "parent-pointers"))]
-    pub fn rebuild(&mut self) {
+    pub fn rebuild(&mut self) -> usize {
         if self.unions_since_rebuild == 0 {
             info!("Skipping rebuild!");
-            return;
+            return 0;
         }
 
         self.unions_since_rebuild = 0;
@@ -509,6 +510,8 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
             n_unions,
             trimmed_nodes,
         );
+
+        n_rebuilds
     }
 
     /// Unions two eclasses given their ids.

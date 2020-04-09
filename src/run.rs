@@ -246,6 +246,8 @@ pub struct Iteration<IterData> {
     pub total_time: f64,
     /// The user provided annotation for this iteration
     pub data: IterData,
+    /// The number of rebuild iterations done after this iteration completed.
+    pub n_rebuilds: usize,
 }
 
 type RunnerResult<T> = std::result::Result<T, StopReason>;
@@ -315,6 +317,28 @@ where
         self
     }
 
+    #[rustfmt::skip]
+    /// Prints some information about a runners run.
+    pub fn print_report(&self) {
+        let search_time: f64 = self.iterations.iter().map(|i| i.search_time).sum();
+        let apply_time: f64 = self.iterations.iter().map(|i| i.apply_time).sum();
+        let rebuild_time: f64 = self.iterations.iter().map(|i| i.rebuild_time).sum();
+        let total_time: f64 = self.iterations.iter().map(|i| i.total_time).sum();
+
+        let iters = self.iterations.len();
+        let rebuilds: usize = self.iterations.iter().map(|i| i.n_rebuilds).sum();
+
+        println!("Runner report");
+        println!("=============");
+        println!("  Stop reason: {:?}", self.stop_reason.as_ref().unwrap());
+        println!("  Iterations: {}", iters);
+        println!("  Rebuilds: {}, {:.2} per iter", rebuilds, (rebuilds as f64) / (iters as f64));
+        println!("  Total time: {}", total_time);
+        println!("    Search:  ({:.2}) {}", search_time / total_time, search_time);
+        println!("    Apply:   ({:.2}) {}", apply_time / total_time, apply_time);
+        println!("    Rebuild: ({:.2}) {}", rebuild_time / total_time, rebuild_time);
+    }
+
     fn run_one(&mut self, rules: &[Rewrite<L, M>]) -> RunnerResult<()> {
         assert!(self.stop_reason.is_none());
 
@@ -368,7 +392,7 @@ where
         info!("Apply time: {}", apply_time);
 
         let rebuild_time = Instant::now();
-        self.egraph.rebuild();
+        let n_rebuilds = self.egraph.rebuild();
 
         let rebuild_time = rebuild_time.elapsed().as_secs_f64();
         info!("Rebuild time: {}", rebuild_time);
@@ -387,6 +411,7 @@ where
             search_time,
             apply_time,
             rebuild_time,
+            n_rebuilds,
             data: IterData::make(&self),
             total_time: start_time.elapsed().as_secs_f64(),
         });

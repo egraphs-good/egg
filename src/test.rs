@@ -58,13 +58,14 @@ impl<T> Reporter<T> {
     }
 
     #[cfg(not(feature = "reports"))]
-    pub fn report<R>(self, _to_report: impl FnOnce(&T) -> &R) -> T {
+    pub fn report<R>(self, to_report: impl FnOnce(&T) -> &R) -> T {
         if let Some(dir) = var::<PathBuf>("EGG_BENCH_DIR") {
             eprintln!(
                 "EGG_BENCH_DIR is set to '{:?}', but the 'reports' feature is not enabled",
                 dir
             );
         }
+        to_report(&self.result);
         self.result
     }
 
@@ -164,7 +165,6 @@ where
         let id = egraph.find(*self.roots.last().unwrap());
 
         let (cost, best) = Extractor::new(egraph, AstSize).find_best(id);
-        println!("Stop reason: {:?}", self.stop_reason.as_ref().unwrap());
         println!("End ({}): {}", cost, best.pretty(80));
 
         for (i, goal) in goals.iter().enumerate() {
@@ -223,8 +223,8 @@ macro_rules! test_fn {
 
             let runner = $crate::test::run(name, || {
                 $runner.with_expr(&start).run(&rules)
-            })
-            .report(|r| &r.iterations);
+            }).report(|r| &r.iterations);
+            runner.print_report();
 
             let goals = &[$(
                 $goal.parse().unwrap()
