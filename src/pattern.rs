@@ -144,10 +144,22 @@ where
     M: Metadata<L>,
 {
     fn search(&self, egraph: &EGraph<L, M>) -> Vec<SearchMatches> {
-        egraph
-            .classes()
-            .filter_map(|e| self.search_eclass(egraph, e.id))
-            .collect()
+	match &self.ast {
+	    PatternAst::ENode(e) => {
+		if let Some(ids) = egraph.sigtoclasses.get(&(e.op.clone(), e.children.len())) {
+		    ids.iter().filter_map(|id| self.search_eclass(egraph, *id))
+			.collect()
+		} else {
+		    vec![]
+		}
+	    },
+	    PatternAst::Var(v) => {
+		egraph
+		    .classes()
+		    .filter_map(|e| self.search_eclass(egraph, e.id))
+		    .collect()
+	    }
+	}
     }
 
     fn search_eclass(&self, egraph: &EGraph<L, M>, eclass: Id) -> Option<SearchMatches> {
