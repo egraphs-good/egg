@@ -303,6 +303,7 @@ where
     /// [`stop_reason`](#structfield.stop_reason) is guaranteeed to be
     /// set.
     pub fn run(mut self, rules: &[Rewrite<L, M>]) -> Self {
+        self.egraph.rebuild();
         // TODO check that we haven't
         loop {
             if let Err(stop_reason) = self.run_one(rules) {

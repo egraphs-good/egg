@@ -472,7 +472,9 @@ mod tests {
             "fold_add"; "(+ ?a ?b)" => { Appender }
         );
 
+        egraph.rebuild();
         fold_add.run(&mut egraph);
+        egraph.rebuild();
         assert_eq!(egraph.equivs(&start, &goal), vec![egraph.find(root)]);
     }
 }
