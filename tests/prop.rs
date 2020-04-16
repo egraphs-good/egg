@@ -46,14 +46,13 @@ fn prove_something(name: &str, start: &str, rewrites: &[Rewrite<Prop, ()>], goal
     let start_expr: RecExpr<Prop> = start.parse().unwrap();
     let goal_exprs: Vec<RecExpr<Prop>> = goals.iter().map(|g| g.parse().unwrap()).collect();
 
-    let mut egraph = Runner::new()
+    let egraph = Runner::new()
         .with_iter_limit(20)
         .with_node_limit(5_000)
         .with_expr(&start_expr)
         .run(rewrites)
         .egraph;
 
-    egraph.rebuild();
     for (i, (goal_expr, goal_str)) in goal_exprs.iter().zip(goals).enumerate() {
         println!("Trying to prove goal {}: {}", i, goal_str);
         let equivs = egraph.equivs(&start_expr, &goal_expr);

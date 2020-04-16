@@ -149,13 +149,11 @@ where
     fn search(&self, egraph: &EGraph<L, M>) -> Vec<SearchMatches> {
         match &self.ast {
             PatternAst::ENode(e) => {
-                if let Some(ids) = egraph.classes_by_op.get(&(e.op.clone(), e.children.len())) {
-                    ids.iter()
-                        .filter_map(|id| self.search_eclass(egraph, *id))
-                        .collect()
-                } else {
-                    vec![]
-                }
+                let key = (e.op.clone(), e.children.len());
+                let ids: &[Id] = egraph.classes_by_op.get(&key).map_or(&[], Vec::as_slice);
+                ids.iter()
+                    .filter_map(|&id| self.search_eclass(egraph, id))
+                    .collect()
             }
             PatternAst::Var(_) => egraph
                 .classes()
