@@ -49,6 +49,9 @@ use crate::{
 /// // variable in the Pattern
 /// let same_add: Pattern<Math> = "(+ ?a ?a)".parse().unwrap();
 ///
+/// // Rebuild before searching
+/// egraph.rebuild();
+///
 /// // This is the search method from the Searcher trait
 /// let matches = same_add.search(&egraph);
 /// let matched_eclasses: Vec<Id> = matches.iter().map(|m| m.eclass).collect();
@@ -144,10 +147,19 @@ where
     M: Metadata<L>,
 {
     fn search(&self, egraph: &EGraph<L, M>) -> Vec<SearchMatches> {
-        egraph
-            .classes()
-            .filter_map(|e| self.search_eclass(egraph, e.id))
-            .collect()
+        match &self.ast {
+            PatternAst::ENode(e) => {
+                let key = (e.op.clone(), e.children.len());
+                let ids: &[Id] = egraph.classes_by_op.get(&key).map_or(&[], Vec::as_slice);
+                ids.iter()
+                    .filter_map(|&id| self.search_eclass(egraph, id))
+                    .collect()
+            }
+            PatternAst::Var(_) => egraph
+                .classes()
+                .filter_map(|e| self.search_eclass(egraph, e.id))
+                .collect(),
+        }
     }
 
     fn search_eclass(&self, egraph: &EGraph<L, M>, eclass: Id) -> Option<SearchMatches> {

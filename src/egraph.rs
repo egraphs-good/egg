@@ -127,6 +127,7 @@ pub struct EGraph<L, M> {
     memo: IndexMap<ENode<L>, Id>,
     classes: UnionFind<Id, EClass<L, M>>,
     unions_since_rebuild: usize,
+    pub(crate) classes_by_op: IndexMap<(L, usize), Vec<Id>>,
 }
 
 // manual debug impl to avoid L: Language bound on EGraph defn
@@ -147,6 +148,7 @@ impl<L, M> Default for EGraph<L, M> {
             memo: IndexMap::default(),
             classes: UnionFind::default(),
             unions_since_rebuild: 0,
+            classes_by_op: IndexMap::default(),
         }
     }
 }
@@ -327,6 +329,7 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
             #[cfg(feature = "parent-pointers")]
             parents: IndexSet::new(),
         };
+
         M::modify(&mut class);
         let next_id = self.classes.make_set(class);
         trace!("Added  {:4}: {:?}", next_id, enode);
@@ -406,9 +409,11 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
     }
 
     fn rebuild_classes(&mut self) -> usize {
+        let (find, mut_values) = self.classes.split();
+
+        self.classes_by_op.clear();
         let mut trimmed = 0;
 
-        let (find, mut_values) = self.classes.split();
         for class in mut_values {
             let old_len = class.len();
 
@@ -422,6 +427,19 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
 
             class.nodes.clear();
             class.nodes.extend(unique);
+
+            let unique_op: IndexSet<(&L, usize)> = class
+                .nodes
+                .iter()
+                .map(|node| (&node.op, node.children.len()))
+                .collect();
+
+            for op in unique_op {
+                self.classes_by_op
+                    .entry((op.0.clone(), op.1))
+                    .and_modify(|ids| ids.push(class.id))
+                    .or_insert(vec![class.id]);
+            }
         }
 
         trimmed
@@ -467,11 +485,6 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
     /// ```
     #[cfg(not(feature = "parent-pointers"))]
     pub fn rebuild(&mut self) -> usize {
-        if self.unions_since_rebuild == 0 {
-            info!("Skipping rebuild!");
-            return 0;
-        }
-
         self.unions_since_rebuild = 0;
 
         let old_hc_size = self.memo.len();

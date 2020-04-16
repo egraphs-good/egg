@@ -149,6 +149,7 @@ fn const_fold() {
     let start_expr = start.parse().unwrap();
     let end = "false";
     let end_expr = end.parse().unwrap();
-    let (eg, _) = EGraph::from_expr(&start_expr);
+    let (mut eg, _) = EGraph::from_expr(&start_expr);
+    eg.rebuild();
     assert!(!eg.equivs(&start_expr, &end_expr).is_empty());
 }
