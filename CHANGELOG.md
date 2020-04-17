@@ -5,9 +5,13 @@
 ## [Unreleased] - ReleaseDate
 
 ### Changed
-- **Fix:** An eclass's metadata will now get updated by
+- **Fix** (0de75c9)
+  An eclass's metadata will now get updated by
   congruence. This unfortunately results in a little bit slower code,
   but it's the right thing.
+- (dd172ef) The `BackoffScheduler` will now fast-forward if all rules are banned.
+- (ca2ea5e) Improve benchmark reporting
+- (#21) The egraph now skips irrelevant eclasses while searching for a ~40% search speed up.  
 
 ## [0.3.0] - 2020-02-27
 
