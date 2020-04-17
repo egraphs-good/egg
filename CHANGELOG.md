@@ -5,13 +5,17 @@
 ## [Unreleased] - ReleaseDate
 
 ### Changed
-- **Fix** (0de75c9)
+- **Fix:**
   An eclass's metadata will now get updated by
   congruence. This unfortunately results in a little bit slower code,
   but it's the right thing.
-- (dd172ef) The `BackoffScheduler` will now fast-forward if all rules are banned.
-- (ca2ea5e) Improve benchmark reporting
-- (#21) The egraph now skips irrelevant eclasses while searching for a ~40% search speed up.  
+  ([commit](https://github.com/mwillsey/egg/commit/0de75c9c9b0a80adb67fb78cc98cce3da383621a))
+- The `BackoffScheduler` will now fast-forward if all rules are banned.
+  ([commit](https://github.com/mwillsey/egg/commit/dd172ef77279e28448d0bf8147e0171a8175228d))
+- Improve benchmark reporting
+  ([commit](https://github.com/mwillsey/egg/commit/ca2ea5e239feda7eb6971942e119075f55f869ab))
+- The egraph now skips irrelevant eclasses while searching for a ~40% search speed up.  
+  ([PR](https://github.com/mwillsey/egg/pull/21))
 
 ## [0.3.0] - 2020-02-27
 
