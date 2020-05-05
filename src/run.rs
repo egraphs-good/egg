@@ -333,6 +333,7 @@ where
         println!("=============");
         println!("  Stop reason: {:?}", self.stop_reason.as_ref().unwrap());
         println!("  Iterations: {}", iters);
+        println!("  Egraph size: {} nodes, {} classes", self.egraph.total_size(), self.egraph.number_of_classes());
         println!("  Rebuilds: {}, {:.2} per iter", rebuilds, (rebuilds as f64) / (iters as f64));
         println!("  Total time: {}", total_time);
         println!("    Search:  ({:.2}) {}", search_time / total_time, search_time);

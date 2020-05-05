@@ -268,8 +268,9 @@ egg::test_fn! {
     #[cfg_attr(feature = "parent-pointers", ignore)]
     diff_power_harder, rules(),
     runner = Runner::new()
-        .with_iter_limit(50)
-        .with_node_limit(50_000)
+        .with_time_limit(std::time::Duration::from_secs(10))
+        .with_iter_limit(60)
+        .with_node_limit(100_000)
         // HACK this needs to "see" the end expression
         .with_expr(&"(* x (- (* 3 x) 14))".parse().unwrap()),
     "(d x (- (pow x 3) (* 7 (pow x 2))))"
