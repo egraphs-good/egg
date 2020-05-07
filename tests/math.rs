@@ -20,22 +20,12 @@ define_language! {
         Div = "/",
         Pow = "pow",
         Exp = "exp",
-        Log = "log",
         Ln = "ln",
         Sqrt = "sqrt",
-        Cbrt = "cbrt",
-        Fabs = "fabs",
-
-        Log1p = "log1p",
-        Expm1 = "expm1",
 
         Sin = "sin",
         Cos = "cos",
-        Tan = "tan",
-        Sec = "sec",
-        Cot = "cot",
 
-        RealToPosit = "real->posit",
         Variable(String),
     }
 }
@@ -110,32 +100,49 @@ impl Metadata<Math> for Meta {
     }
 
     fn modify(eclass: &mut EClass<Math, Self>) {
-        // NOTE pruning vs not pruning is decided right here
-        // not pruning would be just pushing instead of replacing
+        use once_cell::sync::Lazy;
+        static MATH_PRUNE: Lazy<bool> =
+            Lazy::new(|| std::env::var("MATH_PRUNE").map_or(true, |s| s.parse().unwrap()));
+
         let best = eclass.metadata.best.as_ref();
         if best.children.is_empty() {
-            eclass.nodes = vec![ENode::leaf(best.op.clone())]
+            if *MATH_PRUNE {
+                eclass.nodes = vec![ENode::leaf(best.op.clone())];
+            } else {
+                eclass.nodes.push(ENode::leaf(best.op.clone()));
+            }
+            #[cfg(debug_assertions)]
+            eclass.assert_unique_leaves();
         }
     }
 }
 
 fn c_is_const(egraph: &mut EGraph, _: Id, subst: &Subst) -> bool {
     let c = "?c".parse().unwrap();
-    let is_const = egraph[subst[&c]].nodes.iter().any(|n| match n.op {
+    egraph[subst[&c]].nodes.iter().any(|n| match n.op {
         Math::Constant(_) => true,
         _ => false,
-    });
-    is_const
+    })
 }
 
 fn c_is_const_or_var_and_not_x(egraph: &mut EGraph, _: Id, subst: &Subst) -> bool {
     let c = "?c".parse().unwrap();
     let x = "?x".parse().unwrap();
-    let is_const_or_var = egraph[subst[&c]].nodes.iter().any(|n| match n.op {
+    let is_const_or_var = egraph[subst[&c]].nodes.iter().any(|n| match &n.op {
         Math::Constant(_) | Math::Variable(_) => true,
         _ => false,
     });
-    is_const_or_var && subst[&x] != subst[&c]
+    is_const_or_var && egraph.find(subst[&x]) != egraph.find(subst[&c])
+}
+
+fn is_var(var: &'static str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
+    let var = var.parse().unwrap();
+    move |egraph, _, subst| {
+        egraph[subst[&var]]
+            .nodes
+            .iter()
+            .any(|n| matches!(n.op, Math::Variable(_)))
+    }
 }
 
 fn is_not_zero(var: &'static str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
@@ -152,7 +159,7 @@ pub fn rules() -> Vec<Rewrite> { vec![
     rw!("assoc-mul"; "(* ?a (* ?b ?c))" => "(* (* ?a ?b) ?c)"),
 
     rw!("sub-canon"; "(- ?a ?b)" => "(+ ?a (* -1 ?b))"),
-    rw!("div-canon"; "(/ ?a ?b)" => "(* ?a (pow ?b -1))"),
+    rw!("div-canon"; "(/ ?a ?b)" => "(* ?a (pow ?b -1))" if is_not_zero("?b")),
     // rw!("canon-sub"; "(+ ?a (* -1 ?b))"   => "(- ?a ?b)"),
     // rw!("canon-div"; "(* ?a (pow ?b -1))" => "(/ ?a ?b)" if is_not_zero("?b")),
 
@@ -164,21 +171,23 @@ pub fn rules() -> Vec<Rewrite> { vec![
     rw!("mul-one";  "?a" => "(* ?a 1)"),
 
     rw!("cancel-sub"; "(- ?a ?a)" => "0"),
-    rw!("cancel-div"; "(/ ?a ?a)" => "1"),
+    rw!("cancel-div"; "(/ ?a ?a)" => "1" if is_not_zero("?a")),
 
     rw!("distribute"; "(* ?a (+ ?b ?c))"        => "(+ (* ?a ?b) (* ?a ?c))"),
     rw!("factor"    ; "(+ (* ?a ?b) (* ?a ?c))" => "(* ?a (+ ?b ?c))"),
 
     rw!("pow-intro"; "?a" => "(pow ?a 1)"),
     rw!("pow-mul"; "(* (pow ?a ?b) (pow ?a ?c))" => "(pow ?a (+ ?b ?c))"),
-    rw!("pow0"; "(pow ?x 0)" => "1"),
+    rw!("pow0"; "(pow ?x 0)" => "1"
+        if is_not_zero("?x")),
     rw!("pow1"; "(pow ?x 1)" => "?x"),
     rw!("pow2"; "(pow ?x 2)" => "(* ?x ?x)"),
-    rw!("pow-recip"; "(pow ?x -1)" => "(/ 1 ?x)" if is_not_zero("?x")),
-    rw!("recip-mul-div"; "(* ?x (/ 1 ?x))" => "1"),
+    rw!("pow-recip"; "(pow ?x -1)" => "(/ 1 ?x)"
+        if is_not_zero("?x")),
+    rw!("recip-mul-div"; "(* ?x (/ 1 ?x))" => "1" if is_not_zero("?x")),
 
-    rw!("d-variable"; "(d ?x ?x)" => "1"),
-    rw!("d-constant"; "(d ?x ?c)" => "0" if c_is_const_or_var_and_not_x),
+    rw!("d-variable"; "(d ?x ?x)" => "1" if is_var("?x")),
+    rw!("d-constant"; "(d ?x ?c)" => "0" if is_var("?x") if c_is_const_or_var_and_not_x),
 
     rw!("d-add"; "(d ?x (+ ?a ?b))" => "(+ (d ?x ?a) (d ?x ?b))"),
     rw!("d-mul"; "(d ?x (* ?a ?b))" => "(+ (* ?a (d ?x ?b)) (* ?b (d ?x ?a)))"),
@@ -186,7 +195,7 @@ pub fn rules() -> Vec<Rewrite> { vec![
     rw!("d-sin"; "(d ?x (sin ?x))" => "(cos ?x)"),
     rw!("d-cos"; "(d ?x (cos ?x))" => "(* -1 (sin ?x))"),
 
-    rw!("d-ln"; "(d ?x (ln ?x))" => "(/ 1 ?x)"),
+    rw!("d-ln"; "(d ?x (ln ?x))" => "(/ 1 ?x)" if is_not_zero("?x")),
 
     rw!("d-power";
         "(d ?x (pow ?f ?g))" =>
@@ -194,8 +203,9 @@ pub fn rules() -> Vec<Rewrite> { vec![
             (+ (* (d ?x ?f)
                   (/ ?g ?f))
                (* (d ?x ?g)
-                  (log ?f))))"
+                  (ln ?f))))"
         if is_not_zero("?f")
+        if is_not_zero("?g")
     ),
 
     rw!("i-one"; "(i 1 ?x)" => "?x"),
@@ -300,7 +310,8 @@ egg::test_fn! {
 
 egg::test_fn! {
     #[cfg_attr(feature = "parent-pointers", ignore)]
-    integ_part2, rules(), "(i (* (cos x) x) x)" => "(+ (* x (sin x)) (cos x))"
+    integ_part2, rules(),
+    "(i (* (cos x) x) x)" => "(+ (* x (sin x)) (cos x))"
 }
 
 egg::test_fn! {

@@ -145,9 +145,33 @@ impl<L, M> EClass<L, M> {
         self.nodes.len()
     }
 
-    /// Iterates over the enodes in the this eclass.
+    /// Iterates over the enodes in this eclass.
     pub fn iter(&self) -> impl ExactSizeIterator<Item = &ENode<L>> {
         self.nodes.iter()
+    }
+
+    /// Iterates over the childless enodes in this eclass.
+    pub fn leaves(&self) -> impl Iterator<Item = &L> {
+        self.nodes
+            .iter()
+            .filter(|&n| n.children.is_empty())
+            .map(|n| &n.op)
+    }
+
+    /// Asserts that the childless enodes in this eclass are unique.
+    pub fn assert_unique_leaves(&self)
+    where
+        L: Language,
+    {
+        let mut leaves = self.leaves();
+        if let Some(first) = leaves.next() {
+            assert!(
+                leaves.all(|l| l == first),
+                "Different leaves in eclass {}: {:?}",
+                self.id,
+                self.leaves().collect::<indexmap::IndexSet<_>>()
+            );
+        }
     }
 }
 
