@@ -56,9 +56,10 @@ impl Metadata<EasyMath> for Meta {
              _ => None,
          }
     }
-    fn modify(eclass: &mut EClass<EasyMath, Self>) {
-        if let Some(i) = eclass.metadata {
-            eclass.nodes.push(enode!(Num(i)))
+    fn modify(egraph: &mut EGraph<EasyMath, Self>, id: Id) {
+        if let Some(i) = egraph[id].metadata {
+            let added = egraph.add(ENode::leaf(Num(i)));
+            egraph.union(id, added);
         }
     }
 }
@@ -108,7 +109,8 @@ pub trait Metadata<L>: Sized + Debug + PartialEq + Eq {
     ///
     /// [`Metadata`]: trait.Metadata.html
     /// [`EClass`]: struct.EClass.html
-    fn modify(_eclass: &mut EClass<L, Self>) {}
+    #[allow(unused_variables)]
+    fn modify(egraph: &mut EGraph<L, Self>, id: Id) {}
 }
 
 impl<L: Language> Metadata<L> for () {
@@ -129,9 +131,7 @@ pub struct EClass<L, M> {
     pub nodes: Vec<ENode<L>>,
     /// The metadata associated with this eclass.
     pub metadata: M,
-    #[cfg(feature = "parent-pointers")]
-    #[doc(hidden)]
-    pub(crate) parents: indexmap::IndexSet<usize>,
+    pub(crate) parents: Vec<(ENode<L>, Id)>,
 }
 
 impl<L, M> EClass<L, M> {
@@ -175,6 +175,16 @@ impl<L, M> EClass<L, M> {
     }
 }
 
+fn concat<T>(mut a: Vec<T>, mut b: Vec<T>) -> Vec<T> {
+    if a.len() < b.len() {
+        b.extend(a);
+        b
+    } else {
+        a.extend(b);
+        a
+    }
+}
+
 impl<L: Language, M: Metadata<L>> Value for EClass<L, M> {
     type Error = std::convert::Infallible;
     fn merge<K: Key>(
@@ -182,29 +192,12 @@ impl<L: Language, M: Metadata<L>> Value for EClass<L, M> {
         to: Self,
         from: Self,
     ) -> Result<Self, Self::Error> {
-        let mut less = to.nodes;
-        let mut more = from.nodes;
-
-        // make sure less is actually smaller
-        if more.len() < less.len() {
-            std::mem::swap(&mut less, &mut more);
-        }
-
-        more.extend(less);
-
-        let mut eclass = EClass {
+        let eclass = EClass {
             id: to.id,
-            nodes: more,
+            nodes: concat(to.nodes, from.nodes),
             metadata: to.metadata.merge(&from.metadata),
-            #[cfg(feature = "parent-pointers")]
-            parents: {
-                let mut parents = to.parents;
-                parents.extend(from.parents);
-                parents
-            },
+            parents: concat(to.parents, from.parents),
         };
-
-        M::modify(&mut eclass);
         Ok(eclass)
     }
 }

@@ -10,6 +10,7 @@ use crate::{unionfind::UnionFind, Dot, EClass, ENode, Id, Language, Metadata, Re
 # What's an egraph?
 
 An egraph ([/'igraf/][sound]) is a data structure to maintain equivalence
+
 classes of expressions.
 An egraph conceptually is a set of eclasses, each of which
 contains equivalent enodes.
@@ -126,7 +127,7 @@ same eclass.
 pub struct EGraph<L, M> {
     memo: IndexMap<ENode<L>, Id>,
     classes: UnionFind<Id, EClass<L, M>>,
-    unions_since_rebuild: usize,
+    dirty_eclasses: Vec<Id>,
     pub(crate) classes_by_op: IndexMap<(L, usize), Vec<Id>>,
 }
 
@@ -136,7 +137,6 @@ impl<L: Language, M: Debug> Debug for EGraph<L, M> {
         f.debug_struct("EGraph")
             .field("memo", &self.memo)
             .field("classes", &self.classes)
-            .field("unions_since_rebuild", &self.unions_since_rebuild)
             .finish()
     }
 }
@@ -147,7 +147,7 @@ impl<L, M> Default for EGraph<L, M> {
         EGraph {
             memo: IndexMap::default(),
             classes: UnionFind::default(),
-            unions_since_rebuild: 0,
+            dirty_eclasses: Default::default(),
             classes_by_op: IndexMap::default(),
         }
     }
@@ -193,9 +193,7 @@ impl<L, M> EGraph<L, M> {
     /// assert_eq!(egraph.number_of_classes(), 1);
     /// ```
     pub fn total_size(&self) -> usize {
-        let union_find_size = self.classes.total_size();
-        debug_assert_eq!(union_find_size, self.memo.len());
-        union_find_size
+        self.memo.len()
     }
 
     /// Returns the number of eclasses in the egraph.
@@ -223,6 +221,10 @@ impl<L, M> EGraph<L, M> {
         self.classes.find(id)
     }
 
+    fn canonicalize(&self, enode: &mut ENode<L>) {
+        enode.children.iter_mut().for_each(|c| *c = self.find(*c))
+    }
+
     /// Creates a [`Dot`] to visualize this egraph. See [`Dot`].
     ///
     /// [`Dot`]: struct.Dot.html
@@ -231,18 +233,16 @@ impl<L, M> EGraph<L, M> {
     }
 }
 
-// TODO use this for searching ground terms instead
-#[allow(dead_code)]
-impl<L: Language, M> EGraph<L, M> {
-    pub(crate) fn get_leaf(&self, leaf: L) -> Option<Id> {
-        self.memo.get(&ENode::leaf(leaf)).copied()
-    }
-}
-
 impl<L, M> std::ops::Index<Id> for EGraph<L, M> {
     type Output = EClass<L, M>;
     fn index(&self, id: Id) -> &Self::Output {
         self.classes.get(id)
+    }
+}
+
+impl<L, M> std::ops::IndexMut<Id> for EGraph<L, M> {
+    fn index_mut(&mut self, id: Id) -> &mut Self::Output {
+        self.classes.get_mut(id)
     }
 }
 
@@ -294,55 +294,36 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
     /// [`EClass`]: struct.EClass.html
     /// [`ENode`]: struct.ENode.html
     /// [`add`]: struct.EGraph.html#method.add
-    pub fn add(&mut self, enode: ENode<L>) -> Id {
-        trace!("Adding       {:?}", enode);
-
-        // make sure that the enodes children are already in the set
-        if cfg!(debug_assertions) {
-            for &id in &enode.children {
-                if id >= self.classes.total_size() as u32 {
-                    panic!(
-                        "Expr: {:?}\n  Found id {} but classes.len() = {}",
-                        enode,
-                        id,
-                        self.classes.total_size()
-                    );
-                }
-            }
-        }
+    pub fn add(&mut self, mut enode: ENode<L>) -> Id {
+        self.canonicalize(&mut enode);
+        let id = self.classes.total_size() as Id;
 
         match self.memo.get(&enode) {
-            Some(&id) => {
-                trace!("Found     {}: {:?}", id, enode);
-                self.classes.find(id)
+            Some(id) => self.find(*id),
+            None => {
+                trace!("Adding {:?}", enode);
+                let class = EClass {
+                    id,
+                    nodes: vec![enode.clone()],
+                    metadata: M::make(self, &enode),
+                    parents: Default::default(),
+                };
+
+                // add this enode to the parent lists of its children
+                for &child in &enode.children {
+                    let tup = (enode.clone(), id);
+                    self[child].parents.push(tup);
+                }
+
+                let next_id = self.classes.make_set(class);
+                debug_assert_eq!(next_id, id);
+                let old = self.memo.insert(enode, next_id);
+                assert_eq!(old, None);
+
+                M::modify(self, id);
+                next_id
             }
-            None => self.add_unchecked(enode),
         }
-    }
-
-    fn add_unchecked(&mut self, enode: ENode<L>) -> Id {
-        // HACK knowing the next key like this is pretty bad
-        let mut class = EClass {
-            id: self.classes.total_size() as Id,
-            nodes: vec![enode.clone()],
-            metadata: M::make(self, &enode),
-            #[cfg(feature = "parent-pointers")]
-            parents: IndexSet::new(),
-        };
-
-        M::modify(&mut class);
-        let next_id = self.classes.make_set(class);
-        trace!("Added  {:4}: {:?}", next_id, enode);
-
-        let (idx, old) = self.memo.insert_full(enode, next_id);
-        let _ = idx;
-        #[cfg(feature = "parent-pointers")]
-        for &child in &self.memo.get_index(idx).unwrap().0.children {
-            self.classes.get_mut(child).parents.insert(idx);
-        }
-
-        assert_eq!(old, None);
-        next_id
     }
 
     /// Checks whether two [`RecExpr`]s are equivalent.
@@ -371,86 +352,115 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
         equiv_eclasses
     }
 
-    #[cfg(not(feature = "parent-pointers"))]
-    fn rebuild_once(&mut self) -> usize {
-        let mut new_memo = IndexMap::new();
-        let mut to_union = Vec::new();
-        let mut new_metas = Vec::new();
-
-        for (leader, class) in self.classes.iter() {
-            for node in &class.nodes {
-                let n = node.update_ids(&self.classes);
-                if let Some(old_leader) = new_memo.insert(n, leader) {
-                    if old_leader != leader {
-                        to_union.push((leader, old_leader));
-                    }
-                }
-            }
-
-            let mut metas = class.nodes.iter().map(|n| M::make(self, n));
-            let first_meta = metas.next().expect("eclass shouldn't be empty");
-            let meta = metas.fold(first_meta, |m1, m2| m1.merge(&m2));
-            if meta != class.metadata {
-                new_metas.push((class.id, meta))
-            }
+    /// Unions two eclasses given their ids.
+    ///
+    /// The given ids need not be canonical.
+    /// If the two eclasses were actually the same, this does nothing.
+    /// This returns the canonical id of the merged eclass.
+    pub fn union(&mut self, id1: Id, id2: Id) -> Id {
+        let (to, did_something) = self.classes.union(id1, id2).unwrap();
+        if did_something {
+            self.dirty_eclasses.push(to);
+            M::modify(self, to);
         }
-
-        let n_unions = to_union.len();
-        for (id1, id2) in to_union {
-            self.union(id1, id2);
-        }
-
-        let n_metas = new_metas.len();
-        for (id, meta) in new_metas {
-            self.classes.get_mut(id).metadata = meta;
-        }
-
-        n_unions + n_metas
+        to
     }
 
+    /// Unions two eclasses given their ids.
+    ///
+    /// Same as [`union`](struct.EGraph.html#method.union), but it
+    /// returns None if the two given ids refer to the same eclass.
+    pub fn union_if_different(&mut self, id1: Id, id2: Id) -> Option<Id> {
+        let (to, did_something) = self.classes.union(id1, id2).unwrap();
+        if did_something {
+            M::modify(self, to);
+            self.dirty_eclasses.push(to);
+            Some(to)
+        } else {
+            None
+        }
+    }
+
+    /// Returns a more debug-able representation of the egraph.
+    ///
+    /// [`EGraph`]s implement [`Debug`], but it ain't pretty. It
+    /// prints a lot of stuff you probably don't care about.
+    /// This method returns a wrapper that implements [`Debug`] in a
+    /// slightly nicer way, just dumping enodes in each eclass.
+    ///
+    /// [`Debug`]: https://doc.rust-lang.org/stable/std/fmt/trait.Debug.html
+    /// [`EGraph`]: struct.EGraph.html
+    pub fn dump<'a>(&'a self) -> impl Debug + 'a {
+        EGraphDump(self)
+    }
+}
+
+// All the rebuilding stuff
+impl<L: Language, M: Metadata<L>> EGraph<L, M> {
+    #[inline(never)]
     fn rebuild_classes(&mut self) -> usize {
         let (find, mut_values) = self.classes.split();
 
-        self.classes_by_op.clear();
+        let mut classes_by_op = std::mem::take(&mut self.classes_by_op);
+        classes_by_op.clear();
+
         let mut trimmed = 0;
+
+        // let mut memo = IndexMap::new(); // std::mem::take(&mut self.memo);
 
         for class in mut_values {
             let old_len = class.len();
-
-            let unique: IndexSet<_> = class
+            class
                 .nodes
-                .iter()
-                .map(|node| node.map_children(&find))
-                .collect();
+                .iter_mut()
+                .for_each(|n| n.children.iter_mut().for_each(|id| *id = find(*id)));
+            class.nodes.sort_unstable();
+            class.nodes.dedup();
 
-            trimmed += old_len - unique.len();
+            trimmed += old_len - class.nodes.len();
 
-            class.nodes.clear();
-            class.nodes.extend(unique);
+            // for n in &class.nodes {
+            //     memo.insert(n.clone(), class.id);
+            // }
 
-            let unique_op: IndexSet<(&L, usize)> = class
-                .nodes
-                .iter()
-                .map(|node| (&node.op, node.children.len()))
-                .collect();
+            let mut add = |op: &L, len: usize| {
+                classes_by_op
+                    .entry((op.clone(), len))
+                    .or_default()
+                    .push(class.id)
+            };
 
-            for op in unique_op {
-                self.classes_by_op
-                    .entry((op.0.clone(), op.1))
-                    .and_modify(|ids| ids.push(class.id))
-                    .or_insert(vec![class.id]);
+            // we can go through the ops in order to dedup them, becaue we
+            // just sorted them
+            let mut ops_and_lens = class.nodes.iter().map(|n| (&n.op, n.children.len()));
+            // let mut prev = ops_and_lens.next().unwrap_or_else(|| panic!("Empty eclass! {:?}", class));
+            if let Some(mut prev) = ops_and_lens.next() {
+                add(&prev.0, prev.1);
+                for tup in ops_and_lens {
+                    if tup != prev {
+                        add(&tup.0, tup.1);
+                        prev = tup;
+                    }
+                }
             }
         }
 
+        // self.memo = memo;
+        self.classes_by_op = classes_by_op;
         trimmed
     }
 
-    /// Does very little since you're in parent-pointers mode.
-    #[cfg(feature = "parent-pointers")]
-    pub fn rebuild(&mut self) -> usize {
-        info!("Skipping rebuild because we have parent pointers");
-        self.rebuild_classes();
-        0
+    #[inline(never)]
+    fn rebuild_memo(&mut self) {
+        let mut new_memo = std::mem::take(&mut self.memo);
+        new_memo.clear();
+        for class in self.classes() {
+            for node in &class.nodes {
+                let old = new_memo.insert(node.clone(), class.id);
+                assert!(old.map_or(true, |id| id == class.id));
+            }
+        }
+        self.memo = new_memo;
     }
 
     /// Restores the egraph invariants of congruence and enode uniqueness.
@@ -483,37 +493,89 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
     /// assert_eq!(egraph.number_of_classes(), 3);
     /// assert_eq!(egraph.find(ax), egraph.find(ay));
     /// ```
-    #[cfg(not(feature = "parent-pointers"))]
     pub fn rebuild(&mut self) -> usize {
-        self.unions_since_rebuild = 0;
-
         let old_hc_size = self.memo.len();
         let old_n_eclasses = self.classes.number_of_classes();
-        let mut n_rebuilds = 0;
         let mut n_unions = 0;
 
         let start = instant::Instant::now();
 
+        let mut to_union = vec![];
+
+        use once_cell::sync::Lazy;
+        static REBUILD_MEMO: Lazy<bool> =
+            Lazy::new(|| std::env::var("REBUILD_MEMO").map_or(true, |s| s.parse().unwrap()));
+        static REBUILD_META: Lazy<bool> =
+            Lazy::new(|| std::env::var("REBUILD_META").map_or(true, |s| s.parse().unwrap()));
+
         loop {
-            let u = self.rebuild_once();
-            n_unions += u;
-            n_rebuilds += self.number_of_classes();
-            if u == 0 {
+            // take the worklist, we'll get the stuff that's added the next time around
+            let mut dirty = std::mem::take(&mut self.dirty_eclasses);
+            if dirty.is_empty() {
                 break;
+            }
+
+            // deduplicate the dirty list to avoid extra work
+            dirty.iter_mut().for_each(|id| *id = self.find(*id));
+            dirty.sort_unstable();
+            dirty.dedup();
+
+            for id in dirty {
+                n_unions += 1;
+
+                let mut parents = std::mem::take(&mut self[id].parents);
+                parents.iter_mut().for_each(|(n, id)| {
+                    self.canonicalize(n);
+                    *id = self.find(*id);
+                });
+                parents.sort_unstable();
+
+                parents.dedup_by(|(n1, e1), (n2, e2)| {
+                    n1 == n2 && {
+                        to_union.push((*e1, *e2));
+                        true
+                    }
+                });
+
+                if *REBUILD_META {
+                    for (n, e) in &parents {
+                        let node_meta = M::make(self, n);
+                        let class = &mut self[*e];
+                        let new_meta = class.metadata.merge(&node_meta);
+                        if class.metadata != new_meta {
+                            class.metadata = new_meta;
+                            self.dirty_eclasses.push(*e)
+                        }
+                    }
+                }
+
+                self[id].parents = parents;
+                M::modify(self, id);
+            }
+
+            for (id1, id2) in to_union.drain(..) {
+                self.union(id1, id2);
             }
         }
 
         let trimmed_nodes = self.rebuild_classes();
 
+        if *REBUILD_MEMO {
+            let before = self.dirty_eclasses.len();
+            self.rebuild_memo();
+            assert_eq!(before, self.dirty_eclasses.len());
+        }
+
+        assert!(self.dirty_eclasses.is_empty());
+
         let elapsed = start.elapsed();
         info!(
             concat!(
-                "REBUILT! {} times in {}.{:03}s\n",
+                "REBUILT! in {}.{:03}s\n",
                 "  Old: hc size {}, eclasses: {}\n",
                 "  New: hc size {}, eclasses: {}\n",
                 "  unions: {}, trimmed nodes: {}"
             ),
-            n_rebuilds,
             elapsed.as_secs(),
             elapsed.subsec_millis(),
             old_hc_size,
@@ -524,124 +586,7 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
             trimmed_nodes,
         );
 
-        n_rebuilds
-    }
-
-    /// Unions two eclasses given their ids.
-    ///
-    /// The given ids need not be canonical.
-    /// If the two eclasses were actually the same, this does nothing.
-    /// This returns the canonical id of the merged eclass.
-    pub fn union(&mut self, id1: Id, id2: Id) -> Id {
-        self.union_depth(0, id1, id2)
-    }
-
-    /// Unions two eclasses given their ids.
-    ///
-    /// Same as [`union`](struct.EGraph.html#method.union), but it
-    /// returns None if the two given ids refer to the same eclass.
-    pub fn union_if_different(&mut self, id1: Id, id2: Id) -> Option<Id> {
-        let id1 = self.find(id1);
-        let id2 = self.find(id2);
-        if id1 == id2 {
-            None
-        } else {
-            Some(self.union(id1, id2))
-        }
-    }
-
-    fn union_depth(&mut self, depth: usize, id1: Id, id2: Id) -> Id {
-        trace!("Unioning (d={}) {} and {}", depth, id1, id2);
-        let (to, did_something) = self.classes.union(id1, id2).unwrap();
-        if !did_something {
-            return to;
-        }
-        self.unions_since_rebuild += 1;
-
-        #[cfg(feature = "parent-pointers")]
-        self.upward(to);
-
-        // #[cfg(feature = "parent-pointers")] {
-        //     self.classes.get_mut(to).nodes = self[to]
-        //         .nodes
-        //         .iter()
-        //         .map(|n| n.update_ids(&self.classes))
-        //         .collect::<IndexSet<_>>()
-        //         .into_iter()
-        //         .collect();
-        // }
-
-        if log_enabled!(Level::Trace) {
-            let from = if to == id1 { id2 } else { id1 };
-            trace!("Unioned {} -> {}", from, to);
-            trace!("Classes: {:?}", self.classes);
-            for (leader, class) in self.classes.iter() {
-                trace!("  {:?}: {:?}", leader, class);
-            }
-        }
-        to
-    }
-
-    #[cfg(feature = "parent-pointers")]
-    fn upward(&mut self, id: Id) {
-        use itertools::Itertools;
-
-        let mut t = 0;
-        let mut ids = vec![id];
-        let mut done = IndexSet::new();
-
-        while let Some(id) = ids.pop() {
-            t += 1;
-            let id = self.classes.find(id);
-            if !done.insert(id) {
-                continue;
-            }
-
-            if t > 1000 && t % 1000 == 0 {
-                warn!("Long time: {}, to do: {}", t, ids.len());
-            }
-
-            let mut metas = self[id].nodes.iter().map(|n| M::make(self, n));
-            let first_meta = metas.next().expect("eclass shouldn't be empty");
-            let meta = metas.fold(first_meta, |m1, m2| m1.merge(&m2));
-            self.classes.get_mut(id).metadata = meta;
-
-            let map = self[id]
-                .parents
-                .iter()
-                .map(|p| {
-                    let (expr, id) = self.memo.get_index(*p).unwrap();
-                    let expr = expr.update_ids(&self.classes);
-                    (expr, *id)
-                })
-                .into_group_map();
-
-            for (_expr, same_ids) in map {
-                if same_ids.len() > 1 {
-                    let id0 = same_ids[0];
-                    let mut did_union = false;
-                    for id in same_ids[1..].iter() {
-                        did_union |= self.classes.union(id0, *id).unwrap().1;
-                    }
-                    if did_union {
-                        ids.push(id0);
-                    }
-                }
-            }
-        }
-    }
-
-    /// Returns a more debug-able representation of the egraph.
-    ///
-    /// [`EGraph`]s implement [`Debug`], but it ain't pretty. It
-    /// prints a lot of stuff you probably don't care about.
-    /// This method returns a wrapper that implements [`Debug`] in a
-    /// slightly nicer way, just dumping enodes in each eclass.
-    ///
-    /// [`Debug`]: https://doc.rust-lang.org/stable/std/fmt/trait.Debug.html
-    /// [`EGraph`]: struct.EGraph.html
-    pub fn dump<'a>(&'a self) -> impl Debug + 'a {
-        EGraphDump(self)
+        n_unions
     }
 }
 

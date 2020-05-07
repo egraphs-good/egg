@@ -30,7 +30,7 @@ pub type Id = u32;
 /// [`Language`]: trait.Language.html
 /// [cf]: trait.CostFunction.html
 /// [metadata]: trait.Metadata.html
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
 pub struct ENode<O, Child = Id> {
     /// The operator from the user-defined [`Language`](trait.Language.html)
     pub op: O,
@@ -306,6 +306,6 @@ impl<L: Language> ENode<L> {
 /// [`String`]: https://doc.rust-lang.org/std/string/struct.String.html
 /// [`FromStr`]: https://doc.rust-lang.org/std/str/trait.FromStr.html
 /// [`Display`]: https://doc.rust-lang.org/std/fmt/trait.Display.html
-pub trait Language: Debug + PartialEq + Eq + Hash + Clone + 'static {}
+pub trait Language: Debug + Ord + Hash + Clone + 'static {}
 
 impl Language for String {}

@@ -99,20 +99,23 @@ impl Metadata<Math> for Meta {
         Self { best, cost }
     }
 
-    fn modify(eclass: &mut EClass<Math, Self>) {
+    fn modify(egraph: &mut EGraph, id: Id) {
         use once_cell::sync::Lazy;
         static MATH_PRUNE: Lazy<bool> =
             Lazy::new(|| std::env::var("MATH_PRUNE").map_or(true, |s| s.parse().unwrap()));
 
-        let best = eclass.metadata.best.as_ref();
+        let best = egraph[id].metadata.best.as_ref();
         if best.children.is_empty() {
+            let leaf = ENode::leaf(best.op.clone());
+            let added = egraph.add(leaf);
+            let id = egraph.union(id, added);
             if *MATH_PRUNE {
-                eclass.nodes = vec![ENode::leaf(best.op.clone())];
-            } else {
-                eclass.nodes.push(ENode::leaf(best.op.clone()));
+                egraph[id].nodes.retain(|n| n.children.is_empty());
             }
+            assert!(!egraph[id].nodes.is_empty());
+
             #[cfg(debug_assertions)]
-            eclass.assert_unique_leaves();
+            egraph[id].assert_unique_leaves();
         }
     }
 }

@@ -135,10 +135,11 @@ impl Metadata<Prop> for ConstantFold {
         println!("Make: {:?} -> {:?}", enode, result);
         result
     }
-    fn modify(eclass: &mut EClass<Prop, Self>) {
-        println!("Modifying: {:#?}", eclass);
-        if let Some(c) = eclass.metadata {
-            eclass.nodes.push(ENode::leaf(Prop::Bool(c)))
+    fn modify(egraph: &mut EGraph, id: Id) {
+        println!("Modifying {}", id);
+        if let Some(c) = egraph[id].metadata {
+            let const_id = egraph.add(ENode::leaf(Prop::Bool(c)));
+            egraph.union(id, const_id);
         }
     }
 }
