@@ -127,7 +127,7 @@ same eclass.
 pub struct EGraph<L, M> {
     memo: IndexMap<ENode<L>, Id>,
     classes: UnionFind<Id, EClass<L, M>>,
-    dirty_eclasses: Vec<Id>,
+    dirty_unions: Vec<Id>,
     pub(crate) classes_by_op: IndexMap<(L, usize), Vec<Id>>,
 }
 
@@ -147,7 +147,7 @@ impl<L, M> Default for EGraph<L, M> {
         EGraph {
             memo: IndexMap::default(),
             classes: UnionFind::default(),
-            dirty_eclasses: Default::default(),
+            dirty_unions: Default::default(),
             classes_by_op: IndexMap::default(),
         }
     }
@@ -194,6 +194,10 @@ impl<L, M> EGraph<L, M> {
     /// ```
     pub fn total_size(&self) -> usize {
         self.memo.len()
+    }
+
+    pub fn total_number_of_nodes(&self) -> usize {
+        self.classes().map(|c| c.len()).sum()
     }
 
     /// Returns the number of eclasses in the egraph.
@@ -295,7 +299,14 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
     /// [`ENode`]: struct.ENode.html
     /// [`add`]: struct.EGraph.html#method.add
     pub fn add(&mut self, mut enode: ENode<L>) -> Id {
-        self.canonicalize(&mut enode);
+        use once_cell::sync::Lazy;
+        static CANON_ADD: Lazy<bool> =
+            Lazy::new(|| std::env::var("CANON_ADD").map_or(true, |s| s.parse().unwrap()));
+
+        if *CANON_ADD {
+            self.canonicalize(&mut enode);
+        }
+
         let id = self.classes.total_size() as Id;
 
         match self.memo.get(&enode) {
@@ -352,18 +363,24 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
         equiv_eclasses
     }
 
+    #[inline]
+    fn union_impl(&mut self, id1: Id, id2: Id) -> (Id, bool) {
+        let (to, did_something) = self.classes.union(id1, id2).unwrap();
+        if did_something {
+            self.dirty_unions.push(to);
+            M::modify(self, to);
+            // self.rebuild();
+        }
+        (to, did_something)
+    }
+
     /// Unions two eclasses given their ids.
     ///
     /// The given ids need not be canonical.
     /// If the two eclasses were actually the same, this does nothing.
     /// This returns the canonical id of the merged eclass.
     pub fn union(&mut self, id1: Id, id2: Id) -> Id {
-        let (to, did_something) = self.classes.union(id1, id2).unwrap();
-        if did_something {
-            self.dirty_eclasses.push(to);
-            M::modify(self, to);
-        }
-        to
+        self.union_impl(id1, id2).0
     }
 
     /// Unions two eclasses given their ids.
@@ -371,10 +388,8 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
     /// Same as [`union`](struct.EGraph.html#method.union), but it
     /// returns None if the two given ids refer to the same eclass.
     pub fn union_if_different(&mut self, id1: Id, id2: Id) -> Option<Id> {
-        let (to, did_something) = self.classes.union(id1, id2).unwrap();
+        let (to, did_something) = self.union_impl(id1, id2);
         if did_something {
-            M::modify(self, to);
-            self.dirty_eclasses.push(to);
             Some(to)
         } else {
             None
@@ -510,20 +525,21 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
 
         loop {
             // take the worklist, we'll get the stuff that's added the next time around
-            let mut dirty = std::mem::take(&mut self.dirty_eclasses);
-            if dirty.is_empty() {
+            let mut dirty_unions = std::mem::take(&mut self.dirty_unions);
+            if dirty_unions.is_empty() {
                 break;
             }
 
             // deduplicate the dirty list to avoid extra work
-            dirty.iter_mut().for_each(|id| *id = self.find(*id));
-            dirty.sort_unstable();
-            dirty.dedup();
+            dirty_unions.iter_mut().for_each(|id| *id = self.find(*id));
+            dirty_unions.sort_unstable();
+            dirty_unions.dedup();
 
-            for id in dirty {
+            for id in dirty_unions {
                 n_unions += 1;
 
                 let mut parents = std::mem::take(&mut self[id].parents);
+
                 parents.iter_mut().for_each(|(n, id)| {
                     self.canonicalize(n);
                     *id = self.find(*id);
@@ -538,15 +554,7 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
                 });
 
                 if *REBUILD_META {
-                    for (n, e) in &parents {
-                        let node_meta = M::make(self, n);
-                        let class = &mut self[*e];
-                        let new_meta = class.metadata.merge(&node_meta);
-                        if class.metadata != new_meta {
-                            class.metadata = new_meta;
-                            self.dirty_eclasses.push(*e)
-                        }
-                    }
+                    self.propagate_metadata(&parents)
                 }
 
                 self[id].parents = parents;
@@ -561,12 +569,12 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
         let trimmed_nodes = self.rebuild_classes();
 
         if *REBUILD_MEMO {
-            let before = self.dirty_eclasses.len();
+            let before = self.dirty_unions.len();
             self.rebuild_memo();
-            assert_eq!(before, self.dirty_eclasses.len());
+            assert_eq!(before, self.dirty_unions.len());
         }
 
-        assert!(self.dirty_eclasses.is_empty());
+        assert!(self.dirty_unions.is_empty());
 
         let elapsed = start.elapsed();
         info!(
@@ -587,6 +595,19 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
         );
 
         n_unions
+    }
+
+    #[inline(never)]
+    fn propagate_metadata(&mut self, parents: &[(ENode<L>, Id)]) {
+        for (n, e) in parents {
+            let node_meta = M::make(self, n);
+            let class = &mut self[*e];
+            let new_meta = class.metadata.merge(&node_meta);
+            if class.metadata != new_meta {
+                class.metadata = new_meta;
+                self.dirty_unions.push(*e)
+            }
+        }
     }
 }
 
