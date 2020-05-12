@@ -112,8 +112,12 @@ impl Metadata<Math> for Meta {
             if *MATH_PRUNE {
                 egraph[id].nodes.retain(|n| n.children.is_empty());
             }
-            assert!(!egraph[id].nodes.is_empty());
 
+            assert!(
+                !egraph[id].nodes.is_empty(),
+                "empty eclass! {:#?}",
+                egraph[id]
+            );
             #[cfg(debug_assertions)]
             egraph[id].assert_unique_leaves();
         }

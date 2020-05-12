@@ -1,7 +1,8 @@
 use std::fmt::{self, Debug};
 
-use indexmap::{IndexMap, IndexSet};
+use indexmap::IndexMap;
 use log::*;
+use once_cell::sync::Lazy;
 
 use crate::{unionfind::UnionFind, Dot, EClass, ENode, Id, Language, Metadata, RecExpr};
 
@@ -188,6 +189,7 @@ impl<L, M> EGraph<L, M> {
     /// let y = egraph.add(enode!("y"));
     /// // only one eclass
     /// egraph.union(x, y);
+    /// egraph.rebuild();
     ///
     /// assert_eq!(egraph.total_size(), 2);
     /// assert_eq!(egraph.number_of_classes(), 1);
@@ -196,6 +198,7 @@ impl<L, M> EGraph<L, M> {
         self.memo.len()
     }
 
+    /// Iterates over the classes, returning the total number of nodes.
     pub fn total_number_of_nodes(&self) -> usize {
         self.classes().map(|c| c.len()).sum()
     }
@@ -299,7 +302,6 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
     /// [`ENode`]: struct.ENode.html
     /// [`add`]: struct.EGraph.html#method.add
     pub fn add(&mut self, mut enode: ENode<L>) -> Id {
-        use once_cell::sync::Lazy;
         static CANON_ADD: Lazy<bool> =
             Lazy::new(|| std::env::var("CANON_ADD").map_or(true, |s| s.parse().unwrap()));
 
@@ -422,6 +424,7 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
         let mut trimmed = 0;
 
         // let mut memo = IndexMap::new(); // std::mem::take(&mut self.memo);
+        // self.memo.clear();
 
         for class in mut_values {
             let old_len = class.len();
@@ -435,7 +438,7 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
             trimmed += old_len - class.nodes.len();
 
             // for n in &class.nodes {
-            //     memo.insert(n.clone(), class.id);
+            //     self.memo.insert(n.clone(), class.id);
             // }
 
             let mut add = |op: &L, len: usize| {
@@ -468,14 +471,51 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
     #[inline(never)]
     fn rebuild_memo(&mut self) {
         let mut new_memo = std::mem::take(&mut self.memo);
-        new_memo.clear();
+
+        static CLEAR_MEMO: Lazy<bool> =
+            Lazy::new(|| std::env::var("CLEAR_MEMO").map_or(true, |s| s.parse().unwrap()));
+
+        if *CLEAR_MEMO {
+            new_memo.clear();
+        }
+
         for class in self.classes() {
             for node in &class.nodes {
-                let old = new_memo.insert(node.clone(), class.id);
-                assert!(old.map_or(true, |id| id == class.id));
+                if let Some(old) = new_memo.insert(node.clone(), class.id) {
+                    assert_eq!(
+                        self.find(old),
+                        self.find(class.id),
+                        "Found unexpected equivalence for {:?}",
+                        node
+                    );
+                }
             }
         }
         self.memo = new_memo;
+    }
+
+    #[inline(never)]
+    fn check_memo(&self) -> bool {
+        let mut new_memo = IndexMap::new();
+
+        for class in self.classes() {
+            for node in &class.nodes {
+                if let Some(old) = new_memo.insert(node, class.id) {
+                    assert_eq!(
+                        self.find(old),
+                        self.find(class.id),
+                        "Found unexpected equivalence for {:?}",
+                        node
+                    );
+                }
+            }
+        }
+
+        for (n, e) in new_memo {
+            assert_eq!(Some(e), self.memo.get(n).map(|id| self.find(*id)));
+        }
+
+        true
     }
 
     /// Restores the egraph invariants of congruence and enode uniqueness.
@@ -512,39 +552,43 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
         let old_hc_size = self.memo.len();
         let old_n_eclasses = self.classes.number_of_classes();
         let mut n_unions = 0;
+        let mut to_union = vec![];
 
         let start = instant::Instant::now();
 
-        let mut to_union = vec![];
-
-        use once_cell::sync::Lazy;
         static REBUILD_MEMO: Lazy<bool> =
             Lazy::new(|| std::env::var("REBUILD_MEMO").map_or(true, |s| s.parse().unwrap()));
         static REBUILD_META: Lazy<bool> =
             Lazy::new(|| std::env::var("REBUILD_META").map_or(true, |s| s.parse().unwrap()));
 
-        loop {
+        while !self.dirty_unions.is_empty() {
             // take the worklist, we'll get the stuff that's added the next time around
-            let mut dirty_unions = std::mem::take(&mut self.dirty_unions);
-            if dirty_unions.is_empty() {
-                break;
-            }
-
             // deduplicate the dirty list to avoid extra work
-            dirty_unions.iter_mut().for_each(|id| *id = self.find(*id));
-            dirty_unions.sort_unstable();
-            dirty_unions.dedup();
+            let mut todo = std::mem::take(&mut self.dirty_unions);
+            todo.iter_mut().for_each(|id| *id = self.find(*id));
+            todo.sort_unstable();
+            todo.dedup();
+            assert!(!todo.is_empty());
 
-            for id in dirty_unions {
+            for id in todo {
                 n_unions += 1;
-
                 let mut parents = std::mem::take(&mut self[id].parents);
+
+                for (n, _e) in &parents {
+                    self.memo.remove(n);
+                }
 
                 parents.iter_mut().for_each(|(n, id)| {
                     self.canonicalize(n);
                     *id = self.find(*id);
                 });
                 parents.sort_unstable();
+
+                for (n, e) in &parents {
+                    if let Some(old) = self.memo.insert(n.clone(), *e) {
+                        to_union.push((old, *e));
+                    }
+                }
 
                 parents.dedup_by(|(n1, e1), (n2, e2)| {
                     n1 == n2 && {
@@ -575,6 +619,7 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
         }
 
         assert!(self.dirty_unions.is_empty());
+        assert!(to_union.is_empty());
 
         let elapsed = start.elapsed();
         info!(
@@ -594,6 +639,7 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
             trimmed_nodes,
         );
 
+        debug_assert!(self.check_memo());
         n_unions
     }
 
@@ -605,7 +651,11 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
             let new_meta = class.metadata.merge(&node_meta);
             if class.metadata != new_meta {
                 class.metadata = new_meta;
-                self.dirty_unions.push(*e)
+                // self.dirty_unions.push(*e);
+                let e_parents = std::mem::take(&mut self[*e].parents);
+                self.propagate_metadata(&e_parents);
+                self[*e].parents = e_parents;
+                M::modify(self, *e);
             }
         }
     }

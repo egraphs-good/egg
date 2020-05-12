@@ -107,13 +107,6 @@ impl<K: Key, V> UnionFind<K, V> {
         self.values[leader.index()].as_mut().unwrap()
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (K, &V)> {
-        self.values
-            .iter()
-            .enumerate()
-            .filter_map(|(i, v)| v.as_ref().map(|v| (K::from_index(i), v)))
-    }
-
     pub fn values(&self) -> impl Iterator<Item = &V> {
         self.values.iter().filter_map(Option::as_ref)
     }

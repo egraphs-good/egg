@@ -69,7 +69,7 @@ fn rules() -> Vec<Rewrite<Lang, Meta>> {
 fn is_not_same_var(v1: &'static str, v2: &'static str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let v1 = v1.parse().unwrap();
     let v2 = v2.parse().unwrap();
-    move |_, _, subst| subst[&v1] != subst[&v2]
+    move |egraph, _, subst| egraph.find(subst[&v1]) != egraph.find(subst[&v2])
 }
 
 fn is_const(v1: &'static str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {

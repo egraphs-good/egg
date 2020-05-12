@@ -5,8 +5,6 @@ use std::rc::Rc;
 use smallvec::SmallVec;
 use symbolic_expressions::Sexp;
 
-use crate::unionfind::UnionFind;
-
 /// The type of an eclass id in the [`EGraph`](struct.EGraph.html)
 pub type Id = u32;
 
@@ -282,12 +280,6 @@ impl<L: Language, Child> ENode<L, Child> {
         F: FnMut(Child) -> Result<Child2, Error>,
     {
         ENode::try_new(self.op.clone(), self.children.iter().cloned().map(f))
-    }
-}
-
-impl<L: Language> ENode<L> {
-    pub(crate) fn update_ids<V>(&self, unionfind: &UnionFind<Id, V>) -> Self {
-        self.map_children(|id| unionfind.find(id))
     }
 }
 
