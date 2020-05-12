@@ -2,7 +2,6 @@ use std::fmt::{self, Debug};
 
 use indexmap::IndexMap;
 use log::*;
-use once_cell::sync::Lazy;
 
 use crate::{unionfind::UnionFind, Dot, EClass, ENode, Id, Language, Metadata, RecExpr};
 
@@ -302,12 +301,8 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
     /// [`ENode`]: struct.ENode.html
     /// [`add`]: struct.EGraph.html#method.add
     pub fn add(&mut self, mut enode: ENode<L>) -> Id {
-        static CANON_ADD: Lazy<bool> =
-            Lazy::new(|| std::env::var("CANON_ADD").map_or(true, |s| s.parse().unwrap()));
 
-        if *CANON_ADD {
-            self.canonicalize(&mut enode);
-        }
+        self.canonicalize(&mut enode);
 
         let id = self.classes.total_size() as Id;
 
@@ -469,32 +464,6 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
     }
 
     #[inline(never)]
-    fn rebuild_memo(&mut self) {
-        let mut new_memo = std::mem::take(&mut self.memo);
-
-        static CLEAR_MEMO: Lazy<bool> =
-            Lazy::new(|| std::env::var("CLEAR_MEMO").map_or(true, |s| s.parse().unwrap()));
-
-        if *CLEAR_MEMO {
-            new_memo.clear();
-        }
-
-        for class in self.classes() {
-            for node in &class.nodes {
-                if let Some(old) = new_memo.insert(node.clone(), class.id) {
-                    assert_eq!(
-                        self.find(old),
-                        self.find(class.id),
-                        "Found unexpected equivalence for {:?}",
-                        node
-                    );
-                }
-            }
-        }
-        self.memo = new_memo;
-    }
-
-    #[inline(never)]
     fn check_memo(&self) -> bool {
         let mut new_memo = IndexMap::new();
 
@@ -556,11 +525,6 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
 
         let start = instant::Instant::now();
 
-        static REBUILD_MEMO: Lazy<bool> =
-            Lazy::new(|| std::env::var("REBUILD_MEMO").map_or(true, |s| s.parse().unwrap()));
-        static REBUILD_META: Lazy<bool> =
-            Lazy::new(|| std::env::var("REBUILD_META").map_or(true, |s| s.parse().unwrap()));
-
         while !self.dirty_unions.is_empty() {
             // take the worklist, we'll get the stuff that's added the next time around
             // deduplicate the dirty list to avoid extra work
@@ -583,13 +547,6 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
                     *id = self.find(*id);
                 });
                 parents.sort_unstable();
-
-                for (n, e) in &parents {
-                    if let Some(old) = self.memo.insert(n.clone(), *e) {
-                        to_union.push((old, *e));
-                    }
-                }
-
                 parents.dedup_by(|(n1, e1), (n2, e2)| {
                     n1 == n2 && {
                         to_union.push((*e1, *e2));
@@ -597,9 +554,13 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
                     }
                 });
 
-                if *REBUILD_META {
-                    self.propagate_metadata(&parents)
+                for (n, e) in &parents {
+                    if let Some(old) = self.memo.insert(n.clone(), *e) {
+                        to_union.push((old, *e));
+                    }
                 }
+
+                self.propagate_metadata(&parents);
 
                 self[id].parents = parents;
                 M::modify(self, id);
@@ -611,12 +572,6 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
         }
 
         let trimmed_nodes = self.rebuild_classes();
-
-        if *REBUILD_MEMO {
-            let before = self.dirty_unions.len();
-            self.rebuild_memo();
-            assert_eq!(before, self.dirty_unions.len());
-        }
 
         assert!(self.dirty_unions.is_empty());
         assert!(to_union.is_empty());
