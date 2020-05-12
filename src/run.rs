@@ -360,7 +360,11 @@ where
         for rule in rules {
             let ms = self.scheduler.search_rewrite(i, &self.egraph, rule);
             matches.push(ms);
-            self.check_limits()?;
+            if self.check_limits().is_err() {
+                // bail on searching, make sure applying doesn't do anything
+                matches.clear();
+                break
+            }
         }
 
         let search_time = start_time.elapsed().as_secs_f64();
@@ -387,7 +391,9 @@ where
                 debug!("Applied {} {} times", rw.name(), actually_matched);
             }
 
-            self.check_limits()?
+            if self.check_limits().is_err() {
+                break
+            }
         }
 
         let apply_time = apply_time.elapsed().as_secs_f64();
