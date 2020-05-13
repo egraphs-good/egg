@@ -52,7 +52,8 @@ pub struct Subst {
 }
 
 impl Subst {
-    pub(crate) fn insert(&mut self, var: Var, id: Id) -> Option<Id> {
+    /// Insert something, returning the old `Id` if present.
+    pub fn insert(&mut self, var: Var, id: Id) -> Option<Id> {
         for pair in &mut self.vec {
             if pair.0 == var {
                 return Some(std::mem::replace(&mut pair.1, id));
@@ -62,7 +63,8 @@ impl Subst {
         None
     }
 
-    pub(crate) fn get(&self, var: &Var) -> Option<&Id> {
+    /// Retrieve a `Var`, returning `None` if not present.
+    pub fn get(&self, var: &Var) -> Option<&Id> {
         self.vec
             .iter()
             .find_map(|(v, id)| if v == var { Some(id) } else { None })
