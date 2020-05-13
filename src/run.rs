@@ -364,7 +364,7 @@ where
             if self.check_limits().is_err() {
                 // bail on searching, make sure applying doesn't do anything
                 matches.clear();
-                break
+                break;
             }
         }
 
@@ -393,7 +393,7 @@ where
             }
 
             if self.check_limits().is_err() {
-                break
+                break;
             }
         }
 
