@@ -5,8 +5,6 @@ use std::rc::Rc;
 use smallvec::SmallVec;
 use symbolic_expressions::Sexp;
 
-use crate::unionfind::UnionFind;
-
 /// The type of an eclass id in the [`EGraph`](struct.EGraph.html)
 pub type Id = u32;
 
@@ -30,7 +28,7 @@ pub type Id = u32;
 /// [`Language`]: trait.Language.html
 /// [cf]: trait.CostFunction.html
 /// [metadata]: trait.Metadata.html
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
 pub struct ENode<O, Child = Id> {
     /// The operator from the user-defined [`Language`](trait.Language.html)
     pub op: O,
@@ -285,12 +283,6 @@ impl<L: Language, Child> ENode<L, Child> {
     }
 }
 
-impl<L: Language> ENode<L> {
-    pub(crate) fn update_ids<V>(&self, unionfind: &UnionFind<Id, V>) -> Self {
-        self.map_children(|id| unionfind.find(id))
-    }
-}
-
 /// Trait defines a Language whose terms will be in the [`EGraph`].
 ///
 /// Typically, you'll want your language to implement [`FromStr`] and
@@ -306,6 +298,6 @@ impl<L: Language> ENode<L> {
 /// [`String`]: https://doc.rust-lang.org/std/string/struct.String.html
 /// [`FromStr`]: https://doc.rust-lang.org/std/str/trait.FromStr.html
 /// [`Display`]: https://doc.rust-lang.org/std/fmt/trait.Display.html
-pub trait Language: Debug + PartialEq + Eq + Hash + Clone + 'static {}
+pub trait Language: Debug + Ord + Hash + Clone + 'static {}
 
 impl Language for String {}

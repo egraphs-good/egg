@@ -165,6 +165,7 @@ impl<'a, CF, L, M> Extractor<'a, CF, L, M>
 where
     CF: CostFunction<L>,
     L: Language,
+    M: Debug,
 {
     /// Create a new `Extractor` given an `EGraph` and a
     /// `CostFunction`.
@@ -244,6 +245,6 @@ where
             .iter()
             .map(|n| self.node_total_cost(n))
             .min_by(cmp)
-            .unwrap()
+            .unwrap_or_else(|| panic!("Can't extract, eclass is empty: {:#?}", eclass))
     }
 }

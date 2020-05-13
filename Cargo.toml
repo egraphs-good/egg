@@ -19,17 +19,15 @@ instant = "0.1"
 once_cell = "1"
 # for the serde-1 feature
 serde = { version = "1", features = ["derive"], optional = true }
-# for the parent-pointers feature
-itertools = { version = "0.8", optional = true }
 # for the reports feature
 serde_json = { version = "1", optional = true }
 
 [dev-dependencies]
-env_logger = "0.7"
+env_logger = {version = "0.7", default-features = false}
 ordered-float = "1"
 
 [features]
-parent-pointers = [ "itertools" ]
+upward-merging = []
 stdweb = [ "instant/stdweb" ]
 serde-1 = [ "serde", "indexmap/serde-1" ]
 reports = [ "serde-1", "serde_json" ]
@@ -39,10 +37,3 @@ members = [
     ".",
     "web-demo",
 ]
-
-[profile.test]
-debug = true
-opt-level = 1
-
-[profile.release]
-debug = true

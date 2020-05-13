@@ -69,7 +69,7 @@ fn rules() -> Vec<Rewrite<Lang, Meta>> {
 fn is_not_same_var(v1: &'static str, v2: &'static str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let v1 = v1.parse().unwrap();
     let v2 = v2.parse().unwrap();
-    move |_, _, subst| subst[&v1] != subst[&v2]
+    move |egraph, _, subst| egraph.find(subst[&v1]) != egraph.find(subst[&v2])
 }
 
 fn is_const(v1: &'static str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
@@ -106,9 +106,10 @@ impl Metadata<Lang> for Meta {
         Meta { constant }
     }
 
-    fn modify(eclass: &mut EClass<Lang, Self>) {
-        if let Some(c) = eclass.metadata.constant.clone() {
-            eclass.nodes.push(ENode::leaf(c));
+    fn modify(egraph: &mut EGraph, id: Id) {
+        if let Some(c) = egraph[id].metadata.constant.clone() {
+            let const_id = egraph.add(ENode::leaf(c));
+            egraph.union(id, const_id);
         }
     }
 }

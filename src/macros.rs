@@ -15,8 +15,8 @@ define_language! {
 }
 ```
 
-`define_language` derives `Debug`, `PartialEq`, `Eq`, `Hash`, and `Clone`
-on the given `enum` so it can implement [`Language`].
+`define_language` derives `Debug`, `PartialEq`, `Eq`, `PartialOrd`, `Ord`,
+`Hash`, and `Clone` on the given `enum` so it can implement [`Language`].
 The macro also implements [`FromStr`] and [`Display`] for the `enum`
 based on either the data of variants or the provided strings.
 
@@ -69,7 +69,7 @@ macro_rules! define_language {
         }
     ) => {
         $(#[$meta])*
-        #[derive(Debug, PartialEq, Eq, Hash, Clone)]
+        #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
         $vis enum $name {
             $( $variant $(( $($t),* ))? ),*
         }

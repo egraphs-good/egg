@@ -7,17 +7,13 @@ test: test-egg test-web
 .PHONY: test-egg
 test-egg:
 	cargo build
-	cargo test
+	cargo test --release
+	cargo test --release --features "upward-merging"
+
 	cargo clippy --tests
-
-	cargo test           --features "reports"
-
-	cargo build          --features "parent-pointers"
-	cargo test           --features "parent-pointers"
-	cargo clippy --tests --features "parent-pointers"
-
 	cargo clippy --tests --features "serde-1"
 	cargo clippy --tests --features "reports"
+
 
 .PHONY: test-web
 test-web:

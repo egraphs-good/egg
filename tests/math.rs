@@ -99,20 +99,23 @@ impl Metadata<Math> for Meta {
         Self { best, cost }
     }
 
-    fn modify(eclass: &mut EClass<Math, Self>) {
-        use once_cell::sync::Lazy;
-        static MATH_PRUNE: Lazy<bool> =
-            Lazy::new(|| std::env::var("MATH_PRUNE").map_or(true, |s| s.parse().unwrap()));
-
-        let best = eclass.metadata.best.as_ref();
+    fn modify(egraph: &mut EGraph, id: Id) {
+        let best = egraph[id].metadata.best.as_ref();
         if best.children.is_empty() {
-            if *MATH_PRUNE {
-                eclass.nodes = vec![ENode::leaf(best.op.clone())];
-            } else {
-                eclass.nodes.push(ENode::leaf(best.op.clone()));
-            }
+            let leaf = ENode::leaf(best.op.clone());
+            let added = egraph.add(leaf);
+            let id = egraph.union(id, added);
+
+            // to not prune, comment this out
+            egraph[id].nodes.retain(|n| n.children.is_empty());
+
+            assert!(
+                !egraph[id].nodes.is_empty(),
+                "empty eclass! {:#?}",
+                egraph[id]
+            );
             #[cfg(debug_assertions)]
-            eclass.assert_unique_leaves();
+            egraph[id].assert_unique_leaves();
         }
     }
 }
@@ -220,7 +223,6 @@ pub fn rules() -> Vec<Rewrite> { vec![
 ]}
 
 egg::test_fn! {
-    #[cfg_attr(feature = "parent-pointers", ignore)]
     math_associate_adds, [
         rw!("comm-add"; "(+ ?a ?b)" => "(+ ?b ?a)"),
         rw!("assoc-add"; "(+ ?a (+ ?b ?c))" => "(+ (+ ?a ?b) ?c)"),
@@ -244,13 +246,11 @@ egg::test_fn! {math_simplify_add, rules(), "(+ x (+ x (+ x x)))" => "(* 4 x)" }
 egg::test_fn! {math_powers, rules(), "(* (pow 2 x) (pow 2 y))" => "(pow 2 (+ x y))"}
 
 egg::test_fn! {
-    #[cfg_attr(feature = "parent-pointers", ignore)]
     math_simplify_const, rules(),
     "(+ 1 (- a (* (- 2 1) a)))" => "1"
 }
 
 egg::test_fn! {
-    #[cfg_attr(feature = "parent-pointers", ignore)]
     math_simplify_root, rules(),
     runner = Runner::new().with_node_limit(75_000),
     r#"
@@ -270,12 +270,10 @@ egg::test_fn! {math_diff_simple2,   rules(), "(d x (+ 1 (* y x)))" => "y"}
 egg::test_fn! {math_diff_ln,        rules(), "(d x (ln x))" => "(/ 1 x)"}
 
 egg::test_fn! {
-    #[cfg_attr(feature = "parent-pointers", ignore)]
     diff_power_simple, rules(),
     "(d x (pow x 3))" => "(* 3 (pow x 2))"
 }
 egg::test_fn! {
-    #[cfg_attr(feature = "parent-pointers", ignore)]
     diff_power_harder, rules(),
     runner = Runner::new()
         .with_time_limit(std::time::Duration::from_secs(10))
@@ -289,32 +287,26 @@ egg::test_fn! {
 }
 
 egg::test_fn! {
-    #[cfg_attr(feature = "parent-pointers", ignore)]
     integ_one, rules(), "(i 1 x)" => "x"
 }
 
 egg::test_fn! {
-    #[cfg_attr(feature = "parent-pointers", ignore)]
     integ_sin, rules(), "(i (cos x) x)" => "(sin x)"
 }
 
 egg::test_fn! {
-    #[cfg_attr(feature = "parent-pointers", ignore)]
     integ_x, rules(), "(i (pow x 1) x)" => "(/ (pow x 2) 2)"
 }
 
 egg::test_fn! {
-    #[cfg_attr(feature = "parent-pointers", ignore)]
     integ_part1, rules(), "(i (* x (cos x)) x)" => "(+ (* x (sin x)) (cos x))"
 }
 
 egg::test_fn! {
-    #[cfg_attr(feature = "parent-pointers", ignore)]
     integ_part2, rules(),
     "(i (* (cos x) x) x)" => "(+ (* x (sin x)) (cos x))"
 }
 
 egg::test_fn! {
-    #[cfg_attr(feature = "parent-pointers", ignore)]
     integ_part3, rules(), "(i (ln x) x)" => "(- (* x (ln x)) x)"
 }

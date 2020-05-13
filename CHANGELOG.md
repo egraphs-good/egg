@@ -4,11 +4,14 @@
 
 ## [Unreleased] - ReleaseDate
 
+### Added
+- The rebuilding algorithm is now _precise_ meaning it avoid a lot of
+  unnecessary work. This leads to across the board speedup by up to 2x.
+
 ### Changed
 - **Fix:**
   An eclass's metadata will now get updated by
-  congruence. This unfortunately results in a little bit slower code,
-  but it's the right thing.
+  congruence. 
   ([commit](https://github.com/mwillsey/egg/commit/0de75c9c9b0a80adb67fb78cc98cce3da383621a))
 - The `BackoffScheduler` will now fast-forward if all rules are banned.
   ([commit](https://github.com/mwillsey/egg/commit/dd172ef77279e28448d0bf8147e0171a8175228d))

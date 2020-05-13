@@ -94,6 +94,7 @@ impl<L: Language, M: Metadata<L>> Rewrite<L, M> {
             elapsed.subsec_millis()
         );
 
+        egraph.rebuild();
         ids
     }
 }
@@ -474,7 +475,6 @@ mod tests {
 
         egraph.rebuild();
         fold_add.run(&mut egraph);
-        egraph.rebuild();
         assert_eq!(egraph.equivs(&start, &goal), vec![egraph.find(root)]);
     }
 }
