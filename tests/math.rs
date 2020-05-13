@@ -227,7 +227,6 @@ pub fn rules() -> Vec<Rewrite> { vec![
 ]}
 
 egg::test_fn! {
-    #[cfg_attr(feature = "parent-pointers", ignore)]
     math_associate_adds, [
         rw!("comm-add"; "(+ ?a ?b)" => "(+ ?b ?a)"),
         rw!("assoc-add"; "(+ ?a (+ ?b ?c))" => "(+ (+ ?a ?b) ?c)"),
@@ -251,13 +250,11 @@ egg::test_fn! {math_simplify_add, rules(), "(+ x (+ x (+ x x)))" => "(* 4 x)" }
 egg::test_fn! {math_powers, rules(), "(* (pow 2 x) (pow 2 y))" => "(pow 2 (+ x y))"}
 
 egg::test_fn! {
-    #[cfg_attr(feature = "parent-pointers", ignore)]
     math_simplify_const, rules(),
     "(+ 1 (- a (* (- 2 1) a)))" => "1"
 }
 
 egg::test_fn! {
-    #[cfg_attr(feature = "parent-pointers", ignore)]
     math_simplify_root, rules(),
     runner = Runner::new().with_node_limit(75_000),
     r#"
@@ -277,12 +274,10 @@ egg::test_fn! {math_diff_simple2,   rules(), "(d x (+ 1 (* y x)))" => "y"}
 egg::test_fn! {math_diff_ln,        rules(), "(d x (ln x))" => "(/ 1 x)"}
 
 egg::test_fn! {
-    #[cfg_attr(feature = "parent-pointers", ignore)]
     diff_power_simple, rules(),
     "(d x (pow x 3))" => "(* 3 (pow x 2))"
 }
 egg::test_fn! {
-    #[cfg_attr(feature = "parent-pointers", ignore)]
     diff_power_harder, rules(),
     runner = Runner::new()
         .with_time_limit(std::time::Duration::from_secs(10))
@@ -296,32 +291,26 @@ egg::test_fn! {
 }
 
 egg::test_fn! {
-    #[cfg_attr(feature = "parent-pointers", ignore)]
     integ_one, rules(), "(i 1 x)" => "x"
 }
 
 egg::test_fn! {
-    #[cfg_attr(feature = "parent-pointers", ignore)]
     integ_sin, rules(), "(i (cos x) x)" => "(sin x)"
 }
 
 egg::test_fn! {
-    #[cfg_attr(feature = "parent-pointers", ignore)]
     integ_x, rules(), "(i (pow x 1) x)" => "(/ (pow x 2) 2)"
 }
 
 egg::test_fn! {
-    #[cfg_attr(feature = "parent-pointers", ignore)]
     integ_part1, rules(), "(i (* x (cos x)) x)" => "(+ (* x (sin x)) (cos x))"
 }
 
 egg::test_fn! {
-    #[cfg_attr(feature = "parent-pointers", ignore)]
     integ_part2, rules(),
     "(i (* (cos x) x) x)" => "(+ (* x (sin x)) (cos x))"
 }
 
 egg::test_fn! {
-    #[cfg_attr(feature = "parent-pointers", ignore)]
     integ_part3, rules(), "(i (ln x) x)" => "(- (* x (ln x)) x)"
 }

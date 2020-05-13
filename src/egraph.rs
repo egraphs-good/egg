@@ -301,7 +301,6 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
     /// [`ENode`]: struct.ENode.html
     /// [`add`]: struct.EGraph.html#method.add
     pub fn add(&mut self, mut enode: ENode<L>) -> Id {
-
         self.canonicalize(&mut enode);
 
         let id = self.classes.total_size() as Id;
@@ -366,7 +365,8 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
         if did_something {
             self.dirty_unions.push(to);
             M::modify(self, to);
-            // self.rebuild();
+            #[cfg(feature = "upward-merging")]
+            self.process_unions();
         }
         (to, did_something)
     }
@@ -487,51 +487,20 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
         true
     }
 
-    /// Restores the egraph invariants of congruence and enode uniqueness.
-    ///
-    /// As mentioned [above](struct.EGraph.html#invariants-and-rebuilding),
-    /// `egg` takes a lazy approach to maintaining the egraph invariants.
-    /// The `rebuild` method allows the user to manually restore those
-    /// invariants at a time of their choosing. It's a reasonably
-    /// fast, linear-ish traversal through the egraph.
-    ///
-    /// # Example
-    /// ```
-    /// # use egg::*;
-    /// let mut egraph = EGraph::<String, ()>::default();
-    /// let x = egraph.add(enode!("x"));
-    /// let y = egraph.add(enode!("y"));
-    /// let ax = egraph.add_expr(&"(+ a x)".parse().unwrap());
-    /// let ay = egraph.add_expr(&"(+ a y)".parse().unwrap());
-    ///
-    /// // The effects of this union aren't yet visible; ax and ay
-    /// // should be equivalent by congruence since x = y.
-    /// egraph.union(x, y);
-    /// // Classes: [x y] [ax] [ay] [a]
-    /// assert_eq!(egraph.number_of_classes(), 4);
-    /// assert_ne!(egraph.find(ax), egraph.find(ay));
-    ///
-    /// // Rebuilding restores the invariants, finding the "missing" equivalence
-    /// egraph.rebuild();
-    /// // Classes: [x y] [ax ay] [a]
-    /// assert_eq!(egraph.number_of_classes(), 3);
-    /// assert_eq!(egraph.find(ax), egraph.find(ay));
-    /// ```
-    pub fn rebuild(&mut self) -> usize {
-        let old_hc_size = self.memo.len();
-        let old_n_eclasses = self.classes.number_of_classes();
+    #[inline(never)]
+    fn process_unions(&mut self) -> usize {
         let mut n_unions = 0;
         let mut to_union = vec![];
-
-        let start = instant::Instant::now();
 
         while !self.dirty_unions.is_empty() {
             // take the worklist, we'll get the stuff that's added the next time around
             // deduplicate the dirty list to avoid extra work
             let mut todo = std::mem::take(&mut self.dirty_unions);
             todo.iter_mut().for_each(|id| *id = self.find(*id));
-            todo.sort_unstable();
-            todo.dedup();
+            if cfg!(not(feature = "upward-merging")) {
+                todo.sort_unstable();
+                todo.dedup();
+            }
             assert!(!todo.is_empty());
 
             for id in todo {
@@ -567,14 +536,58 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
             }
 
             for (id1, id2) in to_union.drain(..) {
-                self.union(id1, id2);
+                let (to, did_something) = self.classes.union(id1, id2).unwrap();
+                if did_something {
+                    self.dirty_unions.push(to);
+                }
             }
         }
 
-        let trimmed_nodes = self.rebuild_classes();
-
         assert!(self.dirty_unions.is_empty());
         assert!(to_union.is_empty());
+        n_unions
+    }
+
+    /// Restores the egraph invariants of congruence and enode uniqueness.
+    ///
+    /// As mentioned [above](struct.EGraph.html#invariants-and-rebuilding),
+    /// `egg` takes a lazy approach to maintaining the egraph invariants.
+    /// The `rebuild` method allows the user to manually restore those
+    /// invariants at a time of their choosing. It's a reasonably
+    /// fast, linear-ish traversal through the egraph.
+    ///
+    /// # Example
+    /// ```
+    /// # use egg::*;
+    /// let mut egraph = EGraph::<String, ()>::default();
+    /// let x = egraph.add(enode!("x"));
+    /// let y = egraph.add(enode!("y"));
+    /// let ax = egraph.add_expr(&"(+ a x)".parse().unwrap());
+    /// let ay = egraph.add_expr(&"(+ a y)".parse().unwrap());
+    ///
+    /// // The effects of this union aren't yet visible; ax and ay
+    /// // should be equivalent by congruence since x = y.
+    /// egraph.union(x, y);
+    /// // Classes: [x y] [ax] [ay] [a]
+    /// # #[cfg(not(feature = "upward-merging"))]
+    /// assert_eq!(egraph.number_of_classes(), 4);
+    /// # #[cfg(not(feature = "upward-merging"))]
+    /// assert_ne!(egraph.find(ax), egraph.find(ay));
+    ///
+    /// // Rebuilding restores the invariants, finding the "missing" equivalence
+    /// egraph.rebuild();
+    /// // Classes: [x y] [ax ay] [a]
+    /// assert_eq!(egraph.number_of_classes(), 3);
+    /// assert_eq!(egraph.find(ax), egraph.find(ay));
+    /// ```
+    pub fn rebuild(&mut self) -> usize {
+        let old_hc_size = self.memo.len();
+        let old_n_eclasses = self.classes.number_of_classes();
+
+        let start = instant::Instant::now();
+
+        let n_unions = self.process_unions();
+        let trimmed_nodes = self.rebuild_classes();
 
         let elapsed = start.elapsed();
         info!(

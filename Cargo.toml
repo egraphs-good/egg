@@ -27,7 +27,7 @@ env_logger = "0.7"
 ordered-float = "1"
 
 [features]
-parent-pointers = []
+upward-merging = []
 stdweb = [ "instant/stdweb" ]
 serde-1 = [ "serde", "indexmap/serde-1" ]
 reports = [ "serde-1", "serde_json" ]

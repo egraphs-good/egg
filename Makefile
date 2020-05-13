@@ -12,9 +12,9 @@ test-egg:
 
 	cargo test           --features "reports"
 
-	cargo build          --features "parent-pointers"
-	cargo test           --features "parent-pointers"
-	cargo clippy --tests --features "parent-pointers"
+	cargo build          --features "upward-merging"
+	cargo test           --features "upward-merging"
+	cargo clippy --tests --features "upward-merging"
 
 	cargo clippy --tests --features "serde-1"
 	cargo clippy --tests --features "reports"
