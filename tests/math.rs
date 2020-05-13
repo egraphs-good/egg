@@ -100,18 +100,14 @@ impl Metadata<Math> for Meta {
     }
 
     fn modify(egraph: &mut EGraph, id: Id) {
-        use once_cell::sync::Lazy;
-        static MATH_PRUNE: Lazy<bool> =
-            Lazy::new(|| std::env::var("MATH_PRUNE").map_or(true, |s| s.parse().unwrap()));
-
         let best = egraph[id].metadata.best.as_ref();
         if best.children.is_empty() {
             let leaf = ENode::leaf(best.op.clone());
             let added = egraph.add(leaf);
             let id = egraph.union(id, added);
-            if *MATH_PRUNE {
-                egraph[id].nodes.retain(|n| n.children.is_empty());
-            }
+
+            // to not prune, comment this out
+            egraph[id].nodes.retain(|n| n.children.is_empty());
 
             assert!(
                 !egraph[id].nodes.is_empty(),
