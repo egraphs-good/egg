@@ -1,10 +1,7 @@
-use std::fmt::Debug;
+use std::fmt::{self, Debug};
 use std::iter::ExactSizeIterator;
 
-use crate::{
-    unionfind::{Key, UnionFind, Value},
-    EGraph, ENode, Id, Language,
-};
+use crate::{ENode, Id, Language};
 
 /** Arbitrary data associated with an [`EClass`].
 
@@ -85,56 +82,67 @@ assert_eq!(runner.egraph.find(runner.roots[0]), runner.egraph.find(just_foo));
 [`math.rs`]: https://github.com/mwillsey/egg/blob/master/tests/math.rs
 [`prop.rs`]: https://github.com/mwillsey/egg/blob/master/tests/prop.rs
 */
-pub trait Metadata<L>: Sized + Debug + PartialEq + Eq {
-    /// Unused for now, probably just make this `()`.
-    type Error: Debug;
+// pub trait Metadata<L>: Sized + Debug + PartialEq + Eq {
+//     /// Unused for now, probably just make this `()`.
+//     type Error: Debug;
 
-    /// Defines how to merge two [`Metadata`]s when their containing
-    /// [`EClass`]es merge.
-    ///
-    /// [`Metadata`]: trait.Metadata.html
-    /// [`EClass`]: struct.EClass.html
-    fn merge(&self, other: &Self) -> Self;
+//     /// Defines how to merge two [`Metadata`]s when their containing
+//     /// [`EClass`]es merge.
+//     ///
+//     /// [`Metadata`]: trait.Metadata.html
+//     /// [`EClass`]: struct.EClass.html
+//     fn merge(&self, other: &Self) -> Self;
 
-    /// Makes a new [`Metadata`] given an operator and its children
-    /// [`Metadata`].
-    ///
-    /// [`Metadata`]: trait.Metadata.html
-    fn make(egraph: &EGraph<L, Self>, enode: &ENode<L>) -> Self;
+//     /// Makes a new [`Metadata`] given an operator and its children
+//     /// [`Metadata`].
+//     ///
+//     /// [`Metadata`]: trait.Metadata.html
+//     fn make(egraph: &EGraph<L>, enode: &ENode<L>) -> Self;
 
-    /// A hook that allow a [`Metadata`] to modify its containing
-    /// [`EClass`].
-    ///
-    /// By default this does nothing.
-    ///
-    /// [`Metadata`]: trait.Metadata.html
-    /// [`EClass`]: struct.EClass.html
-    #[allow(unused_variables)]
-    fn modify(egraph: &mut EGraph<L, Self>, id: Id) {}
-}
+//     /// A hook that allow a [`Metadata`] to modify its containing
+//     /// [`EClass`].
+//     ///
+//     /// By default this does nothing.
+//     ///
+//     /// [`Metadata`]: trait.Metadata.html
+//     /// [`EClass`]: struct.EClass.html
+//     #[allow(unused_variables)]
+//     fn modify(egraph: &mut EGraph<L>, id: Id) {}
+// }
 
-impl<L: Language> Metadata<L> for () {
-    type Error = std::convert::Infallible;
-    fn merge(&self, _other: &()) {}
-    fn make(_: &EGraph<L, Self>, _: &ENode<L>) {}
-}
+// impl<L: Language> Metadata<L> for () {
+//     type Error = std::convert::Infallible;
+//     fn merge(&self, _other: &()) {}
+//     fn make(_: &EGraph<L, Self>, _: &ENode<L>) {}
+// }
 
 /// An equivalence class of [`ENode`]s
 ///
 /// [`ENode`]: struct.ENode.html
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 #[non_exhaustive]
-pub struct EClass<L, M> {
+pub struct EClass<L: Language> {
     /// This eclass's id.
     pub id: Id,
     /// The equivalent enodes in this equivalence class.
-    pub nodes: Vec<ENode<L>>,
+    pub nodes: Vec<L::ENode>,
     /// The metadata associated with this eclass.
-    pub metadata: M,
-    pub(crate) parents: Vec<(ENode<L>, Id)>,
+    pub metadata: L::Metadata,
+    pub(crate) parents: Vec<(L::ENode, Id)>,
 }
 
-impl<L, M> EClass<L, M> {
+impl<L: Language> Debug for EClass<L> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("EClass")
+            .field("id", &self.id)
+            .field("nodes", &self.nodes)
+            .field("metadata", &self.metadata)
+            .field("parents", &self.parents)
+            .finish()
+    }
+}
+
+impl<L: Language> EClass<L> {
     /// Returns `true` if the `eclass` is empty.
     pub fn is_empty(&self) -> bool {
         self.nodes.is_empty()
@@ -146,16 +154,13 @@ impl<L, M> EClass<L, M> {
     }
 
     /// Iterates over the enodes in this eclass.
-    pub fn iter(&self) -> impl ExactSizeIterator<Item = &ENode<L>> {
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = &L::ENode> {
         self.nodes.iter()
     }
 
     /// Iterates over the childless enodes in this eclass.
-    pub fn leaves(&self) -> impl Iterator<Item = &L> {
-        self.nodes
-            .iter()
-            .filter(|&n| n.children.is_empty())
-            .map(|n| &n.op)
+    pub fn leaves(&self) -> impl Iterator<Item = &L::ENode> {
+        self.nodes.iter().filter(|&n| n.children().is_empty())
     }
 
     /// Asserts that the childless enodes in this eclass are unique.
@@ -163,41 +168,15 @@ impl<L, M> EClass<L, M> {
     where
         L: Language,
     {
-        let mut leaves = self.leaves();
-        if let Some(first) = leaves.next() {
-            assert!(
-                leaves.all(|l| l == first),
-                "Different leaves in eclass {}: {:?}",
-                self.id,
-                self.leaves().collect::<indexmap::IndexSet<_>>()
-            );
-        }
-    }
-}
-
-fn concat<T>(mut a: Vec<T>, mut b: Vec<T>) -> Vec<T> {
-    if a.len() < b.len() {
-        b.extend(a);
-        b
-    } else {
-        a.extend(b);
-        a
-    }
-}
-
-impl<L: Language, M: Metadata<L>> Value for EClass<L, M> {
-    type Error = std::convert::Infallible;
-    fn merge<K: Key>(
-        _unionfind: &mut UnionFind<K, Self>,
-        to: Self,
-        from: Self,
-    ) -> Result<Self, Self::Error> {
-        let eclass = EClass {
-            id: to.id,
-            nodes: concat(to.nodes, from.nodes),
-            metadata: to.metadata.merge(&from.metadata),
-            parents: concat(to.parents, from.parents),
-        };
-        Ok(eclass)
+        todo!()
+        // let mut leaves = self.leaves();
+        // if let Some(first) = leaves.next() {
+        //     assert!(
+        //         leaves.all(|l| l == first),
+        //         "Different leaves in eclass {}: {:?}",
+        //         self.id,
+        //         self.leaves().collect::<indexmap::IndexSet<_>>()
+        //     );
+        // }
     }
 }

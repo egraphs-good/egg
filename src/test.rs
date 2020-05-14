@@ -6,7 +6,7 @@ These are not considered part of the public api.
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-use crate::{AstSize, Extractor, Language, Metadata, Pattern, RecExpr, Runner, Searcher};
+use crate::{AstSize, Extractor, Language, Pattern, RecExpr, Runner, Searcher};
 
 fn mean_stdev(data: &[f64]) -> (f64, f64) {
     assert_ne!(data.len(), 0);
@@ -150,10 +150,9 @@ pub fn run<T>(name: impl Into<String>, mut f: impl FnMut() -> T) -> Reporter<T> 
     }
 }
 
-impl<L, M, IterData> Runner<L, M, IterData>
+impl<L, IterData> Runner<L, IterData>
 where
     L: Language + std::fmt::Display,
-    M: Metadata<L>,
 {
     pub fn check_goals(&self, goals: &[RecExpr<L>]) {
         let egraph = &self.egraph;

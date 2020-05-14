@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::{EGraph, Id, Language, Metadata, SearchMatches, Subst};
+use crate::{EGraph, Id, Language, SearchMatches, Subst};
 
 /// A rewrite that searches for the lefthand side and applies the righthand side.
 ///
@@ -21,14 +21,14 @@ use crate::{EGraph, Id, Language, Metadata, SearchMatches, Subst};
 // TODO display
 #[derive(Clone)]
 #[non_exhaustive]
-pub struct Rewrite<L, M> {
+pub struct Rewrite<L> {
     name: String,
     long_name: String,
-    searcher: Rc<dyn Searcher<L, M>>,
-    applier: Rc<dyn Applier<L, M>>,
+    searcher: Rc<dyn Searcher<L>>,
+    applier: Rc<dyn Applier<L>>,
 }
 
-impl<L: Language, M: Metadata<L>> Rewrite<L, M> {
+impl<L: Language> Rewrite<L> {
     /// Create a new [`Rewrite`]. You typically want to use the
     /// [`rewrite!`] macro instead.
     ///
@@ -37,8 +37,8 @@ impl<L: Language, M: Metadata<L>> Rewrite<L, M> {
     pub fn new(
         name: impl Into<String>,
         long_name: impl Into<String>,
-        searcher: impl Searcher<L, M> + 'static,
-        applier: impl Applier<L, M> + 'static,
+        searcher: impl Searcher<L> + 'static,
+        applier: impl Applier<L> + 'static,
     ) -> Self {
         Self {
             name: name.into(),
@@ -63,7 +63,7 @@ impl<L: Language, M: Metadata<L>> Rewrite<L, M> {
     ///
     /// [`Searcher`]: trait.Searcher.html
     /// [`search`]: trait.Searcher.html#method.search
-    pub fn search(&self, egraph: &EGraph<L, M>) -> Vec<SearchMatches> {
+    pub fn search(&self, egraph: &EGraph<L>) -> Vec<SearchMatches> {
         self.searcher.search(egraph)
     }
 
@@ -71,14 +71,14 @@ impl<L: Language, M: Metadata<L>> Rewrite<L, M> {
     ///
     /// [`Applier`]: trait.Applier.html
     /// [`apply_matches`]: trait.Applier.html#method.apply_matches
-    pub fn apply(&self, egraph: &mut EGraph<L, M>, matches: &[SearchMatches]) -> Vec<Id> {
+    pub fn apply(&self, egraph: &mut EGraph<L>, matches: &[SearchMatches]) -> Vec<Id> {
         self.applier.apply_matches(egraph, matches)
     }
 
     /// This `run` is for testing use only. You should use things
     /// from the `egg::run` module
     #[cfg(test)]
-    pub(crate) fn run(&self, egraph: &mut EGraph<L, M>) -> Vec<Id> {
+    pub(crate) fn run(&self, egraph: &mut EGraph<L>) -> Vec<Id> {
         let start = instant::Instant::now();
 
         let matches = self.search(egraph);
@@ -108,14 +108,13 @@ impl<L: Language, M: Metadata<L>> Rewrite<L, M> {
 /// [`Rewrite`]: struct.Rewrite.html
 /// [`Searcher`]: trait.Searcher.html
 /// [`Pattern`]: struct.Pattern.html
-pub trait Searcher<L, M>
+pub trait Searcher<L>
 where
     L: Language,
-    M: Metadata<L>,
 {
     /// Search one eclass, returning None if no matches can be found.
     /// This should not return a SearchMatches with no substs.
-    fn search_eclass(&self, egraph: &EGraph<L, M>, eclass: Id) -> Option<SearchMatches>;
+    fn search_eclass(&self, egraph: &EGraph<L>, eclass: Id) -> Option<SearchMatches>;
 
     /// Search the whole [`EGraph`], returning a list of all the
     /// [`SearchMatches`] where something was found.
@@ -124,7 +123,7 @@ where
     /// [`EGraph`]: struct.EGraph.html
     /// [`search_eclass`]: trait.Searcher.html#tymethod.search_eclass
     /// [`SearchMatches`]: struct.SearchMatches.html
-    fn search(&self, egraph: &EGraph<L, M>) -> Vec<SearchMatches> {
+    fn search(&self, egraph: &EGraph<L>) -> Vec<SearchMatches> {
         egraph
             .classes()
             .filter_map(|e| self.search_eclass(egraph, e.id))
@@ -165,7 +164,7 @@ where
 ///     size: usize,
 /// }
 ///
-/// type EGraph = egg::EGraph<Math, Meta>;
+/// type EGraph = egg::EGraph<Matheta>;
 ///
 /// impl Metadata<Math> for Meta {
 ///     type Error = ();
@@ -202,7 +201,7 @@ where
 ///     c: Var,
 /// }
 ///
-/// impl Applier<Math, Meta> for Funky {
+/// impl Applier<Matheta> for Funky {
 ///     fn apply_one(&self, egraph: &mut EGraph, matched_id: Id, subst: &Subst) -> Vec<Id> {
 ///         let a: Id = subst[&self.a];
 ///         // In a custom Applier, you can inspect the Metadata,
@@ -243,10 +242,9 @@ where
 /// [`Applier`]: trait.Applier.html
 /// [`Condition`]: trait.Condition.html
 /// [`Metadata`]: trait.Metadata.html
-pub trait Applier<L, M>
+pub trait Applier<L>
 where
     L: Language,
-    M: Metadata<L>,
 {
     /// Apply many substititions.
     ///
@@ -260,14 +258,14 @@ where
     ///
     /// [`Id`]: type.Id.html
     /// [`apply_one`]: trait.Applier.html#method.apply_one
-    fn apply_matches(&self, egraph: &mut EGraph<L, M>, matches: &[SearchMatches]) -> Vec<Id> {
+    fn apply_matches(&self, egraph: &mut EGraph<L>, matches: &[SearchMatches]) -> Vec<Id> {
         let mut added = vec![];
         for mat in matches {
             for subst in &mat.substs {
                 let ids = self
                     .apply_one(egraph, mat.eclass, subst)
                     .into_iter()
-                    .filter_map(|id| egraph.union_if_different(id, mat.eclass));
+                    .filter_map(|id| egraph.union(id, mat.eclass).ok());
                 added.extend(ids)
             }
         }
@@ -288,7 +286,7 @@ where
     /// [`Applier`]: trait.Applier.html
     /// [`Id`]: type.Id.html
     /// [`apply_matches`]: trait.Applier.html#method.apply_matches
-    fn apply_one(&self, egraph: &mut EGraph<L, M>, eclass: Id, subst: &Subst) -> Vec<Id>;
+    fn apply_one(&self, egraph: &mut EGraph<L>, eclass: Id, subst: &Subst) -> Vec<Id>;
 }
 
 /// An [`Applier`] that checks a [`Condition`] before applying.
@@ -320,14 +318,13 @@ pub struct ConditionalApplier<C, A> {
     pub applier: A,
 }
 
-impl<C, A, L, M> Applier<L, M> for ConditionalApplier<C, A>
+impl<C, A, L> Applier<L> for ConditionalApplier<C, A>
 where
     L: Language,
-    M: Metadata<L>,
-    A: Applier<L, M>,
-    C: Condition<L, M>,
+    A: Applier<L>,
+    C: Condition<L>,
 {
-    fn apply_one(&self, egraph: &mut EGraph<L, M>, eclass: Id, subst: &Subst) -> Vec<Id> {
+    fn apply_one(&self, egraph: &mut EGraph<L>, eclass: Id, subst: &Subst) -> Vec<Id> {
         if self.condition.check(egraph, eclass, subst) {
             self.applier.apply_one(egraph, eclass, subst)
         } else {
@@ -347,10 +344,9 @@ where
 /// [`Fn`]: https://doc.rust-lang.org/std/ops/trait.Fn.html
 /// [`ConditionalApplier`]: struct.ConditionalApplier.html
 /// [`Condition`]: trait.Condition.html
-pub trait Condition<L, M>
+pub trait Condition<L>
 where
     L: Language,
-    M: Metadata<L>,
 {
     /// Check a condition.
     ///
@@ -359,16 +355,15 @@ where
     ///
     /// [`Id`]: type.Id.html
     /// [`ConditionalApplier`]: struct.ConditionalApplier.html
-    fn check(&self, egraph: &mut EGraph<L, M>, eclass: Id, subst: &Subst) -> bool;
+    fn check(&self, egraph: &mut EGraph<L>, eclass: Id, subst: &Subst) -> bool;
 }
 
-impl<L, M, F> Condition<L, M> for F
+impl<L, F> Condition<L> for F
 where
     L: Language,
-    M: Metadata<L>,
-    F: Fn(&mut EGraph<L, M>, Id, &Subst) -> bool,
+    F: Fn(&mut EGraph<L>, Id, &Subst) -> bool,
 {
-    fn check(&self, egraph: &mut EGraph<L, M>, eclass: Id, subst: &Subst) -> bool {
+    fn check(&self, egraph: &mut EGraph<L>, eclass: Id, subst: &Subst) -> bool {
         self(egraph, eclass, subst)
     }
 }
@@ -382,14 +377,13 @@ where
 /// [`Condition`]: trait.Condition.html
 pub struct ConditionEqual<A1, A2>(pub A1, pub A2);
 
-impl<L, M, A1, A2> Condition<L, M> for ConditionEqual<A1, A2>
+impl<L, A1, A2> Condition<L> for ConditionEqual<A1, A2>
 where
     L: Language,
-    M: Metadata<L>,
-    A1: Applier<L, M>,
-    A2: Applier<L, M>,
+    A1: Applier<L>,
+    A2: Applier<L>,
 {
-    fn check(&self, egraph: &mut EGraph<L, M>, eclass: Id, subst: &Subst) -> bool {
+    fn check(&self, egraph: &mut EGraph<L>, eclass: Id, subst: &Subst) -> bool {
         let a1 = self.0.apply_one(egraph, eclass, subst);
         let a2 = self.1.apply_one(egraph, eclass, subst);
         assert_eq!(a1.len(), 1);

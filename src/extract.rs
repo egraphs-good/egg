@@ -40,10 +40,10 @@ assert_eq!(best, "10".parse().unwrap());
 [`RecExpr`]: struct.RecExpr.html
 [`EGraph`]: struct.EGraph.html
 **/
-pub struct Extractor<'a, CF: CostFunction<L>, L: Language, M> {
+pub struct Extractor<'a, CF: CostFunction<L>, L: Language> {
     cost_function: CF,
     costs: IndexMap<Id, CF::Cost>,
-    egraph: &'a EGraph<L, M>,
+    egraph: &'a EGraph<L>,
 }
 
 /** A cost function that can be used by an [`Extractor`].
@@ -161,11 +161,10 @@ fn cmp<T: PartialOrd>(a: &Option<T>, b: &Option<T>) -> Ordering {
     }
 }
 
-impl<'a, CF, L, M> Extractor<'a, CF, L, M>
+impl<'a, CF, L> Extractor<'a, CF, L>
 where
     CF: CostFunction<L>,
     L: Language,
-    M: Debug,
 {
     /// Create a new `Extractor` given an `EGraph` and a
     /// `CostFunction`.
@@ -173,7 +172,7 @@ where
     /// The extraction does all the work on creation, so this function
     /// performs the greedy search for cheapest representative of each
     /// eclass.
-    pub fn new(egraph: &'a EGraph<L, M>, cost_function: CF) -> Self {
+    pub fn new(egraph: &'a EGraph<L>, cost_function: CF) -> Self {
         let costs = IndexMap::default();
         let mut extractor = Extractor {
             costs,
@@ -240,7 +239,7 @@ where
         }
     }
 
-    fn make_pass(&mut self, eclass: &EClass<L, M>) -> Option<CF::Cost> {
+    fn make_pass(&mut self, eclass: &EClass<L>) -> Option<CF::Cost> {
         eclass
             .iter()
             .map(|n| self.node_total_cost(n))

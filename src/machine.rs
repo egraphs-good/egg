@@ -1,48 +1,47 @@
 #![allow(dead_code, unused_imports, unused_variables, unreachable_code)]
-use crate::{EClass, EGraph, ENode, Id, Language, Pattern, PatternAst, Subst, Var};
+use crate::{EClass, EGraph, ENode, ENodeOrVar, Id, Language, Pattern, Subst, Var};
 
 use log::trace;
 use std::cmp::Ordering;
 use std::fmt;
 
-struct Machine<'a, L, M> {
-    egraph: &'a EGraph<L, M>,
-    program: &'a [Instruction<L>],
+struct Machine<'a, L: Language> {
+    egraph: &'a EGraph<L>,
+    program: &'a [Instruction<L::ENode>],
     pc: usize,
     reg: Vec<Id>,
-    stack: Vec<Binder<'a, L>>,
+    stack: Vec<Binder<'a, L::ENode>>,
 }
 
 type Addr = usize;
 type Reg = usize;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Instruction<L> {
-    Bind(Reg, L, usize, Reg),
-    Check(Reg, L),
+pub enum Instruction<N> {
+    Bind(Reg, N, Reg),
+    Check(Reg, N),
     Compare(Reg, Reg),
     Yield(Vec<Reg>),
 }
 
-struct Binder<'a, L> {
+struct Binder<'a, N> {
     out: Reg,
     next: Addr,
-    searcher: EClassSearcher<'a, L>,
+    searcher: EClassSearcher<'a, N>,
 }
 
-struct EClassSearcher<'a, L> {
-    op: L,
-    len: usize,
-    nodes: &'a [ENode<L>],
+struct EClassSearcher<'a, N> {
+    node: N,
+    nodes: &'a [N],
 }
 
-impl<'a, L: PartialEq> Iterator for EClassSearcher<'a, L> {
+impl<'a, N: ENode> Iterator for EClassSearcher<'a, N> {
     type Item = &'a [Id];
     fn next(&mut self) -> Option<Self::Item> {
         for (i, enode) in self.nodes.iter().enumerate() {
-            if enode.op == self.op && enode.children.len() == self.len {
+            if self.node.matches(enode) {
                 self.nodes = &self.nodes[i + 1..];
-                return Some(enode.children.as_slice());
+                return Some(enode.children());
             }
         }
         None
@@ -51,8 +50,8 @@ impl<'a, L: PartialEq> Iterator for EClassSearcher<'a, L> {
 
 use Instruction::*;
 
-impl<'a, L: Language, M> Machine<'a, L, M> {
-    fn new(egraph: &'a EGraph<L, M>, program: &'a [Instruction<L>]) -> Self {
+impl<'a, L: Language> Machine<'a, L> {
+    fn new(egraph: &'a EGraph<L>, program: &'a [Instruction<L::ENode>]) -> Self {
         Self {
             egraph,
             program,
@@ -106,27 +105,23 @@ impl<'a, L: Language, M> Machine<'a, L, M> {
             trace!("Executing {:?}", instr);
 
             match instr {
-                Bind(i, op, len, out) => {
+                Bind(i, node, out) => {
                     let eclass = &self.egraph[self.reg[*i]];
                     self.stack.push(Binder {
                         out: *out,
                         next: self.pc,
                         searcher: EClassSearcher {
-                            op: op.clone(),
-                            len: *len,
+                            node: node.clone(),
                             nodes: &eclass.nodes,
                         },
                     });
                     backtrack!();
                 }
                 Check(i, t) => {
+                    debug_assert!(t.is_leaf());
                     let id = self.reg[*i];
                     let eclass = &self.egraph[id];
-                    if eclass
-                        .nodes
-                        .iter()
-                        .any(|n| &n.op == t && n.children.is_empty())
-                    {
+                    if eclass.nodes.contains(t) {
                         trace!("Check(r{} = e{}, {:?}) passed", i, id, t);
                     } else {
                         trace!("Check(r{} = e{}, {:?}) failed", i, id, t);
@@ -163,64 +158,65 @@ impl<'a, L: Language, M> Machine<'a, L, M> {
     }
 }
 
-type RegToPat<L> = indexmap::IndexMap<Reg, PatternAst<L>>;
+type RegToPat<N> = indexmap::IndexMap<Reg, ENodeOrVar<N>>;
 type VarToReg = indexmap::IndexMap<Var, Reg>;
 
-fn size<L>(p: &PatternAst<L>) -> usize {
-    match p {
-        PatternAst::ENode(e) => 1 + e.children.iter().map(size).sum::<usize>(),
-        PatternAst::Var(_) => 1,
-    }
-}
+// fn size<N: ENode>(p: &[ENodeOrVar<N>], root: u32) -> usize {
+//     match &p[root as usize] {
+//         ENodeOrVar::ENode(e) => 1 + e.children().iter().map(|i| size(p, *i)).sum::<usize>(),
+//         ENodeOrVar::Var(_) => 1,
+//     }
+// }
 
-fn n_free<L>(v2r: &VarToReg, p: &PatternAst<L>) -> usize {
-    match p {
-        PatternAst::ENode(e) => e.children.iter().map(|c| n_free(v2r, c)).sum::<usize>(),
-        PatternAst::Var(v) => !v2r.contains_key(v) as usize,
-    }
-}
+// fn n_free<N: ENode>(v2r: &VarToReg, p: &[ENodeOrVar<N>], root: u32) -> usize {
+//     match &p[root as usize] {
+//         ENodeOrVar::ENode(e) => e.children().iter().map(|i| n_free(v2r, p, *i)).sum::<usize>(),
+//         ENodeOrVar::Var(v) => !v2r.contains_key(v) as usize,
+//     }
+// }
 
-fn rank<L>(v2r: &VarToReg, p1: &PatternAst<L>, p2: &PatternAst<L>) -> Ordering {
-    let cost1 = (n_free(v2r, p1), size(p1));
-    let cost2 = (n_free(v2r, p2), size(p2));
-    cost1.cmp(&cost2)
-}
+// fn rank<N: ENode>(v2r: &VarToReg, p1: &[ENodeOrVar<N>], p2: &[ENodeOrVar<N>], root1: u32, root2: u32) -> Ordering {
+//     let cost1 = (n_free(v2r, p1, 0), size(p1, 0));
+//     let cost2 = (n_free(v2r, p2, 0), size(p2, 0));
+//     cost1.cmp(&cost2)
+// }
 
-fn compile<L>(
-    r2p: &mut RegToPat<L>,
+fn compile<N: ENode>(
+    pattern: &[ENodeOrVar<N>],
+    r2p: &mut RegToPat<N>,
     v2r: &mut VarToReg,
     mut next_reg: Reg,
-    buf: &mut Vec<Instruction<L>>,
+    buf: &mut Vec<Instruction<N>>,
 ) {
     while let Some((reg, pat)) = r2p.pop() {
         match pat {
-            PatternAst::ENode(e) if e.children.is_empty() => {
+            ENodeOrVar::ENode(e) if e.is_leaf() => {
                 // e is a ground term, it has no children
-                buf.push(Check(reg, e.op))
+                buf.push(Check(reg, e))
             }
-            PatternAst::Var(v) => {
+            ENodeOrVar::Var(v) => {
                 if let Some(&r) = v2r.get(&v) {
                     buf.push(Compare(r, reg))
                 } else {
                     v2r.insert(v, reg);
                 }
             }
-            PatternAst::ENode(e) => {
-                let len = e.children.len();
-                assert_ne!(len, 0);
-                buf.push(Bind(reg, e.op, len, next_reg));
+            ENodeOrVar::ENode(e) => {
+                assert!(!e.is_leaf());
+                buf.push(Bind(reg, e.clone(), next_reg));
 
                 r2p.extend(
-                    e.children
-                        .into_iter()
+                    e.children()
+                        .iter()
                         .enumerate()
-                        .map(|(i, pat)| (next_reg + i, pat)),
+                        .map(|(i, child)| (next_reg + i, pattern[*child as usize].clone())),
                 );
 
                 // sort in reverse order so we pop the cheapest
                 // NOTE, this doesn't seem to have a very large effect right now
-                r2p.sort_by(|_, p1, _, p2| rank(v2r, p1, p2).reverse());
-                next_reg += len;
+                // TODO restore sorting
+                // r2p.sort_by(|_, p1, _, p2| rank(v2r, p1, p2).reverse());
+                next_reg += e.children().len();
             }
         }
     }
@@ -246,24 +242,24 @@ impl<L: fmt::Debug> fmt::Debug for Program<L> {
     }
 }
 
-impl<L: Language> Program<L> {
-    pub(crate) fn compile_from_pat(pat: &PatternAst<L>) -> Program<L>
-    where
-        L: Language,
-    {
+impl<N: ENode> Program<N> {
+    pub(crate) fn compile_from_pat(pattern: &[ENodeOrVar<N>]) -> Program<N> {
         let mut instrs = Vec::new();
         let mut r2p = RegToPat::new();
         let mut v2r = VarToReg::new();
 
-        r2p.insert(0, pat.clone());
-        compile(&mut r2p, &mut v2r, 1, &mut instrs);
+        r2p.insert(0, pattern[0].clone());
+        compile(pattern, &mut r2p, &mut v2r, 1, &mut instrs);
 
         let program = Program { instrs, v2r };
-        trace!("Compiled {:?} to {:?}", pat, program);
+        trace!("Compiled {:?} to {:?}", pattern, program);
         program
     }
 
-    pub fn run<M>(&self, egraph: &EGraph<L, M>, eclass: Id) -> Vec<Subst> {
+    pub fn run<L>(&self, egraph: &EGraph<L>, eclass: Id) -> Vec<Subst>
+    where
+        L: Language<ENode = N>,
+    {
         let mut machine = Machine::new(egraph, &self.instrs);
 
         assert_eq!(machine.reg.len(), 0);

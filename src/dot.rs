@@ -13,7 +13,7 @@ use std::fmt::{self, Debug, Display, Formatter};
 use std::io::{Error, ErrorKind, Result, Write};
 use std::path::Path;
 
-use crate::{egraph::EGraph, expr::Language};
+use crate::{egraph::EGraph, Language, ENode};
 
 /**
 A wrapper for an [`EGraph`] that can output [GraphViz] for
@@ -51,20 +51,20 @@ instead of to its own eclass.
 [`EGraph`]: struct.EGraph.html
 [GraphViz]: https://graphviz.gitlab.io/
 **/
-pub struct Dot<'a, L, M> {
-    egraph: &'a EGraph<L, M>,
+pub struct Dot<'a, L: Language> {
+    egraph: &'a EGraph<L>,
 }
 
-impl<'a, L, M> Dot<'a, L, M> {
+impl<'a, L: Language> Dot<'a, L> {
     /// Given a reference to an `EGraph`, makes a `Dot`.
     /// See also the more convenient
     /// [`EGraph::dot`](struct.EGraph.html#method.dot).
-    pub fn new(egraph: &EGraph<L, M>) -> Dot<L, M> {
+    pub fn new(egraph: &EGraph<L>) -> Dot<L> {
         Dot { egraph }
     }
 }
 
-impl<'a, L: Language + Display, M> Dot<'a, L, M> {
+impl<'a, L: Language> Dot<'a, L> {
     /// Writes the `Dot` to a .dot file with the given filename.
     /// Does _not_ require a `dot` binary.
     pub fn to_dot(&self, filename: impl AsRef<Path>) -> Result<()> {
@@ -141,7 +141,7 @@ impl<'a, L: Language + Display, M> Dot<'a, L, M> {
     }
 }
 
-impl<'a, L: Language, M: Debug> Debug for Dot<'a, L, M> {
+impl<'a, L: Language> Debug for Dot<'a, L> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "Dot({:?})", self.egraph)
     }
@@ -162,7 +162,7 @@ fn edge(i: usize, len: usize) -> (String, String) {
     }
 }
 
-impl<'a, L: Language + Display, M> Display for Dot<'a, L, M> {
+impl<'a, L: Language + Display> Display for Dot<'a, L> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         writeln!(f, "digraph egraph {{")?;
 
@@ -182,9 +182,9 @@ impl<'a, L: Language + Display, M> Display for Dot<'a, L, M> {
 
         for class in self.egraph.classes() {
             for (i_in_class, node) in class.iter().enumerate() {
-                for (arg_i, child) in node.children.iter().enumerate() {
+                for (arg_i, child) in node.children().iter().enumerate() {
                     // write the edge to the child, but clip it to the eclass with lhead
-                    let (anchor, label) = edge(arg_i, node.children.len());
+                    let (anchor, label) = edge(arg_i, node.len());
                     let child_leader = self.egraph.find(*child);
 
                     if child_leader == class.id {

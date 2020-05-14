@@ -1,4 +1,6 @@
-#![warn(missing_docs)]
+// FIXME
+// #![warn(missing_docs)]
+#![allow(unused_variables, unused_mut)]
 /*!
 [`EGraph`]s (and almost everything else in this crate) are
 parameterized over the language given by the user (by implementing
@@ -55,39 +57,44 @@ println!(
 ```
 !*/
 
-mod macros;
+// mod macros;
 
-pub(crate) mod machine;
-pub(crate) mod unionfind;
-
-pub(crate) use pattern::PatternAst;
-
-mod dot;
+// mod dot;
 mod eclass;
 mod egraph;
-mod expr;
-mod extract;
-mod parse;
+// mod expr;
+// mod extract;
+// mod parse;
+mod language;
+mod machine;
 mod pattern;
 mod rewrite;
 mod run;
 mod subst;
+mod unionfind;
 
-pub use dot::Dot;
-pub use eclass::{EClass, Metadata};
-pub use egraph::EGraph;
-pub use expr::{ENode, Id, Language, RecExpr};
-pub use extract::*;
-pub use parse::ParseError;
-pub use pattern::{Pattern, SearchMatches};
-pub use rewrite::{Applier, Condition, ConditionEqual, ConditionalApplier, Rewrite, Searcher};
-pub use run::*;
-pub use subst::{Subst, Var};
+pub type Id = u32;
+
+pub(crate) use {machine::*, pattern::ENodeOrVar, unionfind::UnionFind};
+
+pub use {
+    // dot::Dot,
+    eclass::EClass,
+    egraph::EGraph,
+    language::*,
+    // expr::{Id, RecExpr},
+    // extract::*,
+    // parse::ParseError,
+    pattern::{Pattern, SearchMatches},
+    rewrite::{Applier, Condition, ConditionEqual, ConditionalApplier, Rewrite, Searcher},
+    run::*,
+    subst::{Subst, Var},
+};
 
 #[cfg(test)]
 fn init_logger() {
     let _ = env_logger::builder().is_test(true).try_init();
 }
 
-#[doc(hidden)]
-pub mod test;
+// #[doc(hidden)]
+// pub mod test;

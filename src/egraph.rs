@@ -3,7 +3,7 @@ use std::fmt::{self, Debug};
 use indexmap::IndexMap;
 use log::*;
 
-use crate::{unionfind::UnionFind, Dot, EClass, ENode, Id, Language, Metadata, RecExpr};
+use crate::{EClass, ENode, Id, Language, RecExpr, UnionFind};
 
 /** A data structure to keep track of equalities between expressions.
 
@@ -124,15 +124,17 @@ same eclass.
 [sound]: https://itinerarium.github.io/phoneme-synthesis/?w=/'igraf/
 **/
 #[derive(Clone)]
-pub struct EGraph<L, M> {
-    memo: IndexMap<ENode<L>, Id>,
-    classes: UnionFind<Id, EClass<L, M>>,
+pub struct EGraph<L: Language> {
+    language: L,
+    memo: IndexMap<L::ENode, Id>,
+    unionfind: UnionFind,
+    classes: IndexMap<Id, EClass<L>>,
     dirty_unions: Vec<Id>,
-    pub(crate) classes_by_op: IndexMap<(L, usize), Vec<Id>>,
+    // pub(crate) classes_by_op: IndexMap<(L, usize), Vec<Id>>,
 }
 
 // manual debug impl to avoid L: Language bound on EGraph defn
-impl<L: Language, M: Debug> Debug for EGraph<L, M> {
+impl<L: Language> Debug for EGraph<L> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("EGraph")
             .field("memo", &self.memo)
@@ -141,26 +143,25 @@ impl<L: Language, M: Debug> Debug for EGraph<L, M> {
     }
 }
 
-impl<L, M> Default for EGraph<L, M> {
-    /// Returns an empty egraph.
-    fn default() -> EGraph<L, M> {
-        EGraph {
+impl<L: Language> EGraph<L> {
+    pub fn new(language: L) -> Self {
+        Self {
+            language,
             memo: IndexMap::default(),
-            classes: UnionFind::default(),
+            classes: IndexMap::default(),
+            unionfind: Default::default(),
             dirty_unions: Default::default(),
-            classes_by_op: IndexMap::default(),
+            // classes_by_op: IndexMap::default(),
         }
     }
-}
 
-impl<L, M> EGraph<L, M> {
     /// Returns an iterator over the eclasses in the egraph.
-    pub fn classes(&self) -> impl Iterator<Item = &EClass<L, M>> {
+    pub fn classes(&self) -> impl Iterator<Item = &EClass<L>> {
         self.classes.values()
     }
 
     /// Returns an mutating iterator over the eclasses in the egraph.
-    pub fn classes_mut(&mut self) -> impl Iterator<Item = &mut EClass<L, M>> {
+    pub fn classes_mut(&mut self) -> impl Iterator<Item = &mut EClass<L>> {
         self.classes.values_mut()
     }
 
@@ -204,7 +205,7 @@ impl<L, M> EGraph<L, M> {
 
     /// Returns the number of eclasses in the egraph.
     pub fn number_of_classes(&self) -> usize {
-        self.classes.number_of_classes()
+        self.classes.len()
     }
 
     /// Canonicalizes an eclass id.
@@ -224,46 +225,49 @@ impl<L, M> EGraph<L, M> {
     /// assert_eq!(egraph.find(x), egraph.find(y));
     /// ```
     pub fn find(&self, id: Id) -> Id {
-        self.classes.find(id)
+        self.unionfind.find(id)
     }
 
-    fn canonicalize(&self, enode: &mut ENode<L>) {
-        enode.children.iter_mut().for_each(|c| *c = self.find(*c))
-    }
-
-    /// Creates a [`Dot`] to visualize this egraph. See [`Dot`].
-    ///
-    /// [`Dot`]: struct.Dot.html
-    pub fn dot(&self) -> Dot<L, M> {
-        Dot::new(self)
-    }
+    // FIXME
+    // /// Creates a [`Dot`] to visualize this egraph. See [`Dot`].
+    // ///
+    // /// [`Dot`]: struct.Dot.html
+    // pub fn dot(&self) -> Dot<L> {
+    //     Dot::new(self)
+    // }
 }
 
-impl<L, M> std::ops::Index<Id> for EGraph<L, M> {
-    type Output = EClass<L, M>;
+impl<L: Language> std::ops::Index<Id> for EGraph<L> {
+    type Output = EClass<L>;
     fn index(&self, id: Id) -> &Self::Output {
-        self.classes.get(id)
+        let id = self.find(id);
+        self.classes
+            .get(&id)
+            .unwrap_or_else(|| panic!("Invalid id {}", id))
     }
 }
 
-impl<L, M> std::ops::IndexMut<Id> for EGraph<L, M> {
+impl<L: Language> std::ops::IndexMut<Id> for EGraph<L> {
     fn index_mut(&mut self, id: Id) -> &mut Self::Output {
-        self.classes.get_mut(id)
+        let id = self.find(id);
+        self.classes
+            .get_mut(&id)
+            .unwrap_or_else(|| panic!("Invalid id {}", id))
     }
 }
 
-impl<L: Language, M: Metadata<L>> EGraph<L, M> {
-    /// Create an egraph from a [`RecExpr`].
-    /// Equivalent to calling [`add_expr`] on an empty [`EGraph`].
-    ///
-    /// [`EGraph`]: struct.EGraph.html
-    /// [`RecExpr`]: struct.RecExpr.html
-    /// [`add_expr`]: struct.EGraph.html#method.add_expr
-    pub fn from_expr(expr: &RecExpr<L>) -> (Self, Id) {
-        let mut egraph = EGraph::default();
-        let root = egraph.add_expr(expr);
-        (egraph, root)
-    }
+impl<L: Language> EGraph<L> {
+    // /// Create an egraph from a [`RecExpr`].
+    // /// Equivalent to calling [`add_expr`] on an empty [`EGraph`].
+    // ///
+    // /// [`EGraph`]: struct.EGraph.html
+    // /// [`RecExpr`]: struct.RecExpr.html
+    // /// [`add_expr`]: struct.EGraph.html#method.add_expr
+    // pub fn from_expr(expr: &RecExpr<L>) -> (Self, Id) {
+    //     let mut egraph = EGraph::default();
+    //     let root = egraph.add_expr(expr);
+    //     (egraph, root)
+    // }
 
     /// Adds a [`RecExpr`] to the [`EGraph`].
     ///
@@ -282,8 +286,9 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
     /// [`RecExpr`]: struct.RecExpr.html
     /// [`add_expr`]: struct.EGraph.html#method.add_expr
     pub fn add_expr(&mut self, expr: &RecExpr<L>) -> Id {
-        let e = expr.as_ref().map_children(|child| self.add_expr(&child));
-        self.add(e)
+        todo!()
+        // let e = expr.as_ref().map_children(|child| self.add_expr(&child));
+        // self.add(e)
     }
 
     /// Adds an [`ENode`] to the [`EGraph`].
@@ -300,35 +305,32 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
     /// [`EClass`]: struct.EClass.html
     /// [`ENode`]: struct.ENode.html
     /// [`add`]: struct.EGraph.html#method.add
-    pub fn add(&mut self, mut enode: ENode<L>) -> Id {
+    pub fn add(&mut self, mut enode: L::ENode) -> Id {
         self.canonicalize(&mut enode);
-
-        let id = self.classes.total_size() as Id;
 
         match self.memo.get(&enode) {
             Some(id) => self.find(*id),
             None => {
                 trace!("Adding {:?}", enode);
+                let id = self.unionfind.make_set();
                 let class = EClass {
                     id,
                     nodes: vec![enode.clone()],
-                    metadata: M::make(self, &enode),
+                    metadata: L::metadata_make(self, &enode),
                     parents: Default::default(),
                 };
 
                 // add this enode to the parent lists of its children
-                for &child in &enode.children {
+                for &child in enode.children() {
                     let tup = (enode.clone(), id);
                     self[child].parents.push(tup);
                 }
 
-                let next_id = self.classes.make_set(class);
-                debug_assert_eq!(next_id, id);
-                let old = self.memo.insert(enode, next_id);
-                assert_eq!(old, None);
+                assert!(self.classes.insert(id, class).is_none());
+                assert!(self.memo.insert(enode, id).is_none());
 
-                M::modify(self, id);
-                next_id
+                L::metadata_modify(self, id);
+                id
             }
         }
     }
@@ -339,58 +341,84 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
     ///
     /// [`RecExpr`]: struct.RecExpr.html
     pub fn equivs(&self, expr1: &RecExpr<L>, expr2: &RecExpr<L>) -> Vec<Id> {
-        use crate::{Pattern, Searcher};
-        let matches1 = Pattern::from(expr1.clone()).search(self);
-        trace!("Matches1: {:?}", matches1);
+        todo!()
+        // use crate::{Pattern, Searcher};
+        // let matches1 = Pattern::from(expr1.clone()).search(self);
+        // trace!("Matches1: {:?}", matches1);
 
-        let matches2 = Pattern::from(expr2.clone()).search(self);
-        trace!("Matches2: {:?}", matches2);
+        // let matches2 = Pattern::from(expr2.clone()).search(self);
+        // trace!("Matches2: {:?}", matches2);
 
-        let mut equiv_eclasses = Vec::new();
+        // let mut equiv_eclasses = Vec::new();
 
-        for m1 in &matches1 {
-            for m2 in &matches2 {
-                if self.find(m1.eclass) == self.find(m2.eclass) {
-                    equiv_eclasses.push(m1.eclass)
-                }
-            }
-        }
+        // for m1 in &matches1 {
+        //     for m2 in &matches2 {
+        //         if self.find(m1.eclass) == self.find(m2.eclass) {
+        //             equiv_eclasses.push(m1.eclass)
+        //         }
+        //     }
+        // }
 
-        equiv_eclasses
+        // equiv_eclasses
+    }
+
+    fn canonicalize(&self, enode: &mut L::ENode) {
+        enode
+            .children_mut()
+            .iter_mut()
+            .for_each(|c| *c = self.find(*c))
     }
 
     #[inline]
-    fn union_impl(&mut self, id1: Id, id2: Id) -> (Id, bool) {
-        let (to, did_something) = self.classes.union(id1, id2).unwrap();
-        if did_something {
-            self.dirty_unions.push(to);
-            M::modify(self, to);
-            #[cfg(feature = "upward-merging")]
-            self.process_unions();
+    fn union_impl(&mut self, id1: Id, id2: Id) -> Result<Id, Id> {
+        fn concat<T>(to: &mut Vec<T>, mut from: Vec<T>) {
+            if to.len() < from.len() {
+                std::mem::swap(to, &mut from)
+            }
+            to.extend(from);
         }
-        (to, did_something)
+
+        let (to, from) = self.unionfind.union(id1, id2);
+        debug_assert_eq!(to, self.find(to));
+        if to != from {
+            self.dirty_unions.push(to);
+
+            // update the classes data structure
+            let from_class = self.classes.remove(&from).unwrap();
+            let to_class = self.classes.get_mut(&to).unwrap();
+
+            self.language
+                .metadata_merge(&mut to_class.metadata, from_class.metadata);
+            concat(&mut to_class.nodes, from_class.nodes);
+            concat(&mut to_class.parents, from_class.parents);
+
+            L::metadata_modify(self, to);
+            Ok(to)
+        } else {
+            Ok(to)
+        }
     }
 
     /// Unions two eclasses given their ids.
     ///
     /// The given ids need not be canonical.
-    /// If the two eclasses were actually the same, this does nothing.
-    /// This returns the canonical id of the merged eclass.
-    pub fn union(&mut self, id1: Id, id2: Id) -> Id {
-        self.union_impl(id1, id2).0
+    /// This returns `Ok(merged_id)` if a union was done, or
+    /// `Err(already_same_id)` if they were already equivalent.
+    /// Both results are canonical.
+    pub fn union(&mut self, id1: Id, id2: Id) -> Result<Id, Id> {
+        let to = self.union_impl(id1, id2);
+        if to.is_ok() && cfg!(feature = "upward-merging") {
+            self.process_unions();
+        }
+        to
     }
 
-    /// Unions two eclasses given their ids.
+    /// Unions two eclasses given their ids, returning the merged id.
     ///
-    /// Same as [`union`](struct.EGraph.html#method.union), but it
-    /// returns None if the two given ids refer to the same eclass.
-    pub fn union_if_different(&mut self, id1: Id, id2: Id) -> Option<Id> {
-        let (to, did_something) = self.union_impl(id1, id2);
-        if did_something {
-            Some(to)
-        } else {
-            None
-        }
+    /// Same as [`union`](struct.EGraph.html#method.union), but this throws away
+    /// information regarding whether a union was performed.
+    pub fn union_id(&mut self, id1: Id, id2: Id) -> Id {
+        self.union(id1, id2).unwrap_or_else(|id| id)
     }
 
     /// Returns a more debug-able representation of the egraph.
@@ -408,59 +436,60 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
 }
 
 // All the rebuilding stuff
-impl<L: Language, M: Metadata<L>> EGraph<L, M> {
+impl<L: Language> EGraph<L> {
     #[inline(never)]
     fn rebuild_classes(&mut self) -> usize {
-        let (find, mut_values) = self.classes.split();
+        // let (find, mut_values) = self.classes.split();
 
-        let mut classes_by_op = std::mem::take(&mut self.classes_by_op);
-        classes_by_op.clear();
+        // let mut classes_by_op = std::mem::take(&mut self.classes_by_op);
+        // classes_by_op.clear();
 
-        let mut trimmed = 0;
+        // let mut trimmed = 0;
 
-        // let mut memo = IndexMap::new(); // std::mem::take(&mut self.memo);
-        // self.memo.clear();
+        // // let mut memo = IndexMap::new(); // std::mem::take(&mut self.memo);
+        // // self.memo.clear();
 
-        for class in mut_values {
-            let old_len = class.len();
-            class
-                .nodes
-                .iter_mut()
-                .for_each(|n| n.children.iter_mut().for_each(|id| *id = find(*id)));
-            class.nodes.sort_unstable();
-            class.nodes.dedup();
+        // for class in mut_values {
+        //     let old_len = class.len();
+        //     class
+        //         .nodes
+        //         .iter_mut()
+        //         .for_each(|n| n.children.iter_mut().for_each(|id| *id = find(*id)));
+        //     class.nodes.sort_unstable();
+        //     class.nodes.dedup();
 
-            trimmed += old_len - class.nodes.len();
+        //     trimmed += old_len - class.nodes.len();
 
-            // for n in &class.nodes {
-            //     self.memo.insert(n.clone(), class.id);
-            // }
+        //     // for n in &class.nodes {
+        //     //     self.memo.insert(n.clone(), class.id);
+        //     // }
 
-            let mut add = |op: &L, len: usize| {
-                classes_by_op
-                    .entry((op.clone(), len))
-                    .or_default()
-                    .push(class.id)
-            };
+        //     let mut add = |op: &L, len: usize| {
+        //         classes_by_op
+        //             .entry((op.clone(), len))
+        //             .or_default()
+        //             .push(class.id)
+        //     };
 
-            // we can go through the ops in order to dedup them, becaue we
-            // just sorted them
-            let mut ops_and_lens = class.nodes.iter().map(|n| (&n.op, n.children.len()));
-            // let mut prev = ops_and_lens.next().unwrap_or_else(|| panic!("Empty eclass! {:?}", class));
-            if let Some(mut prev) = ops_and_lens.next() {
-                add(&prev.0, prev.1);
-                for tup in ops_and_lens {
-                    if tup != prev {
-                        add(&tup.0, tup.1);
-                        prev = tup;
-                    }
-                }
-            }
-        }
+        //     // we can go through the ops in order to dedup them, becaue we
+        //     // just sorted them
+        //     let mut ops_and_lens = class.nodes.iter().map(|n| (&n.op, n.children.len()));
+        //     // let mut prev = ops_and_lens.next().unwrap_or_else(|| panic!("Empty eclass! {:?}", class));
+        //     if let Some(mut prev) = ops_and_lens.next() {
+        //         add(&prev.0, prev.1);
+        //         for tup in ops_and_lens {
+        //             if tup != prev {
+        //                 add(&tup.0, tup.1);
+        //                 prev = tup;
+        //             }
+        //         }
+        //     }
+        // }
 
-        // self.memo = memo;
-        self.classes_by_op = classes_by_op;
-        trimmed
+        // // self.memo = memo;
+        // self.classes_by_op = classes_by_op;
+        // trimmed
+        0
     }
 
     #[inline(never)]
@@ -532,12 +561,11 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
                 self.propagate_metadata(&parents);
 
                 self[id].parents = parents;
-                M::modify(self, id);
+                L::metadata_modify(self, id);
             }
 
             for (id1, id2) in to_union.drain(..) {
-                let (to, did_something) = self.classes.union(id1, id2).unwrap();
-                if did_something {
+                if let Ok(to) = self.union_impl(id1, id2) {
                     self.dirty_unions.push(to);
                 }
             }
@@ -582,7 +610,7 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
     /// ```
     pub fn rebuild(&mut self) -> usize {
         let old_hc_size = self.memo.len();
-        let old_n_eclasses = self.classes.number_of_classes();
+        let old_n_eclasses = self.number_of_classes();
 
         let start = instant::Instant::now();
 
@@ -602,7 +630,7 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
             old_hc_size,
             old_n_eclasses,
             self.memo.len(),
-            self.classes.number_of_classes(),
+            self.number_of_classes(),
             n_unions,
             trimmed_nodes,
         );
@@ -612,29 +640,25 @@ impl<L: Language, M: Metadata<L>> EGraph<L, M> {
     }
 
     #[inline(never)]
-    fn propagate_metadata(&mut self, parents: &[(ENode<L>, Id)]) {
+    fn propagate_metadata(&mut self, parents: &[(L::ENode, Id)]) {
         for (n, e) in parents {
-            let node_meta = M::make(self, n);
-            let class = &mut self[*e];
-            let new_meta = class.metadata.merge(&node_meta);
-            if class.metadata != new_meta {
-                class.metadata = new_meta;
-                // self.dirty_unions.push(*e);
-                let e_parents = std::mem::take(&mut self[*e].parents);
+            let e = self.find(*e);
+            let node_meta = L::metadata_make(self, n);
+            let class = &mut self.classes[&e];
+            if self.language.metadata_merge(&mut class.metadata, node_meta) {
+                // self.dirty_unions.push(*e); // NOTE: i dont think this is necessary
+                let e_parents = std::mem::take(&mut class.parents);
                 self.propagate_metadata(&e_parents);
-                self[*e].parents = e_parents;
-                M::modify(self, *e);
+                self[e].parents = e_parents;
+                L::metadata_modify(self, e);
             }
         }
     }
 }
 
-struct EGraphDump<'a, L, M>(&'a EGraph<L, M>);
+struct EGraphDump<'a, L: Language>(&'a EGraph<L>);
 
-impl<'a, L, M> Debug for EGraphDump<'a, L, M>
-where
-    L: Language,
-{
+impl<'a, L: Language> Debug for EGraphDump<'a, L> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for class in self.0.classes() {
             writeln!(f, "{}: {:?}", class.id, class.nodes)?

@@ -1,3 +1,4 @@
+use crate::Id;
 use std::cell::Cell;
 use std::fmt::Debug;
 
@@ -5,153 +6,52 @@ use std::fmt::Debug;
 // instantiate UnionFind in one place (EGraph), so this type bound
 // isn't intrusive
 
-#[derive(Debug, Clone)]
-pub struct UnionFind<K: Key, V> {
-    parents: Vec<Cell<K>>,
-    sizes: Vec<u32>,
-    values: Vec<Option<V>>,
-    n_leaders: usize,
+#[derive(Debug, Clone, Default)]
+pub struct UnionFind {
+    parents: Vec<Cell<Id>>,
 }
 
-impl<K: Key, V> Default for UnionFind<K, V> {
-    fn default() -> Self {
-        UnionFind {
-            parents: Vec::new(),
-            sizes: Vec::new(),
-            values: Vec::new(),
-            n_leaders: 0,
-        }
+impl UnionFind {
+    pub fn make_set(&mut self) -> Id {
+        let id = self.parents.len() as Id;
+        self.parents.push(Cell::new(id));
+        id
     }
-}
 
-pub trait Key: Copy + PartialEq {
-    fn index(self) -> usize;
-    fn from_index(index: usize) -> Self;
-}
-
-impl Key for u32 {
     #[inline(always)]
-    fn index(self) -> usize {
-        self as usize
+    fn parent(&self, query: Id) -> Id {
+        self.parents[query as usize].get()
     }
-    fn from_index(index: usize) -> Self {
-        index as Self
+
+    #[inline(always)]
+    fn set_parent(&self, query: Id, new_parent: Id) {
+        self.parents[query as usize].set(new_parent)
     }
-}
 
-pub trait Value: Sized {
-    type Error: Debug;
-    fn merge<K: Key>(
-        unionfind: &mut UnionFind<K, Self>,
-        value1: Self,
-        value2: Self,
-    ) -> Result<Self, Self::Error>;
-}
-
-impl Value for () {
-    type Error = std::convert::Infallible;
-    fn merge<K: Key>(
-        _: &mut UnionFind<K, Self>,
-        _value1: Self,
-        _value2: Self,
-    ) -> Result<Self, Self::Error> {
-        Ok(())
-    }
-}
-
-#[inline(always)]
-fn find<K: Key>(parents: &[Cell<K>], mut current: K) -> K {
-    loop {
-        let parent = parents[current.index()].get();
-        if current == parent {
-            return current;
+    pub fn find(&self, mut current: Id) -> Id {
+        loop {
+            let parent = self.parent(current);
+            if current == parent {
+                return parent;
+            }
+            // do path halving and proceed
+            let grandparent = self.parent(parent);
+            self.set_parent(current, grandparent);
+            current = grandparent;
         }
-        let grandparent = parents[parent.index()].get();
-        parents[current.index()].set(grandparent);
-        current = grandparent;
-    }
-}
-
-impl<K: Key, V> UnionFind<K, V> {
-    pub fn total_size(&self) -> usize {
-        debug_assert_eq!(self.parents.len(), self.sizes.len());
-        debug_assert_eq!(self.parents.len(), self.values.len());
-        self.parents.len()
     }
 
-    pub fn number_of_classes(&self) -> usize {
-        self.n_leaders
-    }
-
-    pub fn make_set(&mut self, value: V) -> K {
-        let new = Key::from_index(self.total_size());
-        self.parents.push(Cell::new(new));
-        self.sizes.push(1);
-        self.values.push(Some(value));
-        self.n_leaders += 1;
-        new
-    }
-
-    pub fn find(&self, current: K) -> K {
-        find(&self.parents, current)
-    }
-
-    pub fn get(&self, query: K) -> &V {
-        let leader = self.find(query);
-        self.values[leader.index()].as_ref().unwrap()
-    }
-
-    #[allow(dead_code)]
-    pub fn get_mut(&mut self, query: K) -> &mut V {
-        let leader = self.find(query);
-        self.values[leader.index()].as_mut().unwrap()
-    }
-
-    pub fn values(&self) -> impl Iterator<Item = &V> {
-        self.values.iter().filter_map(Option::as_ref)
-    }
-
-    pub fn values_mut(&mut self) -> impl Iterator<Item = &mut V> {
-        self.values.iter_mut().filter_map(Option::as_mut)
-    }
-
-    // this is useful when you want to mutate the values, but still be
-    // able to perform lookups
-    pub fn split<'a>(&'a mut self) -> (impl Fn(K) -> K + 'a, impl Iterator<Item = &mut V>) {
-        let parents = &self.parents;
-        let values = self.values.iter_mut().filter_map(Option::as_mut);
-        (move |k| find(parents, k), values)
-    }
-}
-
-impl<K: Key, V: Value> UnionFind<K, V> {
-    pub fn union(&mut self, set1: K, set2: K) -> Result<(K, bool), V::Error> {
-        let mut root1 = self.find(set1);
-        let mut root2 = self.find(set2);
+    /// Returns (new_leader, old_leader)
+    pub fn union(&mut self, set1: Id, set2: Id) -> (Id, Id) {
+        let root1 = self.find(set1);
+        let root2 = self.find(set2);
 
         if root1 == root2 {
-            return Ok((root1, false));
+            (root1, root2)
+        } else {
+            self.set_parent(root2, root1);
+            (root1, root2)
         }
-
-        // make root1 the bigger one, then union into that one
-        let size1 = self.sizes[root1.index()];
-        let size2 = self.sizes[root2.index()];
-        if size1 < size2 {
-            // don't need to swap sizes, we just add them
-            std::mem::swap(&mut root1, &mut root2)
-        }
-
-        let value1 = self.values[root1.index()].take().unwrap();
-        let value2 = self.values[root2.index()].take().unwrap();
-
-        let value = Value::merge(self, value1, value2);
-        self.n_leaders -= 1;
-        self.values[root1.index()] = Some(value?);
-
-        self.parents[root2.index()].set(root1);
-        self.sizes[root1.index()] = size1 + size2;
-
-        Ok((root1, true))
     }
 }
 
