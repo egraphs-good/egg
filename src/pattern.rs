@@ -1,5 +1,3 @@
-use std::convert::TryFrom;
-
 use log::*;
 
 use crate::{
@@ -70,9 +68,11 @@ use crate::{
 /// [`Language`]: trait.Language.html
 #[derive(Debug, PartialEq, Clone)]
 pub struct Pattern<N> {
-    ast: RecExpr<ENodeOrVar<N>>,
+    ast: PatternAst<N>,
     program: machine::Program<N>,
 }
+
+pub(crate) type PatternAst<N> = RecExpr<ENodeOrVar<N>>;
 
 #[derive(Debug, PartialEq, Clone)]
 pub(crate) enum ENodeOrVar<N> {
@@ -109,48 +109,14 @@ impl<N: ENodeDisplay> ENodeDisplay for ENodeOrVar<N> {
     }
 }
 
-// impl<L: Language> PatternAst<L> {
-//     pub(crate) fn compile(self) -> Pattern<L> {
-//         let program = machine::Program::compile_from_pat(&self);
-//         Pattern { ast: self, program }
-//     }
-// }
-
-// impl<L: Language> From<RecExpr<L>> for PatternAst<L> {
-//     fn from(e: RecExpr<L>) -> Self {
-//         PatternAst::ENode(e.as_ref().map_children(PatternAst::from).into())
-//     }
-// }
-
-// impl<L: Language> From<RecExpr<L>> for Pattern<L> {
-//     fn from(e: RecExpr<L>) -> Self {
-//         let ast = PatternAst::from(e);
-//         ast.compile()
-//     }
-// }
-
-// impl<L: Language> TryFrom<PatternAst<L>> for RecExpr<L> {
-//     type Error = String;
-//     fn try_from(ast: PatternAst<L>) -> Result<RecExpr<L>, String> {
-//         match ast {
-//             PatternAst::ENode(e) => {
-//                 let rec_enode = e.map_children_result(RecExpr::try_from);
-//                 Ok(rec_enode?.into())
-//             }
-//             PatternAst::Var(v) => {
-//                 let msg = format!("Found variable {:?} instead of expr term", v);
-//                 Err(msg)
-//             }
-//         }
-//     }
-// }
-
-// impl<L: Language> TryFrom<Pattern<L>> for RecExpr<L> {
-//     type Error = String;
-//     fn try_from(pat: Pattern<L>) -> Result<RecExpr<L>, String> {
-//         RecExpr::try_from(pat.ast)
-//     }
-// }
+impl<N: ENode + ENodeFromStr> std::str::FromStr for Pattern<N> {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let ast: PatternAst<N> = s.parse()?;
+        let program = machine::Program::compile_from_pat(ast.as_ref());
+        Ok(Pattern { ast, program })
+    }
+}
 
 /// The result of searching a [`Searcher`] over one eclass.
 ///
@@ -199,7 +165,7 @@ impl<L: Language> Searcher<L> for Pattern<L::ENode> {
 
 impl<L: Language> Applier<L> for Pattern<L::ENode> {
     fn apply_one(&self, egraph: &mut EGraph<L>, _: Id, subst: &Subst) -> Vec<Id> {
-        let id = apply_pat(&self.ast.nodes, 0, egraph, subst);
+        let id = apply_pat(self.ast.as_ref(), 0, egraph, subst);
         vec![id]
     }
 }
@@ -228,20 +194,20 @@ fn apply_pat<L: Language>(
 #[cfg(test)]
 mod tests {
 
-    use crate::{enode as e, *};
+    use crate::{StringENode as E, *};
 
     #[test]
     fn simple_match() {
         crate::init_logger();
-        let mut egraph = EGraph::<String, ()>::default();
+        let mut egraph = EGraph::new(SimpleLanguage::default());
 
-        let x = egraph.add(e!("x"));
-        let y = egraph.add(e!("y"));
-        let plus = egraph.add(e!("+", x, y));
+        let x = egraph.add(E::leaf("x"));
+        let y = egraph.add(E::leaf("y"));
+        let plus = egraph.add(E::new("+", vec![x, y]));
 
-        let z = egraph.add(e!("z"));
-        let w = egraph.add(e!("w"));
-        let plus2 = egraph.add(e!("+", z, w));
+        let z = egraph.add(E::leaf("z"));
+        let w = egraph.add(E::leaf("w"));
+        let plus2 = egraph.add(E::new("+", vec![z, w]));
 
         egraph.union(plus, plus2);
         egraph.rebuild();

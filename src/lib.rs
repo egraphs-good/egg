@@ -59,12 +59,10 @@ println!(
 
 // mod macros;
 
-// mod dot;
+mod dot;
 mod eclass;
 mod egraph;
-// mod expr;
-// mod extract;
-// mod parse;
+mod extract;
 mod language;
 mod machine;
 mod pattern;
@@ -75,16 +73,14 @@ mod unionfind;
 
 pub type Id = u32;
 
-pub(crate) use {machine::*, pattern::ENodeOrVar, unionfind::UnionFind};
+pub(crate) use {pattern::ENodeOrVar, unionfind::UnionFind};
 
 pub use {
-    // dot::Dot,
+    dot::Dot,
     eclass::EClass,
     egraph::EGraph,
+    extract::*,
     language::*,
-    // expr::{Id, RecExpr},
-    // extract::*,
-    // parse::ParseError,
     pattern::{Pattern, SearchMatches},
     rewrite::{Applier, Condition, ConditionEqual, ConditionalApplier, Rewrite, Searcher},
     run::*,

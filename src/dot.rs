@@ -13,7 +13,7 @@ use std::fmt::{self, Debug, Display, Formatter};
 use std::io::{Error, ErrorKind, Result, Write};
 use std::path::Path;
 
-use crate::{egraph::EGraph, Language, ENode};
+use crate::{egraph::EGraph, ENode, ENodeDisplay, Language};
 
 /**
 A wrapper for an [`EGraph`] that can output [GraphViz] for
@@ -64,7 +64,11 @@ impl<'a, L: Language> Dot<'a, L> {
     }
 }
 
-impl<'a, L: Language> Dot<'a, L> {
+impl<'a, L> Dot<'a, L>
+where
+    L: Language,
+    L::ENode: ENodeDisplay,
+{
     /// Writes the `Dot` to a .dot file with the given filename.
     /// Does _not_ require a `dot` binary.
     pub fn to_dot(&self, filename: impl AsRef<Path>) -> Result<()> {
@@ -162,7 +166,11 @@ fn edge(i: usize, len: usize) -> (String, String) {
     }
 }
 
-impl<'a, L: Language + Display> Display for Dot<'a, L> {
+impl<'a, L> Display for Dot<'a, L>
+where
+    L: Language,
+    L::ENode: ENodeDisplay,
+{
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         writeln!(f, "digraph egraph {{")?;
 
@@ -175,7 +183,9 @@ impl<'a, L: Language + Display> Display for Dot<'a, L> {
             writeln!(f, "  subgraph cluster_{} {{", class.id)?;
             writeln!(f, "    style=dotted")?;
             for (i, node) in class.iter().enumerate() {
-                writeln!(f, "    {}.{}[label = \"{}\"]", class.id, i, node.op)?;
+                write!(f, "    {}.{}[label = \"", class.id, i)?;
+                node.write_op(f)?;
+                writeln!(f, "\"]")?;
             }
             writeln!(f, "  }}")?;
         }

@@ -3,7 +3,7 @@ use std::fmt::{self, Debug};
 use indexmap::IndexMap;
 use log::*;
 
-use crate::{EClass, ENode, Id, Language, RecExpr, UnionFind};
+use crate::{Dot, EClass, ENode, Id, Language, RecExpr, UnionFind};
 
 /** A data structure to keep track of equalities between expressions.
 
@@ -133,6 +133,12 @@ pub struct EGraph<L: Language> {
     // pub(crate) classes_by_op: IndexMap<(L, usize), Vec<Id>>,
 }
 
+impl<L: Language + Default> Default for EGraph<L> {
+    fn default() -> Self {
+        Self::new(L::default())
+    }
+}
+
 // manual debug impl to avoid L: Language bound on EGraph defn
 impl<L: Language> Debug for EGraph<L> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -228,13 +234,12 @@ impl<L: Language> EGraph<L> {
         self.unionfind.find(id)
     }
 
-    // FIXME
-    // /// Creates a [`Dot`] to visualize this egraph. See [`Dot`].
-    // ///
-    // /// [`Dot`]: struct.Dot.html
-    // pub fn dot(&self) -> Dot<L> {
-    //     Dot::new(self)
-    // }
+    /// Creates a [`Dot`] to visualize this egraph. See [`Dot`].
+    ///
+    /// [`Dot`]: struct.Dot.html
+    pub fn dot(&self) -> Dot<L> {
+        Dot::new(self)
+    }
 }
 
 impl<L: Language> std::ops::Index<Id> for EGraph<L> {
@@ -670,18 +675,20 @@ impl<'a, L: Language> Debug for EGraphDump<'a, L> {
 #[cfg(test)]
 mod tests {
 
-    use crate::{enode as e, *};
+    use crate::*;
 
     #[test]
     fn simple_add() {
+        use StringENode as E;
+
         crate::init_logger();
-        let mut egraph = EGraph::<String, ()>::default();
+        let mut egraph = EGraph::<SimpleLanguage<E>>::default();
 
-        let x = egraph.add(e!("x"));
-        let x2 = egraph.add(e!("x"));
-        let _plus = egraph.add(e!("+", x, x2));
+        let x = egraph.add(E::leaf("x"));
+        let x2 = egraph.add(E::leaf("x"));
+        let _plus = egraph.add(E::new("+", vec![x, x2]));
 
-        let y = egraph.add(e!("y"));
+        let y = egraph.add(E::leaf("y"));
 
         egraph.union(x, y);
         egraph.rebuild();

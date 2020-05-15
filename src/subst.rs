@@ -16,7 +16,7 @@ static STRINGS: Lazy<Mutex<IndexSet<String>>> = Lazy::new(Default::default);
 /// [`Pattern`]: struct.Pattern.html
 /// [`Subst`]: struct.Subst.html
 /// [`FromStr`]: https://doc.rust-lang.org/std/str/trait.FromStr.html
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Var(u32);
 
 impl FromStr for Var {
