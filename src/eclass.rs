@@ -160,7 +160,7 @@ impl<L: Language> EClass<L> {
 
     /// Iterates over the childless enodes in this eclass.
     pub fn leaves(&self) -> impl Iterator<Item = &L::ENode> {
-        self.nodes.iter().filter(|&n| n.children().is_empty())
+        self.nodes.iter().filter(|&n| n.is_leaf())
     }
 
     /// Asserts that the childless enodes in this eclass are unique.

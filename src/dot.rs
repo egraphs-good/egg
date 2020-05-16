@@ -192,26 +192,33 @@ where
 
         for class in self.egraph.classes() {
             for (i_in_class, node) in class.iter().enumerate() {
-                for (arg_i, child) in node.children().iter().enumerate() {
+                let mut err = None;
+                node.for_each_i(|arg_i, child| {
                     // write the edge to the child, but clip it to the eclass with lhead
                     let (anchor, label) = edge(arg_i, node.len());
-                    let child_leader = self.egraph.find(*child);
+                    let child_leader = self.egraph.find(child);
 
-                    if child_leader == class.id {
+                    let result = if child_leader == class.id {
                         writeln!(
                             f,
                             // {}.0 to pick an arbitrary node in the cluster
                             "  {}.{}{} -> {}.{}:n [lhead = cluster_{}, {}]",
                             class.id, i_in_class, anchor, class.id, i_in_class, class.id, label
-                        )?;
+                        )
                     } else {
                         writeln!(
                             f,
                             // {}.0 to pick an arbitrary node in the cluster
                             "  {}.{}{} -> {}.0 [lhead = cluster_{}, {}]",
                             class.id, i_in_class, anchor, child, child_leader, label
-                        )?;
-                    }
+                        )
+                    };
+
+                    err = err.or(result.err());
+                });
+
+                if let Some(err) = err {
+                    return Err(err);
                 }
             }
         }

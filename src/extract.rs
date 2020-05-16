@@ -132,7 +132,10 @@ pub struct AstSize;
 impl<L: Language> CostFunction<L> for AstSize {
     type Cost = usize;
     fn cost(&mut self, enode: &L::ENode, costs: &HashMap<Id, Self::Cost>) -> Self::Cost {
-        1 + enode.children().iter().map(|id| costs[id]).sum::<usize>()
+        let mut cost = 1;
+        enode.for_each(|id| cost += costs[&id]);
+        cost
+        // 1 + enode.children().iter().map(|id| costs[id]).sum::<usize>()
     }
 }
 
@@ -151,12 +154,9 @@ pub struct AstDepth;
 impl<L: Language> CostFunction<L> for AstDepth {
     type Cost = usize;
     fn cost(&mut self, enode: &L::ENode, costs: &HashMap<Id, Self::Cost>) -> Self::Cost {
-        1 + enode
-            .children()
-            .iter()
-            .map(|id| costs[id])
-            .max()
-            .unwrap_or(0)
+        let mut max = 0;
+        enode.for_each(|id| max = max.max(costs[&id]));
+        max + 1
     }
 }
 
@@ -214,12 +214,14 @@ where
             })
             .expect("eclass shouldn't be empty");
 
-        let node = best_node.map_children(|child| self.find_best_rec(expr, child));
+        let node = best_node
+            .clone()
+            .map_children(|child| self.find_best_rec(expr, child));
         expr.add(node)
     }
 
     fn node_total_cost(&mut self, node: &L::ENode) -> Option<CF::Cost> {
-        if node.children().iter().all(|id| self.costs.contains_key(id)) {
+        if node.all(|id| self.costs.contains_key(&id)) {
             Some(self.cost_function.cost(&node, &self.costs))
         } else {
             None

@@ -311,7 +311,7 @@ impl<L: Language> EGraph<L> {
     /// [`ENode`]: struct.ENode.html
     /// [`add`]: struct.EGraph.html#method.add
     pub fn add(&mut self, mut enode: L::ENode) -> Id {
-        self.canonicalize(&mut enode);
+        enode.for_each_mut(|id| self.find(id));
 
         match self.memo.get(&enode) {
             Some(id) => self.find(*id),
@@ -326,10 +326,10 @@ impl<L: Language> EGraph<L> {
                 };
 
                 // add this enode to the parent lists of its children
-                for &child in enode.children() {
+                enode.for_each(|child| {
                     let tup = (enode.clone(), id);
                     self[child].parents.push(tup);
-                }
+                });
 
                 assert!(self.classes.insert(id, class).is_none());
                 assert!(self.memo.insert(enode, id).is_none());
@@ -365,13 +365,6 @@ impl<L: Language> EGraph<L> {
         // }
 
         // equiv_eclasses
-    }
-
-    fn canonicalize(&self, enode: &mut L::ENode) {
-        enode
-            .children_mut()
-            .iter_mut()
-            .for_each(|c| *c = self.find(*c))
     }
 
     #[inline]
@@ -546,7 +539,7 @@ impl<L: Language> EGraph<L> {
                 }
 
                 parents.iter_mut().for_each(|(n, id)| {
-                    self.canonicalize(n);
+                    n.for_each_mut(|child| self.find(child));
                     *id = self.find(*id);
                 });
                 parents.sort_unstable();

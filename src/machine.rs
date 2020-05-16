@@ -36,12 +36,12 @@ struct EClassSearcher<'a, N> {
 }
 
 impl<'a, N: ENode> Iterator for EClassSearcher<'a, N> {
-    type Item = &'a [Id];
+    type Item = &'a N;
     fn next(&mut self) -> Option<Self::Item> {
         for (i, enode) in self.nodes.iter().enumerate() {
             if self.node.matches(enode) {
                 self.nodes = &self.nodes[i + 1..];
-                return Some(enode.children());
+                return Some(enode);
             }
         }
         None
@@ -75,13 +75,18 @@ impl<'a, L: Language> Machine<'a, L> {
                 next,
                 searcher,
             } = self.stack.last_mut()?;
+            let next = *next;
 
             if let Some(matched) = searcher.next() {
                 trace!("Binding: {:?}", matched);
                 let new_len = *out + matched.len();
                 self.reg.resize(new_len, 0);
-                self.reg[*out..new_len].copy_from_slice(&matched);
-                self.pc = *next;
+                let mut i = *out;
+                matched.for_each(|id| {
+                    self.reg[i] = id;
+                    i += 1;
+                });
+                self.pc = next;
                 return Some(());
             } else {
                 self.stack.pop().expect("we know the stack isn't empty");
@@ -205,18 +210,15 @@ fn compile<N: ENode>(
                 assert!(!e.is_leaf());
                 buf.push(Bind(reg, e.clone(), next_reg));
 
-                r2p.extend(
-                    e.children()
-                        .iter()
-                        .enumerate()
-                        .map(|(i, child)| (next_reg + i, pattern[*child as usize].clone())),
-                );
+                e.for_each_i(|i, child| {
+                    r2p.insert(next_reg + i, pattern[child as usize].clone());
+                });
 
                 // sort in reverse order so we pop the cheapest
                 // NOTE, this doesn't seem to have a very large effect right now
                 // TODO restore sorting
                 // r2p.sort_by(|_, p1, _, p2| rank(v2r, p1, p2).reverse());
-                next_reg += e.children().len();
+                next_reg += e.len();
             }
         }
     }

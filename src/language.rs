@@ -14,24 +14,37 @@ pub trait Language: Sized {
 
 pub trait ENode: Debug + Clone + Eq + Ord + Hash {
     fn matches(&self, other: &Self) -> bool;
-    fn children(&self) -> &[Id];
-    fn children_mut(&mut self) -> &mut [Id];
+    fn for_each<F: FnMut(Id)>(&self, f: F);
+    fn for_each_mut<F: FnMut(Id) -> Id>(&mut self, f: F);
 
-    fn map_children<F>(&self, mut f: F) -> Self
-    where
-        F: FnMut(Id) -> Id,
-    {
-        let mut new = self.clone();
-        new.children_mut().iter_mut().for_each(|id| *id = f(*id));
-        new
+    fn for_each_i<F: FnMut(usize, Id)>(&self, mut f: F) {
+        let mut i = 0;
+        self.for_each(|id| {
+            f(i, id);
+            i += 1;
+        });
+    }
+
+    fn map_children<F: FnMut(Id) -> Id>(mut self, f: F) -> Self {
+        self.for_each_mut(f);
+        self
+    }
+
+    // NOTE doesn't early terminate
+    fn all<F: FnMut(Id) -> bool>(&self, mut f: F) -> bool {
+        let mut all = true;
+        self.for_each(|id| all &= f(id));
+        all
     }
 
     fn is_leaf(&self) -> bool {
-        self.children().is_empty()
+        self.len() == 0
     }
 
     fn len(&self) -> usize {
-        self.children().len()
+        let mut len = 0;
+        self.for_each(|_| len += 1);
+        len
     }
 }
 
@@ -160,11 +173,11 @@ impl ENode for StringENode {
     fn matches(&self, other: &Self) -> bool {
         self.op == other.op && self.len() == other.len()
     }
-    fn children(&self) -> &[Id] {
-        &self.children
+    fn for_each<F: FnMut(Id)>(&self, f: F) {
+        self.children.iter().copied().for_each(f)
     }
-    fn children_mut(&mut self) -> &mut [Id] {
-        &mut self.children
+    fn for_each_mut<F: FnMut(Id) -> Id>(&mut self, mut f: F) {
+        self.children.iter_mut().for_each(|id| *id = f(*id));
     }
 }
 
