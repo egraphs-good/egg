@@ -250,7 +250,7 @@ impl<N: ENode> Program<N> {
         let mut r2p = RegToPat::new();
         let mut v2r = VarToReg::new();
 
-        r2p.insert(0, pattern[0].clone());
+        r2p.insert(0, pattern.last().unwrap().clone());
         compile(pattern, &mut r2p, &mut v2r, 1, &mut instrs);
 
         let program = Program { instrs, v2r };

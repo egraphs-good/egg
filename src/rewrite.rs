@@ -265,7 +265,14 @@ where
                 let ids = self
                     .apply_one(egraph, mat.eclass, subst)
                     .into_iter()
-                    .filter_map(|id| egraph.union(id, mat.eclass).ok());
+                    .filter_map(|id| {
+                        let (to, did_something) = egraph.union(id, mat.eclass);
+                        if did_something {
+                            Some(to)
+                        } else {
+                            None
+                        }
+                    });
                 added.extend(ids)
             }
         }
@@ -395,81 +402,78 @@ where
 #[cfg(test)]
 mod tests {
 
-    // FIXME
-    // use crate::{enode as e, *};
+    use crate::{StringENode as E, *};
+    use std::str::FromStr;
 
-    // #[test]
-    // fn conditional_rewrite() {
-    //     crate::init_logger();
-    //     let mut egraph = EGraph::<String, ()>::default();
+    type EGraph = crate::EGraph<SimpleLanguage<StringENode>>;
 
-    //     let x = egraph.add(e!("x"));
-    //     let y = egraph.add(e!("2"));
-    //     let mul = egraph.add(e!("*", x, y));
+    #[test]
+    fn conditional_rewrite() {
+        crate::init_logger();
+        let mut egraph = EGraph::default();
 
-    //     let true_pat: Pattern<String> = "TRUE".parse().unwrap();
-    //     let true_id = egraph.add(e!("TRUE"));
+        let x = egraph.add(E::leaf("x"));
+        let y = egraph.add(E::leaf("2"));
+        let mul = egraph.add(E::new("*", vec![x, y]));
 
-    //     let pow2b: Pattern<String> = "(is-power2 ?b)".parse().unwrap();
-    //     let mul_to_shift = rewrite!(
-    //         "mul_to_shift";
-    //         "(* ?a ?b)" => "(>> ?a (log2 ?b))"
-    //         if ConditionEqual(pow2b, true_pat)
-    //     );
+        let true_pat = Pattern::from_str("TRUE").unwrap();
+        let true_id = egraph.add(E::leaf("TRUE"));
 
-    //     println!("rewrite shouldn't do anything yet");
-    //     egraph.rebuild();
-    //     let apps = mul_to_shift.run(&mut egraph);
-    //     assert_eq!(apps, Vec::<Id>::new());
+        let pow2b = Pattern::from_str("(is-power2 ?b)").unwrap();
+        let mul_to_shift = rewrite!(
+            "mul_to_shift";
+            "(* ?a ?b)" => "(>> ?a (log2 ?b))"
+            if ConditionEqual(pow2b, true_pat)
+        );
 
-    //     println!("Add the needed equality");
-    //     let two_ispow2 = egraph.add(e!("is-power2", y));
-    //     egraph.union(two_ispow2, true_id);
+        println!("rewrite shouldn't do anything yet");
+        egraph.rebuild();
+        let apps = mul_to_shift.run(&mut egraph);
+        assert_eq!(apps, vec![]);
 
-    //     println!("Should fire now");
-    //     egraph.rebuild();
-    //     let apps = mul_to_shift.run(&mut egraph);
-    //     assert_eq!(apps, vec![egraph.find(mul)]);
-    // }
+        println!("Add the needed equality");
+        let two_ispow2 = egraph.add(E::new("is-power2", vec![y]));
+        egraph.union(two_ispow2, true_id);
 
-    // #[test]
-    // fn fn_rewrite() {
-    //     crate::init_logger();
-    //     let mut egraph = EGraph::<String, ()>::default();
+        println!("Should fire now");
+        egraph.rebuild();
+        let apps = mul_to_shift.run(&mut egraph);
+        assert_eq!(apps, vec![egraph.find(mul)]);
+    }
 
-    //     let start = "(+ x y)".parse().unwrap();
-    //     let goal = "xy".parse().unwrap();
+    #[test]
+    fn fn_rewrite() {
+        crate::init_logger();
+        let mut egraph = EGraph::default();
 
-    //     let root = egraph.add_expr(&start);
+        let start = RecExpr::from_str("(+ x y)").unwrap();
+        let goal = RecExpr::from_str("xy").unwrap();
 
-    //     fn get(egraph: &EGraph<String, ()>, id: Id) -> &str {
-    //         &egraph[id].nodes[0].op
-    //     }
+        let root = egraph.add_expr(&start);
 
-    //     #[derive(Debug)]
-    //     struct Appender;
-    //     impl Applier<String, ()> for Appender {
-    //         fn apply_one(
-    //             &self,
-    //             egraph: &mut EGraph<String, ()>,
-    //             _eclass: Id,
-    //             subst: &Subst,
-    //         ) -> Vec<Id> {
-    //             let a: Var = "?a".parse().unwrap();
-    //             let b: Var = "?b".parse().unwrap();
-    //             let a = get(&egraph, subst[&a]);
-    //             let b = get(&egraph, subst[&b]);
-    //             let s = format!("{}{}", a, b);
-    //             vec![egraph.add(e!(&s))]
-    //         }
-    //     }
+        fn get(egraph: &EGraph, id: Id) -> &str {
+            &egraph[id].nodes[0].op
+        }
 
-    //     let fold_add = rewrite!(
-    //         "fold_add"; "(+ ?a ?b)" => { Appender }
-    //     );
+        #[derive(Debug)]
+        struct Appender;
+        impl Applier<SimpleLanguage<StringENode>> for Appender {
+            fn apply_one(&self, egraph: &mut EGraph, _eclass: Id, subst: &Subst) -> Vec<Id> {
+                let a: Var = "?a".parse().unwrap();
+                let b: Var = "?b".parse().unwrap();
+                let a = get(&egraph, subst[&a]);
+                let b = get(&egraph, subst[&b]);
+                let s = format!("{}{}", a, b);
+                vec![egraph.add(E::leaf(&s))]
+            }
+        }
 
-    //     egraph.rebuild();
-    //     fold_add.run(&mut egraph);
-    //     assert_eq!(egraph.equivs(&start, &goal), vec![egraph.find(root)]);
-    // }
+        let fold_add = rewrite!(
+            "fold_add"; "(+ ?a ?b)" => { Appender }
+        );
+
+        egraph.rebuild();
+        fold_add.run(&mut egraph);
+        assert_eq!(egraph.equivs(&start, &goal), vec![egraph.find(root)]);
+    }
 }

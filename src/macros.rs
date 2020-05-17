@@ -133,6 +133,161 @@ macro_rules! define_language {
     };
 }
 
+#[macro_export]
+macro_rules! impl_enode {
+    ($(#[$meta:meta])* $vis:vis enum $name:ident $variants:tt) => {
+        impl_enode!($(#[$meta])* $vis enum $name $variants -> {} {} {} {} {} {});
+    };
+
+    ($(#[$meta:meta])* $vis:vis enum $name:ident {} ->
+     $decl:tt {$($matches:tt)*} $for_each:tt $for_each_mut:tt
+     $write_op:tt {$($from_op_str:tt)*}
+    ) => {
+        $(#[$meta])*
+        #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
+        $vis enum $name $decl
+
+        impl $crate::ENode for $name {
+            fn matches(&self, other: &Self) -> bool {
+                use $name::*;
+                match (self, other) { $($matches)* _ => false }
+            }
+            fn for_each<F: FnMut(Id)>(&self, mut f: F)  {
+                todo!()
+                // use $name::*;
+                // match self $for_each
+            }
+            fn for_each_mut<F: FnMut(Id) -> Id>(&mut self, mut f: F)  {
+                todo!()
+                // use $name::*;
+                // match self $for_each_mut
+            }
+        }
+
+        impl $crate::ENodeDisplay for $name {
+            fn write_op(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+                use $name::*;
+                match (f, self) $write_op
+            }
+        }
+
+        impl $crate::ENodeFromStr for $name {
+            fn from_op_str(op_str: &str, children: Vec<$crate::Id>) -> ::std::result::Result<Self, String> {
+                use $name::*;
+                match (op_str, children) {
+                    $($from_op_str)*
+                    (s, c) => Err(::std::format!("Failed to parse '{}' with children {:?}", s, c)),
+                }
+            }
+        }
+    };
+
+    ($(#[$meta:meta])* $vis:vis enum $name:ident
+     {
+         $string:literal = $variant:ident,
+         $($variants:tt)*
+     } ->
+     { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
+     { $($write_op:tt)* } { $($from_op_str:tt)* }
+    ) => {
+        impl_enode!(
+            $(#[$meta])* $vis enum $name
+            { $($variants)* } ->
+            { $($decl)*          $variant, }
+            { $($matches)*       ($variant, $variant) => true, }
+            { $($for_each)*      $variant => (), }
+            { $($for_each_mut)*  $variant => (), }
+            { $($write_op)*      (f, $variant) => ::std::fmt::Display::fmt($string, f), }
+            { $($from_op_str)*   ($string, v) if v.is_empty() => Ok($variant), }
+        );
+    };
+
+
+    ($(#[$meta:meta])* $vis:vis enum $name:ident
+     {
+         $string:literal = $variant:ident ([Id; $n:expr]),
+         $($variants:tt)*
+     } ->
+     { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
+     { $($write_op:tt)* } { $($from_op_str:tt)* }
+    ) => {
+        impl_enode!(
+            $(#[$meta])* $vis enum $name
+            { $($variants)* } ->
+            { $($decl)*          $variant( [Id; $n] ), }
+            { $($matches)*       ($variant(..), $variant(..)) => true, }
+            { $($for_each)*      (f, $variant(ids)) => ids.iter().copied().for_each(f), }
+            { $($for_each_mut)*  (f, $variant(ids)) => ids.iter_mut().for_each(|i| *i = f(*i)), }
+            { $($write_op)*      (f, $variant(..)) => ::std::fmt::Display::fmt($string, f), }
+            { $($from_op_str)*   (s, v) if v.len() == $n => {
+                let mut ids = <[Id; $n]>::default();
+                ids.copy_from_slice(&v);
+                Ok($variant(ids))
+            }, }
+        );
+    };
+
+    ($(#[$meta:meta])* $vis:vis enum $name:ident
+     {
+         $string:literal = $variant:ident(Id),
+         $($variants:tt)*
+     } ->
+     { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
+     { $($write_op:tt)* } { $($from_op_str:tt)* }
+    ) => {
+        impl_enode!(
+            $(#[$meta])* $vis enum $name
+            { $($variants)* } ->
+            { $($decl)*          $variant(Id), }
+            { $($matches)*       ($variant(..), $variant(..)) => true, }
+            { $($for_each)*      (f, $variant(id)) => f(*id), }
+            { $($for_each_mut)*  (f, $variant(id)) => f(*id), }
+            { $($write_op)*      (f, $variant(..)) => ::std::fmt::Display::fmt($string, f), }
+            { $($from_op_str)*   ($string, v) if v.len() == 1 => Ok($variant(v[0])), }
+        );
+    };
+
+    ($(#[$meta:meta])* $vis:vis enum $name:ident
+     {
+         $string:literal = $variant:ident(Id, Id),
+         $($variants:tt)*
+     } ->
+     { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
+     { $($write_op:tt)* } { $($from_op_str:tt)* }
+    ) => {
+        impl_enode!(
+            $(#[$meta])* $vis enum $name
+            { $($variants)* } ->
+            { $($decl)*          $variant(Id, Id), }
+            { $($matches)*       ($variant(..), $variant(..)) => true, }
+            { $($for_each)*      (f, $variant(a, b)) => { f(*a), f(*b) }, }
+            { $($for_each_mut)*  (f, $variant(a, b)) => { f(*a), f(*b) }, }
+            { $($write_op)*      (f, $variant(..)) => ::std::fmt::Display::fmt($string, f), }
+            { $($from_op_str)*   ($string, v) if v.len() == 2 => Ok($variant(v[0], v[1])), }
+        );
+    };
+
+    ($(#[$meta:meta])* $vis:vis enum $name:ident
+     {
+         $variant:ident ($data:ty),
+         $($variants:tt)*
+     } ->
+     { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
+     { $($write_op:tt)* } { $($from_op_str:tt)* }
+    ) => {
+        impl_enode!(
+            $(#[$meta])* $vis enum $name
+            { $($variants)* } ->
+            { $($decl)*          $variant($data), }
+            { $($matches)*       ($variant(data1), $variant(data2)) => data1 == data2, }
+            { $($for_each)*      $variant(_data) => (), }
+            { $($for_each_mut)*  $variant(_data) => (), }
+            { $($write_op)*      (ref mut f, $variant(data)) => ::std::fmt::Display::fmt(data, f), }
+            { $($from_op_str)*   (s, v) if s.parse::<$data>().is_ok() && v.is_empty() => Ok($variant(s.parse().unwrap())), }
+        );
+    };
+}
+
 /** Utility macro to create an [`ENode`].
 
 Basically `enode!(op, arg1, arg2, ...)`
@@ -312,23 +467,33 @@ macro_rules! rewrite {
 
 #[cfg(test)]
 mod tests {
-    define_language! { enum Term {
-        Nil = "nil",
-        Cons = "cons",
-        Foo = "f",
-        Num(i32),
-    }}
 
-    #[test]
-    fn some_rewrites() {
-        use crate::{PatternAst, Rewrite};
+    use crate::*;
 
-        let pat = PatternAst::ENode(Box::new(enode!(Term::Num(3)))).compile();
-        let _: Vec<Rewrite<Term, ()>> = vec![
-            // here it should parse the rhs
-            rewrite!("rule"; "cons" => "f"),
-            // here it should just accept the rhs without trying to parse
-            rewrite!("rule"; "f" => { pat }),
-        ];
+    impl_enode! {
+        enum Simple {
+            "++" = Add2(Id, Id),
+            "+" = Add([Id; 2]),
+            "-" = Sub([Id; 2]),
+            "*" = Mul([Id; 2]),
+            // "-" = Neg(Id),
+            "pi" = Pi,
+            Int(i32),
+            // Var(String),
+        }
     }
+
+    // FIXME
+    // #[test]
+    // fn some_rewrites() {
+    //     use crate::{PatternAst, Rewrite};
+
+    //     let pat = PatternAst::ENode(Box::new(enode!(Term::Num(3)))).compile();
+    //     let _: Vec<Rewrite<Term, ()>> = vec![
+    //         // here it should parse the rhs
+    //         rewrite!("rule"; "cons" => "f"),
+    //         // here it should just accept the rhs without trying to parse
+    //         rewrite!("rule"; "f" => { pat }),
+    //     ];
+    // }
 }

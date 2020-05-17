@@ -57,7 +57,7 @@ println!(
 ```
 !*/
 
-// mod macros;
+mod macros;
 
 mod dot;
 mod eclass;

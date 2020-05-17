@@ -290,10 +290,16 @@ impl<L: Language> EGraph<L> {
     /// [`EGraph`]: struct.EGraph.html
     /// [`RecExpr`]: struct.RecExpr.html
     /// [`add_expr`]: struct.EGraph.html#method.add_expr
-    pub fn add_expr(&mut self, expr: &RecExpr<L>) -> Id {
-        todo!()
-        // let e = expr.as_ref().map_children(|child| self.add_expr(&child));
-        // self.add(e)
+    pub fn add_expr<Expr>(&mut self, expr: Expr) -> Id
+    where
+        Expr: AsRef<[L::ENode]>,
+    {
+        let expr = expr.as_ref();
+        let e = expr.last().unwrap().clone().map_children(|i| {
+            let child = &expr.as_ref()[..i as usize + 1];
+            self.add_expr(child)
+        });
+        self.add(e)
     }
 
     /// Adds an [`ENode`] to the [`EGraph`].
@@ -345,30 +351,33 @@ impl<L: Language> EGraph<L> {
     /// In most cases, there will none or exactly one id.
     ///
     /// [`RecExpr`]: struct.RecExpr.html
-    pub fn equivs(&self, expr1: &RecExpr<L>, expr2: &RecExpr<L>) -> Vec<Id> {
-        todo!()
-        // use crate::{Pattern, Searcher};
-        // let matches1 = Pattern::from(expr1.clone()).search(self);
-        // trace!("Matches1: {:?}", matches1);
+    pub fn equivs<Expr1, Expr2>(&self, expr1: Expr1, expr2: Expr2) -> Vec<Id>
+    where
+        Expr1: AsRef<[L::ENode]>,
+        Expr2: AsRef<[L::ENode]>,
+    {
+        use crate::{Pattern, Searcher};
+        let matches1 = Pattern::from(expr1.as_ref()).search(self);
+        trace!("Matches1: {:?}", matches1);
 
-        // let matches2 = Pattern::from(expr2.clone()).search(self);
-        // trace!("Matches2: {:?}", matches2);
+        let matches2 = Pattern::from(expr2.as_ref()).search(self);
+        trace!("Matches2: {:?}", matches2);
 
-        // let mut equiv_eclasses = Vec::new();
+        let mut equiv_eclasses = Vec::new();
 
-        // for m1 in &matches1 {
-        //     for m2 in &matches2 {
-        //         if self.find(m1.eclass) == self.find(m2.eclass) {
-        //             equiv_eclasses.push(m1.eclass)
-        //         }
-        //     }
-        // }
+        for m1 in &matches1 {
+            for m2 in &matches2 {
+                if self.find(m1.eclass) == self.find(m2.eclass) {
+                    equiv_eclasses.push(m1.eclass)
+                }
+            }
+        }
 
-        // equiv_eclasses
+        equiv_eclasses
     }
 
     #[inline]
-    fn union_impl(&mut self, id1: Id, id2: Id) -> Result<Id, Id> {
+    fn union_impl(&mut self, id1: Id, id2: Id) -> (Id, bool) {
         fn concat<T>(to: &mut Vec<T>, mut from: Vec<T>) {
             if to.len() < from.len() {
                 std::mem::swap(to, &mut from)
@@ -391,32 +400,22 @@ impl<L: Language> EGraph<L> {
             concat(&mut to_class.parents, from_class.parents);
 
             L::metadata_modify(self, to);
-            Ok(to)
-        } else {
-            Ok(to)
         }
+        (to, to != from)
     }
 
     /// Unions two eclasses given their ids.
     ///
     /// The given ids need not be canonical.
-    /// This returns `Ok(merged_id)` if a union was done, or
-    /// `Err(already_same_id)` if they were already equivalent.
+    /// The returned `bool` indicates whether a union was done,
+    /// so it's `false` if they were already equivalent.
     /// Both results are canonical.
-    pub fn union(&mut self, id1: Id, id2: Id) -> Result<Id, Id> {
-        let to = self.union_impl(id1, id2);
-        if to.is_ok() && cfg!(feature = "upward-merging") {
+    pub fn union(&mut self, id1: Id, id2: Id) -> (Id, bool) {
+        let union = self.union_impl(id1, id2);
+        if union.1 && cfg!(feature = "upward-merging") {
             self.process_unions();
         }
-        to
-    }
-
-    /// Unions two eclasses given their ids, returning the merged id.
-    ///
-    /// Same as [`union`](struct.EGraph.html#method.union), but this throws away
-    /// information regarding whether a union was performed.
-    pub fn union_id(&mut self, id1: Id, id2: Id) -> Id {
-        self.union(id1, id2).unwrap_or_else(|id| id)
+        union
     }
 
     /// Returns a more debug-able representation of the egraph.
@@ -563,7 +562,8 @@ impl<L: Language> EGraph<L> {
             }
 
             for (id1, id2) in to_union.drain(..) {
-                if let Ok(to) = self.union_impl(id1, id2) {
+                let (to, did_something) = self.union_impl(id1, id2);
+                if did_something {
                     self.dirty_unions.push(to);
                 }
             }

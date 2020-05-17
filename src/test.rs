@@ -154,7 +154,7 @@ impl<L, IterData> Runner<L, IterData>
 where
     L: Language + std::fmt::Display,
 {
-    pub fn check_goals(&self, goals: &[RecExpr<L>]) {
+    pub fn check_goals(&self, goals: &[RecExpr<L::ENode>]) {
         let egraph = &self.egraph;
 
         // NOTE this is a bit of hack, we rely on the fact that the

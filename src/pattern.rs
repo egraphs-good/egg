@@ -118,6 +118,17 @@ impl<N: ENode + ENodeFromStr> std::str::FromStr for Pattern<N> {
     }
 }
 
+impl<'a, N: ENode> From<&'a [N]> for Pattern<N> {
+    fn from(expr: &'a [N]) -> Self {
+        let mut ast = RecExpr::default();
+        for n in expr {
+            ast.add(ENodeOrVar::ENode(n.clone()));
+        }
+        let program = machine::Program::compile_from_pat(ast.as_ref());
+        Pattern { ast, program }
+    }
+}
+
 /// The result of searching a [`Searcher`] over one eclass.
 ///
 /// Note that one [`SearchMatches`] can contain many found
@@ -165,25 +176,24 @@ impl<L: Language> Searcher<L> for Pattern<L::ENode> {
 
 impl<L: Language> Applier<L> for Pattern<L::ENode> {
     fn apply_one(&self, egraph: &mut EGraph<L>, _: Id, subst: &Subst) -> Vec<Id> {
-        let id = apply_pat(self.ast.as_ref(), 0, egraph, subst);
+        let id = apply_pat(self.ast.as_ref(), egraph, subst);
         vec![id]
     }
 }
 
 fn apply_pat<L: Language>(
     pat: &[ENodeOrVar<L::ENode>],
-    root: u32,
     egraph: &mut EGraph<L>,
     subst: &Subst,
 ) -> Id {
     trace!("apply_rec {:2?} {:?}", pat, subst);
 
-    let result = match &pat[root as usize] {
+    let result = match pat.last().unwrap() {
         ENodeOrVar::Var(w) => subst[&w],
         ENodeOrVar::ENode(e) => {
             let n = e
                 .clone()
-                .map_children(|child| apply_pat(pat, child, egraph, subst));
+                .map_children(|child| apply_pat(&pat[..child as usize + 1], egraph, subst));
             trace!("adding: {:?}", n);
             egraph.add(n)
         }
@@ -196,50 +206,50 @@ fn apply_pat<L: Language>(
 #[cfg(test)]
 mod tests {
 
-    // use crate::{StringENode as E, *};
+    use crate::{StringENode as E, *};
 
-    // #[test]
-    // fn simple_match() {
-    //     crate::init_logger();
-    //     let mut egraph = EGraph::new(SimpleLanguage::default());
+    #[test]
+    fn simple_match() {
+        crate::init_logger();
+        let mut egraph = EGraph::new(SimpleLanguage::default());
 
-    //     let x = egraph.add(E::leaf("x"));
-    //     let y = egraph.add(E::leaf("y"));
-    //     let plus = egraph.add(E::new("+", vec![x, y]));
+        let x = egraph.add(E::leaf("x"));
+        let y = egraph.add(E::leaf("y"));
+        let plus = egraph.add(E::new("+", vec![x, y]));
 
-    //     let z = egraph.add(E::leaf("z"));
-    //     let w = egraph.add(E::leaf("w"));
-    //     let plus2 = egraph.add(E::new("+", vec![z, w]));
+        let z = egraph.add(E::leaf("z"));
+        let w = egraph.add(E::leaf("w"));
+        let plus2 = egraph.add(E::new("+", vec![z, w]));
 
-    //     egraph.union(plus, plus2);
-    //     egraph.rebuild();
+        egraph.union(plus, plus2);
+        egraph.rebuild();
 
-    //     let commute_plus = rewrite!(
-    //         "commute_plus";
-    //         "(+ ?a ?b)" => "(+ ?b ?a)"
-    //     );
+        let commute_plus = rewrite!(
+            "commute_plus";
+            "(+ ?a ?b)" => "(+ ?b ?a)"
+        );
 
-    //     let matches = commute_plus.search(&egraph);
-    //     let n_matches: usize = matches.iter().map(|m| m.substs.len()).sum();
-    //     assert_eq!(n_matches, 2, "matches is wrong: {:#?}", matches);
+        let matches = commute_plus.search(&egraph);
+        let n_matches: usize = matches.iter().map(|m| m.substs.len()).sum();
+        assert_eq!(n_matches, 2, "matches is wrong: {:#?}", matches);
 
-    //     let applications = commute_plus.apply(&mut egraph, &matches);
-    //     egraph.rebuild();
-    //     assert_eq!(applications.len(), 2);
+        let applications = commute_plus.apply(&mut egraph, &matches);
+        egraph.rebuild();
+        assert_eq!(applications.len(), 2);
 
-    //     let actual_substs: Vec<Subst> = matches.iter().flat_map(|m| m.substs.clone()).collect();
+        let actual_substs: Vec<Subst> = matches.iter().flat_map(|m| m.substs.clone()).collect();
 
-    //     println!("Here are the substs!");
-    //     for m in &actual_substs {
-    //         println!("substs: {:?}", m);
-    //     }
+        println!("Here are the substs!");
+        for m in &actual_substs {
+            println!("substs: {:?}", m);
+        }
 
-    //     egraph.dot().to_dot("target/simple-match.dot").unwrap();
+        egraph.dot().to_dot("target/simple-match.dot").unwrap();
 
-    //     use crate::extract::{AstSize, Extractor};
+        use crate::extract::{AstSize, Extractor};
 
-    //     let mut ext = Extractor::new(&egraph, AstSize);
-    //     let (_, best) = ext.find_best(2);
-    //     eprintln!("Best: {:#?}", best);
-    // }
+        let mut ext = Extractor::new(&egraph, AstSize);
+        let (_, best) = ext.find_best(2);
+        eprintln!("Best: {:#?}", best);
+    }
 }
