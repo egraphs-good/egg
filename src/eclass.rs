@@ -119,8 +119,8 @@ assert_eq!(runner.egraph.find(runner.roots[0]), runner.egraph.find(just_foo));
 /// An equivalence class of [`ENode`]s
 ///
 /// [`ENode`]: struct.ENode.html
-#[derive(Clone)]
 #[non_exhaustive]
+#[derive(Clone)]
 pub struct EClass<L: Language> {
     /// This eclass's id.
     pub id: Id,
@@ -168,15 +168,14 @@ impl<L: Language> EClass<L> {
     where
         L: Language,
     {
-        todo!()
-        // let mut leaves = self.leaves();
-        // if let Some(first) = leaves.next() {
-        //     assert!(
-        //         leaves.all(|l| l == first),
-        //         "Different leaves in eclass {}: {:?}",
-        //         self.id,
-        //         self.leaves().collect::<indexmap::IndexSet<_>>()
-        //     );
-        // }
+        let mut leaves = self.leaves();
+        if let Some(first) = leaves.next() {
+            assert!(
+                leaves.all(|l| l == first),
+                "Different leaves in eclass {}: {:?}",
+                self.id,
+                self.leaves().collect::<indexmap::IndexSet<_>>()
+            );
+        }
     }
 }

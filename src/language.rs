@@ -16,7 +16,11 @@ pub trait Language: Sized {
 pub trait ENode: Debug + Clone + Eq + Ord + Hash {
     fn matches(&self, other: &Self) -> bool;
     fn for_each<F: FnMut(Id)>(&self, f: F);
-    fn for_each_mut<F: FnMut(Id) -> Id>(&mut self, f: F);
+    fn for_each_mut<F: FnMut(&mut Id)>(&mut self, f: F);
+
+    fn find_match(&self, others: &[Self]) -> Option<usize> {
+        others.iter().position(|o| self.matches(o))
+    }
 
     fn for_each_i<F: FnMut(usize, Id)>(&self, mut f: F) {
         let mut i = 0;
@@ -26,16 +30,28 @@ pub trait ENode: Debug + Clone + Eq + Ord + Hash {
         });
     }
 
+    fn update_children<F: FnMut(Id) -> Id>(&mut self, mut f: F) {
+        self.for_each_mut(|id| *id = f(*id))
+    }
+
     fn map_children<F: FnMut(Id) -> Id>(mut self, f: F) -> Self {
-        self.for_each_mut(f);
+        self.update_children(f);
         self
+    }
+
+    fn fold<F, T>(&self, init: T, mut f: F) -> T
+    where
+        F: FnMut(T, Id) -> T,
+        T: Clone,
+    {
+        let mut acc = init;
+        self.for_each(|id| acc = f(acc.clone(), id));
+        acc
     }
 
     // NOTE doesn't early terminate
     fn all<F: FnMut(Id) -> bool>(&self, mut f: F) -> bool {
-        let mut all = true;
-        self.for_each(|id| all &= f(id));
-        all
+        self.fold(true, |b, id| b & f(id))
     }
 
     fn is_leaf(&self) -> bool {
@@ -43,9 +59,7 @@ pub trait ENode: Debug + Clone + Eq + Ord + Hash {
     }
 
     fn len(&self) -> usize {
-        let mut len = 0;
-        self.for_each(|_| len += 1);
-        len
+        self.fold(0, |sum, _| sum + 1)
     }
 }
 
@@ -248,8 +262,8 @@ impl ENode for StringENode {
     fn for_each<F: FnMut(Id)>(&self, f: F) {
         self.children.iter().copied().for_each(f)
     }
-    fn for_each_mut<F: FnMut(Id) -> Id>(&mut self, mut f: F) {
-        self.children.iter_mut().for_each(|id| *id = f(*id));
+    fn for_each_mut<F: FnMut(&mut Id)>(&mut self, f: F) {
+        self.children.iter_mut().for_each(f);
     }
 }
 

@@ -60,88 +60,14 @@ But they are pretty handy.
 [`Language`]: trait.Language.html
 **/
 #[macro_export]
-macro_rules! define_language {
-    (
-        $(#[$meta:meta])*
-        $vis:vis enum $name:ident {
-            $($variant:ident $(( $($t:ty),* ))? $(= $str:literal)? ),*
-                $(,)?
-        }
-    ) => {
-        $(#[$meta])*
-        #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
-        $vis enum $name {
-            $( $variant $(( $($t),* ))? ),*
-        }
-
-        impl std::str::FromStr for $name {
-            type Err = ();
-            fn from_str(s: &str) -> Result<Self, Self::Err> {
-                $( define_language!(
-                    @parse_arm s,
-                    $name $variant
-                    $(( $($t),* ))?
-                        $(= $str)?
-                ); )*
-                Err(())
-            }
-        }
-
-        impl std::fmt::Display for $name {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                $( define_language!(
-                    @print_arm self, f,
-                    $name $variant
-                        $(( $($t),* ))?
-                        $(= $str)?
-                ); )*
-                unreachable!()
-            }
-        }
-
-        impl $crate::Language for $name {}
-
-    };
-    (@parse_arm $e:expr, $name:ident $variant:ident = $str:literal) => {
-        if $e == $str {
-            return Ok($name :: $variant);
-        }
-    };
-    (@parse_arm $e:expr, $name:ident $variant:ident) => {
-        compile_error!(r#"Variants without data must have a name specified: `Variant = "vrnt"`"#);
-    };
-    (@parse_arm $e:expr, $name:ident $variant:ident ( $t:ty ) ) => {
-        if let Ok(inner) = $e.parse::<$t>() {
-            return Ok($name :: $variant (inner));
-        }
-    };
-    (@parse_arm $e:expr, $name:ident $variant:ident ( $($t:ty),* ) ) => {
-        compile_error!("We only support variants with a single field");
-    };
-    (@print_arm $e:expr, $f:expr, $name:ident $variant:ident = $str:literal) => {
-        if let $name::$variant = $e {
-            return write!($f, $str)
-        }
-    };
-    (@print_arm $e:expr, $f:expr, $name:ident $variant:ident ( $t:ty ) ) => {
-        if let $name::$variant(inner) = $e {
-            return write!($f, "{}", inner)
-        }
-    };
-    (@print_arm $e:expr, $f:expr, $name:ident $variant:ident ( $($t:ty),* ) ) => {
-        compile_error!("We only support variants with a single field");
-    };
-}
-
-#[macro_export]
 macro_rules! impl_enode {
     ($(#[$meta:meta])* $vis:vis enum $name:ident $variants:tt) => {
-        impl_enode!($(#[$meta])* $vis enum $name $variants -> {} {} {} {} {} {});
+        impl_enode!($(#[$meta])* $vis enum $name $variants -> {} {} {} {} {} {} {});
     };
 
     ($(#[$meta:meta])* $vis:vis enum $name:ident {} ->
      $decl:tt {$($matches:tt)*} $for_each:tt $for_each_mut:tt
-     $display_op:tt {$($from_op_str:tt)*}
+     $display_op:tt {$($from_op_str:tt)*} $find_match:tt
     ) => {
         $(#[$meta])*
         #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
@@ -149,31 +75,29 @@ macro_rules! impl_enode {
 
         impl $crate::ENode for $name {
             fn matches(&self, other: &Self) -> bool {
-                use $name::*;
                 match (self, other) { $($matches)* _ => false }
             }
-            fn for_each<F: FnMut(Id)>(&self, mut f: F)  {
-                todo!()
-                // use $name::*;
-                // match self $for_each
+            fn find_match(&self, others: &[Self]) -> Option<usize> {
+                match (self, others.iter()) $find_match
             }
-            fn for_each_mut<F: FnMut(Id) -> Id>(&mut self, mut f: F)  {
-                todo!()
-                // use $name::*;
-                // match self $for_each_mut
+            #[inline]
+            fn for_each<F: FnMut(Id)>(&self, mut f: F)  {
+                match (f, self) $for_each
+            }
+            #[inline]
+            fn for_each_mut<F: FnMut(&mut Id)>(&mut self, mut f: F)  {
+                match (f, self) $for_each_mut
             }
         }
 
         impl $crate::ENodeDisplay for $name {
             fn display_op(&self) -> &dyn ::std::fmt::Display {
-                use $name::*;
                 match self $display_op
             }
         }
 
         impl $crate::ENodeFromStr for $name {
             fn from_op_str(op_str: &str, children: Vec<$crate::Id>) -> ::std::result::Result<Self, String> {
-                use $name::*;
                 match (op_str, children) {
                     $($from_op_str)*
                     (s, c) => Err(::std::format!("Failed to parse '{}' with children {:?}", s, c)),
@@ -188,17 +112,18 @@ macro_rules! impl_enode {
          $($variants:tt)*
      } ->
      { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
-     { $($display_op:tt)* } { $($from_op_str:tt)* }
+     { $($display_op:tt)* } { $($from_op_str:tt)* } { $($find_match:tt)* }
     ) => {
         impl_enode!(
             $(#[$meta])* $vis enum $name
             { $($variants)* } ->
             { $($decl)*          $variant, }
-            { $($matches)*       ($variant, $variant) => true, }
-            { $($for_each)*      $variant => (), }
-            { $($for_each_mut)*  $variant => (), }
-            { $($display_op)*    $variant => &$string, }
-            { $($from_op_str)*   ($string, v) if v.is_empty() => Ok($variant), }
+            { $($matches)*       ($name::$variant, $name::$variant) => true, }
+            { $($for_each)*      (_, $name::$variant) => (), }
+            { $($for_each_mut)*  (_, $name::$variant) => (), }
+            { $($display_op)*    $name::$variant => &$string, }
+            { $($from_op_str)*   ($string, v) if v.is_empty() => Ok($name::$variant), }
+            { $($find_match)*    ($name::$variant, mut others) => others.position(|n| ::std::matches!(n, $name::$variant)), }
         );
     };
 
@@ -209,21 +134,22 @@ macro_rules! impl_enode {
          $($variants:tt)*
      } ->
      { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
-     { $($display_op:tt)* } { $($from_op_str:tt)* }
+     { $($display_op:tt)* } { $($from_op_str:tt)* } { $($find_match:tt)* }
     ) => {
         impl_enode!(
             $(#[$meta])* $vis enum $name
             { $($variants)* } ->
             { $($decl)*          $variant( [Id; $n] ), }
-            { $($matches)*       ($variant(..), $variant(..)) => true, }
-            { $($for_each)*      (f, $variant(ids)) => ids.iter().copied().for_each(f), }
-            { $($for_each_mut)*  (f, $variant(ids)) => ids.iter_mut().for_each(|i| *i = f(*i)), }
-            { $($display_op)*    $variant(..) => &$string, }
+            { $($matches)*       ($name::$variant(..), $name::$variant(..)) => true, }
+            { $($for_each)*      (ref mut f, $name::$variant(ids)) => ids.iter().copied().for_each(f), }
+            { $($for_each_mut)*  (ref mut f, $name::$variant(ids)) => ids.iter_mut().for_each(f), }
+            { $($display_op)*    $name::$variant(..) => &$string, }
             { $($from_op_str)*   (s, v) if v.len() == $n => {
                 let mut ids = <[Id; $n]>::default();
                 ids.copy_from_slice(&v);
-                Ok($variant(ids))
+                Ok($name::$variant(ids))
             }, }
+            { $($find_match)*    ($name::$variant(..), ref mut others) => others.position(|n| ::std::matches!(n, $name::$variant(..))), }
         );
     };
 
@@ -233,17 +159,18 @@ macro_rules! impl_enode {
          $($variants:tt)*
      } ->
      { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
-     { $($display_op:tt)* } { $($from_op_str:tt)* }
+     { $($display_op:tt)* } { $($from_op_str:tt)* } { $($find_match:tt)* }
     ) => {
         impl_enode!(
             $(#[$meta])* $vis enum $name
             { $($variants)* } ->
             { $($decl)*          $variant(Id), }
-            { $($matches)*       ($variant(..), $variant(..)) => true, }
-            { $($for_each)*      (f, $variant(id)) => f(*id), }
-            { $($for_each_mut)*  (f, $variant(id)) => f(*id), }
-            { $($display_op)*    $variant(..) => &$string, }
-            { $($from_op_str)*   ($string, v) if v.len() == 1 => Ok($variant(v[0])), }
+            { $($matches)*       ($name::$variant(..), $name::$variant(..)) => true, }
+            { $($for_each)*      (ref mut f, $name::$variant(id)) => { f(*id); }, }
+            { $($for_each_mut)*  (ref mut f, $name::$variant(id)) => { f(id); }, }
+            { $($display_op)*    $name::$variant(..) => &$string, }
+            { $($from_op_str)*   ($string, v) if v.len() == 1 => Ok($name::$variant(v[0])), }
+            { $($find_match)*    ($name::$variant(..), ref mut others) => others.position(|n| ::std::matches!(n, $name::$variant(..))), }
         );
     };
 
@@ -253,17 +180,39 @@ macro_rules! impl_enode {
          $($variants:tt)*
      } ->
      { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
-     { $($display_op:tt)* } { $($from_op_str:tt)* }
+     { $($display_op:tt)* } { $($from_op_str:tt)* } { $($find_match:tt)* }
     ) => {
         impl_enode!(
             $(#[$meta])* $vis enum $name
             { $($variants)* } ->
             { $($decl)*          $variant(Id, Id), }
-            { $($matches)*       ($variant(..), $variant(..)) => true, }
-            { $($for_each)*      (f, $variant(a, b)) => { f(*a), f(*b) }, }
-            { $($for_each_mut)*  (f, $variant(a, b)) => { f(*a), f(*b) }, }
-            { $($display_op)*    $variant(..) => &$string, }
-            { $($from_op_str)*   ($string, v) if v.len() == 2 => Ok($variant(v[0], v[1])), }
+            { $($matches)*       ($name::$variant(..), $name::$variant(..)) => true, }
+            { $($for_each)*      (ref mut f, $name::$variant(a, b)) => { f(*a); f(*b); }, }
+            { $($for_each_mut)*  (ref mut f, $name::$variant(a, b)) => { f(a); f(b); }, }
+            { $($display_op)*    $name::$variant(..) => &$string, }
+            { $($from_op_str)*   ($string, v) if v.len() == 2 => Ok($name::$variant(v[0], v[1])), }
+            { $($find_match)*    ($name::$variant(..), ref mut others) => others.position(|n| ::std::matches!(n, $name::$variant(..))), }
+        );
+    };
+
+    ($(#[$meta:meta])* $vis:vis enum $name:ident
+     {
+         $string:literal = $variant:ident(Id, Id, Id),
+         $($variants:tt)*
+     } ->
+     { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
+     { $($display_op:tt)* } { $($from_op_str:tt)* } { $($find_match:tt)* }
+    ) => {
+        impl_enode!(
+            $(#[$meta])* $vis enum $name
+            { $($variants)* } ->
+            { $($decl)*          $variant(Id, Id, Id), }
+            { $($matches)*       ($name::$variant(..), $name::$variant(..)) => true, }
+            { $($for_each)*      (ref mut f, $name::$variant(a, b, c)) => { f(*a); f(*b); f(*c); }, }
+            { $($for_each_mut)*  (ref mut f, $name::$variant(a, b, c)) => { f(a); f(b); f(c); }, }
+            { $($display_op)*    $name::$variant(..) => &$string, }
+            { $($from_op_str)*   ($string, v) if v.len() == 3 => Ok($name::$variant(v[0], v[1], v[2])), }
+            { $($find_match)*    ($name::$variant(..), ref mut others) => others.position(|n| ::std::matches!(n, $name::$variant(..))), }
         );
     };
 
@@ -273,102 +222,22 @@ macro_rules! impl_enode {
          $($variants:tt)*
      } ->
      { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
-     { $($display_op:tt)* } { $($from_op_str:tt)* }
+     { $($display_op:tt)* } { $($from_op_str:tt)* } { $($find_match:tt)* }
     ) => {
         impl_enode!(
             $(#[$meta])* $vis enum $name
             { $($variants)* } ->
             { $($decl)*          $variant($data), }
-            { $($matches)*       ($variant(data1), $variant(data2)) => data1 == data2, }
-            { $($for_each)*      $variant(_data) => (), }
-            { $($for_each_mut)*  $variant(_data) => (), }
-            { $($display_op)*    $variant(data) => data, }
-            { $($from_op_str)*   (s, v) if s.parse::<$data>().is_ok() && v.is_empty() => Ok($variant(s.parse().unwrap())), }
+            { $($matches)*       ($name::$variant(data1), $name::$variant(data2)) => data1 == data2, }
+            { $($for_each)*      (_, $name::$variant(_data)) => (), }
+            { $($for_each_mut)*  (_, $name::$variant(_data)) => (), }
+            { $($display_op)*    $name::$variant(data) => data, }
+            { $($from_op_str)*   (s, v) if s.parse::<$data>().is_ok() && v.is_empty() => Ok($name::$variant(s.parse().unwrap())), }
+            { $($find_match)*    ($name::$variant(data), ref mut others) => others.position(|n| match n {
+                $name::$variant(other_data) => data == other_data,
+                _ => false,
+            }), }
         );
-    };
-}
-
-/** Utility macro to create an [`ENode`].
-
-Basically `enode!(op, arg1, arg2, ...)`
-desugars to
-`ENode::new(op.into(), vec![arg1, arg2, ...])`.
-Note the conversion on `op`.
-
-```
-# use egg::*;
-define_language! {
-    enum SimpleLanguage {
-        Num(i32),
-        Add = "+",
-        Mul = "*",
-    }
-}
-
-use SimpleLanguage::*;
-
-let mut egraph: EGraph<SimpleLanguage, ()> = Default::default();
-let one = egraph.add(enode!(Num(1)));
-let two = egraph.add(enode!(Num(2)));
-
-let three = egraph.add(enode!(Add, one, two));
-let three_manual = egraph.add(ENode::new(Add, vec![one, two]));
-assert_eq!(three, three_manual);
-```
-
-[`ENode`]: struct.ENode.html
-**/
-#[macro_export]
-macro_rules! enode {
-    ($e:expr) => {
-        $crate::ENode::leaf($e.into())
-    };
-    ($e:expr, $($child:expr),*$(,)?) => {
-        $crate::ENode::new($e.into(), vec![$($child),*])
-    };
-}
-
-/** Utility macro to create an [`RecExpr`].
-
-Just a wrapper around [`enode!`].
-
-`recexpr!(op, arg1, arg2, ...)`
-desugars to
-`RecExpr::from(enode!(op, arg1, arg2, ...))`.
-
-```
-use egg::{*, recexpr as r};
-
-define_language! {
-    enum SimpleLanguage {
-        Num(i32),
-        Add = "+",
-        Mul = "*",
-    }
-}
-
-use SimpleLanguage::*;
-
-let mut egraph: EGraph<SimpleLanguage, ()> = Default::default();
-
-let one = egraph.add(enode!(Num(1)));
-let two = egraph.add(enode!(Num(2)));
-let three = egraph.add(enode!(Add, one, two));
-
-let three_recexpr = r!(Add, r!(Num(1)), r!(Num(2)));
-assert_eq!(three, egraph.add_expr(&three_recexpr));
-```
-
-[`enode!`]: macro.enode.html
-[`RecExpr`]: struct.RecExpr.html
-**/
-#[macro_export]
-macro_rules! recexpr {
-    ($e:expr) => {
-        $crate::RecExpr::from($crate::enode!($e))
-    };
-    ($e:expr, $($child:expr),*$(,)?) => {
-        $crate::RecExpr::from($crate::enode!($e, $($child),*))
     };
 }
 

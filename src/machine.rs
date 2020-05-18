@@ -1,7 +1,5 @@
-#![allow(dead_code, unused_imports, unused_variables, unreachable_code)]
-use crate::{EClass, EGraph, ENode, ENodeOrVar, Id, Language, Pattern, Subst, Var};
+use crate::{EClass, EGraph, ENode, ENodeOrVar, Id, Language, Pattern, PatternAst, Subst, Var};
 
-use log::trace;
 use std::cmp::Ordering;
 use std::fmt;
 
@@ -37,13 +35,19 @@ struct EClassSearcher<'a, N> {
 
 impl<'a, N: ENode> Iterator for EClassSearcher<'a, N> {
     type Item = &'a N;
+    #[inline(never)]
     fn next(&mut self) -> Option<Self::Item> {
-        for (i, enode) in self.nodes.iter().enumerate() {
-            if self.node.matches(enode) {
-                self.nodes = &self.nodes[i + 1..];
-                return Some(enode);
-            }
+        if let Some(i) = self.node.find_match(&self.nodes) {
+            let n = &self.nodes[i];
+            self.nodes = &self.nodes[i + 1..];
+            return Some(n);
         }
+        // for (i, enode) in self.nodes.iter().enumerate() {
+        //     if self.node.matches(enode) {
+        //         self.nodes = &self.nodes[i + 1..];
+        //         return Some(enode);
+        //     }
+        // }
         None
     }
 }
@@ -68,7 +72,7 @@ impl<'a, L: Language> Machine<'a, L> {
 
     #[must_use]
     fn backtrack(&mut self) -> Option<()> {
-        trace!("Backtracking, stack size: {}", self.stack.len());
+        log::trace!("Backtracking, stack size: {}", self.stack.len());
         loop {
             let Binder {
                 out,
@@ -78,7 +82,7 @@ impl<'a, L: Language> Machine<'a, L> {
             let next = *next;
 
             if let Some(matched) = searcher.next() {
-                trace!("Binding: {:?}", matched);
+                log::trace!("Binding: {:?}", matched);
                 let new_len = *out + matched.len();
                 self.reg.resize(new_len, 0);
                 let mut i = *out;
@@ -86,6 +90,7 @@ impl<'a, L: Language> Machine<'a, L> {
                     self.reg[i] = id;
                     i += 1;
                 });
+                debug_assert_eq!(i, new_len);
                 self.pc = next;
                 return Some(());
             } else {
@@ -107,7 +112,7 @@ impl<'a, L: Language> Machine<'a, L> {
             let instr = &self.program[self.pc];
             self.pc += 1;
 
-            trace!("Executing {:?}", instr);
+            log::trace!("Executing {:?}", instr);
 
             match instr {
                 Bind(i, node, out) => {
@@ -127,9 +132,9 @@ impl<'a, L: Language> Machine<'a, L> {
                     let id = self.reg[*i];
                     let eclass = &self.egraph[id];
                     if eclass.nodes.contains(t) {
-                        trace!("Check(r{} = e{}, {:?}) passed", i, id, t);
+                        log::trace!("Check(r{} = e{}, {:?}) passed", i, id, t);
                     } else {
-                        trace!("Check(r{} = e{}, {:?}) failed", i, id, t);
+                        log::trace!("Check(r{} = e{}, {:?}) failed", i, id, t);
                         backtrack!()
                     }
                     // TODO the below is more efficient, but is broken
@@ -218,6 +223,8 @@ fn compile<N: ENode>(
                 // NOTE, this doesn't seem to have a very large effect right now
                 // TODO restore sorting
                 // r2p.sort_by(|_, p1, _, p2| rank(v2r, p1, p2).reverse());
+                // r2p.sort_keys();
+                // r2p.sort_by(|_, p1, _, p2| p1.cmp(p2).reverse());
                 next_reg += e.len();
             }
         }
@@ -245,16 +252,16 @@ impl<L: fmt::Debug> fmt::Debug for Program<L> {
 }
 
 impl<N: ENode> Program<N> {
-    pub(crate) fn compile_from_pat(pattern: &[ENodeOrVar<N>]) -> Program<N> {
+    pub(crate) fn compile_from_pat(pattern: &PatternAst<N>) -> Program<N> {
         let mut instrs = Vec::new();
         let mut r2p = RegToPat::new();
         let mut v2r = VarToReg::new();
 
-        r2p.insert(0, pattern.last().unwrap().clone());
-        compile(pattern, &mut r2p, &mut v2r, 1, &mut instrs);
+        r2p.insert(0, pattern.as_ref().last().unwrap().clone());
+        compile(pattern.as_ref(), &mut r2p, &mut v2r, 1, &mut instrs);
 
         let program = Program { instrs, v2r };
-        trace!("Compiled {:?} to {:?}", pattern, program);
+        log::debug!("Compiled {:?} to {:?}", pattern.as_ref(), program);
         program
     }
 
@@ -278,7 +285,7 @@ impl<N: ENode> Program<N> {
             substs.push(s)
         });
 
-        trace!("Ran program, found {:?}", substs);
+        log::trace!("Ran program, found {:?}", substs);
         substs
     }
 }

@@ -97,13 +97,11 @@ impl fmt::Debug for Subst {
         write!(f, "{{")?;
         for i in 0..len {
             let (var, id) = &self.vec[i];
-            write!(f, "\"{}\" -> {}", var, id)?;
-            if i == len - 1 {
-                write!(f, "}}")?;
-            } else {
-                write!(f, "}}")?;
+            write!(f, "{}: {}", var, id)?;
+            if i < len - 1 {
+                write!(f, ", ")?;
             }
         }
-        Ok(())
+        write!(f, "}}")
     }
 }

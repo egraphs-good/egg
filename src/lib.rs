@@ -73,7 +73,10 @@ mod unionfind;
 
 pub type Id = u32;
 
-pub(crate) use {pattern::ENodeOrVar, unionfind::UnionFind};
+pub(crate) use {
+    pattern::{ENodeOrVar, PatternAst},
+    unionfind::UnionFind,
+};
 
 pub use {
     dot::Dot,

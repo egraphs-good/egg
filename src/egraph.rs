@@ -130,7 +130,7 @@ pub struct EGraph<L: Language> {
     unionfind: UnionFind,
     classes: IndexMap<Id, EClass<L>>,
     dirty_unions: Vec<Id>,
-    // pub(crate) classes_by_op: IndexMap<(L, usize), Vec<Id>>,
+    pub(crate) classes_by_op: IndexMap<std::mem::Discriminant<L::ENode>, indexmap::IndexSet<Id>>,
 }
 
 impl<L: Language + Default> Default for EGraph<L> {
@@ -157,7 +157,7 @@ impl<L: Language> EGraph<L> {
             classes: IndexMap::default(),
             unionfind: Default::default(),
             dirty_unions: Default::default(),
-            // classes_by_op: IndexMap::default(),
+            classes_by_op: IndexMap::default(),
         }
     }
 
@@ -262,18 +262,6 @@ impl<L: Language> std::ops::IndexMut<Id> for EGraph<L> {
 }
 
 impl<L: Language> EGraph<L> {
-    // /// Create an egraph from a [`RecExpr`].
-    // /// Equivalent to calling [`add_expr`] on an empty [`EGraph`].
-    // ///
-    // /// [`EGraph`]: struct.EGraph.html
-    // /// [`RecExpr`]: struct.RecExpr.html
-    // /// [`add_expr`]: struct.EGraph.html#method.add_expr
-    // pub fn from_expr(expr: &RecExpr<L>) -> (Self, Id) {
-    //     let mut egraph = EGraph::default();
-    //     let root = egraph.add_expr(expr);
-    //     (egraph, root)
-    // }
-
     /// Adds a [`RecExpr`] to the [`EGraph`].
     ///
     /// # Example
@@ -294,12 +282,15 @@ impl<L: Language> EGraph<L> {
     where
         Expr: AsRef<[L::ENode]>,
     {
+        log::trace!("Adding expr {:?}", expr.as_ref());
         let expr = expr.as_ref();
         let e = expr.last().unwrap().clone().map_children(|i| {
             let child = &expr.as_ref()[..i as usize + 1];
             self.add_expr(child)
         });
-        self.add(e)
+        let id = self.add(e);
+        log::trace!("Added!! expr {:?}", expr.as_ref());
+        id
     }
 
     /// Adds an [`ENode`] to the [`EGraph`].
@@ -317,13 +308,15 @@ impl<L: Language> EGraph<L> {
     /// [`ENode`]: struct.ENode.html
     /// [`add`]: struct.EGraph.html#method.add
     pub fn add(&mut self, mut enode: L::ENode) -> Id {
-        enode.for_each_mut(|id| self.find(id));
+        log::trace!("Adding {:?}", enode);
+        enode.update_children(|id| self.find(id));
+        log::trace!("Adding as {:?}", enode);
 
         match self.memo.get(&enode) {
             Some(id) => self.find(*id),
             None => {
-                trace!("Adding {:?}", enode);
                 let id = self.unionfind.make_set();
+                log::trace!("  ...adding to {}", id);
                 let class = EClass {
                     id,
                     nodes: vec![enode.clone()],
@@ -386,7 +379,8 @@ impl<L: Language> EGraph<L> {
         }
 
         let (to, from) = self.unionfind.union(id1, id2);
-        debug_assert_eq!(to, self.find(to));
+        debug_assert_eq!(to, self.find(id1));
+        debug_assert_eq!(to, self.find(id2));
         if to != from {
             self.dirty_unions.push(to);
 
@@ -438,67 +432,86 @@ impl<L: Language> EGraph<L> {
     fn rebuild_classes(&mut self) -> usize {
         // let (find, mut_values) = self.classes.split();
 
-        // let mut classes_by_op = std::mem::take(&mut self.classes_by_op);
-        // classes_by_op.clear();
+        let mut classes_by_op = std::mem::take(&mut self.classes_by_op);
+        classes_by_op.values_mut().for_each(|ids| ids.clear());
 
-        // let mut trimmed = 0;
+        let mut trimmed = 0;
 
-        // // let mut memo = IndexMap::new(); // std::mem::take(&mut self.memo);
-        // // self.memo.clear();
+        // let mut memo = IndexMap::new(); // std::mem::take(&mut self.memo);
+        // self.memo.clear();
 
-        // for class in mut_values {
-        //     let old_len = class.len();
-        //     class
-        //         .nodes
-        //         .iter_mut()
-        //         .for_each(|n| n.children.iter_mut().for_each(|id| *id = find(*id)));
-        //     class.nodes.sort_unstable();
-        //     class.nodes.dedup();
+        let uf = &self.unionfind;
+        for class in self.classes.values_mut() {
+            let old_len = class.len();
+            class
+                .nodes
+                .iter_mut()
+                .for_each(|n| n.update_children(|id| uf.find(id)));
+            class.nodes.sort_unstable();
+            class.nodes.dedup();
 
-        //     trimmed += old_len - class.nodes.len();
+            trimmed += old_len - class.nodes.len();
 
-        //     // for n in &class.nodes {
-        //     //     self.memo.insert(n.clone(), class.id);
-        //     // }
+            // for n in &class.nodes {
+            //     self.memo.insert(n.clone(), class.id);
+            // }
 
-        //     let mut add = |op: &L, len: usize| {
-        //         classes_by_op
-        //             .entry((op.clone(), len))
-        //             .or_default()
-        //             .push(class.id)
-        //     };
+            // FIXME
+            let mut add = |n: &L::ENode| {
+                classes_by_op
+                    .entry(std::mem::discriminant(&n))
+                    .or_default()
+                    .insert(class.id)
+            };
 
-        //     // we can go through the ops in order to dedup them, becaue we
-        //     // just sorted them
-        //     let mut ops_and_lens = class.nodes.iter().map(|n| (&n.op, n.children.len()));
-        //     // let mut prev = ops_and_lens.next().unwrap_or_else(|| panic!("Empty eclass! {:?}", class));
-        //     if let Some(mut prev) = ops_and_lens.next() {
-        //         add(&prev.0, prev.1);
-        //         for tup in ops_and_lens {
-        //             if tup != prev {
-        //                 add(&tup.0, tup.1);
-        //                 prev = tup;
-        //             }
-        //         }
-        //     }
-        // }
+            // // slow, safe version
+            // for n in &class.nodes {
+            //     add(n);
+            // }
+            // for ids in classes_by_op.values_mut() {
+            //     ids.sort_unstable();
+            //     ids.dedup();
+            // }
 
-        // // self.memo = memo;
-        // self.classes_by_op = classes_by_op;
-        // trimmed
-        0
+            // we can go through the ops in order to dedup them, becaue we
+            // just sorted them
+            // let mut ops_and_lens = class.nodes.iter().map(|n| (&n.op, n.children.len()));
+            let mut nodes = class.nodes.iter();
+            // let mut prev = ops_and_lens.next().unwrap_or_else(|| panic!("Empty eclass! {:?}", class));
+            if let Some(mut prev) = nodes.next() {
+                add(prev);
+                for n in nodes {
+                    if !prev.matches(n) {
+                        add(n);
+                        prev = n;
+                    }
+                }
+            }
+        }
+
+        #[cfg(debug_assertions)]
+        for ids in classes_by_op.values_mut() {
+            let unique: indexmap::IndexSet<Id> = ids.iter().copied().collect();
+            assert_eq!(ids.len(), unique.len());
+        }
+
+        // self.memo = memo;
+        self.classes_by_op = classes_by_op;
+        trimmed
     }
 
     #[inline(never)]
     fn check_memo(&self) -> bool {
-        let mut new_memo = IndexMap::new();
+        // println!("DUMP\n{:?}", self.dump());
+        let mut test_memo = IndexMap::new();
 
-        for class in self.classes() {
+        for (&id, class) in self.classes.iter() {
+            assert_eq!(id, class.id);
             for node in &class.nodes {
-                if let Some(old) = new_memo.insert(node, class.id) {
+                if let Some(old) = test_memo.insert(node, id) {
                     assert_eq!(
                         self.find(old),
-                        self.find(class.id),
+                        self.find(id),
                         "Found unexpected equivalence for {:?}",
                         node
                     );
@@ -506,8 +519,15 @@ impl<L: Language> EGraph<L> {
             }
         }
 
-        for (n, e) in new_memo {
-            assert_eq!(Some(e), self.memo.get(n).map(|id| self.find(*id)));
+        for (n, e) in test_memo {
+            assert_eq!(e, self.find(e));
+            assert_eq!(
+                Some(e),
+                self.memo.get(n).map(|id| self.find(*id)),
+                "Entry for {:?} at {} in test_memo was incorrect",
+                n,
+                e
+            );
         }
 
         true
@@ -538,7 +558,7 @@ impl<L: Language> EGraph<L> {
                 }
 
                 parents.iter_mut().for_each(|(n, id)| {
-                    n.for_each_mut(|child| self.find(child));
+                    n.update_children(|child| self.find(child));
                     *id = self.find(*id);
                 });
                 parents.sort_unstable();
@@ -644,7 +664,7 @@ impl<L: Language> EGraph<L> {
             let node_meta = L::metadata_make(self, n);
             let class = &mut self.classes[&e];
             if self.language.metadata_merge(&mut class.metadata, node_meta) {
-                // self.dirty_unions.push(*e); // NOTE: i dont think this is necessary
+                // self.dirty_unions.push(e); // NOTE: i dont think this is necessary
                 let e_parents = std::mem::take(&mut class.parents);
                 self.propagate_metadata(&e_parents);
                 self[e].parents = e_parents;
@@ -658,8 +678,12 @@ struct EGraphDump<'a, L: Language>(&'a EGraph<L>);
 
 impl<'a, L: Language> Debug for EGraphDump<'a, L> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for class in self.0.classes() {
-            writeln!(f, "{}: {:?}", class.id, class.nodes)?
+        let mut ids: Vec<Id> = self.0.classes.keys().copied().collect();
+        ids.sort();
+        for id in ids {
+            let mut nodes = self.0[id].nodes.clone();
+            nodes.sort();
+            writeln!(f, "{}: {:?}", id, nodes)?
         }
         Ok(())
     }

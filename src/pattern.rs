@@ -74,10 +74,28 @@ pub struct Pattern<N> {
 
 pub(crate) type PatternAst<N> = RecExpr<ENodeOrVar<N>>;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone, PartialOrd, Ord)]
 pub(crate) enum ENodeOrVar<N> {
     ENode(N),
     Var(Var),
+}
+
+impl<N: ENode> ENode for ENodeOrVar<N> {
+    fn matches(&self, other: &Self) -> bool {
+        panic!("Should never call this")
+    }
+    fn for_each<F: FnMut(Id)>(&self, f: F) {
+        match self {
+            ENodeOrVar::ENode(e) => e.for_each(f),
+            ENodeOrVar::Var(_) => (),
+        }
+    }
+    fn for_each_mut<F: FnMut(&mut Id)>(&mut self, f: F) {
+        match self {
+            ENodeOrVar::ENode(e) => e.for_each_mut(f),
+            ENodeOrVar::Var(_) => (),
+        }
+    }
 }
 
 impl<N: ENodeFromStr> ENodeFromStr for ENodeOrVar<N> {
@@ -113,7 +131,7 @@ impl<N: ENode + ENodeFromStr> std::str::FromStr for Pattern<N> {
     type Err = String;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let ast: PatternAst<N> = s.parse()?;
-        let program = machine::Program::compile_from_pat(ast.as_ref());
+        let program = machine::Program::compile_from_pat(&ast);
         Ok(Pattern { ast, program })
     }
 }
@@ -124,7 +142,7 @@ impl<'a, N: ENode> From<&'a [N]> for Pattern<N> {
         for n in expr {
             ast.add(ENodeOrVar::ENode(n.clone()));
         }
-        let program = machine::Program::compile_from_pat(ast.as_ref());
+        let program = machine::Program::compile_from_pat(&ast);
         Pattern { ast, program }
     }
 }
@@ -147,22 +165,24 @@ pub struct SearchMatches {
 }
 
 impl<L: Language> Searcher<L> for Pattern<L::ENode> {
-    // FIXME
-    // fn search(&self, egraph: &EGraph<L>) -> Vec<SearchMatches> {
-    //     match &self.ast {
-    //         PatternAst::ENode(e) => {
-    //             let key = (e.op.clone(), e.children.len());
-    //             let ids: &[Id] = egraph.classes_by_op.get(&key).map_or(&[], Vec::as_slice);
-    //             ids.iter()
-    //                 .filter_map(|&id| self.search_eclass(egraph, id))
-    //                 .collect()
-    //         }
-    //         PatternAst::Var(_) => egraph
-    //             .classes()
-    //             .filter_map(|e| self.search_eclass(egraph, e.id))
-    //             .collect(),
-    //     }
-    // }
+    fn search(&self, egraph: &EGraph<L>) -> Vec<SearchMatches> {
+        match self.ast.as_ref().last().unwrap() {
+            ENodeOrVar::ENode(e) => {
+                let key = std::mem::discriminant(e);
+                match egraph.classes_by_op.get(&key) {
+                    None => vec![],
+                    Some(ids) => ids
+                        .iter()
+                        .filter_map(|&id| self.search_eclass(egraph, id))
+                        .collect(),
+                }
+            }
+            ENodeOrVar::Var(_) => egraph
+                .classes()
+                .filter_map(|e| self.search_eclass(egraph, e.id))
+                .collect(),
+        }
+    }
 
     fn search_eclass(&self, egraph: &EGraph<L>, eclass: Id) -> Option<SearchMatches> {
         let substs = self.program.run(egraph, eclass);

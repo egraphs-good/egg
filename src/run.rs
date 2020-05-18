@@ -163,6 +163,15 @@ pub struct Runner<L: Language, IterData = ()> {
     scheduler: Box<dyn RewriteScheduler<L>>,
 }
 
+impl<L> Default for Runner<L, ()>
+where
+    L: Language + Default,
+{
+    fn default() -> Self {
+        Runner::new(L::default())
+    }
+}
+
 /// Error returned by [`Runner`] when it stops.
 ///
 /// [`Runner`]: struct.Runner.html

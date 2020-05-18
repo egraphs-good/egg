@@ -98,7 +98,9 @@ pub trait CostFunction<L: Language> {
     /// any of the child costs of the given [`ENode`].
     ///
     /// [`ENode`]: struct.ENode.html
-    fn cost(&mut self, enode: &L::ENode, costs: &HashMap<Id, Self::Cost>) -> Self::Cost;
+    fn cost<C>(&mut self, enode: &L::ENode, costs: C) -> Self::Cost
+    where
+        C: FnMut(Id) -> Self::Cost;
 
     /// Calculates the total cost of a [`RecExpr`].
     ///
@@ -107,9 +109,9 @@ pub trait CostFunction<L: Language> {
     ///
     /// [`RecExpr`]: struct.RecExpr.html
     fn cost_rec(&mut self, expr: &RecExpr<L::ENode>) -> Self::Cost {
-        let mut costs = HashMap::default();
+        let mut costs: HashMap<Id, Self::Cost> = HashMap::default();
         for (i, node) in expr.as_ref().iter().enumerate() {
-            let cost = self.cost(node, &costs);
+            let cost = self.cost(node, |i| costs[&i].clone());
             costs.insert(i as Id, cost);
         }
         let last_id = expr.as_ref().len() as Id - 1;
@@ -131,11 +133,11 @@ assert_eq!(AstSize.cost_rec(&e), 4);
 pub struct AstSize;
 impl<L: Language> CostFunction<L> for AstSize {
     type Cost = usize;
-    fn cost(&mut self, enode: &L::ENode, costs: &HashMap<Id, Self::Cost>) -> Self::Cost {
-        let mut cost = 1;
-        enode.for_each(|id| cost += costs[&id]);
-        cost
-        // 1 + enode.children().iter().map(|id| costs[id]).sum::<usize>()
+    fn cost<C>(&mut self, enode: &L::ENode, mut costs: C) -> Self::Cost
+    where
+        C: FnMut(Id) -> Self::Cost,
+    {
+        enode.fold(1, |sum, id| sum + costs(id))
     }
 }
 
@@ -153,10 +155,11 @@ assert_eq!(AstDepth.cost_rec(&e), 2);
 pub struct AstDepth;
 impl<L: Language> CostFunction<L> for AstDepth {
     type Cost = usize;
-    fn cost(&mut self, enode: &L::ENode, costs: &HashMap<Id, Self::Cost>) -> Self::Cost {
-        let mut max = 0;
-        enode.for_each(|id| max = max.max(costs[&id]));
-        max + 1
+    fn cost<C>(&mut self, enode: &L::ENode, mut costs: C) -> Self::Cost
+    where
+        C: FnMut(Id) -> Self::Cost,
+    {
+        1 + enode.fold(0, |max, id| max.max(costs(id)))
     }
 }
 
@@ -222,7 +225,8 @@ where
 
     fn node_total_cost(&mut self, node: &L::ENode) -> Option<CF::Cost> {
         if node.all(|id| self.costs.contains_key(&id)) {
-            Some(self.cost_function.cost(&node, &self.costs))
+            let costs = &self.costs;
+            Some(self.cost_function.cost(&node, |i| costs[&i].clone()))
         } else {
             None
         }
