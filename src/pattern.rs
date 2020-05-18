@@ -101,10 +101,10 @@ impl<N: ENodeFromStr> ENodeFromStr for ENodeOrVar<N> {
 }
 
 impl<N: ENodeDisplay> ENodeDisplay for ENodeOrVar<N> {
-    fn write_op(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn display_op(&self) -> &dyn std::fmt::Display {
         match self {
-            ENodeOrVar::ENode(e) => e.write_op(f),
-            ENodeOrVar::Var(v) => std::fmt::Display::fmt(v, f),
+            ENodeOrVar::ENode(e) => e.display_op(),
+            ENodeOrVar::Var(v) => v,
         }
     }
 }

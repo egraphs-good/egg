@@ -183,9 +183,7 @@ where
             writeln!(f, "  subgraph cluster_{} {{", class.id)?;
             writeln!(f, "    style=dotted")?;
             for (i, node) in class.iter().enumerate() {
-                write!(f, "    {}.{}[label = \"", class.id, i)?;
-                node.write_op(f)?;
-                writeln!(f, "\"]")?;
+                writeln!(f, "    {}.{}[label = \"{}\"]", class.id, i, node.display_op())?;
             }
             writeln!(f, "  }}")?;
         }

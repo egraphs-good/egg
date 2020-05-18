@@ -141,7 +141,7 @@ macro_rules! impl_enode {
 
     ($(#[$meta:meta])* $vis:vis enum $name:ident {} ->
      $decl:tt {$($matches:tt)*} $for_each:tt $for_each_mut:tt
-     $write_op:tt {$($from_op_str:tt)*}
+     $display_op:tt {$($from_op_str:tt)*}
     ) => {
         $(#[$meta])*
         #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
@@ -165,9 +165,9 @@ macro_rules! impl_enode {
         }
 
         impl $crate::ENodeDisplay for $name {
-            fn write_op(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+            fn display_op(&self) -> &dyn ::std::fmt::Display {
                 use $name::*;
-                match (f, self) $write_op
+                match self $display_op
             }
         }
 
@@ -188,7 +188,7 @@ macro_rules! impl_enode {
          $($variants:tt)*
      } ->
      { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
-     { $($write_op:tt)* } { $($from_op_str:tt)* }
+     { $($display_op:tt)* } { $($from_op_str:tt)* }
     ) => {
         impl_enode!(
             $(#[$meta])* $vis enum $name
@@ -197,7 +197,7 @@ macro_rules! impl_enode {
             { $($matches)*       ($variant, $variant) => true, }
             { $($for_each)*      $variant => (), }
             { $($for_each_mut)*  $variant => (), }
-            { $($write_op)*      (f, $variant) => ::std::fmt::Display::fmt($string, f), }
+            { $($display_op)*    $variant => &$string, }
             { $($from_op_str)*   ($string, v) if v.is_empty() => Ok($variant), }
         );
     };
@@ -209,7 +209,7 @@ macro_rules! impl_enode {
          $($variants:tt)*
      } ->
      { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
-     { $($write_op:tt)* } { $($from_op_str:tt)* }
+     { $($display_op:tt)* } { $($from_op_str:tt)* }
     ) => {
         impl_enode!(
             $(#[$meta])* $vis enum $name
@@ -218,7 +218,7 @@ macro_rules! impl_enode {
             { $($matches)*       ($variant(..), $variant(..)) => true, }
             { $($for_each)*      (f, $variant(ids)) => ids.iter().copied().for_each(f), }
             { $($for_each_mut)*  (f, $variant(ids)) => ids.iter_mut().for_each(|i| *i = f(*i)), }
-            { $($write_op)*      (f, $variant(..)) => ::std::fmt::Display::fmt($string, f), }
+            { $($display_op)*    $variant(..) => &$string, }
             { $($from_op_str)*   (s, v) if v.len() == $n => {
                 let mut ids = <[Id; $n]>::default();
                 ids.copy_from_slice(&v);
@@ -233,7 +233,7 @@ macro_rules! impl_enode {
          $($variants:tt)*
      } ->
      { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
-     { $($write_op:tt)* } { $($from_op_str:tt)* }
+     { $($display_op:tt)* } { $($from_op_str:tt)* }
     ) => {
         impl_enode!(
             $(#[$meta])* $vis enum $name
@@ -242,7 +242,7 @@ macro_rules! impl_enode {
             { $($matches)*       ($variant(..), $variant(..)) => true, }
             { $($for_each)*      (f, $variant(id)) => f(*id), }
             { $($for_each_mut)*  (f, $variant(id)) => f(*id), }
-            { $($write_op)*      (f, $variant(..)) => ::std::fmt::Display::fmt($string, f), }
+            { $($display_op)*    $variant(..) => &$string, }
             { $($from_op_str)*   ($string, v) if v.len() == 1 => Ok($variant(v[0])), }
         );
     };
@@ -253,7 +253,7 @@ macro_rules! impl_enode {
          $($variants:tt)*
      } ->
      { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
-     { $($write_op:tt)* } { $($from_op_str:tt)* }
+     { $($display_op:tt)* } { $($from_op_str:tt)* }
     ) => {
         impl_enode!(
             $(#[$meta])* $vis enum $name
@@ -262,7 +262,7 @@ macro_rules! impl_enode {
             { $($matches)*       ($variant(..), $variant(..)) => true, }
             { $($for_each)*      (f, $variant(a, b)) => { f(*a), f(*b) }, }
             { $($for_each_mut)*  (f, $variant(a, b)) => { f(*a), f(*b) }, }
-            { $($write_op)*      (f, $variant(..)) => ::std::fmt::Display::fmt($string, f), }
+            { $($display_op)*    $variant(..) => &$string, }
             { $($from_op_str)*   ($string, v) if v.len() == 2 => Ok($variant(v[0], v[1])), }
         );
     };
@@ -273,7 +273,7 @@ macro_rules! impl_enode {
          $($variants:tt)*
      } ->
      { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
-     { $($write_op:tt)* } { $($from_op_str:tt)* }
+     { $($display_op:tt)* } { $($from_op_str:tt)* }
     ) => {
         impl_enode!(
             $(#[$meta])* $vis enum $name
@@ -282,7 +282,7 @@ macro_rules! impl_enode {
             { $($matches)*       ($variant(data1), $variant(data2)) => data1 == data2, }
             { $($for_each)*      $variant(_data) => (), }
             { $($for_each_mut)*  $variant(_data) => (), }
-            { $($write_op)*      (ref mut f, $variant(data)) => ::std::fmt::Display::fmt(data, f), }
+            { $($display_op)*    $variant(data) => data, }
             { $($from_op_str)*   (s, v) if s.parse::<$data>().is_ok() && v.is_empty() => Ok($variant(s.parse().unwrap())), }
         );
     };

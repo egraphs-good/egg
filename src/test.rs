@@ -6,7 +6,7 @@ These are not considered part of the public api.
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-use crate::{AstSize, Extractor, Language, Pattern, RecExpr, Runner, Searcher};
+use crate::{AstSize, Extractor, Language, Pattern, RecExpr, Runner, Searcher, ENodeDisplay};
 
 fn mean_stdev(data: &[f64]) -> (f64, f64) {
     assert_ne!(data.len(), 0);
@@ -152,7 +152,8 @@ pub fn run<T>(name: impl Into<String>, mut f: impl FnMut() -> T) -> Reporter<T> 
 
 impl<L, IterData> Runner<L, IterData>
 where
-    L: Language + std::fmt::Display,
+    L: Language,
+    L::ENode: ENodeDisplay
 {
     pub fn check_goals(&self, goals: &[RecExpr<L::ENode>]) {
         let egraph = &self.egraph;
@@ -168,7 +169,7 @@ where
 
         for (i, goal) in goals.iter().enumerate() {
             println!("Trying to prove goal {}: {}", i, goal.pretty(40));
-            let pattern = Pattern::from(goal.clone());
+            let pattern = Pattern::from(goal.as_ref());
             let matches = pattern.search_eclass(&egraph, id);
             if matches.is_none() {
                 let best = Extractor::new(&egraph, AstSize).find_best(id).1;

@@ -1,5 +1,6 @@
 use std::fmt::{self, Debug};
 use std::hash::Hash;
+use symbolic_expressions::Sexp;
 
 use crate::{EGraph, Id};
 
@@ -73,8 +74,80 @@ impl<N> RecExpr<N> {
     }
 }
 
+impl<N: ENode + ENodeDisplay> RecExpr<N> {
+    fn to_sexp(&self, i: Id) -> Sexp {
+        let node = &self.nodes[i as usize];
+        let op = Sexp::String(node.display_op().to_string());
+        if node.is_leaf() {
+            op
+        } else {
+            let mut vec = vec![op];
+            node.for_each(|id| vec.push(self.to_sexp(id)));
+            Sexp::List(vec)
+        }
+    }
+
+    /// Pretty print with a maximum line length.
+    ///
+    /// This gives you a nice, indented, pretty-printed s-expression.
+    ///
+    /// # Example
+    /// ```
+    /// # use egg::*;
+    /// define_language! {
+    ///     enum FooLanguage {
+    ///         Num(i32),
+    ///         Add = "+",
+    ///         Mul = "*",
+    ///         Symbol(String),
+    ///     }
+    /// }
+    ///
+    /// let e: RecExpr<FooLanguage> = "(* (+ 2 2) (+ x y))".parse().unwrap();
+    /// assert_eq!(e.pretty(10), "
+    /// (*
+    ///   (+ 2 2)
+    ///   (+ x y))
+    /// ".trim());
+    /// ```
+    pub fn pretty(&self, width: usize) -> String {
+        use std::fmt::{Result, Write};
+        let sexp = self.to_sexp(self.nodes.len() as Id - 1);
+
+        fn pp(buf: &mut String, sexp: &Sexp, width: usize, level: usize) -> Result {
+            if let Sexp::List(list) = sexp {
+                let indent = sexp.to_string().len() > width;
+                write!(buf, "(")?;
+
+                for (i, val) in list.iter().enumerate() {
+                    if indent && i > 0 {
+                        writeln!(buf)?;
+                        for _ in 0..level {
+                            write!(buf, "  ")?;
+                        }
+                    }
+                    pp(buf, val, width, level + 1)?;
+                    if !indent && i < list.len() - 1 {
+                        write!(buf, " ")?;
+                    }
+                }
+
+                write!(buf, ")")?;
+                Ok(())
+            } else {
+                // I don't care about quotes
+                write!(buf, "{}", sexp.to_string().trim_matches('"'))
+            }
+        }
+
+        let mut buf = String::new();
+        pp(&mut buf, &sexp, width, 1).unwrap();
+        buf
+    }
+}
+
 pub trait ENodeDisplay {
-    fn write_op(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result;
+    fn display_op(&self) -> &dyn fmt::Display;
 }
 
 pub trait ENodeFromStr: Sized {
@@ -93,7 +166,6 @@ macro_rules! bail {
 impl<N: ENodeFromStr> std::str::FromStr for RecExpr<N> {
     type Err = String;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        use symbolic_expressions::Sexp;
         fn parse_sexp_into<N>(sexp: &Sexp, expr: &mut RecExpr<N>) -> Result<Id, String>
         where
             N: ENodeFromStr,
@@ -188,7 +260,7 @@ impl ENodeFromStr for StringENode {
 }
 
 impl ENodeDisplay for StringENode {
-    fn write_op(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.op)
+    fn display_op(&self) -> &dyn fmt::Display {
+        &self.op
     }
 }
