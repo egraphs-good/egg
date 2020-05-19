@@ -18,10 +18,6 @@ pub trait ENode: Debug + Clone + Eq + Ord + Hash {
     fn for_each<F: FnMut(Id)>(&self, f: F);
     fn for_each_mut<F: FnMut(&mut Id)>(&mut self, f: F);
 
-    fn find_match(&self, others: &[Self]) -> Option<usize> {
-        others.iter().position(|o| self.matches(o))
-    }
-
     fn for_each_i<F: FnMut(usize, Id)>(&self, mut f: F) {
         let mut i = 0;
         self.for_each(|id| {

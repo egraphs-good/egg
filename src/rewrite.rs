@@ -429,7 +429,7 @@ mod tests {
         println!("rewrite shouldn't do anything yet");
         egraph.rebuild();
         let apps = mul_to_shift.run(&mut egraph);
-        assert_eq!(apps, vec![]);
+        assert!(apps.is_empty());
 
         println!("Add the needed equality");
         let two_ispow2 = egraph.add(E::new("is-power2", vec![y]));

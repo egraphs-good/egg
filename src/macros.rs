@@ -62,23 +62,22 @@ But they are pretty handy.
 #[macro_export]
 macro_rules! impl_enode {
     ($(#[$meta:meta])* $vis:vis enum $name:ident $variants:tt) => {
-        impl_enode!($(#[$meta])* $vis enum $name $variants -> {} {} {} {} {} {} {});
+        impl_enode!($(#[$meta])* $vis enum $name $variants -> {} {} {} {} {} {});
     };
 
     ($(#[$meta:meta])* $vis:vis enum $name:ident {} ->
      $decl:tt {$($matches:tt)*} $for_each:tt $for_each_mut:tt
-     $display_op:tt {$($from_op_str:tt)*} $find_match:tt
+     $display_op:tt {$($from_op_str:tt)*}
     ) => {
         $(#[$meta])*
         #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
         $vis enum $name $decl
 
         impl $crate::ENode for $name {
+            #[inline(always)]
             fn matches(&self, other: &Self) -> bool {
+                ::std::mem::discriminant(self) == ::std::mem::discriminant(other) &&
                 match (self, other) { $($matches)* _ => false }
-            }
-            fn find_match(&self, others: &[Self]) -> Option<usize> {
-                match (self, others.iter()) $find_match
             }
             #[inline]
             fn for_each<F: FnMut(Id)>(&self, mut f: F)  {
@@ -112,7 +111,7 @@ macro_rules! impl_enode {
          $($variants:tt)*
      } ->
      { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
-     { $($display_op:tt)* } { $($from_op_str:tt)* } { $($find_match:tt)* }
+     { $($display_op:tt)* } { $($from_op_str:tt)* }
     ) => {
         impl_enode!(
             $(#[$meta])* $vis enum $name
@@ -123,7 +122,6 @@ macro_rules! impl_enode {
             { $($for_each_mut)*  (_, $name::$variant) => (), }
             { $($display_op)*    $name::$variant => &$string, }
             { $($from_op_str)*   ($string, v) if v.is_empty() => Ok($name::$variant), }
-            { $($find_match)*    ($name::$variant, mut others) => others.position(|n| ::std::matches!(n, $name::$variant)), }
         );
     };
 
@@ -134,7 +132,7 @@ macro_rules! impl_enode {
          $($variants:tt)*
      } ->
      { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
-     { $($display_op:tt)* } { $($from_op_str:tt)* } { $($find_match:tt)* }
+     { $($display_op:tt)* } { $($from_op_str:tt)* }
     ) => {
         impl_enode!(
             $(#[$meta])* $vis enum $name
@@ -149,7 +147,6 @@ macro_rules! impl_enode {
                 ids.copy_from_slice(&v);
                 Ok($name::$variant(ids))
             }, }
-            { $($find_match)*    ($name::$variant(..), ref mut others) => others.position(|n| ::std::matches!(n, $name::$variant(..))), }
         );
     };
 
@@ -159,7 +156,7 @@ macro_rules! impl_enode {
          $($variants:tt)*
      } ->
      { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
-     { $($display_op:tt)* } { $($from_op_str:tt)* } { $($find_match:tt)* }
+     { $($display_op:tt)* } { $($from_op_str:tt)* }
     ) => {
         impl_enode!(
             $(#[$meta])* $vis enum $name
@@ -170,7 +167,7 @@ macro_rules! impl_enode {
             { $($for_each_mut)*  (ref mut f, $name::$variant(id)) => { f(id); }, }
             { $($display_op)*    $name::$variant(..) => &$string, }
             { $($from_op_str)*   ($string, v) if v.len() == 1 => Ok($name::$variant(v[0])), }
-            { $($find_match)*    ($name::$variant(..), ref mut others) => others.position(|n| ::std::matches!(n, $name::$variant(..))), }
+
         );
     };
 
@@ -180,7 +177,7 @@ macro_rules! impl_enode {
          $($variants:tt)*
      } ->
      { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
-     { $($display_op:tt)* } { $($from_op_str:tt)* } { $($find_match:tt)* }
+     { $($display_op:tt)* } { $($from_op_str:tt)* }
     ) => {
         impl_enode!(
             $(#[$meta])* $vis enum $name
@@ -191,7 +188,6 @@ macro_rules! impl_enode {
             { $($for_each_mut)*  (ref mut f, $name::$variant(a, b)) => { f(a); f(b); }, }
             { $($display_op)*    $name::$variant(..) => &$string, }
             { $($from_op_str)*   ($string, v) if v.len() == 2 => Ok($name::$variant(v[0], v[1])), }
-            { $($find_match)*    ($name::$variant(..), ref mut others) => others.position(|n| ::std::matches!(n, $name::$variant(..))), }
         );
     };
 
@@ -201,7 +197,7 @@ macro_rules! impl_enode {
          $($variants:tt)*
      } ->
      { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
-     { $($display_op:tt)* } { $($from_op_str:tt)* } { $($find_match:tt)* }
+     { $($display_op:tt)* } { $($from_op_str:tt)* }
     ) => {
         impl_enode!(
             $(#[$meta])* $vis enum $name
@@ -212,7 +208,7 @@ macro_rules! impl_enode {
             { $($for_each_mut)*  (ref mut f, $name::$variant(a, b, c)) => { f(a); f(b); f(c); }, }
             { $($display_op)*    $name::$variant(..) => &$string, }
             { $($from_op_str)*   ($string, v) if v.len() == 3 => Ok($name::$variant(v[0], v[1], v[2])), }
-            { $($find_match)*    ($name::$variant(..), ref mut others) => others.position(|n| ::std::matches!(n, $name::$variant(..))), }
+
         );
     };
 
@@ -222,7 +218,7 @@ macro_rules! impl_enode {
          $($variants:tt)*
      } ->
      { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
-     { $($display_op:tt)* } { $($from_op_str:tt)* } { $($find_match:tt)* }
+     { $($display_op:tt)* } { $($from_op_str:tt)* }
     ) => {
         impl_enode!(
             $(#[$meta])* $vis enum $name
@@ -233,10 +229,6 @@ macro_rules! impl_enode {
             { $($for_each_mut)*  (_, $name::$variant(_data)) => (), }
             { $($display_op)*    $name::$variant(data) => data, }
             { $($from_op_str)*   (s, v) if s.parse::<$data>().is_ok() && v.is_empty() => Ok($name::$variant(s.parse().unwrap())), }
-            { $($find_match)*    ($name::$variant(data), ref mut others) => others.position(|n| match n {
-                $name::$variant(other_data) => data == other_data,
-                _ => false,
-            }), }
         );
     };
 }

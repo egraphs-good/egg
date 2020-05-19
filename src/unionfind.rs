@@ -1,5 +1,4 @@
 use crate::Id;
-use indexmap::{IndexMap, IndexSet};
 use std::cell::Cell;
 use std::fmt::Debug;
 
@@ -58,19 +57,6 @@ impl UnionFind {
             (root1, root2)
         }
     }
-
-    #[cfg(test)]
-    pub fn build_sets(&self) -> IndexMap<Id, IndexSet<Id>> {
-        let mut map: IndexMap<Id, IndexSet<Id>> = Default::default();
-
-        for i in 0..self.parents.len() {
-            let i = i as Id;
-            let leader = self.find(i);
-            map.entry(leader).or_default().insert(i);
-        }
-
-        map
-    }
 }
 
 #[cfg(test)]
@@ -78,6 +64,20 @@ mod tests {
     use super::*;
 
     use indexmap::{indexmap, indexset, IndexMap, IndexSet};
+
+    impl UnionFind {
+        pub fn build_sets(&self) -> IndexMap<Id, IndexSet<Id>> {
+            let mut map: IndexMap<Id, IndexSet<Id>> = Default::default();
+
+            for i in 0..self.parents.len() {
+                let i = i as Id;
+                let leader = self.find(i);
+                map.entry(leader).or_default().insert(i);
+            }
+
+            map
+        }
+    }
 
     fn make_union_find(n: u32) -> UnionFind {
         let mut uf = UnionFind::default();

@@ -3,7 +3,7 @@ use std::fmt::{self, Debug};
 use indexmap::IndexMap;
 use log::*;
 
-use crate::{Dot, EClass, ENode, Id, Language, RecExpr, UnionFind};
+use crate::{Dot, EClass, ENode, Id, Language, UnionFind};
 
 /** A data structure to keep track of equalities between expressions.
 

@@ -1,7 +1,6 @@
 use egg::{rewrite as rw, *};
 use std::str::FromStr;
 
-use log::trace;
 use ordered_float::NotNan;
 
 #[derive(Default)]

@@ -1,7 +1,6 @@
-use crate::{EClass, EGraph, ENode, ENodeOrVar, Id, Language, Pattern, PatternAst, Subst, Var};
-
-use std::cmp::Ordering;
 use std::fmt;
+
+use crate::{EGraph, ENode, ENodeOrVar, Id, Language, PatternAst, Subst, Var};
 
 struct Machine<'a, L: Language> {
     egraph: &'a EGraph<L>,
@@ -30,25 +29,29 @@ struct Binder<'a, N> {
 
 struct EClassSearcher<'a, N> {
     node: N,
-    nodes: &'a [N],
+    nodes: std::slice::Iter<'a, N>,
 }
 
-impl<'a, N: ENode> Iterator for EClassSearcher<'a, N> {
-    type Item = &'a N;
-    #[inline(never)]
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(i) = self.node.find_match(&self.nodes) {
-            let n = &self.nodes[i];
-            self.nodes = &self.nodes[i + 1..];
-            return Some(n);
+impl<'a, N: ENode> EClassSearcher<'a, N> {
+    fn new(mut node: N, nodes: &'a [N]) -> Self {
+        let len = nodes.len();
+        let start = if len < 50 {
+            nodes.iter().position(|n| node.matches(n)).unwrap_or(len)
+        } else {
+            node.update_children(|_| 0);
+            nodes.binary_search(&node).unwrap_or_else(|i| i)
+        };
+        Self {
+            node,
+            nodes: nodes[start..].iter(),
         }
-        // for (i, enode) in self.nodes.iter().enumerate() {
-        //     if self.node.matches(enode) {
-        //         self.nodes = &self.nodes[i + 1..];
-        //         return Some(enode);
-        //     }
-        // }
-        None
+    }
+
+    fn next(&mut self) -> Option<&'a N> {
+        match self.nodes.next() {
+            Some(n) if self.node.matches(n) => Some(n),
+            _ => None,
+        }
     }
 }
 
@@ -120,10 +123,7 @@ impl<'a, L: Language> Machine<'a, L> {
                     self.stack.push(Binder {
                         out: *out,
                         next: self.pc,
-                        searcher: EClassSearcher {
-                            node: node.clone(),
-                            nodes: &eclass.nodes,
-                        },
+                        searcher: EClassSearcher::new(node.clone(), &eclass.nodes),
                     });
                     backtrack!();
                 }
