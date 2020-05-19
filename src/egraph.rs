@@ -3,7 +3,7 @@ use std::fmt::{self, Debug};
 use indexmap::IndexMap;
 use log::*;
 
-use crate::{Dot, EClass, ENode, Id, Language, UnionFind};
+use crate::{Dot, EClass, ENode, Id, Language, RecExpr, UnionFind};
 
 /** A data structure to keep track of equalities between expressions.
 
@@ -175,9 +175,9 @@ impl<L: Language> EGraph<L> {
     /// # Example
     /// ```
     /// # use egg::*;
-    /// let mut egraph = EGraph::<String, ()>::default();
+    /// let mut egraph = EGraph::<SimpleLanguage<StringENode>>::default();
     /// assert!(egraph.is_empty());
-    /// egraph.add(enode!("foo"));
+    /// egraph.add(StringENode::leaf("foo"));
     /// assert!(!egraph.is_empty());
     /// ```
     pub fn is_empty(&self) -> bool {
@@ -190,9 +190,9 @@ impl<L: Language> EGraph<L> {
     /// # Example
     /// ```
     /// # use egg::*;
-    /// let mut egraph = EGraph::<String, ()>::default();
-    /// let x = egraph.add(enode!("x"));
-    /// let y = egraph.add(enode!("y"));
+    /// let mut egraph = EGraph::<SimpleLanguage<StringENode>>::default();
+    /// let x = egraph.add(StringENode::leaf("x"));
+    /// let y = egraph.add(StringENode::leaf("y"));
     /// // only one eclass
     /// egraph.union(x, y);
     /// egraph.rebuild();
@@ -222,9 +222,9 @@ impl<L: Language> EGraph<L> {
     /// # Example
     /// ```
     /// # use egg::*;
-    /// let mut egraph = EGraph::<String, ()>::default();
-    /// let x = egraph.add(enode!("x"));
-    /// let y = egraph.add(enode!("y"));
+    /// let mut egraph = EGraph::<SimpleLanguage<StringENode>>::default();
+    /// let x = egraph.add(StringENode::leaf("x"));
+    /// let y = egraph.add(StringENode::leaf("y"));
     /// assert_ne!(egraph.find(x), egraph.find(y));
     ///
     /// egraph.union(x, y);
@@ -267,10 +267,10 @@ impl<L: Language> EGraph<L> {
     /// # Example
     /// ```
     /// # use egg::*;
-    /// let mut egraph = EGraph::<String, ()>::default();
-    /// let x = egraph.add(enode!("x"));
-    /// let y = egraph.add(enode!("y"));
-    /// let plus = egraph.add(enode!("+", x, y));
+    /// let mut egraph = EGraph::<SimpleLanguage<StringENode>>::default();
+    /// let x = egraph.add(StringENode::leaf("x"));
+    /// let y = egraph.add(StringENode::leaf("y"));
+    /// let plus = egraph.add(StringENode::new("+", vec![x, y]));
     /// let plus_recexpr = "(+ x y)".parse().unwrap();
     /// assert_eq!(plus, egraph.add_expr(&plus_recexpr));
     /// ```
@@ -278,15 +278,16 @@ impl<L: Language> EGraph<L> {
     /// [`EGraph`]: struct.EGraph.html
     /// [`RecExpr`]: struct.RecExpr.html
     /// [`add_expr`]: struct.EGraph.html#method.add_expr
-    pub fn add_expr<Expr>(&mut self, expr: Expr) -> Id
-    where
-        Expr: AsRef<[L::ENode]>,
-    {
+    pub fn add_expr(&mut self, expr: &RecExpr<L::ENode>) -> Id {
+        self.add_expr_rec(expr.as_ref())
+    }
+
+    fn add_expr_rec(&mut self, expr: &[L::ENode]) -> Id {
         log::trace!("Adding expr {:?}", expr.as_ref());
         let expr = expr.as_ref();
         let e = expr.last().unwrap().clone().map_children(|i| {
             let child = &expr.as_ref()[..i as usize + 1];
-            self.add_expr(child)
+            self.add_expr_rec(child)
         });
         let id = self.add(e);
         log::trace!("Added!! expr {:?}", expr.as_ref());
@@ -605,9 +606,9 @@ impl<L: Language> EGraph<L> {
     /// # Example
     /// ```
     /// # use egg::*;
-    /// let mut egraph = EGraph::<String, ()>::default();
-    /// let x = egraph.add(enode!("x"));
-    /// let y = egraph.add(enode!("y"));
+    /// let mut egraph = EGraph::<SimpleLanguage<StringENode>>::default();
+    /// let x = egraph.add(StringENode::leaf("x"));
+    /// let y = egraph.add(StringENode::leaf("y"));
     /// let ax = egraph.add_expr(&"(+ a x)".parse().unwrap());
     /// let ay = egraph.add_expr(&"(+ a y)".parse().unwrap());
     ///

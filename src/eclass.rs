@@ -24,44 +24,49 @@ just use that.
 ```
 use egg::{*, rewrite as rw};
 
-define_language! {
-    enum EasyMath {
+impl_enode! {
+    enum Op {
+        "+" = Add(Id, Id),
+        "*" = Mul(Id, Id),
         Num(i32),
-        Add = "+",
-        Mul = "*",
         Variable(String),
     }
 }
 
-use EasyMath::*;
-type Meta = Option<i32>;
+#[derive(Default)]
+struct EasyMath;
+impl Language for EasyMath {
+    type ENode = Op;
+    type Metadata = Option<i32>;
 
-impl Metadata<EasyMath> for Meta {
-    type Error = ();
-    fn merge(&self, other: &Self) -> Self {
-        self.clone().and(other.clone())
+    fn metadata_merge(&self, to: &mut Self::Metadata, from: Self::Metadata) -> bool {
+        if to.is_none() && from.is_some() {
+            *to = from;
+            true
+        } else {
+            false
+        }
     }
-    fn make(egraph: &EGraph<EasyMath, Self>, enode: &ENode<EasyMath>) -> Self {
-         let c = |i: usize| {
-             let eclass = &egraph[enode.children[i]];
-             eclass.metadata.clone()
-         };
-         match enode.op {
-             Num(i) => Some(i),
-             Add => Some(c(0)? + c(1)?),
-             Mul => Some(c(0)? * c(1)?),
-             _ => None,
-         }
+
+    fn metadata_make(egraph: &mut EGraph<Self>, enode: &Self::ENode) -> Self::Metadata {
+        let x = |i: &Id| egraph[*i].metadata;
+        match enode {
+            Op::Num(n) => Some(*n),
+            Op::Add(a, b) => Some(x(a)? + x(b)?),
+            Op::Mul(a, b) => Some(x(a)? * x(b)?),
+            _ => None,
+        }
     }
-    fn modify(egraph: &mut EGraph<EasyMath, Self>, id: Id) {
+
+    fn metadata_modify(egraph: &mut EGraph<Self>, id: Id) {
         if let Some(i) = egraph[id].metadata {
-            let added = egraph.add(ENode::leaf(Num(i)));
+            let added = egraph.add(Op::Num(i));
             egraph.union(id, added);
         }
     }
 }
 
-let rules: &[Rewrite<EasyMath, Meta>] = &[
+let rules: &[Rewrite<EasyMath>] = &[
     rw!("commute-add"; "(+ ?a ?b)" => "(+ ?b ?a)"),
     rw!("commute-mul"; "(* ?a ?b)" => "(* ?b ?a)"),
 
@@ -71,8 +76,8 @@ let rules: &[Rewrite<EasyMath, Meta>] = &[
 ];
 
 let expr = "(+ 0 (* (+ 4 -3) foo))".parse().unwrap();
-let mut runner = Runner::new().with_expr(&expr).run(&rules);
-let just_foo = runner.egraph.add(enode!(Variable("foo".into())));
+let mut runner = Runner::default().with_expr(&expr).run(&rules);
+let just_foo = runner.egraph.add_expr(&"foo".parse().unwrap());
 assert_eq!(runner.egraph.find(runner.roots[0]), runner.egraph.find(just_foo));
 ```
 
@@ -82,43 +87,10 @@ assert_eq!(runner.egraph.find(runner.roots[0]), runner.egraph.find(just_foo));
 [`math.rs`]: https://github.com/mwillsey/egg/blob/master/tests/math.rs
 [`prop.rs`]: https://github.com/mwillsey/egg/blob/master/tests/prop.rs
 */
-// pub trait Metadata<L>: Sized + Debug + PartialEq + Eq {
-//     /// Unused for now, probably just make this `()`.
-//     type Error: Debug;
-
-//     /// Defines how to merge two [`Metadata`]s when their containing
-//     /// [`EClass`]es merge.
-//     ///
-//     /// [`Metadata`]: trait.Metadata.html
-//     /// [`EClass`]: struct.EClass.html
-//     fn merge(&self, other: &Self) -> Self;
-
-//     /// Makes a new [`Metadata`] given an operator and its children
-//     /// [`Metadata`].
-//     ///
-//     /// [`Metadata`]: trait.Metadata.html
-//     fn make(egraph: &EGraph<L>, enode: &ENode<L>) -> Self;
-
-//     /// A hook that allow a [`Metadata`] to modify its containing
-//     /// [`EClass`].
-//     ///
-//     /// By default this does nothing.
-//     ///
-//     /// [`Metadata`]: trait.Metadata.html
-//     /// [`EClass`]: struct.EClass.html
-//     #[allow(unused_variables)]
-//     fn modify(egraph: &mut EGraph<L>, id: Id) {}
-// }
-
-// impl<L: Language> Metadata<L> for () {
-//     type Error = std::convert::Infallible;
-//     fn merge(&self, _other: &()) {}
-//     fn make(_: &EGraph<L, Self>, _: &ENode<L>) {}
-// }
 
 /// An equivalence class of [`ENode`]s
 ///
-/// [`ENode`]: struct.ENode.html
+/// [`ENode`]: trait.ENode.html
 #[non_exhaustive]
 #[derive(Clone)]
 pub struct EClass<L: Language> {

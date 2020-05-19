@@ -2,7 +2,7 @@ use indexmap::{IndexMap, IndexSet};
 use instant::{Duration, Instant};
 use log::*;
 
-use crate::{EGraph, Id, Language, Rewrite, SearchMatches};
+use crate::{EGraph, Id, Language, RecExpr, Rewrite, SearchMatches};
 
 /** Faciliates running rewrites over an [`EGraph`].
 
@@ -279,11 +279,8 @@ where
     /// The eclass id of this addition will be recorded in the
     /// [`roots`](struct.Runner.html#structfield.roots) field, ordered by
     /// insertion order.
-    pub fn with_expr<Expr>(mut self, expr: Expr) -> Self
-    where
-        Expr: AsRef<[L::ENode]>,
-    {
-        let id = self.egraph.add_expr(expr.as_ref());
+    pub fn with_expr(mut self, expr: &RecExpr<L::ENode>) -> Self {
+        let id = self.egraph.add_expr(expr);
         self.roots.push(id);
         self
     }
