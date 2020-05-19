@@ -28,30 +28,46 @@ struct Binder<'a, N> {
 }
 
 struct EClassSearcher<'a, N> {
+    // in debug mode, we keep the node around to make sure that it matches
+    #[cfg(debug_assertions)]
     node: N,
     nodes: std::slice::Iter<'a, N>,
 }
 
 impl<'a, N: ENode> EClassSearcher<'a, N> {
-    fn new(mut node: N, nodes: &'a [N]) -> Self {
-        let len = nodes.len();
-        let start = if len < 50 {
-            nodes.iter().position(|n| node.matches(n)).unwrap_or(len)
+    #[inline(never)]
+    fn new(node: &'a N, nodes: &'a [N]) -> Self {
+        let slice_iter = if nodes.len() < 100 {
+            let mut iter = nodes.iter();
+            match iter.position(|n| node.matches(n)) {
+                None => [].iter(),
+                Some(start) => match iter.position(|n| !node.matches(n)) {
+                    None => nodes[start..].iter(),
+                    Some(offset) => nodes[start..start + offset + 1].iter(),
+                },
+            }
         } else {
-            node.update_children(|_| 0);
-            nodes.binary_search(&node).unwrap_or_else(|i| i)
+            let zero = node.clone().map_children(|_| 0);
+            let start = nodes.binary_search(&zero).unwrap_or_else(|i| i);
+            let big = zero.map_children(|_| Id::MAX);
+            let offset = nodes[start..]
+                .binary_search(&big)
+                .expect_err("Shouldn't be a matching enode");
+            nodes[start..start + offset].iter()
         };
         Self {
-            node,
-            nodes: nodes[start..].iter(),
+            #[cfg(debug_assertions)]
+            node: node.clone(),
+            nodes: slice_iter,
         }
     }
 
+    #[inline]
     fn next(&mut self) -> Option<&'a N> {
-        match self.nodes.next() {
-            Some(n) if self.node.matches(n) => Some(n),
-            _ => None,
-        }
+        let n = self.nodes.next()?;
+        #[cfg(debug_assertions)]
+        assert!(self.node.matches(n));
+        Some(n)
     }
 }
 
@@ -123,7 +139,7 @@ impl<'a, L: Language> Machine<'a, L> {
                     self.stack.push(Binder {
                         out: *out,
                         next: self.pc,
-                        searcher: EClassSearcher::new(node.clone(), &eclass.nodes),
+                        searcher: EClassSearcher::new(node, &eclass.nodes),
                     });
                     backtrack!();
                 }
@@ -131,10 +147,7 @@ impl<'a, L: Language> Machine<'a, L> {
                     debug_assert!(t.is_leaf());
                     let id = self.reg[*i];
                     let eclass = &self.egraph[id];
-                    if eclass.nodes.contains(t) {
-                        log::trace!("Check(r{} = e{}, {:?}) passed", i, id, t);
-                    } else {
-                        log::trace!("Check(r{} = e{}, {:?}) failed", i, id, t);
+                    if !eclass.nodes.contains(t) {
                         backtrack!()
                     }
                     // TODO the below is more efficient, but is broken
