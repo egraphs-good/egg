@@ -262,17 +262,17 @@ impl<L: Language> std::str::FromStr for RecExpr<L> {
 /** Arbitrary data associated with an [`EClass`].
 
 `egg` allows you to associate arbitrary data with each eclass.
-The [`Metadata`] allows that data to behave well even across eclasses merges.
+The [`Analysis`] allows that data to behave well even across eclasses merges.
 
-[`Metadata`] can prove useful in many situtations.
+[`Analysis`] can prove useful in many situtations.
 One common one is constant folding, a kind of partial evaluation.
 In that case, the metadata is basically `Option<L>`, storing
 the cheapest constant expression (if any) that's equivalent to the
 enodes in this eclass.
 See the test files [`math.rs`] and [`prop.rs`] for more complex
-examples on this usage of [`Metadata`].
+examples on this usage of [`Analysis`].
 
-If you don't care about [`Metadata`], `()` implements it trivally,
+If you don't care about [`Analysis`], `()` implements it trivally,
 just use that.
 
 # Example
@@ -331,7 +331,7 @@ let just_foo = runner.egraph.add_expr(&"foo".parse().unwrap());
 assert_eq!(runner.egraph.find(runner.roots[0]), runner.egraph.find(just_foo));
 ```
 
-[`Metadata`]: trait.Metadata.html
+[`Analysis`]: trait.Analysis.html
 [`EClass`]: struct.EClass.html
 [`ENode`]: struct.ENode.html
 [`math.rs`]: https://github.com/mwillsey/egg/blob/master/tests/math.rs
@@ -342,10 +342,10 @@ pub trait Analysis<L: Language>: Sized {
     /// The per-[`EClass`](struct.EClass.html) data for this analysis.
     type Data: Debug;
 
-    /// Makes a new [`Metadata`] for a given enode
-    /// [`Metadata`].
+    /// Makes a new [`Analysis`] for a given enode
+    /// [`Analysis`].
     ///
-    /// [`Metadata`]: trait.Metadata.html
+    /// [`Analysis`]: trait.Analysis.html
     fn make(egraph: &EGraph<L, Self>, enode: &L) -> Self::Data;
 
     /// Defines how to merge two `Data`s when their containing

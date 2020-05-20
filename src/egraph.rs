@@ -18,7 +18,7 @@ An enode is conceptually and operator with children, but instead of
 children being other operators or values, the children are eclasses.
 
 In `egg`, these are respresented by the [`EGraph`], [`EClass`], and
-[`ENode`] types.
+[`Language`] (enodes) types.
 
 
 Here's an egraph created and rendered by [this example](struct.Dot.html).
@@ -93,14 +93,14 @@ Note also that [`Runner`]s take care of this for you, calling
 # egraphs in `egg`
 
 In `egg`, the main types associated with egraphs are
-[`EGraph`], [`EClass`], [`ENode`], and [`Id`].
+[`EGraph`], [`EClass`], [`Language`], and [`Id`].
 
-[`EGraph`], [`EClass`], and [`ENode`] are all generic over a
+[`EGraph`] and [`EClass`] are all generic over a
 [`Language`], meaning that types actually floating around in the
 egraph are all user-defined.
-In particular, [`ENode`]s contain operators from your [`Language`].
+In particular, the enodes are elements of your [`Language`].
 [`EGraph`]s and [`EClass`]es are additionally parameterized by some
-[`Metadata`], abritrary data associated with each eclass.
+[`Analysis`], abritrary data associated with each eclass.
 
 Many methods of [`EGraph`] deal with [`Id`]s, which represent eclasses.
 Because eclasses are frequently merged, many [`Id`]s will refer to the
@@ -108,11 +108,10 @@ same eclass.
 
 [`EGraph`]: struct.EGraph.html
 [`EClass`]: struct.EClass.html
-[`ENode`]: struct.ENode.html
 [`Rewrite`]: struct.Rewrite.html
 [`Runner`]: struct.Runner.html
 [`Language`]: trait.Language.html
-[`Metadata`]: trait.Metadata.html
+[`Analysis`]: trait.Analysis.html
 [`Id`]: type.Id.html
 [`add`]: struct.EGraph.html#method.add
 [`union`]: struct.EGraph.html#method.union
@@ -295,7 +294,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         id
     }
 
-    /// Adds an [`ENode`] to the [`EGraph`].
+    /// Adds an enode to the [`EGraph`].
     ///
     /// When adding an enode, to the egraph, [`add`] it performs
     /// _hashconsing_ (sometimes called interning in other contexts).
@@ -307,7 +306,6 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     ///
     /// [`EGraph`]: struct.EGraph.html
     /// [`EClass`]: struct.EClass.html
-    /// [`ENode`]: struct.ENode.html
     /// [`add`]: struct.EGraph.html#method.add
     pub fn add(&mut self, mut enode: L) -> Id {
         log::trace!("Adding {:?}", enode);

@@ -59,7 +59,7 @@ the operator:
 struct SillyCostFn;
 impl CostFunction<StringLang> for SillyCostFn {
     type Cost = f64;
-    // you're passed in an ENode whose children are costs instead of eclass ids
+    // you're passed in an enode whose children are costs instead of eclass ids
     fn cost<C>(&mut self, enode: &StringLang, mut costs: C) -> Self::Cost
     where
         C: FnMut(Id) -> Self::Cost
@@ -83,7 +83,6 @@ assert_eq!(AstDepth.cost_rec(&e), 2);
 [`AstDepth`]: struct.AstDepth.html
 [`Extractor`]: struct.Extractor.html
 [`EGraph`]: struct.EGraph.html
-[`ENode`]: struct.ENode.html
 **/
 pub trait CostFunction<L: Language> {
     /// The `Cost` type. It only requires `PartialOrd` so you can use
@@ -91,13 +90,11 @@ pub trait CostFunction<L: Language> {
     /// result in a panic.
     type Cost: PartialOrd + Debug + Clone;
 
-    /// Calculates the cost of an [`ENode`] whose children are `Cost`s.
+    /// Calculates the cost of an enode whose children are `Cost`s.
     ///
     /// For this to work properly, your cost function should be
     /// _monotonic_, i.e. `cost` should return a `Cost` greater than
-    /// any of the child costs of the given [`ENode`].
-    ///
-    /// [`ENode`]: struct.ENode.html
+    /// any of the child costs of the given enode.
     fn cost<C>(&mut self, enode: &L, costs: C) -> Self::Cost
     where
         C: FnMut(Id) -> Self::Cost;

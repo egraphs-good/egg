@@ -237,7 +237,7 @@ where
 /// [`Subst`]: struct.Subst.html
 /// [`Applier`]: trait.Applier.html
 /// [`Condition`]: trait.Condition.html
-/// [`Metadata`]: trait.Metadata.html
+/// [`Analysis`]: trait.Analysis.html
 pub trait Applier<L, N>
 where
     L: Language,

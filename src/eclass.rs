@@ -3,9 +3,7 @@ use std::iter::ExactSizeIterator;
 
 use crate::{Id, Language};
 
-/// An equivalence class of [`ENode`]s
-///
-/// [`ENode`]: trait.ENode.html
+/// An equivalence class of enodes.
 #[non_exhaustive]
 #[derive(Debug, Clone)]
 pub struct EClass<L, D> {
