@@ -1,7 +1,7 @@
 use egg::{rewrite as rw, *};
 
-impl_enode! {
-    enum Op {
+define_language! {
+    enum Lambda {
         Bool(bool),
         Num(i32),
 
@@ -22,45 +22,37 @@ impl_enode! {
     }
 }
 
-impl Op {
+impl Lambda {
     fn num(&self) -> Option<i32> {
         match self {
-            Op::Num(n) => Some(*n),
+            Lambda::Num(n) => Some(*n),
             _ => None,
         }
     }
 }
 
-type EGraph = egg::EGraph<Lambda>;
+type EGraph = egg::EGraph<Lambda, ConstantFold>;
 
 #[derive(Default)]
-struct Lambda;
-impl Language for Lambda {
-    type ENode = Op;
-    type Metadata = Option<Op>;
-
-    fn metadata_merge(&self, to: &mut Self::Metadata, from: Self::Metadata) -> bool {
-        if from.is_some() && to.is_none() {
-            *to = from;
-            true
-        } else {
-            false
-        }
+struct ConstantFold;
+impl Analysis<Lambda> for ConstantFold {
+    type Data = Option<Lambda>;
+    fn merge(&self, to: &mut Self::Data, from: Self::Data) -> bool {
+        merge_if_different(to, to.clone().or(from))
     }
 
-    fn metadata_make(egraph: &mut EGraph, enode: &Op) -> Self::Metadata {
-        use Op::*;
-        let x = |i: &Id| egraph[*i].metadata.clone();
+    fn make(egraph: &EGraph, enode: &Lambda) -> Self::Data {
+        let x = |i: &Id| egraph[*i].data.clone();
         match enode {
-            Num(_) | Bool(_) => Some(enode.clone()),
-            Add(a, b) => Some(Num(x(a)?.num()? + x(b)?.num()?)),
-            Eq(a, b) => Some(Bool(x(a)? == x(b)?)),
+            Lambda::Num(_) | Lambda::Bool(_) => Some(enode.clone()),
+            Lambda::Add(a, b) => Some(Lambda::Num(x(a)?.num()? + x(b)?.num()?)),
+            Lambda::Eq(a, b) => Some(Lambda::Bool(x(a)? == x(b)?)),
             _ => None,
         }
     }
 
-    fn metadata_modify(egraph: &mut EGraph, id: Id) {
-        if let Some(c) = egraph[id].metadata.clone() {
+    fn modify(egraph: &mut EGraph, id: Id) {
+        if let Some(c) = egraph[id].data.clone() {
             let const_id = egraph.add(c);
             egraph.union(id, const_id);
         }
@@ -75,10 +67,10 @@ fn is_not_same_var(v1: &'static str, v2: &'static str) -> impl Fn(&mut EGraph, I
 
 fn is_const(v1: &'static str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let v1 = v1.parse().unwrap();
-    move |egraph, _, subst| egraph[subst[&v1]].metadata.is_some()
+    move |egraph, _, subst| egraph[subst[&v1]].data.is_some()
 }
 
-fn rules() -> Vec<Rewrite<Lambda>> {
+fn rules() -> Vec<Rewrite<Lambda, ConstantFold>> {
     vec![
         // open term rules
         rw!("if-true";  "(if  true ?then ?else)" => "?then"),

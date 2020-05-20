@@ -6,7 +6,7 @@ These are not considered part of the public api.
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-use crate::{AstSize, ENodeDisplay, Extractor, Language, Pattern, RecExpr, Runner, Searcher};
+use crate::{Analysis, AstSize, Extractor, Language, Pattern, RecExpr, Runner, Searcher};
 
 fn mean_stdev(data: &[f64]) -> (f64, f64) {
     assert_ne!(data.len(), 0);
@@ -150,12 +150,12 @@ pub fn run<T>(name: impl Into<String>, mut f: impl FnMut() -> T) -> Reporter<T> 
     }
 }
 
-impl<L, IterData> Runner<L, IterData>
+impl<L, N, IterData> Runner<L, N, IterData>
 where
     L: Language,
-    L::ENode: ENodeDisplay,
+    N: Analysis<L>,
 {
-    pub fn check_goals(&self, goals: &[RecExpr<L::ENode>]) {
+    pub fn check_goals(&self, goals: &[RecExpr<L>]) {
         let egraph = &self.egraph;
 
         // NOTE this is a bit of hack, we rely on the fact that the
@@ -198,7 +198,7 @@ macro_rules! test_fn {
         $crate::test_fn! {
             $(#[$meta])*
             $name, $rules,
-            runner = Runner::<_, ()>::default(),
+            runner = Runner::<_, _, ()>::default(),
             $start => $( $goal ),+
             $(@check $check_fn)?
         }
@@ -221,7 +221,7 @@ macro_rules! test_fn {
             let start: $crate::RecExpr<_> = $start.parse().unwrap();
             let rules = $rules;
 
-            let runner: $crate::Runner<_, ()> = $crate::test::run(name, || {
+            let runner: $crate::Runner<_, _, ()> = $crate::test::run(name, || {
                 $runner.with_expr(&start).run(&rules)
             }).report(|r| &r.iterations);
             runner.print_report();

@@ -1,6 +1,4 @@
-// FIXME
-// #![warn(missing_docs)]
-#![allow(unused_variables, unused_mut)]
+#![warn(missing_docs)]
 /*!
 [`EGraph`]s (and almost everything else in this crate) are
 parameterized over the language given by the user (by implementing
@@ -30,8 +28,8 @@ use egg::{*, rewrite as rw};
 define_language! {
     enum SimpleLanguage {
         Num(i32),
-        Add = "+",
-        Mul = "*",
+        "+" = Add(Id, Id),
+        "*" = Mul(Id, Id),
         // language items are parsed in order, and we want symbol to
         // be a fallback, so we put it last
         Symbol(String),
@@ -48,7 +46,7 @@ let rules: &[Rewrite<SimpleLanguage, ()>] = &[
 ];
 
 let start = "(+ 0 (* 1 foo))".parse().unwrap();
-let runner = Runner::new().with_expr(&start).run(&rules);
+let runner = Runner::default().with_expr(&start).run(&rules);
 println!(
     "Stopped after {} iterations, reason: {:?}",
     runner.iterations.len(),
@@ -71,6 +69,8 @@ mod run;
 mod subst;
 mod unionfind;
 
+/// A key to identify [`EClass`](struct.EClass.html)es within an
+/// [`EGraph`](struct.EGraph.html).
 pub type Id = u32;
 
 pub(crate) use {

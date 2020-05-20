@@ -6,8 +6,8 @@ Example use:
 define_language! {
     enum SimpleLanguage {
         Num(i32),
-        Add = "+",
-        Mul = "*",
+        "+" = Add(Id, Id),
+        "*" = Mul(Id, Id),
         // language items are parsed in order, and we want symbol to
         // be a fallback, so we put it last
         Symbol(String),
@@ -19,6 +19,9 @@ define_language! {
 `Hash`, and `Clone` on the given `enum` so it can implement [`Language`].
 The macro also implements [`FromStr`] and [`Display`] for the `enum`
 based on either the data of variants or the provided strings.
+
+The final variant **must have a trailing comma**; this is due to limitations in
+macro parsing.
 
 Enum variants must be of one of two forms:
 - `Variant = "name"`
@@ -60,9 +63,9 @@ But they are pretty handy.
 [`Language`]: trait.Language.html
 **/
 #[macro_export]
-macro_rules! impl_enode {
+macro_rules! define_language {
     ($(#[$meta:meta])* $vis:vis enum $name:ident $variants:tt) => {
-        impl_enode!($(#[$meta])* $vis enum $name $variants -> {} {} {} {} {} {});
+        define_language!($(#[$meta])* $vis enum $name $variants -> {} {} {} {} {} {});
     };
 
     ($(#[$meta:meta])* $vis:vis enum $name:ident {} ->
@@ -73,29 +76,27 @@ macro_rules! impl_enode {
         #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
         $vis enum $name $decl
 
-        impl $crate::ENode for $name {
+        impl $crate::Language for $name {
             #[inline(always)]
             fn matches(&self, other: &Self) -> bool {
                 ::std::mem::discriminant(self) == ::std::mem::discriminant(other) &&
                 match (self, other) { $($matches)* _ => false }
             }
+            #[allow(unused_mut)]
             #[inline]
             fn for_each<F: FnMut(Id)>(&self, mut f: F)  {
                 match (f, self) $for_each
             }
+            #[allow(unused_mut)]
             #[inline]
             fn for_each_mut<F: FnMut(&mut Id)>(&mut self, mut f: F)  {
                 match (f, self) $for_each_mut
             }
-        }
 
-        impl $crate::ENodeDisplay for $name {
             fn display_op(&self) -> &dyn ::std::fmt::Display {
                 match self $display_op
             }
-        }
 
-        impl $crate::ENodeFromStr for $name {
             fn from_op_str(op_str: &str, children: Vec<$crate::Id>) -> ::std::result::Result<Self, String> {
                 match (op_str, children) {
                     $($from_op_str)*
@@ -113,7 +114,7 @@ macro_rules! impl_enode {
      { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
      { $($display_op:tt)* } { $($from_op_str:tt)* }
     ) => {
-        impl_enode!(
+        define_language!(
             $(#[$meta])* $vis enum $name
             { $($variants)* } ->
             { $($decl)*          $variant, }
@@ -134,7 +135,7 @@ macro_rules! impl_enode {
      { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
      { $($display_op:tt)* } { $($from_op_str:tt)* }
     ) => {
-        impl_enode!(
+        define_language!(
             $(#[$meta])* $vis enum $name
             { $($variants)* } ->
             { $($decl)*          $variant( [Id; $n] ), }
@@ -142,7 +143,7 @@ macro_rules! impl_enode {
             { $($for_each)*      (ref mut f, $name::$variant(ids)) => ids.iter().copied().for_each(f), }
             { $($for_each_mut)*  (ref mut f, $name::$variant(ids)) => ids.iter_mut().for_each(f), }
             { $($display_op)*    $name::$variant(..) => &$string, }
-            { $($from_op_str)*   (s, v) if v.len() == $n => {
+            { $($from_op_str)*   (_s, v) if v.len() == $n => {
                 let mut ids = <[Id; $n]>::default();
                 ids.copy_from_slice(&v);
                 Ok($name::$variant(ids))
@@ -158,7 +159,7 @@ macro_rules! impl_enode {
      { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
      { $($display_op:tt)* } { $($from_op_str:tt)* }
     ) => {
-        impl_enode!(
+        define_language!(
             $(#[$meta])* $vis enum $name
             { $($variants)* } ->
             { $($decl)*          $variant(Id), }
@@ -179,7 +180,7 @@ macro_rules! impl_enode {
      { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
      { $($display_op:tt)* } { $($from_op_str:tt)* }
     ) => {
-        impl_enode!(
+        define_language!(
             $(#[$meta])* $vis enum $name
             { $($variants)* } ->
             { $($decl)*          $variant(Id, Id), }
@@ -199,7 +200,7 @@ macro_rules! impl_enode {
      { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
      { $($display_op:tt)* } { $($from_op_str:tt)* }
     ) => {
-        impl_enode!(
+        define_language!(
             $(#[$meta])* $vis enum $name
             { $($variants)* } ->
             { $($decl)*          $variant(Id, Id, Id), }
@@ -220,7 +221,7 @@ macro_rules! impl_enode {
      { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
      { $($display_op:tt)* } { $($from_op_str:tt)* }
     ) => {
-        impl_enode!(
+        define_language!(
             $(#[$meta])* $vis enum $name
             { $($variants)* } ->
             { $($decl)*          $variant($data), }
@@ -259,10 +260,10 @@ For each of these, the macro will wrap the given applier in a
 define_language! {
     enum SimpleLanguage {
         Num(i32),
-        Add = "+",
-        Sub = "-",
-        Mul = "*",
-        Div = "/",
+        "+" = Add(Id, Id),
+        "-" = Sub(Id, Id),
+        "*" = Mul(Id, Id),
+        "/" = Div(Id, Id),
     }
 }
 
@@ -294,7 +295,7 @@ impl Applier<SimpleLanguage, ()> for MySillyApplier {
 // This returns a function that implements Condition
 fn is_not_zero(var: &'static str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let var = var.parse().unwrap();
-    let zero = enode!(SimpleLanguage::Num(0));
+    let zero = SimpleLanguage::Num(0);
     move |egraph, _, subst| !egraph[subst[&var]].nodes.contains(&zero)
 }
 ```
@@ -331,30 +332,26 @@ mod tests {
 
     use crate::*;
 
-    impl_enode! {
+    define_language! {
         enum Simple {
             "++" = Add2(Id, Id),
             "+" = Add([Id; 2]),
             "-" = Sub([Id; 2]),
             "*" = Mul([Id; 2]),
-            // "-" = Neg(Id),
+            "-" = Neg(Id),
             "pi" = Pi,
             Int(i32),
-            // Var(String),
+            Var(String),
         }
     }
 
-    // FIXME
-    // #[test]
-    // fn some_rewrites() {
-    //     use crate::{PatternAst, Rewrite};
-
-    //     let pat = PatternAst::ENode(Box::new(enode!(Term::Num(3)))).compile();
-    //     let _: Vec<Rewrite<Term, ()>> = vec![
-    //         // here it should parse the rhs
-    //         rewrite!("rule"; "cons" => "f"),
-    //         // here it should just accept the rhs without trying to parse
-    //         rewrite!("rule"; "f" => { pat }),
-    //     ];
-    // }
+    #[test]
+    fn some_rewrites() {
+        let _: Vec<Rewrite<Simple, ()>> = vec![
+            // here it should parse the rhs
+            rewrite!("rule"; "cons" => "f"),
+            // here it should just accept the rhs without trying to parse
+            rewrite!("rule"; "f" => { "pat".parse::<Pattern<_>>().unwrap() }),
+        ];
+    }
 }

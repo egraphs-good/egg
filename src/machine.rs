@@ -1,13 +1,13 @@
 use std::fmt;
 
-use crate::{EGraph, ENode, ENodeOrVar, Id, Language, PatternAst, Subst, Var};
+use crate::{Analysis, EGraph, ENodeOrVar, Id, Language, PatternAst, Subst, Var};
 
-struct Machine<'a, L: Language> {
-    egraph: &'a EGraph<L>,
-    program: &'a [Instruction<L::ENode>],
+struct Machine<'a, L: Language, A: Analysis<L>> {
+    egraph: &'a EGraph<L, A>,
+    program: &'a [Instruction<L>],
     pc: usize,
     reg: Vec<Id>,
-    stack: Vec<Binder<'a, L::ENode>>,
+    stack: Vec<Binder<'a, L>>,
 }
 
 type Addr = usize;
@@ -34,9 +34,9 @@ struct EClassSearcher<'a, N> {
     nodes: std::slice::Iter<'a, N>,
 }
 
-impl<'a, N: ENode> EClassSearcher<'a, N> {
+impl<'a, L: Language> EClassSearcher<'a, L> {
     #[inline(never)]
-    fn new(node: &'a N, nodes: &'a [N]) -> Self {
+    fn new(node: &'a L, nodes: &'a [L]) -> Self {
         let slice_iter = if nodes.len() < 100 {
             let mut iter = nodes.iter();
             match iter.position(|n| node.matches(n)) {
@@ -63,7 +63,7 @@ impl<'a, N: ENode> EClassSearcher<'a, N> {
     }
 
     #[inline]
-    fn next(&mut self) -> Option<&'a N> {
+    fn next(&mut self) -> Option<&'a L> {
         let n = self.nodes.next()?;
         #[cfg(debug_assertions)]
         assert!(self.node.matches(n));
@@ -73,8 +73,8 @@ impl<'a, N: ENode> EClassSearcher<'a, N> {
 
 use Instruction::*;
 
-impl<'a, L: Language> Machine<'a, L> {
-    fn new(egraph: &'a EGraph<L>, program: &'a [Instruction<L::ENode>]) -> Self {
+impl<'a, L: Language, A: Analysis<L>> Machine<'a, L, A> {
+    fn new(egraph: &'a EGraph<L, A>, program: &'a [Instruction<L>]) -> Self {
         Self {
             egraph,
             program,
@@ -204,12 +204,12 @@ type VarToReg = indexmap::IndexMap<Var, Reg>;
 //     cost1.cmp(&cost2)
 // }
 
-fn compile<N: ENode>(
-    pattern: &[ENodeOrVar<N>],
-    r2p: &mut RegToPat<N>,
+fn compile<L: Language>(
+    pattern: &[ENodeOrVar<L>],
+    r2p: &mut RegToPat<L>,
     v2r: &mut VarToReg,
     mut next_reg: Reg,
-    buf: &mut Vec<Instruction<N>>,
+    buf: &mut Vec<Instruction<L>>,
 ) {
     while let Some((reg, pat)) = r2p.pop() {
         match pat {
@@ -264,8 +264,8 @@ impl<L: fmt::Debug> fmt::Debug for Program<L> {
     }
 }
 
-impl<N: ENode> Program<N> {
-    pub(crate) fn compile_from_pat(pattern: &PatternAst<N>) -> Program<N> {
+impl<L: Language> Program<L> {
+    pub(crate) fn compile_from_pat(pattern: &PatternAst<L>) -> Program<L> {
         let mut instrs = Vec::new();
         let mut r2p = RegToPat::new();
         let mut v2r = VarToReg::new();
@@ -278,9 +278,9 @@ impl<N: ENode> Program<N> {
         program
     }
 
-    pub fn run<L>(&self, egraph: &EGraph<L>, eclass: Id) -> Vec<Subst>
+    pub fn run<A>(&self, egraph: &EGraph<L, A>, eclass: Id) -> Vec<Subst>
     where
-        L: Language<ENode = N>,
+        A: Analysis<L>,
     {
         let mut machine = Machine::new(egraph, &self.instrs);
 

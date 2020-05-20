@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt::Debug;
 
-use crate::{EClass, EGraph, ENode, Id, Language, RecExpr};
+use crate::{Analysis, EClass, EGraph, Id, Language, RecExpr};
 
 /** Extracting a single [`RecExpr`] from an [`EGraph`].
 
@@ -12,8 +12,8 @@ use egg::*;
 define_language! {
     enum SimpleLanguage {
         Num(i32),
-        Add = "+",
-        Mul = "*",
+        "+" = Add(Id, Id),
+        "*" = Mul(Id, Id),
     }
 }
 
@@ -27,7 +27,7 @@ let rules: &[Rewrite<SimpleLanguage, ()>] = &[
 ];
 
 let start = "(+ 0 (* 1 10))".parse().unwrap();
-let runner = Runner::new().with_expr(&start).run(&rules);
+let runner = Runner::default().with_expr(&start).run(&rules);
 let (egraph, root) = (runner.egraph, runner.roots[0]);
 
 let mut extractor = Extractor::new(&egraph, AstSize);
@@ -39,10 +39,10 @@ assert_eq!(best, "10".parse().unwrap());
 [`RecExpr`]: struct.RecExpr.html
 [`EGraph`]: struct.EGraph.html
 **/
-pub struct Extractor<'a, CF: CostFunction<L>, L: Language> {
+pub struct Extractor<'a, CF: CostFunction<L>, L: Language, N: Analysis<L>> {
     cost_function: CF,
     costs: HashMap<Id, CF::Cost>,
-    egraph: &'a EGraph<L>,
+    egraph: &'a EGraph<L, N>,
 }
 
 /** A cost function that can be used by an [`Extractor`].
@@ -55,25 +55,25 @@ The example below illustrates a silly but realistic example of
 implementing a cost function that is essentially AST size weighted by
 the operator:
 ```
-use egg::{*, recexpr as r};
-
-type Lang = String;
-
+# use egg::*;
 struct SillyCostFn;
-impl CostFunction<Lang> for SillyCostFn {
+impl CostFunction<StringLang> for SillyCostFn {
     type Cost = f64;
     // you're passed in an ENode whose children are costs instead of eclass ids
-    fn cost(&mut self, enode: &ENode<Lang, Self::Cost>) -> Self::Cost {
+    fn cost<C>(&mut self, enode: &StringLang, mut costs: C) -> Self::Cost
+    where
+        C: FnMut(Id) -> Self::Cost
+    {
         let op_cost = match enode.op.as_ref() {
             "foo" => 100.0,
             "bar" => 0.7,
             _ => 1.0
         };
-        op_cost + enode.children.iter().sum::<f64>()
+        enode.fold(op_cost, |sum, id| sum + costs(id))
     }
 }
 
-let e: RecExpr<Lang> = r!("+", r!("foo"), r!("bar"), r!("baz"));
+let e: RecExpr<StringLang> = "(do_it foo bar baz)".parse().unwrap();
 assert_eq!(SillyCostFn.cost_rec(&e), 102.7);
 assert_eq!(AstSize.cost_rec(&e), 4);
 assert_eq!(AstDepth.cost_rec(&e), 2);
@@ -98,7 +98,7 @@ pub trait CostFunction<L: Language> {
     /// any of the child costs of the given [`ENode`].
     ///
     /// [`ENode`]: struct.ENode.html
-    fn cost<C>(&mut self, enode: &L::ENode, costs: C) -> Self::Cost
+    fn cost<C>(&mut self, enode: &L, costs: C) -> Self::Cost
     where
         C: FnMut(Id) -> Self::Cost;
 
@@ -108,7 +108,7 @@ pub trait CostFunction<L: Language> {
     /// down the [`RecExpr`].
     ///
     /// [`RecExpr`]: struct.RecExpr.html
-    fn cost_rec(&mut self, expr: &RecExpr<L::ENode>) -> Self::Cost {
+    fn cost_rec(&mut self, expr: &RecExpr<L>) -> Self::Cost {
         let mut costs: HashMap<Id, Self::Cost> = HashMap::default();
         for (i, node) in expr.as_ref().iter().enumerate() {
             let cost = self.cost(node, |i| costs[&i].clone());
@@ -122,9 +122,8 @@ pub trait CostFunction<L: Language> {
 /** A simple [`CostFunction`] that counts total ast size.
 
 ```
-use egg::{*, recexpr as r};
-
-let e: RecExpr<String> = r!("+", r!("foo"), r!("bar"), r!("baz"));
+# use egg::*;
+let e: RecExpr<StringLang> = "(do_it foo bar baz)".parse().unwrap();
 assert_eq!(AstSize.cost_rec(&e), 4);
 ```
 
@@ -133,7 +132,7 @@ assert_eq!(AstSize.cost_rec(&e), 4);
 pub struct AstSize;
 impl<L: Language> CostFunction<L> for AstSize {
     type Cost = usize;
-    fn cost<C>(&mut self, enode: &L::ENode, mut costs: C) -> Self::Cost
+    fn cost<C>(&mut self, enode: &L, mut costs: C) -> Self::Cost
     where
         C: FnMut(Id) -> Self::Cost,
     {
@@ -144,9 +143,8 @@ impl<L: Language> CostFunction<L> for AstSize {
 /** A simple [`CostFunction`] that counts maximum ast depth.
 
 ```
-use egg::{*, recexpr as r};
-
-let e: RecExpr<String> = r!("+", r!("foo"), r!("bar"), r!("baz"));
+# use egg::*;
+let e: RecExpr<StringLang> = "(do_it foo bar baz)".parse().unwrap();
 assert_eq!(AstDepth.cost_rec(&e), 2);
 ```
 
@@ -155,7 +153,7 @@ assert_eq!(AstDepth.cost_rec(&e), 2);
 pub struct AstDepth;
 impl<L: Language> CostFunction<L> for AstDepth {
     type Cost = usize;
-    fn cost<C>(&mut self, enode: &L::ENode, mut costs: C) -> Self::Cost
+    fn cost<C>(&mut self, enode: &L, mut costs: C) -> Self::Cost
     where
         C: FnMut(Id) -> Self::Cost,
     {
@@ -173,10 +171,11 @@ fn cmp<T: PartialOrd>(a: &Option<T>, b: &Option<T>) -> Ordering {
     }
 }
 
-impl<'a, CF, L> Extractor<'a, CF, L>
+impl<'a, CF, L, N> Extractor<'a, CF, L, N>
 where
     CF: CostFunction<L>,
     L: Language,
+    N: Analysis<L>,
 {
     /// Create a new `Extractor` given an `EGraph` and a
     /// `CostFunction`.
@@ -184,7 +183,7 @@ where
     /// The extraction does all the work on creation, so this function
     /// performs the greedy search for cheapest representative of each
     /// eclass.
-    pub fn new(egraph: &'a EGraph<L>, cost_function: CF) -> Self {
+    pub fn new(egraph: &'a EGraph<L, N>, cost_function: CF) -> Self {
         let costs = HashMap::default();
         let mut extractor = Extractor {
             costs,
@@ -198,14 +197,14 @@ where
 
     /// Find the cheapest (lowest cost) represented `RecExpr` in the
     /// given eclass.
-    pub fn find_best(&mut self, eclass: Id) -> (CF::Cost, RecExpr<L::ENode>) {
+    pub fn find_best(&mut self, eclass: Id) -> (CF::Cost, RecExpr<L>) {
         let mut expr = RecExpr::default();
         self.find_best_rec(&mut expr, eclass);
         let cost = self.cost_function.cost_rec(&expr);
         (cost, expr)
     }
 
-    fn find_best_rec(&mut self, expr: &mut RecExpr<L::ENode>, eclass: Id) -> Id {
+    fn find_best_rec(&mut self, expr: &mut RecExpr<L>, eclass: Id) -> Id {
         let eclass = self.egraph.find(eclass);
 
         let best_node = self.egraph[eclass]
@@ -223,7 +222,7 @@ where
         expr.add(node)
     }
 
-    fn node_total_cost(&mut self, node: &L::ENode) -> Option<CF::Cost> {
+    fn node_total_cost(&mut self, node: &L) -> Option<CF::Cost> {
         if node.all(|id| self.costs.contains_key(&id)) {
             let costs = &self.costs;
             Some(self.cost_function.cost(&node, |i| costs[&i].clone()))
@@ -254,7 +253,7 @@ where
         }
     }
 
-    fn make_pass(&mut self, eclass: &EClass<L>) -> Option<CF::Cost> {
+    fn make_pass(&mut self, eclass: &EClass<L, N::Data>) -> Option<CF::Cost> {
         eclass
             .iter()
             .map(|n| self.node_total_cost(n))

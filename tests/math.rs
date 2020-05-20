@@ -1,18 +1,13 @@
 use egg::{rewrite as rw, *};
-use std::str::FromStr;
-
 use ordered_float::NotNan;
 
-#[derive(Default)]
-pub struct MathLanguage;
-
-pub type EGraph = egg::EGraph<MathLanguage>;
-pub type Rewrite = egg::Rewrite<MathLanguage>;
+pub type EGraph = egg::EGraph<Math, ConstantFold>;
+pub type Rewrite = egg::Rewrite<Math, ConstantFold>;
 
 pub type Constant = NotNan<f64>;
 
-impl_enode! {
-    pub enum Op {
+define_language! {
+    pub enum Math {
         "d" = Diff(Id, Id),
         "i" = Integral(Id, Id),
 
@@ -34,86 +29,61 @@ impl_enode! {
 
 // You could use egg::AstSize, but this is useful for debugging, since
 // it will really try to get rid of the Diff operator
-struct MathCostFn;
-impl egg::CostFunction<MathLanguage> for MathCostFn {
+pub struct MathCostFn;
+impl egg::CostFunction<Math> for MathCostFn {
     type Cost = usize;
-    fn cost<C>(&mut self, enode: &Op, mut costs: C) -> Self::Cost
+    fn cost<C>(&mut self, enode: &Math, mut costs: C) -> Self::Cost
     where
         C: FnMut(Id) -> Self::Cost,
     {
         let op_cost = match enode {
-            Op::Diff(..) => 100,
-            Op::Integral(..) => 100,
+            Math::Diff(..) => 100,
+            Math::Integral(..) => 100,
             _ => 1,
         };
         enode.fold(op_cost, |sum, i| sum + costs(i))
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Meta {
-    pub cost: usize,
-    pub constant: Option<Constant>,
-}
+#[derive(Default)]
+pub struct ConstantFold;
+impl Analysis<Math> for ConstantFold {
+    type Data = Option<Constant>;
 
-impl Language for MathLanguage {
-    type ENode = Op;
-    type Metadata = Meta;
-
-    fn metadata_merge(&self, to: &mut Meta, from: Meta) -> bool {
-        if let (Some(c1), Some(c2)) = (to.constant, from.constant) {
+    fn merge(&self, to: &mut Self::Data, from: Self::Data) -> bool {
+        if let (Some(c1), Some(c2)) = (to.as_ref(), from.as_ref()) {
             assert_eq!(c1, c2);
         }
-
-        // if from.cost < to.cost {
-        if from.constant.is_some() && to.constant.is_none() {
-            *to = from;
-            true
-        } else {
-            false
-        }
+        merge_if_different(to, to.or(from))
     }
 
-    fn metadata_make(egraph: &mut egg::EGraph<Self>, enode: &Self::ENode) -> Self::Metadata {
-        let meta = |i: Id| &egraph[i].metadata;
-
-        let x = |&i| meta(i).constant;
-        let eval = || {
-            Some(match enode {
-                Op::Constant(c) => c.clone(),
-                Op::Add(a, b) => x(a)? + x(b)?,
-                Op::Sub(a, b) => x(a)? - x(b)?,
-                Op::Mul(a, b) => x(a)? * x(b)?,
-                Op::Div(a, b) if x(b) != Some(0.0.into()) => x(a)? / x(b)?,
-                _ => return None,
-            })
-        };
-
-        let cost = MathCostFn.cost(&enode, |i| meta(i).cost);
-
-        Meta {
-            cost,
-            constant: eval(),
-        }
+    fn make(egraph: &EGraph, enode: &Math) -> Self::Data {
+        let x = |i: &Id| egraph[*i].data;
+        Some(match enode {
+            Math::Constant(c) => *c,
+            Math::Add(a, b) => x(a)? + x(b)?,
+            Math::Sub(a, b) => x(a)? - x(b)?,
+            Math::Mul(a, b) => x(a)? * x(b)?,
+            Math::Div(a, b) if x(b) != Some(0.0.into()) => x(a)? / x(b)?,
+            _ => return None,
+        })
     }
 
-    fn metadata_modify(egraph: &mut egg::EGraph<Self>, id: Id) {
+    fn modify(egraph: &mut EGraph, id: Id) {
         let class = &mut egraph[id];
-        if let Some(c) = class.metadata.constant {
-            let added = egraph.add(Op::Constant(c));
-            let (id, did_something) = egraph.union(id, added);
-            if did_something || true {
-                // to not prune, comment this out
-                egraph[id].nodes.retain(|n| n.is_leaf());
+        if let Some(c) = class.data {
+            let added = egraph.add(Math::Constant(c));
+            let (id, _did_something) = egraph.union(id, added);
+            // to not prune, comment this out
+            egraph[id].nodes.retain(|n| n.is_leaf());
 
-                assert!(
-                    !egraph[id].nodes.is_empty(),
-                    "empty eclass! {:#?}",
-                    egraph[id]
-                );
-                #[cfg(debug_assertions)]
-                egraph[id].assert_unique_leaves();
-            }
+            assert!(
+                !egraph[id].nodes.is_empty(),
+                "empty eclass! {:#?}",
+                egraph[id]
+            );
+            #[cfg(debug_assertions)]
+            egraph[id].assert_unique_leaves();
         }
     }
 }
@@ -121,7 +91,7 @@ impl Language for MathLanguage {
 fn c_is_const(egraph: &mut EGraph, _: Id, subst: &Subst) -> bool {
     let c = "?c".parse().unwrap();
     egraph[subst[&c]].nodes.iter().any(|n| match n {
-        Op::Constant(_) => true,
+        Math::Constant(_) => true,
         _ => false,
     })
 }
@@ -130,7 +100,7 @@ fn c_is_const_or_var_and_not_x(egraph: &mut EGraph, _: Id, subst: &Subst) -> boo
     let c = "?c".parse().unwrap();
     let x = "?x".parse().unwrap();
     let is_const_or_var = egraph[subst[&c]].nodes.iter().any(|n| match n {
-        Op::Constant(_) | Op::Variable(_) => true,
+        Math::Constant(_) | Math::Variable(_) => true,
         _ => false,
     });
     is_const_or_var && egraph.find(subst[&x]) != egraph.find(subst[&c])
@@ -142,13 +112,13 @@ fn is_var(var: &'static str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
         egraph[subst[&var]]
             .nodes
             .iter()
-            .any(|n| matches!(n, Op::Variable(..)))
+            .any(|n| matches!(n, Math::Variable(..)))
     }
 }
 
 fn is_not_zero(var: &'static str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let var = var.parse().unwrap();
-    let zero = Op::Constant(0.0.into());
+    let zero = Math::Constant(0.0.into());
     move |egraph, _, subst| !egraph[subst[&var]].nodes.contains(&zero)
 }
 
@@ -220,19 +190,19 @@ pub fn rules() -> Vec<Rewrite> { vec![
         "(- (* ?a (i ?b ?x)) (i (* (d ?x ?a) (i ?b ?x)) ?x))"),
 ]}
 
-// egg::test_fn! {
-//     math_associate_adds, [
-//         rw!("comm-add"; "(+ ?a ?b)" => "(+ ?b ?a)"),
-//         rw!("assoc-add"; "(+ ?a (+ ?b ?c))" => "(+ (+ ?a ?b) ?c)"),
-//     ],
-//     runner = Runner::new()
-//         .with_iter_limit(7)
-//         .with_scheduler(SimpleScheduler),
-//     "(+ 1 (+ 2 (+ 3 (+ 4 (+ 5 (+ 6 7))))))"
-//     =>
-//     "(+ 7 (+ 6 (+ 5 (+ 4 (+ 3 (+ 2 1))))))"
-//     @check |r: Runner<Op, ()>| assert_eq!(r.egraph.number_of_classes(), 127)
-// }
+egg::test_fn! {
+    math_associate_adds, [
+        rw!("comm-add"; "(+ ?a ?b)" => "(+ ?b ?a)"),
+        rw!("assoc-add"; "(+ ?a (+ ?b ?c))" => "(+ (+ ?a ?b) ?c)"),
+    ],
+    runner = Runner::default()
+        .with_iter_limit(7)
+        .with_scheduler(SimpleScheduler),
+    "(+ 1 (+ 2 (+ 3 (+ 4 (+ 5 (+ 6 7))))))"
+    =>
+    "(+ 7 (+ 6 (+ 5 (+ 4 (+ 3 (+ 2 1))))))"
+    @check |r: Runner<Math, ()>| assert_eq!(r.egraph.number_of_classes(), 127)
+}
 
 egg::test_fn! {
     #[should_panic(expected = "Could not prove goal 0")]
@@ -279,7 +249,7 @@ egg::test_fn! {
         .with_iter_limit(60)
         .with_node_limit(100_000)
         // HACK this needs to "see" the end expression
-        .with_expr(RecExpr::from_str("(* x (- (* 3 x) 14))").unwrap()),
+        .with_expr(&"(* x (- (* 3 x) 14))".parse().unwrap()),
     "(d x (- (pow x 3) (* 7 (pow x 2))))"
     =>
     "(* x (- (* 3 x) 14))"

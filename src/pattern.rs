@@ -1,9 +1,7 @@
 use log::*;
+use std::convert::TryFrom;
 
-use crate::{
-    machine, Applier, EGraph, ENode, ENodeDisplay, ENodeFromStr, Id, Language, RecExpr, Searcher,
-    Subst, Var,
-};
+use crate::{machine, Analysis, Applier, EGraph, Id, Language, RecExpr, Searcher, Subst, Var};
 
 /// A pattern that can function as either a [`Searcher`] or [`Applier`].
 ///
@@ -36,7 +34,7 @@ use crate::{
 /// define_language! {
 ///     enum Math {
 ///         Num(i32),
-///         Add = "+",
+///         "+" = Add(Id, Id),
 ///     }
 /// }
 ///
@@ -75,13 +73,13 @@ pub struct Pattern<N> {
 pub(crate) type PatternAst<N> = RecExpr<ENodeOrVar<N>>;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, PartialOrd, Ord)]
-pub(crate) enum ENodeOrVar<N> {
-    ENode(N),
+pub(crate) enum ENodeOrVar<L> {
+    ENode(L),
     Var(Var),
 }
 
-impl<N: ENode> ENode for ENodeOrVar<N> {
-    fn matches(&self, other: &Self) -> bool {
+impl<N: Language> Language for ENodeOrVar<N> {
+    fn matches(&self, _other: &Self) -> bool {
         panic!("Should never call this")
     }
     fn for_each<F: FnMut(Id)>(&self, f: F) {
@@ -96,9 +94,7 @@ impl<N: ENode> ENode for ENodeOrVar<N> {
             ENodeOrVar::Var(_) => (),
         }
     }
-}
 
-impl<N: ENodeFromStr> ENodeFromStr for ENodeOrVar<N> {
     fn from_op_str(op_str: &str, children: Vec<Id>) -> Result<Self, String> {
         if op_str.starts_with('?') {
             if children.is_empty() {
@@ -116,9 +112,7 @@ impl<N: ENodeFromStr> ENodeFromStr for ENodeOrVar<N> {
             N::from_op_str(op_str, children).map(ENodeOrVar::ENode)
         }
     }
-}
 
-impl<N: ENodeDisplay> ENodeDisplay for ENodeOrVar<N> {
     fn display_op(&self) -> &dyn std::fmt::Display {
         match self {
             ENodeOrVar::ENode(e) => e.display_op(),
@@ -127,23 +121,37 @@ impl<N: ENodeDisplay> ENodeDisplay for ENodeOrVar<N> {
     }
 }
 
-impl<N: ENode + ENodeFromStr> std::str::FromStr for Pattern<N> {
+impl<L: Language> std::str::FromStr for Pattern<L> {
     type Err = String;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let ast: PatternAst<N> = s.parse()?;
+        let ast: PatternAst<L> = s.parse()?;
         let program = machine::Program::compile_from_pat(&ast);
         Ok(Pattern { ast, program })
     }
 }
 
-impl<'a, N: ENode> From<&'a [N]> for Pattern<N> {
-    fn from(expr: &'a [N]) -> Self {
+impl<'a, L: Language> From<&'a [L]> for Pattern<L> {
+    fn from(expr: &'a [L]) -> Self {
         let mut ast = RecExpr::default();
         for n in expr {
             ast.add(ENodeOrVar::ENode(n.clone()));
         }
         let program = machine::Program::compile_from_pat(&ast);
         Pattern { ast, program }
+    }
+}
+
+impl<L: Language> TryFrom<Pattern<L>> for RecExpr<L> {
+    type Error = Var;
+    fn try_from(pat: Pattern<L>) -> Result<Self, Self::Error> {
+        let nodes = pat.ast.nodes.into_iter();
+        let ns: Result<_, _> = nodes
+            .map(|n| match n {
+                ENodeOrVar::ENode(n) => Ok(n),
+                ENodeOrVar::Var(v) => Err(v),
+            })
+            .collect();
+        ns.map(|nodes| RecExpr { nodes })
     }
 }
 
@@ -164,10 +172,11 @@ pub struct SearchMatches {
     pub substs: Vec<Subst>,
 }
 
-impl<L: Language> Searcher<L> for Pattern<L::ENode> {
-    fn search(&self, egraph: &EGraph<L>) -> Vec<SearchMatches> {
+impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
+    fn search(&self, egraph: &EGraph<L, A>) -> Vec<SearchMatches> {
         match self.ast.as_ref().last().unwrap() {
             ENodeOrVar::ENode(e) => {
+                #[allow(clippy::mem_discriminant_non_enum)]
                 let key = std::mem::discriminant(e);
                 match egraph.classes_by_op.get(&key) {
                     None => vec![],
@@ -184,7 +193,7 @@ impl<L: Language> Searcher<L> for Pattern<L::ENode> {
         }
     }
 
-    fn search_eclass(&self, egraph: &EGraph<L>, eclass: Id) -> Option<SearchMatches> {
+    fn search_eclass(&self, egraph: &EGraph<L, A>, eclass: Id) -> Option<SearchMatches> {
         let substs = self.program.run(egraph, eclass);
         if substs.is_empty() {
             None
@@ -194,16 +203,20 @@ impl<L: Language> Searcher<L> for Pattern<L::ENode> {
     }
 }
 
-impl<L: Language> Applier<L> for Pattern<L::ENode> {
-    fn apply_one(&self, egraph: &mut EGraph<L>, _: Id, subst: &Subst) -> Vec<Id> {
+impl<L, A> Applier<L, A> for Pattern<L>
+where
+    L: Language,
+    A: Analysis<L>,
+{
+    fn apply_one(&self, egraph: &mut EGraph<L, A>, _: Id, subst: &Subst) -> Vec<Id> {
         let id = apply_pat(self.ast.as_ref(), egraph, subst);
         vec![id]
     }
 }
 
-fn apply_pat<L: Language>(
-    pat: &[ENodeOrVar<L::ENode>],
-    egraph: &mut EGraph<L>,
+fn apply_pat<L: Language, A: Analysis<L>>(
+    pat: &[ENodeOrVar<L>],
+    egraph: &mut EGraph<L, A>,
     subst: &Subst,
 ) -> Id {
     trace!("apply_rec {:2?} {:?}", pat, subst);
@@ -226,20 +239,22 @@ fn apply_pat<L: Language>(
 #[cfg(test)]
 mod tests {
 
-    use crate::{StringENode as E, *};
+    use crate::{StringLang as S, *};
+
+    type EGraph = crate::EGraph<S, ()>;
 
     #[test]
     fn simple_match() {
         crate::init_logger();
-        let mut egraph = EGraph::new(SimpleLanguage::default());
+        let mut egraph = EGraph::default();
 
-        let x = egraph.add(E::leaf("x"));
-        let y = egraph.add(E::leaf("y"));
-        let plus = egraph.add(E::new("+", vec![x, y]));
+        let x = egraph.add(S::leaf("x"));
+        let y = egraph.add(S::leaf("y"));
+        let plus = egraph.add(S::new("+", vec![x, y]));
 
-        let z = egraph.add(E::leaf("z"));
-        let w = egraph.add(E::leaf("w"));
-        let plus2 = egraph.add(E::new("+", vec![z, w]));
+        let z = egraph.add(S::leaf("z"));
+        let w = egraph.add(S::leaf("w"));
+        let plus2 = egraph.add(S::new("+", vec![z, w]));
 
         egraph.union(plus, plus2);
         egraph.rebuild();

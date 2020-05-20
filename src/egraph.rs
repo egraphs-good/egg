@@ -3,7 +3,7 @@ use std::fmt::{self, Debug};
 use indexmap::IndexMap;
 use log::*;
 
-use crate::{Dot, EClass, ENode, Id, Language, RecExpr, UnionFind};
+use crate::{Analysis, Dot, EClass, Id, Language, RecExpr, UnionFind};
 
 /** A data structure to keep track of equalities between expressions.
 
@@ -124,23 +124,24 @@ same eclass.
 [sound]: https://itinerarium.github.io/phoneme-synthesis/?w=/'igraf/
 **/
 #[derive(Clone)]
-pub struct EGraph<L: Language> {
-    language: L,
-    memo: IndexMap<L::ENode, Id>,
+pub struct EGraph<L: Language, N: Analysis<L>> {
+    /// The `Analysis` given when creating this `EGraph`.
+    pub analysis: N,
+    memo: IndexMap<L, Id>,
     unionfind: UnionFind,
-    classes: IndexMap<Id, EClass<L>>,
+    classes: IndexMap<Id, EClass<L, N::Data>>,
     dirty_unions: Vec<Id>,
-    pub(crate) classes_by_op: IndexMap<std::mem::Discriminant<L::ENode>, indexmap::IndexSet<Id>>,
+    pub(crate) classes_by_op: IndexMap<std::mem::Discriminant<L>, indexmap::IndexSet<Id>>,
 }
 
-impl<L: Language + Default> Default for EGraph<L> {
+impl<L: Language, N: Analysis<L> + Default> Default for EGraph<L, N> {
     fn default() -> Self {
-        Self::new(L::default())
+        Self::new(N::default())
     }
 }
 
 // manual debug impl to avoid L: Language bound on EGraph defn
-impl<L: Language> Debug for EGraph<L> {
+impl<L: Language, N: Analysis<L>> Debug for EGraph<L, N> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("EGraph")
             .field("memo", &self.memo)
@@ -149,10 +150,11 @@ impl<L: Language> Debug for EGraph<L> {
     }
 }
 
-impl<L: Language> EGraph<L> {
-    pub fn new(language: L) -> Self {
+impl<L: Language, N: Analysis<L>> EGraph<L, N> {
+    /// Creates a new, empty `EGraph` with the given `Analysis`
+    pub fn new(analysis: N) -> Self {
         Self {
-            language,
+            analysis,
             memo: IndexMap::default(),
             classes: IndexMap::default(),
             unionfind: Default::default(),
@@ -162,22 +164,22 @@ impl<L: Language> EGraph<L> {
     }
 
     /// Returns an iterator over the eclasses in the egraph.
-    pub fn classes(&self) -> impl Iterator<Item = &EClass<L>> {
+    pub fn classes(&self) -> impl Iterator<Item = &EClass<L, N::Data>> {
         self.classes.values()
     }
 
     /// Returns an mutating iterator over the eclasses in the egraph.
-    pub fn classes_mut(&mut self) -> impl Iterator<Item = &mut EClass<L>> {
+    pub fn classes_mut(&mut self) -> impl Iterator<Item = &mut EClass<L, N::Data>> {
         self.classes.values_mut()
     }
 
     /// Returns `true` if the egraph is empty
     /// # Example
     /// ```
-    /// # use egg::*;
-    /// let mut egraph = EGraph::<SimpleLanguage<StringENode>>::default();
+    /// use egg::{*, StringLang as S};
+    /// let mut egraph = EGraph::<S, ()>::default();
     /// assert!(egraph.is_empty());
-    /// egraph.add(StringENode::leaf("foo"));
+    /// egraph.add(S::leaf("foo"));
     /// assert!(!egraph.is_empty());
     /// ```
     pub fn is_empty(&self) -> bool {
@@ -189,10 +191,10 @@ impl<L: Language> EGraph<L> {
     /// Actually returns the size of the hashcons index.
     /// # Example
     /// ```
-    /// # use egg::*;
-    /// let mut egraph = EGraph::<SimpleLanguage<StringENode>>::default();
-    /// let x = egraph.add(StringENode::leaf("x"));
-    /// let y = egraph.add(StringENode::leaf("y"));
+    /// use egg::{*, StringLang as S};
+    /// let mut egraph = EGraph::<S, ()>::default();
+    /// let x = egraph.add(S::leaf("x"));
+    /// let y = egraph.add(S::leaf("y"));
     /// // only one eclass
     /// egraph.union(x, y);
     /// egraph.rebuild();
@@ -221,10 +223,10 @@ impl<L: Language> EGraph<L> {
     ///
     /// # Example
     /// ```
-    /// # use egg::*;
-    /// let mut egraph = EGraph::<SimpleLanguage<StringENode>>::default();
-    /// let x = egraph.add(StringENode::leaf("x"));
-    /// let y = egraph.add(StringENode::leaf("y"));
+    /// use egg::{*, StringLang as S};
+    /// let mut egraph = EGraph::<S, ()>::default();
+    /// let x = egraph.add(S::leaf("x"));
+    /// let y = egraph.add(S::leaf("y"));
     /// assert_ne!(egraph.find(x), egraph.find(y));
     ///
     /// egraph.union(x, y);
@@ -237,13 +239,13 @@ impl<L: Language> EGraph<L> {
     /// Creates a [`Dot`] to visualize this egraph. See [`Dot`].
     ///
     /// [`Dot`]: struct.Dot.html
-    pub fn dot(&self) -> Dot<L> {
-        Dot::new(self)
+    pub fn dot(&self) -> Dot<L, N> {
+        Dot { egraph: self }
     }
 }
 
-impl<L: Language> std::ops::Index<Id> for EGraph<L> {
-    type Output = EClass<L>;
+impl<L: Language, N: Analysis<L>> std::ops::Index<Id> for EGraph<L, N> {
+    type Output = EClass<L, N::Data>;
     fn index(&self, id: Id) -> &Self::Output {
         let id = self.find(id);
         self.classes
@@ -252,7 +254,7 @@ impl<L: Language> std::ops::Index<Id> for EGraph<L> {
     }
 }
 
-impl<L: Language> std::ops::IndexMut<Id> for EGraph<L> {
+impl<L: Language, N: Analysis<L>> std::ops::IndexMut<Id> for EGraph<L, N> {
     fn index_mut(&mut self, id: Id) -> &mut Self::Output {
         let id = self.find(id);
         self.classes
@@ -261,16 +263,16 @@ impl<L: Language> std::ops::IndexMut<Id> for EGraph<L> {
     }
 }
 
-impl<L: Language> EGraph<L> {
+impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// Adds a [`RecExpr`] to the [`EGraph`].
     ///
     /// # Example
     /// ```
-    /// # use egg::*;
-    /// let mut egraph = EGraph::<SimpleLanguage<StringENode>>::default();
-    /// let x = egraph.add(StringENode::leaf("x"));
-    /// let y = egraph.add(StringENode::leaf("y"));
-    /// let plus = egraph.add(StringENode::new("+", vec![x, y]));
+    /// use egg::{*, StringLang as S};
+    /// let mut egraph = EGraph::<S, ()>::default();
+    /// let x = egraph.add(S::leaf("x"));
+    /// let y = egraph.add(S::leaf("y"));
+    /// let plus = egraph.add(S::new("+", vec![x, y]));
     /// let plus_recexpr = "(+ x y)".parse().unwrap();
     /// assert_eq!(plus, egraph.add_expr(&plus_recexpr));
     /// ```
@@ -278,19 +280,18 @@ impl<L: Language> EGraph<L> {
     /// [`EGraph`]: struct.EGraph.html
     /// [`RecExpr`]: struct.RecExpr.html
     /// [`add_expr`]: struct.EGraph.html#method.add_expr
-    pub fn add_expr(&mut self, expr: &RecExpr<L::ENode>) -> Id {
+    pub fn add_expr(&mut self, expr: &RecExpr<L>) -> Id {
         self.add_expr_rec(expr.as_ref())
     }
 
-    fn add_expr_rec(&mut self, expr: &[L::ENode]) -> Id {
-        log::trace!("Adding expr {:?}", expr.as_ref());
-        let expr = expr.as_ref();
+    fn add_expr_rec(&mut self, expr: &[L]) -> Id {
+        log::trace!("Adding expr {:?}", expr);
         let e = expr.last().unwrap().clone().map_children(|i| {
-            let child = &expr.as_ref()[..i as usize + 1];
+            let child = &expr[..i as usize + 1];
             self.add_expr_rec(child)
         });
         let id = self.add(e);
-        log::trace!("Added!! expr {:?}", expr.as_ref());
+        log::trace!("Added!! expr {:?}", expr);
         id
     }
 
@@ -308,7 +309,7 @@ impl<L: Language> EGraph<L> {
     /// [`EClass`]: struct.EClass.html
     /// [`ENode`]: struct.ENode.html
     /// [`add`]: struct.EGraph.html#method.add
-    pub fn add(&mut self, mut enode: L::ENode) -> Id {
+    pub fn add(&mut self, mut enode: L) -> Id {
         log::trace!("Adding {:?}", enode);
         enode.update_children(|id| self.find(id));
         log::trace!("Adding as {:?}", enode);
@@ -321,7 +322,7 @@ impl<L: Language> EGraph<L> {
                 let class = EClass {
                     id,
                     nodes: vec![enode.clone()],
-                    metadata: L::metadata_make(self, &enode),
+                    data: N::make(self, &enode),
                     parents: Default::default(),
                 };
 
@@ -334,7 +335,7 @@ impl<L: Language> EGraph<L> {
                 assert!(self.classes.insert(id, class).is_none());
                 assert!(self.memo.insert(enode, id).is_none());
 
-                L::metadata_modify(self, id);
+                N::modify(self, id);
                 id
             }
         }
@@ -345,11 +346,7 @@ impl<L: Language> EGraph<L> {
     /// In most cases, there will none or exactly one id.
     ///
     /// [`RecExpr`]: struct.RecExpr.html
-    pub fn equivs<Expr1, Expr2>(&self, expr1: Expr1, expr2: Expr2) -> Vec<Id>
-    where
-        Expr1: AsRef<[L::ENode]>,
-        Expr2: AsRef<[L::ENode]>,
-    {
+    pub fn equivs(&self, expr1: &RecExpr<L>, expr2: &RecExpr<L>) -> Vec<Id> {
         use crate::{Pattern, Searcher};
         let matches1 = Pattern::from(expr1.as_ref()).search(self);
         trace!("Matches1: {:?}", matches1);
@@ -389,12 +386,11 @@ impl<L: Language> EGraph<L> {
             let from_class = self.classes.remove(&from).unwrap();
             let to_class = self.classes.get_mut(&to).unwrap();
 
-            self.language
-                .metadata_merge(&mut to_class.metadata, from_class.metadata);
+            self.analysis.merge(&mut to_class.data, from_class.data);
             concat(&mut to_class.nodes, from_class.nodes);
             concat(&mut to_class.parents, from_class.parents);
 
-            L::metadata_modify(self, to);
+            N::modify(self, to);
         }
         (to, to != from)
     }
@@ -428,18 +424,13 @@ impl<L: Language> EGraph<L> {
 }
 
 // All the rebuilding stuff
-impl<L: Language> EGraph<L> {
+impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     #[inline(never)]
     fn rebuild_classes(&mut self) -> usize {
-        // let (find, mut_values) = self.classes.split();
-
         let mut classes_by_op = std::mem::take(&mut self.classes_by_op);
         classes_by_op.values_mut().for_each(|ids| ids.clear());
 
         let mut trimmed = 0;
-
-        // let mut memo = IndexMap::new(); // std::mem::take(&mut self.memo);
-        // self.memo.clear();
 
         let uf = &self.unionfind;
         for class in self.classes.values_mut() {
@@ -453,32 +444,19 @@ impl<L: Language> EGraph<L> {
 
             trimmed += old_len - class.nodes.len();
 
-            // for n in &class.nodes {
-            //     self.memo.insert(n.clone(), class.id);
-            // }
-
-            // FIXME
-            let mut add = |n: &L::ENode| {
+            // TODO this is the slow version, could take advantage of sortedness
+            // maybe
+            let mut add = |n: &L| {
+                #[allow(clippy::mem_discriminant_non_enum)]
                 classes_by_op
                     .entry(std::mem::discriminant(&n))
                     .or_default()
                     .insert(class.id)
             };
 
-            // // slow, safe version
-            // for n in &class.nodes {
-            //     add(n);
-            // }
-            // for ids in classes_by_op.values_mut() {
-            //     ids.sort_unstable();
-            //     ids.dedup();
-            // }
-
             // we can go through the ops in order to dedup them, becaue we
             // just sorted them
-            // let mut ops_and_lens = class.nodes.iter().map(|n| (&n.op, n.children.len()));
             let mut nodes = class.nodes.iter();
-            // let mut prev = ops_and_lens.next().unwrap_or_else(|| panic!("Empty eclass! {:?}", class));
             if let Some(mut prev) = nodes.next() {
                 add(prev);
                 for n in nodes {
@@ -496,14 +474,12 @@ impl<L: Language> EGraph<L> {
             assert_eq!(ids.len(), unique.len());
         }
 
-        // self.memo = memo;
         self.classes_by_op = classes_by_op;
         trimmed
     }
 
     #[inline(never)]
     fn check_memo(&self) -> bool {
-        // println!("DUMP\n{:?}", self.dump());
         let mut test_memo = IndexMap::new();
 
         for (&id, class) in self.classes.iter() {
@@ -579,7 +555,7 @@ impl<L: Language> EGraph<L> {
                 self.propagate_metadata(&parents);
 
                 self[id].parents = parents;
-                L::metadata_modify(self, id);
+                N::modify(self, id);
             }
 
             for (id1, id2) in to_union.drain(..) {
@@ -605,10 +581,10 @@ impl<L: Language> EGraph<L> {
     ///
     /// # Example
     /// ```
-    /// # use egg::*;
-    /// let mut egraph = EGraph::<SimpleLanguage<StringENode>>::default();
-    /// let x = egraph.add(StringENode::leaf("x"));
-    /// let y = egraph.add(StringENode::leaf("y"));
+    /// use egg::{*, StringLang as S};
+    /// let mut egraph = EGraph::<S, ()>::default();
+    /// let x = egraph.add(S::leaf("x"));
+    /// let y = egraph.add(S::leaf("y"));
     /// let ax = egraph.add_expr(&"(+ a x)".parse().unwrap());
     /// let ay = egraph.add_expr(&"(+ a y)".parse().unwrap());
     ///
@@ -659,25 +635,25 @@ impl<L: Language> EGraph<L> {
     }
 
     #[inline(never)]
-    fn propagate_metadata(&mut self, parents: &[(L::ENode, Id)]) {
+    fn propagate_metadata(&mut self, parents: &[(L, Id)]) {
         for (n, e) in parents {
             let e = self.find(*e);
-            let node_meta = L::metadata_make(self, n);
+            let node_data = N::make(self, n);
             let class = &mut self.classes[&e];
-            if self.language.metadata_merge(&mut class.metadata, node_meta) {
+            if self.analysis.merge(&mut class.data, node_data) {
                 // self.dirty_unions.push(e); // NOTE: i dont think this is necessary
                 let e_parents = std::mem::take(&mut class.parents);
                 self.propagate_metadata(&e_parents);
                 self[e].parents = e_parents;
-                L::metadata_modify(self, e);
+                N::modify(self, e)
             }
         }
     }
 }
 
-struct EGraphDump<'a, L: Language>(&'a EGraph<L>);
+struct EGraphDump<'a, L: Language, N: Analysis<L>>(&'a EGraph<L, N>);
 
-impl<'a, L: Language> Debug for EGraphDump<'a, L> {
+impl<'a, L: Language, N: Analysis<L>> Debug for EGraphDump<'a, L, N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut ids: Vec<Id> = self.0.classes.keys().copied().collect();
         ids.sort();
@@ -697,16 +673,16 @@ mod tests {
 
     #[test]
     fn simple_add() {
-        use StringENode as E;
+        use StringLang as S;
 
         crate::init_logger();
-        let mut egraph = EGraph::<SimpleLanguage<E>>::default();
+        let mut egraph = EGraph::<S, ()>::default();
 
-        let x = egraph.add(E::leaf("x"));
-        let x2 = egraph.add(E::leaf("x"));
-        let _plus = egraph.add(E::new("+", vec![x, x2]));
+        let x = egraph.add(S::leaf("x"));
+        let x2 = egraph.add(S::leaf("x"));
+        let _plus = egraph.add(S::new("+", vec![x, x2]));
 
-        let y = egraph.add(E::leaf("y"));
+        let y = egraph.add(S::leaf("y"));
 
         egraph.union(x, y);
         egraph.rebuild();

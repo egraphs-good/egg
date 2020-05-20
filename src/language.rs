@@ -1,23 +1,60 @@
-use std::fmt::{self, Debug};
+use std::fmt::{Debug, Display};
 use std::hash::Hash;
-use symbolic_expressions::Sexp;
 
 use crate::{EGraph, Id};
 
-pub trait Language: Sized {
-    type ENode: ENode;
-    type Metadata: PartialEq + std::fmt::Debug + Clone;
+use symbolic_expressions::Sexp;
 
-    fn metadata_make(egraph: &mut EGraph<Self>, enode: &Self::ENode) -> Self::Metadata;
-    fn metadata_modify(egraph: &mut EGraph<Self>, id: Id) {}
-    fn metadata_merge(&self, to: &mut Self::Metadata, from: Self::Metadata) -> bool;
-}
-
-pub trait ENode: Debug + Clone + Eq + Ord + Hash {
+/// Trait defines a Language whose terms will be in the [`EGraph`].
+///
+/// Typically, you'll want your language to implement [`FromStr`] and
+/// [`Display`] so parsing and printing works.
+/// Check out the [`define_language!`] macro for an easy way to create
+/// a [`Language`].
+///
+/// [`String`] implements [`Language`] for quick use cases.
+///
+/// [`define_language!`]: macro.define_language.html
+/// [`Language`]: trait.Language.html
+/// [`EGraph`]: struct.EGraph.html
+/// [`String`]: https://doc.rust-lang.org/std/string/struct.String.html
+/// [`FromStr`]: https://doc.rust-lang.org/std/str/trait.FromStr.html
+/// [`Display`]: https://doc.rust-lang.org/std/fmt/trait.Display.html
+#[allow(clippy::len_without_is_empty)]
+pub trait Language: Debug + Clone + Eq + Ord + Hash {
+    /// Returns true if this enode matches another enode.
+    /// This should only consider the operator, not the children `Id`s.
     fn matches(&self, other: &Self) -> bool;
+
+    /// Runs a given function on each child `Id`.
     fn for_each<F: FnMut(Id)>(&self, f: F);
+
+    /// Runs a given function on each child `Id`, allowing mutation of that `Id`.
     fn for_each_mut<F: FnMut(&mut Id)>(&mut self, f: F);
 
+    /// Returns something that will print the operator.
+    ///
+    /// Default implementation panics, so make sure to implement this if you
+    /// want to print `Language` elements.
+    /// The [`define_language!`](macro.define_language.html) macro will
+    /// implement this for you.
+    fn display_op(&self) -> &dyn Display {
+        unimplemented!("display_op not implemented")
+    }
+
+    /// Given a string for the operator and the children, tries to make an
+    /// enode.
+    ///
+    /// Default implementation panics, so make sure to implement this if you
+    /// want to parse `Language` elements.
+    /// The [`define_language!`](macro.define_language.html) macro will
+    /// implement this for you.
+    #[allow(unused_variables)]
+    fn from_op_str(op_str: &str, children: Vec<Id>) -> Result<Self, String> {
+        unimplemented!("from_op_str not implemented")
+    }
+
+    /// Runs a given function on each child `Id` and its index.
     fn for_each_i<F: FnMut(usize, Id)>(&self, mut f: F) {
         let mut i = 0;
         self.for_each(|id| {
@@ -26,15 +63,18 @@ pub trait ENode: Debug + Clone + Eq + Ord + Hash {
         });
     }
 
+    /// Runs a given function to replace the children.
     fn update_children<F: FnMut(Id) -> Id>(&mut self, mut f: F) {
         self.for_each_mut(|id| *id = f(*id))
     }
 
+    /// Creates a new enode with children determined by the given function.
     fn map_children<F: FnMut(Id) -> Id>(mut self, f: F) -> Self {
         self.update_children(f);
         self
     }
 
+    /// Folds over the children, given an initial accumulator.
     fn fold<F, T>(&self, init: T, mut f: F) -> T
     where
         F: FnMut(T, Id) -> T,
@@ -45,46 +85,75 @@ pub trait ENode: Debug + Clone + Eq + Ord + Hash {
         acc
     }
 
-    // NOTE doesn't early terminate
+    /// Checked whether all children satisfy some predicate.
+    /// This does *not* short circuit.
     fn all<F: FnMut(Id) -> bool>(&self, mut f: F) -> bool {
         self.fold(true, |b, id| b & f(id))
     }
 
+    /// Returns true if this enode has no children.
     fn is_leaf(&self) -> bool {
         self.len() == 0
     }
 
+    /// Returns the number of the children this enode has.
+    ///
+    /// The default implementation uses `fold` to accumulate the number of
+    /// children.
     fn len(&self) -> usize {
         self.fold(0, |sum, _| sum + 1)
     }
 }
 
+/// A recursive expression from a user-defined [`Language`].
+///
+/// This conceptually represents a recursive expression, but it's actually just
+/// a list of enodes.
+///
+/// [`RecExpr`]s must satisfy the invariant that enodes' children must refer to
+/// elements that come before it in the list.
+///
+/// If the `serde-1` feature is enabled, this implements
+/// [`serde::Serialize`][ser] by pretty-printing with
+/// [`self.pretty(80)`][pretty].
+///
+/// [`RecExpr`]: struct.RecExpr.html
+/// [`Language`]: trait.Language.html
+/// [ser]: https://docs.rs/serde/latest/serde/trait.Serialize.html
+/// [pretty]: struct.RecExpr.html#method.pretty
 #[derive(Debug, PartialEq, Clone)]
 pub struct RecExpr<N> {
-    nodes: Vec<N>,
+    pub(crate) nodes: Vec<N>,
 }
 
-impl<N> Default for RecExpr<N> {
+impl<L> Default for RecExpr<L> {
     fn default() -> Self {
         Self { nodes: vec![] }
     }
 }
 
-impl<N> AsRef<[N]> for RecExpr<N> {
-    fn as_ref(&self) -> &[N] {
+impl<L> AsRef<[L]> for RecExpr<L> {
+    fn as_ref(&self) -> &[L] {
         &self.nodes
     }
 }
 
-impl<N> RecExpr<N> {
-    pub fn add(&mut self, node: N) -> Id {
-        // TODO check for duplication
+impl<L: Language> RecExpr<L> {
+    /// Adds a given enode to this `RecExpr`.
+    /// The enode's children `Id`s must refer to elements already in this list.
+    pub fn add(&mut self, node: L) -> Id {
+        debug_assert!(
+            node.all(|id| (id as usize) < self.nodes.len()),
+            "node {:?} has children not in this expr: {:?}",
+            node,
+            self
+        );
         self.nodes.push(node);
         self.nodes.len() as Id - 1
     }
 }
 
-impl<N: ENode + ENodeDisplay> RecExpr<N> {
+impl<L: Language> RecExpr<L> {
     fn to_sexp(&self, i: Id) -> Sexp {
         let node = &self.nodes[i as usize];
         let op = Sexp::String(node.display_op().to_string());
@@ -104,16 +173,7 @@ impl<N: ENode + ENodeDisplay> RecExpr<N> {
     /// # Example
     /// ```
     /// # use egg::*;
-    /// define_language! {
-    ///     enum FooLanguage {
-    ///         Num(i32),
-    ///         Add = "+",
-    ///         Mul = "*",
-    ///         Symbol(String),
-    ///     }
-    /// }
-    ///
-    /// let e: RecExpr<FooLanguage> = "(* (+ 2 2) (+ x y))".parse().unwrap();
+    /// let e: RecExpr<StringLang> = "(* (+ 2 2) (+ x y))".parse().unwrap();
     /// assert_eq!(e.pretty(10), "
     /// (*
     ///   (+ 2 2)
@@ -156,14 +216,6 @@ impl<N: ENode + ENodeDisplay> RecExpr<N> {
     }
 }
 
-pub trait ENodeDisplay {
-    fn display_op(&self) -> &dyn fmt::Display;
-}
-
-pub trait ENodeFromStr: Sized {
-    fn from_op_str(op_str: &str, children: Vec<Id>) -> Result<Self, String>;
-}
-
 macro_rules! bail {
     ($s:literal $(,)?) => {
         return Err($s.into())
@@ -173,20 +225,17 @@ macro_rules! bail {
     };
 }
 
-impl<N: ENodeFromStr> std::str::FromStr for RecExpr<N> {
+impl<L: Language> std::str::FromStr for RecExpr<L> {
     type Err = String;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        fn parse_sexp_into<N>(sexp: &Sexp, expr: &mut RecExpr<N>) -> Result<Id, String>
-        where
-            N: ENodeFromStr,
-        {
+        fn parse_sexp_into<L: Language>(sexp: &Sexp, expr: &mut RecExpr<L>) -> Result<Id, String> {
             match sexp {
                 Sexp::Empty => Err("Found empty s-expression".into()),
                 Sexp::String(s) => {
-                    let node = ENodeFromStr::from_op_str(s, vec![])?;
+                    let node = L::from_op_str(s, vec![])?;
                     Ok(expr.add(node))
                 }
-                Sexp::List(list) if list.is_empty() => Err(format!("Found empty s-expression")),
+                Sexp::List(list) if list.is_empty() => Err("Found empty s-expression".into()),
                 Sexp::List(list) => match &list[0] {
                     Sexp::Empty => unreachable!("Cannot be in head position"),
                     Sexp::List(l) => bail!("Found a list in the head position: {:?}", l),
@@ -194,7 +243,9 @@ impl<N: ENodeFromStr> std::str::FromStr for RecExpr<N> {
                         let arg_ids: Result<Vec<Id>, _> =
                             list[1..].iter().map(|s| parse_sexp_into(s, expr)).collect();
 
-                        let node = ENodeFromStr::from_op_str(op, arg_ids?)?;
+                        let node = L::from_op_str(op, arg_ids?).map_err(|e| {
+                            format!("Failed to parse '{}', error message:\n{}", sexp, e)
+                        })?;
                         Ok(expr.add(node))
                     }
                 },
@@ -208,50 +259,159 @@ impl<N: ENodeFromStr> std::str::FromStr for RecExpr<N> {
     }
 }
 
-/// A simple language used for testing.
-///
-/// Its language implementation uses () as metadata.
-pub struct SimpleLanguage<ENode>(std::marker::PhantomData<ENode>);
+/** Arbitrary data associated with an [`EClass`].
 
-impl<N> Default for SimpleLanguage<N> {
-    fn default() -> Self {
-        Self(Default::default())
+`egg` allows you to associate arbitrary data with each eclass.
+The [`Metadata`] allows that data to behave well even across eclasses merges.
+
+[`Metadata`] can prove useful in many situtations.
+One common one is constant folding, a kind of partial evaluation.
+In that case, the metadata is basically `Option<L>`, storing
+the cheapest constant expression (if any) that's equivalent to the
+enodes in this eclass.
+See the test files [`math.rs`] and [`prop.rs`] for more complex
+examples on this usage of [`Metadata`].
+
+If you don't care about [`Metadata`], `()` implements it trivally,
+just use that.
+
+# Example
+
+```
+use egg::{*, rewrite as rw};
+
+define_language! {
+    enum SimpleMath {
+        "+" = Add(Id, Id),
+        "*" = Mul(Id, Id),
+        Num(i32),
+        Variable(String),
     }
 }
 
-impl<N: ENode> Language for SimpleLanguage<N> {
-    type ENode = N;
-    type Metadata = ();
+#[derive(Default)]
+struct ConstantFolding;
+impl Analysis<SimpleMath> for ConstantFolding {
+    type Data = Option<i32>;
 
-    fn metadata_make(_egraph: &mut EGraph<Self>, _enode: &Self::ENode) -> Self::Metadata {
-        ()
-    }
-    fn metadata_merge(&self, to: &mut Self::Metadata, from: Self::Metadata) -> bool {
-        false
-    }
-}
-
-/// A simple `ENode` used for testing
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct StringENode {
-    pub op: String,
-    pub children: Vec<Id>,
-}
-
-impl StringENode {
-    pub fn leaf(op: impl Into<String>) -> Self {
-        Self::new(op, vec![])
+    fn merge(&self, to: &mut Self::Data, from: Self::Data) -> bool {
+        egg::merge_if_different(to, to.or(from))
     }
 
-    pub fn new(op: impl Into<String>, children: impl IntoIterator<Item = Id>) -> Self {
-        Self {
-            op: op.into(),
-            children: children.into_iter().collect(),
+    fn make(egraph: &EGraph<SimpleMath, Self>, enode: &SimpleMath) -> Self::Data {
+        let x = |i: &Id| egraph[*i].data;
+        match enode {
+            SimpleMath::Num(n) => Some(*n),
+            SimpleMath::Add(a, b) => Some(x(a)? + x(b)?),
+            SimpleMath::Mul(a, b) => Some(x(a)? * x(b)?),
+            _ => None,
+        }
+    }
+
+    fn modify(egraph: &mut EGraph<SimpleMath, Self>, id: Id) {
+        if let Some(i) = egraph[id].data {
+            let added = egraph.add(SimpleMath::Num(i));
+            egraph.union(id, added);
         }
     }
 }
 
-impl ENode for StringENode {
+let rules = &[
+    rw!("commute-add"; "(+ ?a ?b)" => "(+ ?b ?a)"),
+    rw!("commute-mul"; "(* ?a ?b)" => "(* ?b ?a)"),
+
+    rw!("add-0"; "(+ ?a 0)" => "?a"),
+    rw!("mul-0"; "(* ?a 0)" => "0"),
+    rw!("mul-1"; "(* ?a 1)" => "?a"),
+];
+
+let expr = "(+ 0 (* (+ 4 -3) foo))".parse().unwrap();
+let mut runner = Runner::<SimpleMath, ConstantFolding, ()>::default().with_expr(&expr).run(rules);
+let just_foo = runner.egraph.add_expr(&"foo".parse().unwrap());
+assert_eq!(runner.egraph.find(runner.roots[0]), runner.egraph.find(just_foo));
+```
+
+[`Metadata`]: trait.Metadata.html
+[`EClass`]: struct.EClass.html
+[`ENode`]: struct.ENode.html
+[`math.rs`]: https://github.com/mwillsey/egg/blob/master/tests/math.rs
+[`prop.rs`]: https://github.com/mwillsey/egg/blob/master/tests/prop.rs
+*/
+
+pub trait Analysis<L: Language>: Sized {
+    /// The per-[`EClass`](struct.EClass.html) data for this analysis.
+    type Data: Debug;
+
+    /// Makes a new [`Metadata`] for a given enode
+    /// [`Metadata`].
+    ///
+    /// [`Metadata`]: trait.Metadata.html
+    fn make(egraph: &EGraph<L, Self>, enode: &L) -> Self::Data;
+
+    /// Defines how to merge two `Data`s when their containing
+    /// [`EClass`]es merge.
+    ///
+    /// [`EClass`]: struct.EClass.html
+    fn merge(&self, to: &mut Self::Data, from: Self::Data) -> bool;
+
+    /// A hook that allows the modification of the
+    /// [`EGraph`](struct.EGraph.html)
+    ///
+    /// By default this does nothing.
+    #[allow(unused_variables)]
+    fn modify(egraph: &mut EGraph<L, Self>, id: Id) {}
+}
+
+/// Replace the first with second value if they are different returning whether
+/// or not something was done.
+///
+/// ```
+/// # use egg::*;
+/// let mut x = 6;
+/// assert!(!merge_if_different(&mut x, 6));
+/// assert!(merge_if_different(&mut x, 7));
+/// assert_eq!(x, 7);
+/// ```
+pub fn merge_if_different<D: PartialEq>(to: &mut D, new: D) -> bool {
+    if *to == new {
+        false
+    } else {
+        *to = new;
+        true
+    }
+}
+
+impl<L: Language> Analysis<L> for () {
+    type Data = ();
+    fn make(_egraph: &EGraph<L, Self>, _enode: &L) -> Self::Data {}
+    fn merge(&self, _to: &mut Self::Data, _from: Self::Data) -> bool {
+        false
+    }
+}
+
+/// A simple language used for testing.
+#[derive(Debug, Hash, PartialEq, Eq, Clone, PartialOrd, Ord)]
+pub struct StringLang {
+    /// The operator for an enode
+    pub op: String,
+    /// The enode's children `Id`s
+    pub children: Vec<Id>,
+}
+
+impl StringLang {
+    /// Create an enode with the given string and children
+    pub fn new(op: impl Into<String>, children: Vec<Id>) -> Self {
+        let op = op.into();
+        Self { op, children }
+    }
+
+    /// Create childless enode with the given string
+    pub fn leaf(op: impl Into<String>) -> Self {
+        Self::new(op, vec![])
+    }
+}
+
+impl Language for StringLang {
     fn matches(&self, other: &Self) -> bool {
         self.op == other.op && self.len() == other.len()
     }
@@ -259,18 +419,17 @@ impl ENode for StringENode {
         self.children.iter().copied().for_each(f)
     }
     fn for_each_mut<F: FnMut(&mut Id)>(&mut self, f: F) {
-        self.children.iter_mut().for_each(f);
+        self.children.iter_mut().for_each(f)
     }
-}
 
-impl ENodeFromStr for StringENode {
-    fn from_op_str(op_str: &str, children: Vec<Id>) -> Result<Self, String> {
-        Ok(Self::new(op_str, children))
-    }
-}
-
-impl ENodeDisplay for StringENode {
-    fn display_op(&self) -> &dyn fmt::Display {
+    fn display_op(&self) -> &dyn Display {
         &self.op
+    }
+
+    fn from_op_str(op_str: &str, children: Vec<Id>) -> Result<Self, String> {
+        Ok(Self {
+            op: op_str.into(),
+            children,
+        })
     }
 }

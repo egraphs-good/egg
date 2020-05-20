@@ -13,11 +13,13 @@ use std::fmt::{self, Debug, Display, Formatter};
 use std::io::{Error, ErrorKind, Result, Write};
 use std::path::Path;
 
-use crate::{egraph::EGraph, ENode, ENodeDisplay, Language};
+use crate::{egraph::EGraph, Analysis, Language};
 
 /**
 A wrapper for an [`EGraph`] that can output [GraphViz] for
 visualization.
+
+The [`EGraph::dot`](struct.EGraph.html#method.dot) method creates `Dot`s.
 
 # Example
 
@@ -29,7 +31,7 @@ let rules = &[
     rw!("mul-two";      "(* ?x 2)" => "(<< ?x 1)"),
 ];
 
-let mut egraph: EGraph<SimpleLanguage<StringENode>> = Default::default();
+let mut egraph: EGraph<StringLang, ()> = Default::default();
 egraph.add_expr(&"(/ (* 2 a) 2)".parse().unwrap());
 let egraph = Runner::default().with_egraph(egraph).run(rules).egraph;
 
@@ -51,23 +53,14 @@ instead of to its own eclass.
 [`EGraph`]: struct.EGraph.html
 [GraphViz]: https://graphviz.gitlab.io/
 **/
-pub struct Dot<'a, L: Language> {
-    egraph: &'a EGraph<L>,
+pub struct Dot<'a, L: Language, N: Analysis<L>> {
+    pub(crate) egraph: &'a EGraph<L, N>,
 }
 
-impl<'a, L: Language> Dot<'a, L> {
-    /// Given a reference to an `EGraph`, makes a `Dot`.
-    /// See also the more convenient
-    /// [`EGraph::dot`](struct.EGraph.html#method.dot).
-    pub fn new(egraph: &EGraph<L>) -> Dot<L> {
-        Dot { egraph }
-    }
-}
-
-impl<'a, L> Dot<'a, L>
+impl<'a, L, N> Dot<'a, L, N>
 where
     L: Language,
-    L::ENode: ENodeDisplay,
+    N: Analysis<L>,
 {
     /// Writes the `Dot` to a .dot file with the given filename.
     /// Does _not_ require a `dot` binary.
@@ -111,7 +104,7 @@ where
     /// Can be used to run a different binary than `dot`:
     /// ```no_run
     /// # use egg::*;
-    /// # let mut egraph: EGraph<SimpleLanguage<StringENode>> = Default::default();
+    /// # let mut egraph: EGraph<StringLang, ()> = Default::default();
     /// egraph.dot().run(
     ///     "/path/to/my/dot",
     ///     &["arg1", "-o", "outfile"]
@@ -145,7 +138,7 @@ where
     }
 }
 
-impl<'a, L: Language> Debug for Dot<'a, L> {
+impl<'a, L: Language, N: Analysis<L>> Debug for Dot<'a, L, N> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "Dot({:?})", self.egraph)
     }
@@ -166,10 +159,10 @@ fn edge(i: usize, len: usize) -> (String, String) {
     }
 }
 
-impl<'a, L> Display for Dot<'a, L>
+impl<'a, L, N> Display for Dot<'a, L, N>
 where
     L: Language,
-    L::ENode: ENodeDisplay,
+    N: Analysis<L>,
 {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         writeln!(f, "digraph egraph {{")?;
@@ -218,7 +211,7 @@ where
                         )
                     };
 
-                    err = err.or(result.err());
+                    err = err.or_else(|| result.err());
                 });
 
                 if let Some(err) = err {
