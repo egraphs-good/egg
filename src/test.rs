@@ -6,7 +6,7 @@ These are not considered part of the public api.
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-use crate::{AstSize, Extractor, Language, Metadata, Pattern, RecExpr, Runner, Searcher};
+use crate::{Analysis, AstSize, Extractor, Language, Pattern, RecExpr, Runner, Searcher};
 
 fn mean_stdev(data: &[f64]) -> (f64, f64) {
     assert_ne!(data.len(), 0);
@@ -150,10 +150,10 @@ pub fn run<T>(name: impl Into<String>, mut f: impl FnMut() -> T) -> Reporter<T> 
     }
 }
 
-impl<L, M, IterData> Runner<L, M, IterData>
+impl<L, N, IterData> Runner<L, N, IterData>
 where
-    L: Language + std::fmt::Display,
-    M: Metadata<L>,
+    L: Language,
+    N: Analysis<L>,
 {
     pub fn check_goals(&self, goals: &[RecExpr<L>]) {
         let egraph = &self.egraph;
@@ -169,7 +169,7 @@ where
 
         for (i, goal) in goals.iter().enumerate() {
             println!("Trying to prove goal {}: {}", i, goal.pretty(40));
-            let pattern = Pattern::from(goal.clone());
+            let pattern = Pattern::from(goal.as_ref());
             let matches = pattern.search_eclass(&egraph, id);
             if matches.is_none() {
                 let best = Extractor::new(&egraph, AstSize).find_best(id).1;
@@ -198,7 +198,7 @@ macro_rules! test_fn {
         $crate::test_fn! {
             $(#[$meta])*
             $name, $rules,
-            runner = Runner::new(),
+            runner = Runner::<_, _, ()>::default(),
             $start => $( $goal ),+
             $(@check $check_fn)?
         }
@@ -218,10 +218,10 @@ macro_rules! test_fn {
         fn $name() {
             let _ = env_logger::builder().is_test(true).try_init();
             let name = stringify!($name);
-            let start = $start.parse().unwrap();
+            let start: $crate::RecExpr<_> = $start.parse().unwrap();
             let rules = $rules;
 
-            let runner = $crate::test::run(name, || {
+            let runner: $crate::Runner<_, _, ()> = $crate::test::run(name, || {
                 $runner.with_expr(&start).run(&rules)
             }).report(|r| &r.iterations);
             runner.print_report();

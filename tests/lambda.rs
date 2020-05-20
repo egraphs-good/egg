@@ -1,30 +1,76 @@
 use egg::{rewrite as rw, *};
 
-type EGraph = egg::EGraph<Lang, Meta>;
-
 define_language! {
-    enum Lang {
+    enum Lambda {
         Bool(bool),
         Num(i32),
 
-        Var = "var",
+        "var" = Var(Id),
 
-        Add = "+",
-        Eq = "=",
+        "+" = Add(Id, Id),
+        "=" = Eq(Id, Id),
 
-        App = "app",
-        Lambda = "lam",
-        Let = "let",
-        Fix = "fix",
+        "app" = App(Id, Id),
+        "lam" = Lambda(Id, Id),
+        "let" = Let(Id, Id, Id),
+        "fix" = Fix(Id, Id),
 
-        If = "if",
+        "if" = If(Id, Id, Id),
 
-        Subst = "subst",
+        "subst" = Subst(Id, Id, Id),
         String(String),
     }
 }
 
-fn rules() -> Vec<Rewrite<Lang, Meta>> {
+impl Lambda {
+    fn num(&self) -> Option<i32> {
+        match self {
+            Lambda::Num(n) => Some(*n),
+            _ => None,
+        }
+    }
+}
+
+type EGraph = egg::EGraph<Lambda, ConstantFold>;
+
+#[derive(Default)]
+struct ConstantFold;
+impl Analysis<Lambda> for ConstantFold {
+    type Data = Option<Lambda>;
+    fn merge(&self, to: &mut Self::Data, from: Self::Data) -> bool {
+        merge_if_different(to, to.clone().or(from))
+    }
+
+    fn make(egraph: &EGraph, enode: &Lambda) -> Self::Data {
+        let x = |i: &Id| egraph[*i].data.clone();
+        match enode {
+            Lambda::Num(_) | Lambda::Bool(_) => Some(enode.clone()),
+            Lambda::Add(a, b) => Some(Lambda::Num(x(a)?.num()? + x(b)?.num()?)),
+            Lambda::Eq(a, b) => Some(Lambda::Bool(x(a)? == x(b)?)),
+            _ => None,
+        }
+    }
+
+    fn modify(egraph: &mut EGraph, id: Id) {
+        if let Some(c) = egraph[id].data.clone() {
+            let const_id = egraph.add(c);
+            egraph.union(id, const_id);
+        }
+    }
+}
+
+fn is_not_same_var(v1: &'static str, v2: &'static str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
+    let v1 = v1.parse().unwrap();
+    let v2 = v2.parse().unwrap();
+    move |egraph, _, subst| egraph.find(subst[&v1]) != egraph.find(subst[&v2])
+}
+
+fn is_const(v1: &'static str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
+    let v1 = v1.parse().unwrap();
+    move |egraph, _, subst| egraph[subst[&v1]].data.is_some()
+}
+
+fn rules() -> Vec<Rewrite<Lambda, ConstantFold>> {
     vec![
         // open term rules
         rw!("if-true";  "(if  true ?then ?else)" => "?then"),
@@ -64,54 +110,6 @@ fn rules() -> Vec<Rewrite<Lang, Meta>> {
             "(lam ?v2 (subst ?e ?v1 ?body))"
             if is_not_same_var("?v1", "?v2")),
     ]
-}
-
-fn is_not_same_var(v1: &'static str, v2: &'static str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
-    let v1 = v1.parse().unwrap();
-    let v2 = v2.parse().unwrap();
-    move |egraph, _, subst| egraph.find(subst[&v1]) != egraph.find(subst[&v2])
-}
-
-fn is_const(v1: &'static str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
-    let v1 = v1.parse().unwrap();
-    move |egraph, _, subst| egraph[subst[&v1]].metadata.constant.is_some()
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct Meta {
-    constant: Option<Lang>,
-}
-
-impl Metadata<Lang> for Meta {
-    type Error = std::convert::Infallible;
-    fn merge(&self, other: &Self) -> Self {
-        Meta {
-            constant: self.constant.clone().or_else(|| other.constant.clone()),
-        }
-    }
-
-    fn make(egraph: &EGraph, enode: &ENode<Lang>) -> Self {
-        use Lang::*;
-        let get = |i: usize| -> Option<Lang> {
-            let eclass = &egraph[*enode.children.get(i)?];
-            eclass.metadata.constant.clone()
-        };
-        let constant = match (&enode.op, get(0), get(1)) {
-            (Num(i), _, _) => Some(Num(*i)),
-            (Bool(b), _, _) => Some(Bool(*b)),
-            (Add, Some(Num(i1)), Some(Num(i2))) => Some(Num(i1 + i2)),
-            (Eq, Some(Num(i1)), Some(Num(i2))) => Some(Bool(i1 == i2)),
-            _ => None,
-        };
-        Meta { constant }
-    }
-
-    fn modify(egraph: &mut EGraph, id: Id) {
-        if let Some(c) = egraph[id].metadata.constant.clone() {
-            let const_id = egraph.add(ENode::leaf(c));
-            egraph.union(id, const_id);
-        }
-    }
 }
 
 egg::test_fn! {

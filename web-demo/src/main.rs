@@ -1,4 +1,4 @@
-#![recursion_limit = "512"]
+#![recursion_limit = "1024"]
 
 use std::convert::TryInto;
 
@@ -13,6 +13,8 @@ use egg::{EClass, Id, Pattern, RecExpr, SearchMatches, Searcher};
 #[allow(dead_code)]
 mod math;
 use math::*;
+
+type Extractor<'a> = egg::Extractor<'a, MathCostFn, Math, ConstantFold>;
 
 struct Queried {
     pattern: Pattern<Math>,
@@ -126,8 +128,8 @@ impl Component for Model {
                             self.update(Msg::UpdateQuery(expr.pretty(100)));
                             self.added.push(Added { expr, id });
                         }
-                        Err(err) => {
-                            self.query = Err(err);
+                        Err(v) => {
+                            self.query = Err(format!("Found var {}", v));
                         }
                     }
                 }
@@ -166,6 +168,7 @@ impl Component for Model {
     }
 
     fn view(&self) -> Html<Self> {
+        let mut extract = Extractor::new(&self.egraph, MathCostFn);
         let query_message = match &self.query {
             Ok(q) => {
                 let found: Vec<Id> = q.matches.iter().map(|m| m.eclass).collect();
@@ -201,7 +204,7 @@ impl Component for Model {
             </section>
             <section id="eclasses",>
                 <h3> {"EClasses"} </h3>
-                <div> { for self.egraph.classes().map(render_eclass) } </div>
+                <div> { for self.egraph.classes().map(|c| render_eclass(&mut extract, c)) } </div>
             </section>
             <section id="rewrites",>
                 <h3> {"Rewrites"} </h3>
@@ -219,13 +222,17 @@ fn render_example(s: &'static str) -> Html<Model> {
     html! { <div onclick=|_| Msg::AddExpr(s.to_string()),> {s} </div> }
 }
 
-fn render_eclass(eclass: &EClass<Math, Meta>) -> Html<Model> {
+fn render_eclass(
+    extractor: &mut Extractor,
+    eclass: &EClass<Math, Option<Constant>>,
+) -> Html<Model> {
+    let (cost, best) = extractor.find_best(eclass.id);
     html! {
         <details class="eclass",>
             <summary> {eclass.id} </summary>
             <p>{format!("Size: {}", eclass.len())}</p>
-            <p>{format!("Best: {}", eclass.metadata.best.pretty(100))}</p>
-            <p>{format!("Cost: {}", eclass.metadata.cost)}</p>
+            <p>{format!("Best: {}", best.pretty(100))}</p>
+            <p>{format!("Cost: {}", cost)}</p>
         </details>
     }
 }

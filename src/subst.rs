@@ -16,7 +16,7 @@ static STRINGS: Lazy<Mutex<IndexSet<String>>> = Lazy::new(Default::default);
 /// [`Pattern`]: struct.Pattern.html
 /// [`Subst`]: struct.Subst.html
 /// [`FromStr`]: https://doc.rust-lang.org/std/str/trait.FromStr.html
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Var(u32);
 
 impl FromStr for Var {
@@ -42,11 +42,20 @@ impl fmt::Display for Var {
     }
 }
 
+impl fmt::Debug for Var {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let i = self.0 as usize;
+        let strings = STRINGS.lock().unwrap();
+        let s = strings.get_index(i).unwrap();
+        write!(f, "{}", s)
+    }
+}
+
 /// A substitition mapping [`Var`]s to eclass [`Id`]s.
 ///
 /// [`Var`]: struct.Var.html
 /// [`Id`]: type.Id.html
-#[derive(Debug, Default, Clone)]
+#[derive(Default, Clone)]
 pub struct Subst {
     vec: smallvec::SmallVec<[(Var, Id); 3]>,
 }
@@ -79,5 +88,20 @@ impl std::ops::Index<&Var> for Subst {
             Some(id) => id,
             None => panic!("Var '{}={}' not found in {:?}", var.0, var, self),
         }
+    }
+}
+
+impl fmt::Debug for Subst {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let len = self.vec.len();
+        write!(f, "{{")?;
+        for i in 0..len {
+            let (var, id) = &self.vec[i];
+            write!(f, "{}: {}", var, id)?;
+            if i < len - 1 {
+                write!(f, ", ")?;
+            }
+        }
+        write!(f, "}}")
     }
 }

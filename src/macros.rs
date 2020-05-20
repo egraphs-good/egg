@@ -6,8 +6,8 @@ Example use:
 define_language! {
     enum SimpleLanguage {
         Num(i32),
-        Add = "+",
-        Mul = "*",
+        "+" = Add(Id, Id),
+        "*" = Mul(Id, Id),
         // language items are parsed in order, and we want symbol to
         // be a fallback, so we put it last
         Symbol(String),
@@ -19,6 +19,9 @@ define_language! {
 `Hash`, and `Clone` on the given `enum` so it can implement [`Language`].
 The macro also implements [`FromStr`] and [`Display`] for the `enum`
 based on either the data of variants or the provided strings.
+
+The final variant **must have a trailing comma**; this is due to limitations in
+macro parsing.
 
 Enum variants must be of one of two forms:
 - `Variant = "name"`
@@ -61,159 +64,173 @@ But they are pretty handy.
 **/
 #[macro_export]
 macro_rules! define_language {
-    (
-        $(#[$meta:meta])*
-        $vis:vis enum $name:ident {
-            $($variant:ident $(( $($t:ty),* ))? $(= $str:literal)? ),*
-                $(,)?
-        }
+    ($(#[$meta:meta])* $vis:vis enum $name:ident $variants:tt) => {
+        define_language!($(#[$meta])* $vis enum $name $variants -> {} {} {} {} {} {});
+    };
+
+    ($(#[$meta:meta])* $vis:vis enum $name:ident {} ->
+     $decl:tt {$($matches:tt)*} $for_each:tt $for_each_mut:tt
+     $display_op:tt {$($from_op_str:tt)*}
     ) => {
         $(#[$meta])*
         #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
-        $vis enum $name {
-            $( $variant $(( $($t),* ))? ),*
-        }
+        $vis enum $name $decl
 
-        impl std::str::FromStr for $name {
-            type Err = ();
-            fn from_str(s: &str) -> Result<Self, Self::Err> {
-                $( define_language!(
-                    @parse_arm s,
-                    $name $variant
-                    $(( $($t),* ))?
-                        $(= $str)?
-                ); )*
-                Err(())
+        impl $crate::Language for $name {
+            #[inline(always)]
+            fn matches(&self, other: &Self) -> bool {
+                ::std::mem::discriminant(self) == ::std::mem::discriminant(other) &&
+                match (self, other) { $($matches)* _ => false }
+            }
+            #[allow(unused_mut)]
+            #[inline]
+            fn for_each<F: FnMut(Id)>(&self, mut f: F)  {
+                match (f, self) $for_each
+            }
+            #[allow(unused_mut)]
+            #[inline]
+            fn for_each_mut<F: FnMut(&mut Id)>(&mut self, mut f: F)  {
+                match (f, self) $for_each_mut
+            }
+
+            fn display_op(&self) -> &dyn ::std::fmt::Display {
+                match self $display_op
+            }
+
+            fn from_op_str(op_str: &str, children: Vec<$crate::Id>) -> ::std::result::Result<Self, String> {
+                match (op_str, children) {
+                    $($from_op_str)*
+                    (s, c) => Err(::std::format!("Failed to parse '{}' with children {:?}", s, c)),
+                }
             }
         }
-
-        impl std::fmt::Display for $name {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                $( define_language!(
-                    @print_arm self, f,
-                    $name $variant
-                        $(( $($t),* ))?
-                        $(= $str)?
-                ); )*
-                unreachable!()
-            }
-        }
-
-        impl $crate::Language for $name {}
-
     };
-    (@parse_arm $e:expr, $name:ident $variant:ident = $str:literal) => {
-        if $e == $str {
-            return Ok($name :: $variant);
-        }
+
+    ($(#[$meta:meta])* $vis:vis enum $name:ident
+     {
+         $string:literal = $variant:ident,
+         $($variants:tt)*
+     } ->
+     { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
+     { $($display_op:tt)* } { $($from_op_str:tt)* }
+    ) => {
+        define_language!(
+            $(#[$meta])* $vis enum $name
+            { $($variants)* } ->
+            { $($decl)*          $variant, }
+            { $($matches)*       ($name::$variant, $name::$variant) => true, }
+            { $($for_each)*      (_, $name::$variant) => (), }
+            { $($for_each_mut)*  (_, $name::$variant) => (), }
+            { $($display_op)*    $name::$variant => &$string, }
+            { $($from_op_str)*   ($string, v) if v.is_empty() => Ok($name::$variant), }
+        );
     };
-    (@parse_arm $e:expr, $name:ident $variant:ident) => {
-        compile_error!(r#"Variants without data must have a name specified: `Variant = "vrnt"`"#);
+
+
+    ($(#[$meta:meta])* $vis:vis enum $name:ident
+     {
+         $string:literal = $variant:ident ([Id; $n:expr]),
+         $($variants:tt)*
+     } ->
+     { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
+     { $($display_op:tt)* } { $($from_op_str:tt)* }
+    ) => {
+        define_language!(
+            $(#[$meta])* $vis enum $name
+            { $($variants)* } ->
+            { $($decl)*          $variant( [Id; $n] ), }
+            { $($matches)*       ($name::$variant(..), $name::$variant(..)) => true, }
+            { $($for_each)*      (ref mut f, $name::$variant(ids)) => ids.iter().copied().for_each(f), }
+            { $($for_each_mut)*  (ref mut f, $name::$variant(ids)) => ids.iter_mut().for_each(f), }
+            { $($display_op)*    $name::$variant(..) => &$string, }
+            { $($from_op_str)*   (_s, v) if v.len() == $n => {
+                let mut ids = <[Id; $n]>::default();
+                ids.copy_from_slice(&v);
+                Ok($name::$variant(ids))
+            }, }
+        );
     };
-    (@parse_arm $e:expr, $name:ident $variant:ident ( $t:ty ) ) => {
-        if let Ok(inner) = $e.parse::<$t>() {
-            return Ok($name :: $variant (inner));
-        }
+
+    ($(#[$meta:meta])* $vis:vis enum $name:ident
+     {
+         $string:literal = $variant:ident(Id),
+         $($variants:tt)*
+     } ->
+     { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
+     { $($display_op:tt)* } { $($from_op_str:tt)* }
+    ) => {
+        define_language!(
+            $(#[$meta])* $vis enum $name
+            { $($variants)* } ->
+            { $($decl)*          $variant(Id), }
+            { $($matches)*       ($name::$variant(..), $name::$variant(..)) => true, }
+            { $($for_each)*      (ref mut f, $name::$variant(id)) => { f(*id); }, }
+            { $($for_each_mut)*  (ref mut f, $name::$variant(id)) => { f(id); }, }
+            { $($display_op)*    $name::$variant(..) => &$string, }
+            { $($from_op_str)*   ($string, v) if v.len() == 1 => Ok($name::$variant(v[0])), }
+
+        );
     };
-    (@parse_arm $e:expr, $name:ident $variant:ident ( $($t:ty),* ) ) => {
-        compile_error!("We only support variants with a single field");
+
+    ($(#[$meta:meta])* $vis:vis enum $name:ident
+     {
+         $string:literal = $variant:ident(Id, Id),
+         $($variants:tt)*
+     } ->
+     { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
+     { $($display_op:tt)* } { $($from_op_str:tt)* }
+    ) => {
+        define_language!(
+            $(#[$meta])* $vis enum $name
+            { $($variants)* } ->
+            { $($decl)*          $variant(Id, Id), }
+            { $($matches)*       ($name::$variant(..), $name::$variant(..)) => true, }
+            { $($for_each)*      (ref mut f, $name::$variant(a, b)) => { f(*a); f(*b); }, }
+            { $($for_each_mut)*  (ref mut f, $name::$variant(a, b)) => { f(a); f(b); }, }
+            { $($display_op)*    $name::$variant(..) => &$string, }
+            { $($from_op_str)*   ($string, v) if v.len() == 2 => Ok($name::$variant(v[0], v[1])), }
+        );
     };
-    (@print_arm $e:expr, $f:expr, $name:ident $variant:ident = $str:literal) => {
-        if let $name::$variant = $e {
-            return write!($f, $str)
-        }
+
+    ($(#[$meta:meta])* $vis:vis enum $name:ident
+     {
+         $string:literal = $variant:ident(Id, Id, Id),
+         $($variants:tt)*
+     } ->
+     { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
+     { $($display_op:tt)* } { $($from_op_str:tt)* }
+    ) => {
+        define_language!(
+            $(#[$meta])* $vis enum $name
+            { $($variants)* } ->
+            { $($decl)*          $variant(Id, Id, Id), }
+            { $($matches)*       ($name::$variant(..), $name::$variant(..)) => true, }
+            { $($for_each)*      (ref mut f, $name::$variant(a, b, c)) => { f(*a); f(*b); f(*c); }, }
+            { $($for_each_mut)*  (ref mut f, $name::$variant(a, b, c)) => { f(a); f(b); f(c); }, }
+            { $($display_op)*    $name::$variant(..) => &$string, }
+            { $($from_op_str)*   ($string, v) if v.len() == 3 => Ok($name::$variant(v[0], v[1], v[2])), }
+
+        );
     };
-    (@print_arm $e:expr, $f:expr, $name:ident $variant:ident ( $t:ty ) ) => {
-        if let $name::$variant(inner) = $e {
-            return write!($f, "{}", inner)
-        }
-    };
-    (@print_arm $e:expr, $f:expr, $name:ident $variant:ident ( $($t:ty),* ) ) => {
-        compile_error!("We only support variants with a single field");
-    };
-}
 
-/** Utility macro to create an [`ENode`].
-
-Basically `enode!(op, arg1, arg2, ...)`
-desugars to
-`ENode::new(op.into(), vec![arg1, arg2, ...])`.
-Note the conversion on `op`.
-
-```
-# use egg::*;
-define_language! {
-    enum SimpleLanguage {
-        Num(i32),
-        Add = "+",
-        Mul = "*",
-    }
-}
-
-use SimpleLanguage::*;
-
-let mut egraph: EGraph<SimpleLanguage, ()> = Default::default();
-let one = egraph.add(enode!(Num(1)));
-let two = egraph.add(enode!(Num(2)));
-
-let three = egraph.add(enode!(Add, one, two));
-let three_manual = egraph.add(ENode::new(Add, vec![one, two]));
-assert_eq!(three, three_manual);
-```
-
-[`ENode`]: struct.ENode.html
-**/
-#[macro_export]
-macro_rules! enode {
-    ($e:expr) => {
-        $crate::ENode::leaf($e.into())
-    };
-    ($e:expr, $($child:expr),*$(,)?) => {
-        $crate::ENode::new($e.into(), vec![$($child),*])
-    };
-}
-
-/** Utility macro to create an [`RecExpr`].
-
-Just a wrapper around [`enode!`].
-
-`recexpr!(op, arg1, arg2, ...)`
-desugars to
-`RecExpr::from(enode!(op, arg1, arg2, ...))`.
-
-```
-use egg::{*, recexpr as r};
-
-define_language! {
-    enum SimpleLanguage {
-        Num(i32),
-        Add = "+",
-        Mul = "*",
-    }
-}
-
-use SimpleLanguage::*;
-
-let mut egraph: EGraph<SimpleLanguage, ()> = Default::default();
-
-let one = egraph.add(enode!(Num(1)));
-let two = egraph.add(enode!(Num(2)));
-let three = egraph.add(enode!(Add, one, two));
-
-let three_recexpr = r!(Add, r!(Num(1)), r!(Num(2)));
-assert_eq!(three, egraph.add_expr(&three_recexpr));
-```
-
-[`enode!`]: macro.enode.html
-[`RecExpr`]: struct.RecExpr.html
-**/
-#[macro_export]
-macro_rules! recexpr {
-    ($e:expr) => {
-        $crate::RecExpr::from($crate::enode!($e))
-    };
-    ($e:expr, $($child:expr),*$(,)?) => {
-        $crate::RecExpr::from($crate::enode!($e, $($child),*))
+    ($(#[$meta:meta])* $vis:vis enum $name:ident
+     {
+         $variant:ident ($data:ty),
+         $($variants:tt)*
+     } ->
+     { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
+     { $($display_op:tt)* } { $($from_op_str:tt)* }
+    ) => {
+        define_language!(
+            $(#[$meta])* $vis enum $name
+            { $($variants)* } ->
+            { $($decl)*          $variant($data), }
+            { $($matches)*       ($name::$variant(data1), $name::$variant(data2)) => data1 == data2, }
+            { $($for_each)*      (_, $name::$variant(_data)) => (), }
+            { $($for_each_mut)*  (_, $name::$variant(_data)) => (), }
+            { $($display_op)*    $name::$variant(data) => data, }
+            { $($from_op_str)*   (s, v) if s.parse::<$data>().is_ok() && v.is_empty() => Ok($name::$variant(s.parse().unwrap())), }
+        );
     };
 }
 
@@ -243,10 +260,10 @@ For each of these, the macro will wrap the given applier in a
 define_language! {
     enum SimpleLanguage {
         Num(i32),
-        Add = "+",
-        Sub = "-",
-        Mul = "*",
-        Div = "/",
+        "+" = Add(Id, Id),
+        "-" = Sub(Id, Id),
+        "*" = Mul(Id, Id),
+        "/" = Div(Id, Id),
     }
 }
 
@@ -278,7 +295,7 @@ impl Applier<SimpleLanguage, ()> for MySillyApplier {
 // This returns a function that implements Condition
 fn is_not_zero(var: &'static str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let var = var.parse().unwrap();
-    let zero = enode!(SimpleLanguage::Num(0));
+    let zero = SimpleLanguage::Num(0);
     move |egraph, _, subst| !egraph[subst[&var]].nodes.contains(&zero)
 }
 ```
@@ -312,23 +329,29 @@ macro_rules! rewrite {
 
 #[cfg(test)]
 mod tests {
-    define_language! { enum Term {
-        Nil = "nil",
-        Cons = "cons",
-        Foo = "f",
-        Num(i32),
-    }}
+
+    use crate::*;
+
+    define_language! {
+        enum Simple {
+            "++" = Add2(Id, Id),
+            "+" = Add([Id; 2]),
+            "-" = Sub([Id; 2]),
+            "*" = Mul([Id; 2]),
+            "-" = Neg(Id),
+            "pi" = Pi,
+            Int(i32),
+            Var(String),
+        }
+    }
 
     #[test]
     fn some_rewrites() {
-        use crate::{PatternAst, Rewrite};
-
-        let pat = PatternAst::ENode(Box::new(enode!(Term::Num(3)))).compile();
-        let _: Vec<Rewrite<Term, ()>> = vec![
+        let _: Vec<Rewrite<Simple, ()>> = vec![
             // here it should parse the rhs
             rewrite!("rule"; "cons" => "f"),
             // here it should just accept the rhs without trying to parse
-            rewrite!("rule"; "f" => { pat }),
+            rewrite!("rule"; "f" => { "pat".parse::<Pattern<_>>().unwrap() }),
         ];
     }
 }

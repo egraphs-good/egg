@@ -13,11 +13,13 @@ use std::fmt::{self, Debug, Display, Formatter};
 use std::io::{Error, ErrorKind, Result, Write};
 use std::path::Path;
 
-use crate::{egraph::EGraph, expr::Language};
+use crate::{egraph::EGraph, Analysis, Language};
 
 /**
 A wrapper for an [`EGraph`] that can output [GraphViz] for
 visualization.
+
+The [`EGraph::dot`](struct.EGraph.html#method.dot) method creates `Dot`s.
 
 # Example
 
@@ -29,9 +31,9 @@ let rules = &[
     rw!("mul-two";      "(* ?x 2)" => "(<< ?x 1)"),
 ];
 
-let mut egraph = EGraph::<String, ()>::default();
+let mut egraph: EGraph<StringLang, ()> = Default::default();
 egraph.add_expr(&"(/ (* 2 a) 2)".parse().unwrap());
-let egraph = Runner::new().with_egraph(egraph).run(rules).egraph;
+let egraph = Runner::default().with_egraph(egraph).run(rules).egraph;
 
 // Dot implements std::fmt::Display
 println!("My egraph dot file: {}", egraph.dot());
@@ -51,20 +53,15 @@ instead of to its own eclass.
 [`EGraph`]: struct.EGraph.html
 [GraphViz]: https://graphviz.gitlab.io/
 **/
-pub struct Dot<'a, L, M> {
-    egraph: &'a EGraph<L, M>,
+pub struct Dot<'a, L: Language, N: Analysis<L>> {
+    pub(crate) egraph: &'a EGraph<L, N>,
 }
 
-impl<'a, L, M> Dot<'a, L, M> {
-    /// Given a reference to an `EGraph`, makes a `Dot`.
-    /// See also the more convenient
-    /// [`EGraph::dot`](struct.EGraph.html#method.dot).
-    pub fn new(egraph: &EGraph<L, M>) -> Dot<L, M> {
-        Dot { egraph }
-    }
-}
-
-impl<'a, L: Language + Display, M> Dot<'a, L, M> {
+impl<'a, L, N> Dot<'a, L, N>
+where
+    L: Language,
+    N: Analysis<L>,
+{
     /// Writes the `Dot` to a .dot file with the given filename.
     /// Does _not_ require a `dot` binary.
     pub fn to_dot(&self, filename: impl AsRef<Path>) -> Result<()> {
@@ -107,7 +104,7 @@ impl<'a, L: Language + Display, M> Dot<'a, L, M> {
     /// Can be used to run a different binary than `dot`:
     /// ```no_run
     /// # use egg::*;
-    /// # let egraph = EGraph::<String, ()>::default();
+    /// # let mut egraph: EGraph<StringLang, ()> = Default::default();
     /// egraph.dot().run(
     ///     "/path/to/my/dot",
     ///     &["arg1", "-o", "outfile"]
@@ -141,7 +138,7 @@ impl<'a, L: Language + Display, M> Dot<'a, L, M> {
     }
 }
 
-impl<'a, L: Language, M: Debug> Debug for Dot<'a, L, M> {
+impl<'a, L: Language, N: Analysis<L>> Debug for Dot<'a, L, N> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "Dot({:?})", self.egraph)
     }
@@ -162,7 +159,11 @@ fn edge(i: usize, len: usize) -> (String, String) {
     }
 }
 
-impl<'a, L: Language + Display, M> Display for Dot<'a, L, M> {
+impl<'a, L, N> Display for Dot<'a, L, N>
+where
+    L: Language,
+    N: Analysis<L>,
+{
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         writeln!(f, "digraph egraph {{")?;
 
@@ -175,33 +176,46 @@ impl<'a, L: Language + Display, M> Display for Dot<'a, L, M> {
             writeln!(f, "  subgraph cluster_{} {{", class.id)?;
             writeln!(f, "    style=dotted")?;
             for (i, node) in class.iter().enumerate() {
-                writeln!(f, "    {}.{}[label = \"{}\"]", class.id, i, node.op)?;
+                writeln!(
+                    f,
+                    "    {}.{}[label = \"{}\"]",
+                    class.id,
+                    i,
+                    node.display_op()
+                )?;
             }
             writeln!(f, "  }}")?;
         }
 
         for class in self.egraph.classes() {
             for (i_in_class, node) in class.iter().enumerate() {
-                for (arg_i, child) in node.children.iter().enumerate() {
+                let mut err = None;
+                node.for_each_i(|arg_i, child| {
                     // write the edge to the child, but clip it to the eclass with lhead
-                    let (anchor, label) = edge(arg_i, node.children.len());
-                    let child_leader = self.egraph.find(*child);
+                    let (anchor, label) = edge(arg_i, node.len());
+                    let child_leader = self.egraph.find(child);
 
-                    if child_leader == class.id {
+                    let result = if child_leader == class.id {
                         writeln!(
                             f,
                             // {}.0 to pick an arbitrary node in the cluster
                             "  {}.{}{} -> {}.{}:n [lhead = cluster_{}, {}]",
                             class.id, i_in_class, anchor, class.id, i_in_class, class.id, label
-                        )?;
+                        )
                     } else {
                         writeln!(
                             f,
                             // {}.0 to pick an arbitrary node in the cluster
                             "  {}.{}{} -> {}.0 [lhead = cluster_{}, {}]",
                             class.id, i_in_class, anchor, child, child_leader, label
-                        )?;
-                    }
+                        )
+                    };
+
+                    err = err.or_else(|| result.err());
+                });
+
+                if let Some(err) = err {
+                    return Err(err);
                 }
             }
         }

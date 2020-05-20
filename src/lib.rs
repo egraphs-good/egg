@@ -28,8 +28,8 @@ use egg::{*, rewrite as rw};
 define_language! {
     enum SimpleLanguage {
         Num(i32),
-        Add = "+",
-        Mul = "*",
+        "+" = Add(Id, Id),
+        "*" = Mul(Id, Id),
         // language items are parsed in order, and we want symbol to
         // be a fallback, so we put it last
         Symbol(String),
@@ -46,7 +46,7 @@ let rules: &[Rewrite<SimpleLanguage, ()>] = &[
 ];
 
 let start = "(+ 0 (* 1 foo))".parse().unwrap();
-let runner = Runner::new().with_expr(&start).run(&rules);
+let runner = Runner::default().with_expr(&start).run(&rules);
 println!(
     "Stopped after {} iterations, reason: {:?}",
     runner.iterations.len(),
@@ -57,32 +57,38 @@ println!(
 
 mod macros;
 
-pub(crate) mod machine;
-pub(crate) mod unionfind;
-
-pub(crate) use pattern::PatternAst;
-
 mod dot;
 mod eclass;
 mod egraph;
-mod expr;
 mod extract;
-mod parse;
+mod language;
+mod machine;
 mod pattern;
 mod rewrite;
 mod run;
 mod subst;
+mod unionfind;
 
-pub use dot::Dot;
-pub use eclass::{EClass, Metadata};
-pub use egraph::EGraph;
-pub use expr::{ENode, Id, Language, RecExpr};
-pub use extract::*;
-pub use parse::ParseError;
-pub use pattern::{Pattern, SearchMatches};
-pub use rewrite::{Applier, Condition, ConditionEqual, ConditionalApplier, Rewrite, Searcher};
-pub use run::*;
-pub use subst::{Subst, Var};
+/// A key to identify [`EClass`](struct.EClass.html)es within an
+/// [`EGraph`](struct.EGraph.html).
+pub type Id = u32;
+
+pub(crate) use {
+    pattern::{ENodeOrVar, PatternAst},
+    unionfind::UnionFind,
+};
+
+pub use {
+    dot::Dot,
+    eclass::EClass,
+    egraph::EGraph,
+    extract::*,
+    language::*,
+    pattern::{Pattern, SearchMatches},
+    rewrite::{Applier, Condition, ConditionEqual, ConditionalApplier, Rewrite, Searcher},
+    run::*,
+    subst::{Subst, Var},
+};
 
 #[cfg(test)]
 fn init_logger() {
