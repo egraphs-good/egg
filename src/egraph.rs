@@ -128,10 +128,12 @@ pub struct EGraph<L: Language, N: Analysis<L>> {
     pub analysis: N,
     memo: IndexMap<L, Id>,
     unionfind: UnionFind,
-    classes: IndexMap<Id, EClass<L, N::Data>>,
+    classes: SparseVec<EClass<L, N::Data>>,
     dirty_unions: Vec<Id>,
     pub(crate) classes_by_op: IndexMap<std::mem::Discriminant<L>, indexmap::IndexSet<Id>>,
 }
+
+type SparseVec<T> = Vec<Option<Box<T>>>;
 
 impl<L: Language, N: Analysis<L> + Default> Default for EGraph<L, N> {
     fn default() -> Self {
@@ -155,7 +157,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         Self {
             analysis,
             memo: IndexMap::default(),
-            classes: IndexMap::default(),
+            classes: Default::default(),
             unionfind: Default::default(),
             dirty_unions: Default::default(),
             classes_by_op: IndexMap::default(),
@@ -164,12 +166,18 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
     /// Returns an iterator over the eclasses in the egraph.
     pub fn classes(&self) -> impl Iterator<Item = &EClass<L, N::Data>> {
-        self.classes.values()
+        self.classes
+            .iter()
+            .filter_map(Option::as_ref)
+            .map(AsRef::as_ref)
     }
 
     /// Returns an mutating iterator over the eclasses in the egraph.
     pub fn classes_mut(&mut self) -> impl Iterator<Item = &mut EClass<L, N::Data>> {
-        self.classes.values_mut()
+        self.classes
+            .iter_mut()
+            .filter_map(Option::as_mut)
+            .map(AsMut::as_mut)
     }
 
     /// Returns `true` if the egraph is empty
@@ -212,7 +220,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
     /// Returns the number of eclasses in the egraph.
     pub fn number_of_classes(&self) -> usize {
-        self.classes.len()
+        self.classes().count()
     }
 
     /// Canonicalizes an eclass id.
@@ -247,8 +255,8 @@ impl<L: Language, N: Analysis<L>> std::ops::Index<Id> for EGraph<L, N> {
     type Output = EClass<L, N::Data>;
     fn index(&self, id: Id) -> &Self::Output {
         let id = self.find(id);
-        self.classes
-            .get(&id)
+        self.classes[id as usize]
+            .as_ref()
             .unwrap_or_else(|| panic!("Invalid id {}", id))
     }
 }
@@ -256,8 +264,8 @@ impl<L: Language, N: Analysis<L>> std::ops::Index<Id> for EGraph<L, N> {
 impl<L: Language, N: Analysis<L>> std::ops::IndexMut<Id> for EGraph<L, N> {
     fn index_mut(&mut self, id: Id) -> &mut Self::Output {
         let id = self.find(id);
-        self.classes
-            .get_mut(&id)
+        self.classes[id as usize]
+            .as_mut()
             .unwrap_or_else(|| panic!("Invalid id {}", id))
     }
 }
@@ -317,12 +325,12 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             None => {
                 let id = self.unionfind.make_set();
                 log::trace!("  ...adding to {}", id);
-                let class = EClass {
+                let class = Box::new(EClass {
                     id,
                     nodes: vec![enode.clone()],
                     data: N::make(self, &enode),
                     parents: Default::default(),
-                };
+                });
 
                 // add this enode to the parent lists of its children
                 enode.for_each(|child| {
@@ -330,7 +338,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                     self[child].parents.push(tup);
                 });
 
-                assert!(self.classes.insert(id, class).is_none());
+                assert_eq!(self.classes.len(), id as usize);
+                self.classes.push(Some(class));
                 assert!(self.memo.insert(enode, id).is_none());
 
                 N::modify(self, id);
@@ -381,8 +390,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             self.dirty_unions.push(to);
 
             // update the classes data structure
-            let from_class = self.classes.remove(&from).unwrap();
-            let to_class = self.classes.get_mut(&to).unwrap();
+            let from_class = self.classes[from as usize].take().unwrap();
+            let to_class = self.classes[to as usize].as_mut().unwrap();
 
             self.analysis.merge(&mut to_class.data, from_class.data);
             concat(&mut to_class.nodes, from_class.nodes);
@@ -431,7 +440,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         let mut trimmed = 0;
 
         let uf = &self.unionfind;
-        for class in self.classes.values_mut() {
+        for class in self.classes.iter_mut().filter_map(Option::as_mut) {
             let old_len = class.len();
             class
                 .nodes
@@ -480,8 +489,13 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     fn check_memo(&self) -> bool {
         let mut test_memo = IndexMap::new();
 
-        for (&id, class) in self.classes.iter() {
-            assert_eq!(id, class.id);
+        for (id, class) in self.classes.iter().enumerate() {
+            let id = id as Id;
+            let class = match class.as_ref() {
+                Some(class) => class,
+                None => continue,
+            };
+            assert_eq!(class.id, id);
             for node in &class.nodes {
                 if let Some(old) = test_memo.insert(node, id) {
                     assert_eq!(
@@ -637,7 +651,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         for (n, e) in parents {
             let e = self.find(*e);
             let node_data = N::make(self, n);
-            let class = &mut self.classes[&e];
+            let class = self.classes[e as usize].as_mut().unwrap();
             if self.analysis.merge(&mut class.data, node_data) {
                 // self.dirty_unions.push(e); // NOTE: i dont think this is necessary
                 let e_parents = std::mem::take(&mut class.parents);
@@ -653,7 +667,7 @@ struct EGraphDump<'a, L: Language, N: Analysis<L>>(&'a EGraph<L, N>);
 
 impl<'a, L: Language, N: Analysis<L>> Debug for EGraphDump<'a, L, N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut ids: Vec<Id> = self.0.classes.keys().copied().collect();
+        let mut ids: Vec<Id> = self.0.classes().map(|c| c.id).collect();
         ids.sort();
         for id in ids {
             let mut nodes = self.0[id].nodes.clone();
