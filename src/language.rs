@@ -362,6 +362,9 @@ pub trait Analysis<L: Language>: Sized {
 /// Replace the first with second value if they are different returning whether
 /// or not something was done.
 ///
+/// Useful for implementing
+/// [`Analysis::merge`](trait.Analysis.html#tymethod.merge).
+///
 /// ```
 /// # use egg::*;
 /// let mut x = 6;

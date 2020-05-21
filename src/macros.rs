@@ -214,6 +214,7 @@ where the given expression should implement [`Condition`].
 For each of these, the macro will wrap the given applier in a
 [`ConditionalApplier`] with the given condition.
 
+# Example
 ```
 # use egg::*;
 define_language! {
