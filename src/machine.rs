@@ -272,7 +272,7 @@ impl<L: Language> Program<L> {
 
         let mut substs = Vec::new();
         machine.run(egraph, &self.instrs, |machine, regs| {
-            let mut s = Subst::default();
+            let mut s = Subst::with_capacity(self.v2r.len());
             let ids = regs.iter().map(|r| machine.reg[*r]);
             for (i, id) in ids.enumerate() {
                 let var = self.v2r.get_index(i).unwrap().0;

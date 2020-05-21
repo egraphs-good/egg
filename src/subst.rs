@@ -61,6 +61,13 @@ pub struct Subst {
 }
 
 impl Subst {
+    /// Create a `Subst` with the given initial capacity
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self {
+            vec: smallvec::SmallVec::with_capacity(capacity),
+        }
+    }
+
     /// Insert something, returning the old `Id` if present.
     pub fn insert(&mut self, var: Var, id: Id) -> Option<Id> {
         for pair in &mut self.vec {
