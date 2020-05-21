@@ -8,14 +8,14 @@ pub type Constant = NotNan<f64>;
 
 define_language! {
     pub enum Math {
-        "d" = Diff(Id, Id),
-        "i" = Integral(Id, Id),
+        "d" = Diff([Id; 2]),
+        "i" = Integral([Id; 2]),
 
-        "+" = Add(Id, Id),
-        "-" = Sub(Id, Id),
-        "*" = Mul(Id, Id),
-        "/" = Div(Id, Id),
-        "pow" = Pow(Id, Id),
+        "+" = Add([Id; 2]),
+        "-" = Sub([Id; 2]),
+        "*" = Mul([Id; 2]),
+        "/" = Div([Id; 2]),
+        "pow" = Pow([Id; 2]),
         "ln" = Ln(Id),
         "sqrt" = Sqrt(Id),
 
@@ -61,10 +61,10 @@ impl Analysis<Math> for ConstantFold {
         let x = |i: &Id| egraph[*i].data;
         Some(match enode {
             Math::Constant(c) => *c,
-            Math::Add(a, b) => x(a)? + x(b)?,
-            Math::Sub(a, b) => x(a)? - x(b)?,
-            Math::Mul(a, b) => x(a)? * x(b)?,
-            Math::Div(a, b) if x(b) != Some(0.0.into()) => x(a)? / x(b)?,
+            Math::Add([a, b]) => x(a)? + x(b)?,
+            Math::Sub([a, b]) => x(a)? - x(b)?,
+            Math::Mul([a, b]) => x(a)? * x(b)?,
+            Math::Div([a, b]) if x(b) != Some(0.0.into()) => x(a)? / x(b)?,
             _ => return None,
         })
     }

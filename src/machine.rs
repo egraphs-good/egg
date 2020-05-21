@@ -83,26 +83,18 @@ impl<'a, L: Language> Machine<'a, L> {
     #[must_use]
     fn backtrack(&mut self) -> Option<()> {
         log::trace!("Backtracking, stack size: {}", self.stack.len());
-        loop {
-            let binder = self.stack.last_mut()?;
-            let next = binder.next;
-
+        while let Some(binder) = self.stack.last_mut() {
             if let Some(matched) = binder.next() {
                 log::trace!("Binding: {:?}", matched);
-                let new_len = binder.out + matched.len();
-                self.reg.resize(new_len, 0);
-                let mut i = binder.out;
-                matched.for_each(|id| {
-                    self.reg[i] = id;
-                    i += 1;
-                });
-                debug_assert_eq!(i, new_len);
-                self.pc = next;
+                self.reg.truncate(binder.out);
+                self.reg.extend_from_slice(matched.children());
+                self.pc = binder.next;
                 return Some(());
             } else {
                 self.stack.pop().expect("we know the stack isn't empty");
             }
         }
+        None
     }
 
     fn run<N>(
@@ -219,9 +211,9 @@ fn compile<L: Language>(
                 assert!(!e.is_leaf());
                 buf.push(Bind(reg, e.clone(), next_reg));
 
-                e.for_each_i(|i, child| {
+                for (i, &child) in e.children().iter().enumerate() {
                     r2p.insert(next_reg + i, pattern[child as usize].clone());
-                });
+                }
 
                 // sort in reverse order so we pop the cheapest
                 // NOTE, this doesn't seem to have a very large effect right now

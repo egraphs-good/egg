@@ -26,11 +26,21 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
     /// This should only consider the operator, not the children `Id`s.
     fn matches(&self, other: &Self) -> bool;
 
+    /// Return a slice of the children `Id`s.
+    fn children(&self) -> &[Id];
+
+    /// Return a mutable slice of the children `Id`s.
+    fn children_mut(&mut self) -> &mut [Id];
+
     /// Runs a given function on each child `Id`.
-    fn for_each<F: FnMut(Id)>(&self, f: F);
+    fn for_each<F: FnMut(Id)>(&self, f: F) {
+        self.children().iter().copied().for_each(f)
+    }
 
     /// Runs a given function on each child `Id`, allowing mutation of that `Id`.
-    fn for_each_mut<F: FnMut(&mut Id)>(&mut self, f: F);
+    fn for_each_mut<F: FnMut(&mut Id)>(&mut self, f: F) {
+        self.children_mut().iter_mut().for_each(f)
+    }
 
     /// Returns something that will print the operator.
     ///
@@ -54,13 +64,17 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
         unimplemented!("from_op_str not implemented")
     }
 
-    /// Runs a given function on each child `Id` and its index.
-    fn for_each_i<F: FnMut(usize, Id)>(&self, mut f: F) {
-        let mut i = 0;
-        self.for_each(|id| {
-            f(i, id);
-            i += 1;
-        });
+    /// Returns the number of the children this enode has.
+    ///
+    /// The default implementation uses `fold` to accumulate the number of
+    /// children.
+    fn len(&self) -> usize {
+        self.children().len()
+    }
+
+    /// Returns true if this enode has no children.
+    fn is_leaf(&self) -> bool {
+        self.children().is_empty()
     }
 
     /// Runs a given function to replace the children.
@@ -83,25 +97,6 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
         let mut acc = init;
         self.for_each(|id| acc = f(acc.clone(), id));
         acc
-    }
-
-    /// Checked whether all children satisfy some predicate.
-    /// This does *not* short circuit.
-    fn all<F: FnMut(Id) -> bool>(&self, mut f: F) -> bool {
-        self.fold(true, |b, id| b & f(id))
-    }
-
-    /// Returns true if this enode has no children.
-    fn is_leaf(&self) -> bool {
-        self.len() == 0
-    }
-
-    /// Returns the number of the children this enode has.
-    ///
-    /// The default implementation uses `fold` to accumulate the number of
-    /// children.
-    fn len(&self) -> usize {
-        self.fold(0, |sum, _| sum + 1)
     }
 }
 
@@ -143,7 +138,9 @@ impl<L: Language> RecExpr<L> {
     /// The enode's children `Id`s must refer to elements already in this list.
     pub fn add(&mut self, node: L) -> Id {
         debug_assert!(
-            node.all(|id| (id as usize) < self.nodes.len()),
+            node.children()
+                .iter()
+                .all(|&id| (id as usize) < self.nodes.len()),
             "node {:?} has children not in this expr: {:?}",
             node,
             self
@@ -282,8 +279,8 @@ use egg::{*, rewrite as rw};
 
 define_language! {
     enum SimpleMath {
-        "+" = Add(Id, Id),
-        "*" = Mul(Id, Id),
+        "+" = Add([Id; 2]),
+        "*" = Mul([Id; 2]),
         Num(i32),
         Variable(String),
     }
@@ -302,8 +299,8 @@ impl Analysis<SimpleMath> for ConstantFolding {
         let x = |i: &Id| egraph[*i].data;
         match enode {
             SimpleMath::Num(n) => Some(*n),
-            SimpleMath::Add(a, b) => Some(x(a)? + x(b)?),
-            SimpleMath::Mul(a, b) => Some(x(a)? * x(b)?),
+            SimpleMath::Add([a, b]) => Some(x(a)? + x(b)?),
+            SimpleMath::Mul([a, b]) => Some(x(a)? * x(b)?),
             _ => None,
         }
     }
@@ -415,11 +412,13 @@ impl Language for StringLang {
     fn matches(&self, other: &Self) -> bool {
         self.op == other.op && self.len() == other.len()
     }
-    fn for_each<F: FnMut(Id)>(&self, f: F) {
-        self.children.iter().copied().for_each(f)
+
+    fn children(&self) -> &[Id] {
+        &self.children
     }
-    fn for_each_mut<F: FnMut(&mut Id)>(&mut self, f: F) {
-        self.children.iter_mut().for_each(f)
+
+    fn children_mut(&mut self) -> &mut [Id] {
+        &mut self.children
     }
 
     fn display_op(&self) -> &dyn Display {

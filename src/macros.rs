@@ -6,8 +6,8 @@ Example use:
 define_language! {
     enum SimpleLanguage {
         Num(i32),
-        "+" = Add(Id, Id),
-        "*" = Mul(Id, Id),
+        "+" = Add([Id; 2]),
+        "*" = Mul([Id; 2]),
         // language items are parsed in order, and we want symbol to
         // be a fallback, so we put it last
         Symbol(String),
@@ -69,7 +69,7 @@ macro_rules! define_language {
     };
 
     ($(#[$meta:meta])* $vis:vis enum $name:ident {} ->
-     $decl:tt {$($matches:tt)*} $for_each:tt $for_each_mut:tt
+     $decl:tt {$($matches:tt)*} $children:tt $children_mut:tt
      $display_op:tt {$($from_op_str:tt)*}
     ) => {
         $(#[$meta])*
@@ -82,15 +82,15 @@ macro_rules! define_language {
                 ::std::mem::discriminant(self) == ::std::mem::discriminant(other) &&
                 match (self, other) { $($matches)* _ => false }
             }
-            #[allow(unused_mut)]
+
             #[inline]
-            fn for_each<F: FnMut(Id)>(&self, mut f: F)  {
-                match (f, self) $for_each
+            fn children(&self) -> &[Id] {
+                match self $children
             }
-            #[allow(unused_mut)]
+
             #[inline]
-            fn for_each_mut<F: FnMut(&mut Id)>(&mut self, mut f: F)  {
-                match (f, self) $for_each_mut
+            fn children_mut(&mut self) -> &mut [Id] {
+                match self $children_mut
             }
 
             fn display_op(&self) -> &dyn ::std::fmt::Display {
@@ -111,7 +111,7 @@ macro_rules! define_language {
          $string:literal = $variant:ident,
          $($variants:tt)*
      } ->
-     { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
+     { $($decl:tt)* } { $($matches:tt)* } { $($children:tt)* } { $($children_mut:tt)* }
      { $($display_op:tt)* } { $($from_op_str:tt)* }
     ) => {
         define_language!(
@@ -119,8 +119,8 @@ macro_rules! define_language {
             { $($variants)* } ->
             { $($decl)*          $variant, }
             { $($matches)*       ($name::$variant, $name::$variant) => true, }
-            { $($for_each)*      (_, $name::$variant) => (), }
-            { $($for_each_mut)*  (_, $name::$variant) => (), }
+            { $($children)*      $name::$variant => &[], }
+            { $($children_mut)*  $name::$variant => &mut [], }
             { $($display_op)*    $name::$variant => &$string, }
             { $($from_op_str)*   ($string, v) if v.is_empty() => Ok($name::$variant), }
         );
@@ -132,7 +132,7 @@ macro_rules! define_language {
          $string:literal = $variant:ident ([Id; $n:expr]),
          $($variants:tt)*
      } ->
-     { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
+     { $($decl:tt)* } { $($matches:tt)* } { $($children:tt)* } { $($children_mut:tt)* }
      { $($display_op:tt)* } { $($from_op_str:tt)* }
     ) => {
         define_language!(
@@ -140,10 +140,10 @@ macro_rules! define_language {
             { $($variants)* } ->
             { $($decl)*          $variant( [Id; $n] ), }
             { $($matches)*       ($name::$variant(..), $name::$variant(..)) => true, }
-            { $($for_each)*      (ref mut f, $name::$variant(ids)) => ids.iter().copied().for_each(f), }
-            { $($for_each_mut)*  (ref mut f, $name::$variant(ids)) => ids.iter_mut().for_each(f), }
+            { $($children)*      $name::$variant(ids) => ids.as_ref(), }
+            { $($children_mut)*  $name::$variant(ids) => ids.as_mut(), }
             { $($display_op)*    $name::$variant(..) => &$string, }
-            { $($from_op_str)*   (_s, v) if v.len() == $n => {
+            { $($from_op_str)*   (s, v) if s == $string && v.len() == $n => {
                 let mut ids = <[Id; $n]>::default();
                 ids.copy_from_slice(&v);
                 Ok($name::$variant(ids))
@@ -156,7 +156,7 @@ macro_rules! define_language {
          $string:literal = $variant:ident(Id),
          $($variants:tt)*
      } ->
-     { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
+     { $($decl:tt)* } { $($matches:tt)* } { $($children:tt)* } { $($children_mut:tt)* }
      { $($display_op:tt)* } { $($from_op_str:tt)* }
     ) => {
         define_language!(
@@ -164,51 +164,10 @@ macro_rules! define_language {
             { $($variants)* } ->
             { $($decl)*          $variant(Id), }
             { $($matches)*       ($name::$variant(..), $name::$variant(..)) => true, }
-            { $($for_each)*      (ref mut f, $name::$variant(id)) => { f(*id); }, }
-            { $($for_each_mut)*  (ref mut f, $name::$variant(id)) => { f(id); }, }
+            { $($children)*      $name::$variant(ref id) => ::std::slice::from_ref(id), }
+            { $($children_mut)*  $name::$variant(ref mut id) => ::std::slice::from_mut(id), }
             { $($display_op)*    $name::$variant(..) => &$string, }
             { $($from_op_str)*   ($string, v) if v.len() == 1 => Ok($name::$variant(v[0])), }
-
-        );
-    };
-
-    ($(#[$meta:meta])* $vis:vis enum $name:ident
-     {
-         $string:literal = $variant:ident(Id, Id),
-         $($variants:tt)*
-     } ->
-     { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
-     { $($display_op:tt)* } { $($from_op_str:tt)* }
-    ) => {
-        define_language!(
-            $(#[$meta])* $vis enum $name
-            { $($variants)* } ->
-            { $($decl)*          $variant(Id, Id), }
-            { $($matches)*       ($name::$variant(..), $name::$variant(..)) => true, }
-            { $($for_each)*      (ref mut f, $name::$variant(a, b)) => { f(*a); f(*b); }, }
-            { $($for_each_mut)*  (ref mut f, $name::$variant(a, b)) => { f(a); f(b); }, }
-            { $($display_op)*    $name::$variant(..) => &$string, }
-            { $($from_op_str)*   ($string, v) if v.len() == 2 => Ok($name::$variant(v[0], v[1])), }
-        );
-    };
-
-    ($(#[$meta:meta])* $vis:vis enum $name:ident
-     {
-         $string:literal = $variant:ident(Id, Id, Id),
-         $($variants:tt)*
-     } ->
-     { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
-     { $($display_op:tt)* } { $($from_op_str:tt)* }
-    ) => {
-        define_language!(
-            $(#[$meta])* $vis enum $name
-            { $($variants)* } ->
-            { $($decl)*          $variant(Id, Id, Id), }
-            { $($matches)*       ($name::$variant(..), $name::$variant(..)) => true, }
-            { $($for_each)*      (ref mut f, $name::$variant(a, b, c)) => { f(*a); f(*b); f(*c); }, }
-            { $($for_each_mut)*  (ref mut f, $name::$variant(a, b, c)) => { f(a); f(b); f(c); }, }
-            { $($display_op)*    $name::$variant(..) => &$string, }
-            { $($from_op_str)*   ($string, v) if v.len() == 3 => Ok($name::$variant(v[0], v[1], v[2])), }
 
         );
     };
@@ -218,7 +177,7 @@ macro_rules! define_language {
          $variant:ident ($data:ty),
          $($variants:tt)*
      } ->
-     { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
+     { $($decl:tt)* } { $($matches:tt)* } { $($children:tt)* } { $($children_mut:tt)* }
      { $($display_op:tt)* } { $($from_op_str:tt)* }
     ) => {
         define_language!(
@@ -226,8 +185,8 @@ macro_rules! define_language {
             { $($variants)* } ->
             { $($decl)*          $variant($data), }
             { $($matches)*       ($name::$variant(data1), $name::$variant(data2)) => data1 == data2, }
-            { $($for_each)*      (_, $name::$variant(_data)) => (), }
-            { $($for_each_mut)*  (_, $name::$variant(_data)) => (), }
+            { $($children)*      $name::$variant(_data) => &[], }
+            { $($children_mut)*  $name::$variant(_data) => &mut [], }
             { $($display_op)*    $name::$variant(data) => data, }
             { $($from_op_str)*   (s, v) if s.parse::<$data>().is_ok() && v.is_empty() => Ok($name::$variant(s.parse().unwrap())), }
         );
@@ -260,10 +219,10 @@ For each of these, the macro will wrap the given applier in a
 define_language! {
     enum SimpleLanguage {
         Num(i32),
-        "+" = Add(Id, Id),
-        "-" = Sub(Id, Id),
-        "*" = Mul(Id, Id),
-        "/" = Div(Id, Id),
+        "+" = Add([Id; 2]),
+        "-" = Sub([Id; 2]),
+        "*" = Mul([Id; 2]),
+        "/" = Div([Id; 2]),
     }
 }
 
@@ -334,7 +293,6 @@ mod tests {
 
     define_language! {
         enum Simple {
-            "++" = Add2(Id, Id),
             "+" = Add([Id; 2]),
             "-" = Sub([Id; 2]),
             "*" = Mul([Id; 2]),
@@ -343,6 +301,13 @@ mod tests {
             Int(i32),
             Var(String),
         }
+    }
+
+    #[test]
+    fn modify_children() {
+        let mut add = Simple::Add([0, 0]);
+        add.for_each_mut(|id| *id = 1);
+        assert_eq!(add, Simple::Add([1, 1]));
     }
 
     #[test]

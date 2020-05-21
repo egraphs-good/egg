@@ -34,7 +34,7 @@ use crate::{machine, Analysis, Applier, EGraph, Id, Language, RecExpr, Searcher,
 /// define_language! {
 ///     enum Math {
 ///         Num(i32),
-///         "+" = Add(Id, Id),
+///         "+" = Add([Id; 2]),
 ///     }
 /// }
 ///
@@ -82,16 +82,18 @@ impl<N: Language> Language for ENodeOrVar<N> {
     fn matches(&self, _other: &Self) -> bool {
         panic!("Should never call this")
     }
-    fn for_each<F: FnMut(Id)>(&self, f: F) {
+
+    fn children(&self) -> &[Id] {
         match self {
-            ENodeOrVar::ENode(e) => e.for_each(f),
-            ENodeOrVar::Var(_) => (),
+            ENodeOrVar::ENode(e) => e.children(),
+            ENodeOrVar::Var(_) => &[],
         }
     }
-    fn for_each_mut<F: FnMut(&mut Id)>(&mut self, f: F) {
+
+    fn children_mut(&mut self) -> &mut [Id] {
         match self {
-            ENodeOrVar::ENode(e) => e.for_each_mut(f),
-            ENodeOrVar::Var(_) => (),
+            ENodeOrVar::ENode(e) => e.children_mut(),
+            ENodeOrVar::Var(_) => &mut [],
         }
     }
 

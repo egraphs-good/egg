@@ -152,8 +152,8 @@ where
 /// define_language! {
 ///     enum Math {
 ///         Num(i32),
-///         "+" = Add(Id, Id),
-///         "*" = Mul(Id, Id),
+///         "+" = Add([Id; 2]),
+///         "*" = Mul([Id; 2]),
 ///         Symbol(String),
 ///     }
 /// }
@@ -214,11 +214,11 @@ where
 ///             let b: Id = subst[&self.b];
 ///             let c: Id = subst[&self.c];
 ///             let zero = egraph.add(Math::Num(0));
-///             let a0 = egraph.add(Math::Add(a, zero));
-///             let b0 = egraph.add(Math::Add(b, zero));
-///             let c0 = egraph.add(Math::Add(c, zero));
-///             let b0c0 = egraph.add(Math::Mul(b0, c0));
-///             let a0b0c0 = egraph.add(Math::Add(a0, b0c0));
+///             let a0 = egraph.add(Math::Add([a, zero]));
+///             let b0 = egraph.add(Math::Add([b, zero]));
+///             let c0 = egraph.add(Math::Add([c, zero]));
+///             let b0c0 = egraph.add(Math::Mul([b0, c0]));
+///             let a0b0c0 = egraph.add(Math::Add([a0, b0c0]));
 ///             // NOTE: we just return the id according to what we
 ///             // want unified with matched_id. The `apply_matches`
 ///             // method actually does the union, _not_ `apply_one`.

@@ -7,17 +7,17 @@ define_language! {
 
         "var" = Var(Id),
 
-        "+" = Add(Id, Id),
-        "=" = Eq(Id, Id),
+        "+" = Add([Id; 2]),
+        "=" = Eq([Id; 2]),
 
-        "app" = App(Id, Id),
-        "lam" = Lambda(Id, Id),
-        "let" = Let(Id, Id, Id),
-        "fix" = Fix(Id, Id),
+        "app" = App([Id; 2]),
+        "lam" = Lambda([Id; 2]),
+        "let" = Let([Id; 3]),
+        "fix" = Fix([Id; 2]),
 
-        "if" = If(Id, Id, Id),
+        "if" = If([Id; 3]),
 
-        "subst" = Subst(Id, Id, Id),
+        "subst" = Subst([Id; 3]),
         String(String),
     }
 }
@@ -45,8 +45,8 @@ impl Analysis<Lambda> for ConstantFold {
         let x = |i: &Id| egraph[*i].data.clone();
         match enode {
             Lambda::Num(_) | Lambda::Bool(_) => Some(enode.clone()),
-            Lambda::Add(a, b) => Some(Lambda::Num(x(a)?.num()? + x(b)?.num()?)),
-            Lambda::Eq(a, b) => Some(Lambda::Bool(x(a)? == x(b)?)),
+            Lambda::Add([a, b]) => Some(Lambda::Num(x(a)?.num()? + x(b)?.num()?)),
+            Lambda::Eq([a, b]) => Some(Lambda::Bool(x(a)? == x(b)?)),
             _ => None,
         }
     }

@@ -3,10 +3,10 @@ use egg::*;
 define_language! {
     enum Prop {
         Bool(bool),
-        "&" = And(Id, Id),
+        "&" = And([Id; 2]),
         "~" = Not(Id),
-        "|" = Or(Id, Id),
-        "->" = Implies(Id, Id),
+        "|" = Or([Id; 2]),
+        "->" = Implies([Id; 2]),
         Variable(String),
     }
 }
@@ -26,10 +26,10 @@ impl Analysis<Prop> for ConstantFold {
         let result = match enode {
             Prop::Bool(c) => Some(*c),
             Prop::Variable(_) => None,
-            Prop::And(a, b) => Some(x(a)? && x(b)?),
+            Prop::And([a, b]) => Some(x(a)? && x(b)?),
             Prop::Not(a) => Some(!x(a)?),
-            Prop::Or(a, b) => Some(x(a)? || x(b)?),
-            Prop::Implies(a, b) => Some(x(a)? || !x(b)?),
+            Prop::Or([a, b]) => Some(x(a)? || x(b)?),
+            Prop::Implies([a, b]) => Some(x(a)? || !x(b)?),
         };
         println!("Make: {:?} -> {:?}", enode, result);
         result

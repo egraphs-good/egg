@@ -12,8 +12,8 @@ use egg::*;
 define_language! {
     enum SimpleLanguage {
         Num(i32),
-        "+" = Add(Id, Id),
-        "*" = Mul(Id, Id),
+        "+" = Add([Id; 2]),
+        "*" = Mul([Id; 2]),
     }
 }
 
@@ -220,7 +220,7 @@ where
     }
 
     fn node_total_cost(&mut self, node: &L) -> Option<CF::Cost> {
-        if node.all(|id| self.costs.contains_key(&id)) {
+        if node.children().iter().all(|id| self.costs.contains_key(id)) {
             let costs = &self.costs;
             Some(self.cost_function.cost(&node, |i| costs[&i].clone()))
         } else {

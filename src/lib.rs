@@ -28,8 +28,8 @@ use egg::{*, rewrite as rw};
 define_language! {
     enum SimpleLanguage {
         Num(i32),
-        "+" = Add(Id, Id),
-        "*" = Mul(Id, Id),
+        "+" = Add([Id; 2]),
+        "*" = Mul([Id; 2]),
         // language items are parsed in order, and we want symbol to
         // be a fallback, so we put it last
         Symbol(String),

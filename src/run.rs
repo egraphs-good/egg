@@ -88,8 +88,8 @@ use egg::{*, rewrite as rw};
 define_language! {
     enum SimpleLanguage {
         Num(i32),
-        "+" = Add(Id, Id),
-        "*" = Mul(Id, Id),
+        "+" = Add([Id; 2]),
+        "*" = Mul([Id; 2]),
         Symbol(String),
     }
 }
