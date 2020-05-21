@@ -7,8 +7,11 @@
 ### Added
 - The rebuilding algorithm is now _precise_ meaning it avoid a lot of
   unnecessary work. This leads to across the board speedup by up to 2x.
+- `Language` elements are now much more compact, leading to speed ups across the board.
 
 ### Changed
+- Replaced `Metadata` with `Analysis`, which can hold egraph-global data as well
+  as per-eclass data.
 - **Fix:**
   An eclass's metadata will now get updated by
   congruence. 

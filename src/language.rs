@@ -5,19 +5,22 @@ use crate::{EGraph, Id};
 
 use symbolic_expressions::Sexp;
 
-/// Trait defines a Language whose terms will be in the [`EGraph`].
+/// Trait that defines a Language whose terms will be in the [`EGraph`].
 ///
-/// Typically, you'll want your language to implement [`FromStr`] and
-/// [`Display`] so parsing and printing works.
 /// Check out the [`define_language!`] macro for an easy way to create
 /// a [`Language`].
 ///
-/// [`String`] implements [`Language`] for quick use cases.
+/// Note that the default implementations of
+/// [`from_op_str`](trait.Language.html#method.from_op_str) and
+/// [`display_op`](trait.Language.html#method.display_op) panic. You
+/// should override them if you want to parse or pretty-print expressions.
+/// [`define_language!`] implements these for you.
+///
+/// See [`StringLang`](struct.StringLang.html) for quick-and-dirty use cases.
 ///
 /// [`define_language!`]: macro.define_language.html
 /// [`Language`]: trait.Language.html
 /// [`EGraph`]: struct.EGraph.html
-/// [`String`]: https://doc.rust-lang.org/std/string/struct.String.html
 /// [`FromStr`]: https://doc.rust-lang.org/std/str/trait.FromStr.html
 /// [`Display`]: https://doc.rust-lang.org/std/fmt/trait.Display.html
 #[allow(clippy::len_without_is_empty)]
@@ -117,8 +120,19 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
 /// [ser]: https://docs.rs/serde/latest/serde/trait.Serialize.html
 /// [pretty]: struct.RecExpr.html#method.pretty
 #[derive(Debug, PartialEq, Clone)]
-pub struct RecExpr<N> {
-    pub(crate) nodes: Vec<N>,
+pub struct RecExpr<L> {
+    pub(crate) nodes: Vec<L>,
+}
+
+#[cfg(feature = "serde-1")]
+impl<L: Language> serde::Serialize for RecExpr<L> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let s = self.pretty(80);
+        serializer.serialize_str(&s)
+    }
 }
 
 impl<L> Default for RecExpr<L> {
@@ -286,6 +300,8 @@ define_language! {
     }
 }
 
+// in this case, our analysis itself doens't require any data, so we can just
+// use a unit struct and derive Default
 #[derive(Default)]
 struct ConstantFolding;
 impl Analysis<SimpleMath> for ConstantFolding {

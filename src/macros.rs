@@ -1,62 +1,50 @@
 /** A macro to easily create a [`Language`].
 
-Example use:
+`define_language` derives `Debug`, `PartialEq`, `Eq`, `PartialOrd`, `Ord`,
+`Hash`, and `Clone` on the given `enum` so it can implement [`Language`].
+The macro also implements
+[`Language::from_op_str`](trait.Language.html#method.from_op_str) and
+[`Language::display_op`](trait.Language.html#method.display_op) for the `enum`
+based on either the data of variants or the provided strings.
+
+The final variant **must have a trailing comma**; this is due to limitations in
+macro parsing.
+
+Note that you can always implement [`Language`] yourself by just not using this
+macro.
+
+Presently, the macro does not support data variant with children, but that may
+be added later.
+
+# Example
+
+The following macro invocation shows all the accepted forms of variants:
 ```
 # use egg::*;
 define_language! {
     enum SimpleLanguage {
-        Num(i32),
+        // string variant with no children
+        "pi" = Pi,
+
+        // string variants with an array of child `Id`s (any static size)
         "+" = Add([Id; 2]),
+        "-" = Sub([Id; 2]),
         "*" = Mul([Id; 2]),
+
+        // string variants with a single child `Id`
+        // note that this is distinct from `Sub`, even though it has the same
+        // string, because it has a different number of children
+        "-"  = Neg(Id),
+
+        // data variants with a single field
+        // this field must implement `FromStr` and `Display`
+        Num(i32),
         // language items are parsed in order, and we want symbol to
         // be a fallback, so we put it last
         Symbol(String),
     }
 }
 ```
-
-`define_language` derives `Debug`, `PartialEq`, `Eq`, `PartialOrd`, `Ord`,
-`Hash`, and `Clone` on the given `enum` so it can implement [`Language`].
-The macro also implements [`FromStr`] and [`Display`] for the `enum`
-based on either the data of variants or the provided strings.
-
-The final variant **must have a trailing comma**; this is due to limitations in
-macro parsing.
-
-Enum variants must be of one of two forms:
-- `Variant = "name"`
-
-   This form's [`FromStr`] and [`Display`] parse and print the given
-   string, in this case ```"name"```.
-
-- `Variant(Data)`
-
-   This form uses the [`FromStr`] and [`Display`] implementations of
-   the given type `Data`.
-   So `Data` needs to implement those as well as all of the trait
-   bounds of [`Language`].
-
-   Since the parser will not consider the name of the variant, your
-   language cannot have two variants with the same data type;
-   the second will never get parsed.
-   Likewise, you must order your variants from most
-   specific to most general; the parser will try to parse the variants
-   from top to bottom.
-
-Variants not in one of the two above forms will fail to compile:
-```compile_fail
-# use egg::*;
-define_language! {
-    enum SimpleLanguage {
-        Num,
-    }
-}
-```
-
-Note that you can always implement [`Language`] yourself,
-and that [`Language`] does not require [`FromStr`] or [`Display`].
-But they are pretty handy.
-
 
 [`FromStr`]: https://doc.rust-lang.org/std/str/trait.FromStr.html
 [`Display`]: https://doc.rust-lang.org/std/fmt/trait.Display.html
@@ -65,9 +53,13 @@ But they are pretty handy.
 #[macro_export]
 macro_rules! define_language {
     ($(#[$meta:meta])* $vis:vis enum $name:ident $variants:tt) => {
-        define_language!($(#[$meta])* $vis enum $name $variants -> {} {} {} {} {} {});
+        $crate::define_language_impl!($(#[$meta])* $vis enum $name $variants -> {} {} {} {} {} {});
     };
+}
 
+#[doc(hidden)]
+#[macro_export]
+macro_rules! define_language_impl {
     ($(#[$meta:meta])* $vis:vis enum $name:ident {} ->
      $decl:tt {$($matches:tt)*} $children:tt $children_mut:tt
      $display_op:tt {$($from_op_str:tt)*}
@@ -114,7 +106,7 @@ macro_rules! define_language {
      { $($decl:tt)* } { $($matches:tt)* } { $($children:tt)* } { $($children_mut:tt)* }
      { $($display_op:tt)* } { $($from_op_str:tt)* }
     ) => {
-        define_language!(
+        $crate::define_language_impl!(
             $(#[$meta])* $vis enum $name
             { $($variants)* } ->
             { $($decl)*          $variant, }
@@ -126,7 +118,6 @@ macro_rules! define_language {
         );
     };
 
-
     ($(#[$meta:meta])* $vis:vis enum $name:ident
      {
          $string:literal = $variant:ident ([Id; $n:expr]),
@@ -135,7 +126,7 @@ macro_rules! define_language {
      { $($decl:tt)* } { $($matches:tt)* } { $($children:tt)* } { $($children_mut:tt)* }
      { $($display_op:tt)* } { $($from_op_str:tt)* }
     ) => {
-        define_language!(
+        $crate::define_language_impl!(
             $(#[$meta])* $vis enum $name
             { $($variants)* } ->
             { $($decl)*          $variant( [Id; $n] ), }
@@ -159,7 +150,7 @@ macro_rules! define_language {
      { $($decl:tt)* } { $($matches:tt)* } { $($children:tt)* } { $($children_mut:tt)* }
      { $($display_op:tt)* } { $($from_op_str:tt)* }
     ) => {
-        define_language!(
+        $crate::define_language_impl!(
             $(#[$meta])* $vis enum $name
             { $($variants)* } ->
             { $($decl)*          $variant(Id), }
@@ -180,7 +171,7 @@ macro_rules! define_language {
      { $($decl:tt)* } { $($matches:tt)* } { $($children:tt)* } { $($children_mut:tt)* }
      { $($display_op:tt)* } { $($from_op_str:tt)* }
     ) => {
-        define_language!(
+        $crate::define_language_impl!(
             $(#[$meta])* $vis enum $name
             { $($variants)* } ->
             { $($decl)*          $variant($data), }
