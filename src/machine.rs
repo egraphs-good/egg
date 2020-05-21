@@ -2,41 +2,45 @@ use std::fmt;
 
 use crate::{Analysis, EGraph, ENodeOrVar, Id, Language, PatternAst, Subst, Var};
 
-struct Machine<'a, L: Language, A: Analysis<L>> {
-    egraph: &'a EGraph<L, A>,
-    program: &'a [Instruction<L>],
+struct Machine<'a, L> {
     pc: usize,
     reg: Vec<Id>,
     stack: Vec<Binder<'a, L>>,
+}
+
+impl<'a, L> Default for Machine<'a, L> {
+    fn default() -> Self {
+        Self {
+            pc: 0,
+            reg: vec![],
+            stack: vec![],
+        }
+    }
 }
 
 type Addr = usize;
 type Reg = usize;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Instruction<N> {
-    Bind(Reg, N, Reg),
-    Check(Reg, N),
+pub enum Instruction<L> {
+    Bind(Reg, L, Reg),
+    Check(Reg, L),
     Compare(Reg, Reg),
     Yield(Vec<Reg>),
 }
 
-struct Binder<'a, N> {
+struct Binder<'a, L> {
     out: Reg,
     next: Addr,
-    searcher: EClassSearcher<'a, N>,
-}
-
-struct EClassSearcher<'a, N> {
+    nodes: std::slice::Iter<'a, L>,
     // in debug mode, we keep the node around to make sure that it matches
     #[cfg(debug_assertions)]
-    node: N,
-    nodes: std::slice::Iter<'a, N>,
+    node: L,
 }
 
-impl<'a, L: Language> EClassSearcher<'a, L> {
+impl<'a, L: Language> Binder<'a, L> {
     #[inline(never)]
-    fn new(node: &'a L, nodes: &'a [L]) -> Self {
+    fn new(out: Reg, next: Addr, node: &'a L, nodes: &'a [L]) -> Self {
         let slice_iter = if nodes.len() < 100 {
             let mut iter = nodes.iter();
             match iter.position(|n| node.matches(n)) {
@@ -56,9 +60,11 @@ impl<'a, L: Language> EClassSearcher<'a, L> {
             nodes[start..start + offset].iter()
         };
         Self {
+            out,
+            next,
+            nodes: slice_iter,
             #[cfg(debug_assertions)]
             node: node.clone(),
-            nodes: slice_iter,
         }
     }
 
@@ -73,38 +79,19 @@ impl<'a, L: Language> EClassSearcher<'a, L> {
 
 use Instruction::*;
 
-impl<'a, L: Language, A: Analysis<L>> Machine<'a, L, A> {
-    fn new(egraph: &'a EGraph<L, A>, program: &'a [Instruction<L>]) -> Self {
-        Self {
-            egraph,
-            program,
-            pc: 0,
-            reg: Vec::new(),
-            stack: Vec::new(),
-        }
-    }
-
-    #[inline(always)]
-    fn find_reg(&self, reg: usize) -> Id {
-        self.egraph.find(self.reg[reg])
-    }
-
+impl<'a, L: Language> Machine<'a, L> {
     #[must_use]
     fn backtrack(&mut self) -> Option<()> {
         log::trace!("Backtracking, stack size: {}", self.stack.len());
         loop {
-            let Binder {
-                out,
-                next,
-                searcher,
-            } = self.stack.last_mut()?;
-            let next = *next;
+            let binder = self.stack.last_mut()?;
+            let next = binder.next;
 
-            if let Some(matched) = searcher.next() {
+            if let Some(matched) = binder.next() {
                 log::trace!("Binding: {:?}", matched);
-                let new_len = *out + matched.len();
+                let new_len = binder.out + matched.len();
                 self.reg.resize(new_len, 0);
-                let mut i = *out;
+                let mut i = binder.out;
                 matched.for_each(|id| {
                     self.reg[i] = id;
                     i += 1;
@@ -118,7 +105,14 @@ impl<'a, L: Language, A: Analysis<L>> Machine<'a, L, A> {
         }
     }
 
-    fn run(&mut self, mut yield_fn: impl FnMut(&Self, &[Reg])) {
+    fn run<N>(
+        &mut self,
+        egraph: &'a EGraph<L, N>,
+        program: &'a [Instruction<L>],
+        mut yield_fn: impl FnMut(&Self, &[Reg]),
+    ) where
+        N: Analysis<L>,
+    {
         macro_rules! backtrack {
             () => {
                 if self.backtrack().is_none() {
@@ -128,25 +122,22 @@ impl<'a, L: Language, A: Analysis<L>> Machine<'a, L, A> {
         }
 
         loop {
-            let instr = &self.program[self.pc];
+            let instr = &program[self.pc];
             self.pc += 1;
 
             log::trace!("Executing {:?}", instr);
 
             match instr {
                 Bind(i, node, out) => {
-                    let eclass = &self.egraph[self.reg[*i]];
-                    self.stack.push(Binder {
-                        out: *out,
-                        next: self.pc,
-                        searcher: EClassSearcher::new(node, &eclass.nodes),
-                    });
+                    let eclass = &egraph[self.reg[*i]];
+                    self.stack
+                        .push(Binder::new(*out, self.pc, node, &eclass.nodes));
                     backtrack!();
                 }
                 Check(i, t) => {
                     debug_assert!(t.is_leaf());
                     let id = self.reg[*i];
-                    let eclass = &self.egraph[id];
+                    let eclass = &egraph[id];
                     if !eclass.nodes.contains(t) {
                         backtrack!()
                     }
@@ -165,7 +156,7 @@ impl<'a, L: Language, A: Analysis<L>> Machine<'a, L, A> {
                     // }
                 }
                 Compare(i, j) => {
-                    if self.find_reg(*i) != self.find_reg(*j) {
+                    if egraph.find(self.reg[*i]) != egraph.find(self.reg[*j]) {
                         backtrack!()
                     }
                 }
@@ -282,13 +273,13 @@ impl<L: Language> Program<L> {
     where
         A: Analysis<L>,
     {
-        let mut machine = Machine::new(egraph, &self.instrs);
+        let mut machine = Machine::default();
 
         assert_eq!(machine.reg.len(), 0);
         machine.reg.push(eclass);
 
         let mut substs = Vec::new();
-        machine.run(|machine, regs| {
+        machine.run(egraph, &self.instrs, |machine, regs| {
             let mut s = Subst::default();
             let ids = regs.iter().map(|r| machine.reg[*r]);
             for (i, id) in ids.enumerate() {
