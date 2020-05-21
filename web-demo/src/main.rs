@@ -112,13 +112,10 @@ impl Component for Model {
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         match msg {
             Msg::UpdateQuery(s) => {
-                self.query = s
-                    .parse()
-                    .map(|pattern: Pattern<_>| {
-                        let matches = pattern.search(&self.egraph);
-                        Queried { pattern, matches }
-                    })
-                    .map_err(|e| e.to_string());
+                self.query = s.parse().map(|pattern: Pattern<_>| {
+                    let matches = pattern.search(&self.egraph);
+                    Queried { pattern, matches }
+                });
             }
             Msg::AddQuery => {
                 if let Ok(pat) = &self.query {
