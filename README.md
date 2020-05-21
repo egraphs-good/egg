@@ -11,7 +11,7 @@ Check out the [web demo](https://mwillsey.com/stuff/egg) for some quick egraph a
 Add `egg` to your `Cargo.toml` like this:
 ```toml
 [dependencies]
-egg = "0.3.0"
+egg = "0.4.0"
 ```
 
 ## Developing
