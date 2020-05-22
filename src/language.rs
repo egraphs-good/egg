@@ -112,8 +112,7 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
 /// elements that come before it in the list.
 ///
 /// If the `serde-1` feature is enabled, this implements
-/// [`serde::Serialize`][ser] by pretty-printing with
-/// [`self.pretty(80)`][pretty].
+/// [`serde::Serialize`][ser].
 ///
 /// [`RecExpr`]: struct.RecExpr.html
 /// [`Language`]: trait.Language.html
@@ -130,7 +129,7 @@ impl<L: Language> serde::Serialize for RecExpr<L> {
     where
         S: serde::Serializer,
     {
-        let s = self.pretty(80);
+        let s = self.to_sexp(self.nodes.len() as Id - 1).to_string();
         serializer.serialize_str(&s)
     }
 }
