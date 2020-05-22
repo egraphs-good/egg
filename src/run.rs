@@ -378,9 +378,9 @@ where
             let actually_matched = self.scheduler.apply_rewrite(i, &mut self.egraph, rw, ms);
             if actually_matched > 0 {
                 if let Some(count) = applied.get_mut(rw.name()) {
-                    *count += 1;
+                    *count += actually_matched;
                 } else {
-                    applied.insert(rw.name().to_owned(), 1);
+                    applied.insert(rw.name().to_owned(), actually_matched);
                 }
                 debug!("Applied {} {} times", rw.name(), actually_matched);
             }
