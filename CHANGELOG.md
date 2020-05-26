@@ -4,6 +4,12 @@
 
 ## [Unreleased] - ReleaseDate
 
+### Added
+- Added various Debug and Display impls.
+
+### Fixed
+- Fixed the way applications were counted by the Runner.
+
 ## [0.4.0] - 2020-05-21
 
 ### Added
