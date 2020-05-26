@@ -53,13 +53,13 @@ define_language! {
 #[macro_export]
 macro_rules! define_language {
     ($(#[$meta:meta])* $vis:vis enum $name:ident $variants:tt) => {
-        $crate::define_language_impl!($(#[$meta])* $vis enum $name $variants -> {} {} {} {} {} {});
+        $crate::__define_language!($(#[$meta])* $vis enum $name $variants -> {} {} {} {} {} {});
     };
 }
 
 #[doc(hidden)]
 #[macro_export]
-macro_rules! define_language_impl {
+macro_rules! __define_language {
     ($(#[$meta:meta])* $vis:vis enum $name:ident {} ->
      $decl:tt {$($matches:tt)*} $children:tt $children_mut:tt
      $display_op:tt {$($from_op_str:tt)*}
@@ -106,7 +106,7 @@ macro_rules! define_language_impl {
      { $($decl:tt)* } { $($matches:tt)* } { $($children:tt)* } { $($children_mut:tt)* }
      { $($display_op:tt)* } { $($from_op_str:tt)* }
     ) => {
-        $crate::define_language_impl!(
+        $crate::__define_language!(
             $(#[$meta])* $vis enum $name
             { $($variants)* } ->
             { $($decl)*          $variant, }
@@ -126,7 +126,7 @@ macro_rules! define_language_impl {
      { $($decl:tt)* } { $($matches:tt)* } { $($children:tt)* } { $($children_mut:tt)* }
      { $($display_op:tt)* } { $($from_op_str:tt)* }
     ) => {
-        $crate::define_language_impl!(
+        $crate::__define_language!(
             $(#[$meta])* $vis enum $name
             { $($variants)* } ->
             { $($decl)*          $variant( [Id; $n] ), }
@@ -150,7 +150,7 @@ macro_rules! define_language_impl {
      { $($decl:tt)* } { $($matches:tt)* } { $($children:tt)* } { $($children_mut:tt)* }
      { $($display_op:tt)* } { $($from_op_str:tt)* }
     ) => {
-        $crate::define_language_impl!(
+        $crate::__define_language!(
             $(#[$meta])* $vis enum $name
             { $($variants)* } ->
             { $($decl)*          $variant(Id), }
@@ -171,7 +171,7 @@ macro_rules! define_language_impl {
      { $($decl:tt)* } { $($matches:tt)* } { $($children:tt)* } { $($children_mut:tt)* }
      { $($display_op:tt)* } { $($from_op_str:tt)* }
     ) => {
-        $crate::define_language_impl!(
+        $crate::__define_language!(
             $(#[$meta])* $vis enum $name
             { $($variants)* } ->
             { $($decl)*          $variant($data), }
