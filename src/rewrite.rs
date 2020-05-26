@@ -1,3 +1,4 @@
+use std::fmt;
 use std::rc::Rc;
 
 use crate::{Analysis, EGraph, Id, Language, SearchMatches, Subst};
@@ -18,7 +19,6 @@ use crate::{Analysis, EGraph, Id, Language, SearchMatches, Subst};
 /// [`ConditionalApplier`]: struct.ConditionalApplier.html
 /// [`Rewrite`]: struct.Rewrite.html
 /// [`Pattern`]: struct.Pattern.html
-// TODO display
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct Rewrite<L, N> {
@@ -26,6 +26,42 @@ pub struct Rewrite<L, N> {
     long_name: String,
     searcher: Rc<dyn Searcher<L, N>>,
     applier: Rc<dyn Applier<L, N>>,
+}
+
+impl<L, N> fmt::Debug for Rewrite<L, N>
+where
+    L: Language + 'static,
+    N: 'static,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        struct DisplayAsDebug<T>(T);
+        impl<T: fmt::Display> fmt::Debug for DisplayAsDebug<T> {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                write!(f, "{}", self.0)
+            }
+        }
+
+        use crate::Pattern;
+        use std::any::Any;
+
+        let mut d = f.debug_struct("Rewrite");
+        d.field("name", &self.name)
+            .field("long_name", &self.long_name);
+
+        if let Some(pat) = Any::downcast_ref::<Pattern<L>>(&self.searcher) {
+            d.field("searcher", &DisplayAsDebug(pat));
+        } else {
+            d.field("searcher", &"<< searcher >>");
+        }
+
+        if let Some(pat) = Any::downcast_ref::<Pattern<L>>(&self.applier) {
+            d.field("applier", &DisplayAsDebug(pat));
+        } else {
+            d.field("applier", &"<< applier >>");
+        }
+
+        d.finish()
+    }
 }
 
 impl<L: Language, N: Analysis<L>> Rewrite<L, N> {

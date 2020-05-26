@@ -1,4 +1,4 @@
-use std::fmt::{Debug, Display};
+use std::fmt::{self, Debug, Display};
 use std::hash::Hash;
 
 use crate::{EGraph, Id};
@@ -160,6 +160,13 @@ impl<L: Language> RecExpr<L> {
         );
         self.nodes.push(node);
         self.nodes.len() as Id - 1
+    }
+}
+
+impl<L: Language> Display for RecExpr<L> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = self.to_sexp(self.nodes.len() as Id - 1).to_string();
+        write!(f, "{}", s)
     }
 }
 

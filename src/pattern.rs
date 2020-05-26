@@ -1,5 +1,6 @@
 use log::*;
 use std::convert::TryFrom;
+use std::fmt;
 
 use crate::{machine, Analysis, Applier, EGraph, Id, Language, RecExpr, Searcher, Subst, Var};
 
@@ -154,6 +155,12 @@ impl<L: Language> TryFrom<Pattern<L>> for RecExpr<L> {
             })
             .collect();
         ns.map(|nodes| RecExpr { nodes })
+    }
+}
+
+impl<L: Language> fmt::Display for Pattern<L> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.ast)
     }
 }
 
