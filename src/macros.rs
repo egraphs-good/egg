@@ -203,7 +203,8 @@ and [`Applier`].
 The macro also accepts any number of `if <expr>` forms at the end,
 where the given expression should implement [`Condition`].
 For each of these, the macro will wrap the given applier in a
-[`ConditionalApplier`] with the given condition.
+[`ConditionalApplier`] with the given condition, with the first condition being
+the outermost, and the last condition being the innermost.
 
 # Example
 ```
@@ -267,15 +268,27 @@ macro_rules! rewrite {
         $(if $cond:expr)*
     )  => {{
         let long_name = format!("{} => {}", stringify!($lhs), stringify!($rhs));
-        let searcher = $crate::rewrite!(@parse $lhs);
-        let applier = $crate::rewrite!(@parse $rhs);
-        $( let applier = $crate::ConditionalApplier {applier, condition: $cond}; )*
+        let searcher = $crate::__rewrite!(@parse $lhs);
+        let core_applier = $crate::__rewrite!(@parse $rhs);
+        let applier = $crate::__rewrite!(@applier core_applier; $($cond,)*);
         $crate::Rewrite::new($name, long_name, searcher, applier)
     }};
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __rewrite {
     (@parse $rhs:literal) => {
         $rhs.parse::<$crate::Pattern<_>>().unwrap()
     };
     (@parse $rhs:expr) => { $rhs };
+    (@applier $applier:expr;) => { $applier };
+    (@applier $applier:expr; $cond:expr, $($conds:expr,)*) => {
+        $crate::ConditionalApplier {
+            condition: $cond,
+            applier: $crate::__rewrite!(@applier $applier; $($conds,)*)
+        }
+    };
 }
 
 #[cfg(test)]
