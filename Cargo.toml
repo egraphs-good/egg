@@ -1,6 +1,6 @@
 [package]
 name = "egg"
-version = "0.4.1-dev"
+version = "0.4.1"
 authors = ["Max Willsey <me@mwillsey.com>"]
 edition = "2018"
 description = "An implementation of egraphs"

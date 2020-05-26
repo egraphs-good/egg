@@ -4,6 +4,8 @@
 
 ## [Unreleased] - ReleaseDate
 
+## [0.4.1] - 2020-05-26
+
 ### Added
 - Added various Debug and Display impls.
 
@@ -93,7 +95,8 @@ But hopefully things will be a little more stable from here on out
 since the API is a lot nicer.
 
 <!-- next-url -->
-[Unreleased]: https://github.com/mwillsey/egg/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/mwillsey/egg/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/mwillsey/egg/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/mwillsey/egg/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/mwillsey/egg/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/mwillsey/egg/compare/v0.1.2...v0.2.0
