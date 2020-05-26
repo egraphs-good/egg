@@ -298,6 +298,7 @@ where
     /// [`stop_reason`](#structfield.stop_reason) is guaranteeed to be
     /// set.
     pub fn run(mut self, rules: &[Rewrite<L, N>]) -> Self {
+        check_rules(rules);
         self.egraph.rebuild();
         // TODO check that we haven't
         loop {
@@ -445,6 +446,24 @@ where
         }
 
         Ok(())
+    }
+}
+
+fn check_rules<L, N>(rules: &[Rewrite<L, N>]) {
+    let mut name_counts = IndexMap::new();
+    for rw in rules {
+        *name_counts.entry(rw.name()).or_default() += 1
+    }
+
+    name_counts.retain(|_, count: &mut usize| *count > 1);
+    if !name_counts.is_empty() {
+        eprintln!("WARNING: Duplicated rule names may affect rule reporting and scheduling.");
+        log::warn!("Duplicated rule names may affect rule reporting and scheduling.");
+        for (name, &count) in name_counts.iter() {
+            assert!(count > 1);
+            eprintln!("Rule '{}' appears {} times", name, count);
+            log::warn!("Rule '{}' appears {} times", name, count);
+        }
     }
 }
 

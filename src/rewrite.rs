@@ -64,6 +64,19 @@ where
     }
 }
 
+impl<L, N> Rewrite<L, N> {
+    /// Returns the name of the rewrite.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Returns the long name of the rewrite which should only be used for
+    /// debugging and displaying.
+    pub fn long_name(&self) -> &str {
+        &self.long_name
+    }
+}
+
 impl<L: Language, N: Analysis<L>> Rewrite<L, N> {
     /// Create a new [`Rewrite`]. You typically want to use the
     /// [`rewrite!`] macro instead.
@@ -82,17 +95,6 @@ impl<L: Language, N: Analysis<L>> Rewrite<L, N> {
             searcher: Rc::new(searcher),
             applier: Rc::new(applier),
         }
-    }
-
-    /// Returns the name of the rewrite.
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    /// Returns the long name of the rewrite which should only be used for
-    /// debugging and displaying.
-    pub fn long_name(&self) -> &str {
-        &self.long_name
     }
 
     /// Call [`search`] on the [`Searcher`].
