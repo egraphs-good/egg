@@ -23,7 +23,7 @@ impl FromStr for Var {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.starts_with('?') {
+        if s.starts_with('?') && s.len() > 1 {
             let mut strings = STRINGS.lock().unwrap();
             let (i, _) = strings.insert_full(s.to_owned());
             Ok(Var(i as u32))
@@ -110,5 +110,19 @@ impl fmt::Debug for Subst {
             }
         }
         write!(f, "}}")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn var_parse() {
+        assert_eq!(Var::from_str("?a").unwrap().to_string(), "?a");
+        assert_eq!(Var::from_str("?abc 123").unwrap().to_string(), "?abc 123");
+        assert!(Var::from_str("a").is_err());
+        assert!(Var::from_str("a?").is_err());
+        assert!(Var::from_str("?").is_err());
     }
 }
