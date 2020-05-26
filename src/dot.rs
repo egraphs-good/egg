@@ -31,7 +31,7 @@ let rules = &[
     rw!("mul-two";      "(* ?x 2)" => "(<< ?x 1)"),
 ];
 
-let mut egraph: EGraph<StringLang, ()> = Default::default();
+let mut egraph: EGraph<SymbolLang, ()> = Default::default();
 egraph.add_expr(&"(/ (* 2 a) 2)".parse().unwrap());
 let egraph = Runner::default().with_egraph(egraph).run(rules).egraph;
 
@@ -104,7 +104,7 @@ where
     /// Can be used to run a different binary than `dot`:
     /// ```no_run
     /// # use egg::*;
-    /// # let mut egraph: EGraph<StringLang, ()> = Default::default();
+    /// # let mut egraph: EGraph<SymbolLang, ()> = Default::default();
     /// egraph.dot().run(
     ///     "/path/to/my/dot",
     ///     &["arg1", "-o", "outfile"]

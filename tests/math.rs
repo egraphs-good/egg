@@ -23,7 +23,7 @@ define_language! {
         "cos" = Cos(Id),
 
         Constant(Constant),
-        Variable(String),
+        Symbol(Symbol),
     }
 }
 
@@ -88,38 +88,42 @@ impl Analysis<Math> for ConstantFold {
     }
 }
 
-fn c_is_const(egraph: &mut EGraph, _: Id, subst: &Subst) -> bool {
-    let c = "?c".parse().unwrap();
-    egraph[subst[&c]].nodes.iter().any(|n| match n {
-        Math::Constant(_) => true,
-        _ => false,
-    })
-}
-
-fn c_is_const_or_var_and_not_x(egraph: &mut EGraph, _: Id, subst: &Subst) -> bool {
-    let c = "?c".parse().unwrap();
-    let x = "?x".parse().unwrap();
-    let is_const_or_var = egraph[subst[&c]].nodes.iter().any(|n| match n {
-        Math::Constant(_) | Math::Variable(_) => true,
-        _ => false,
-    });
-    is_const_or_var && egraph.find(subst[&x]) != egraph.find(subst[&c])
-}
-
-fn is_var(var: &'static str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
-    let var = var.parse().unwrap();
+fn is_const_or_distinct_var(v: &str, w: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
+    let v = v.parse().unwrap();
+    let w = w.parse().unwrap();
     move |egraph, _, subst| {
-        egraph[subst[&var]]
-            .nodes
-            .iter()
-            .any(|n| matches!(n, Math::Variable(..)))
+        egraph.find(subst[v]) != egraph.find(subst[w])
+            && egraph[subst[v]]
+                .nodes
+                .iter()
+                .any(|n| matches!(n, Math::Constant(..) | Math::Symbol(..)))
     }
 }
 
-fn is_not_zero(var: &'static str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
+fn is_const(var: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
+    let var = var.parse().unwrap();
+    move |egraph, _, subst| {
+        egraph[subst[var]]
+            .nodes
+            .iter()
+            .any(|n| matches!(n, Math::Constant(..)))
+    }
+}
+
+fn is_sym(var: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
+    let var = var.parse().unwrap();
+    move |egraph, _, subst| {
+        egraph[subst[var]]
+            .nodes
+            .iter()
+            .any(|n| matches!(n, Math::Symbol(..)))
+    }
+}
+
+fn is_not_zero(var: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let var = var.parse().unwrap();
     let zero = Math::Constant(0.0.into());
-    move |egraph, _, subst| !egraph[subst[&var]].nodes.contains(&zero)
+    move |egraph, _, subst| !egraph[subst[var]].nodes.contains(&zero)
 }
 
 #[rustfmt::skip]
@@ -157,8 +161,8 @@ pub fn rules() -> Vec<Rewrite> { vec![
         if is_not_zero("?x")),
     rw!("recip-mul-div"; "(* ?x (/ 1 ?x))" => "1" if is_not_zero("?x")),
 
-    rw!("d-variable"; "(d ?x ?x)" => "1" if is_var("?x")),
-    rw!("d-constant"; "(d ?x ?c)" => "0" if is_var("?x") if c_is_const_or_var_and_not_x),
+    rw!("d-variable"; "(d ?x ?x)" => "1" if is_sym("?x")),
+    rw!("d-constant"; "(d ?x ?c)" => "0" if is_sym("?x") if is_const_or_distinct_var("?c", "?x")),
 
     rw!("d-add"; "(d ?x (+ ?a ?b))" => "(+ (d ?x ?a) (d ?x ?b))"),
     rw!("d-mul"; "(d ?x (* ?a ?b))" => "(+ (* ?a (d ?x ?b)) (* ?b (d ?x ?a)))"),
@@ -181,7 +185,7 @@ pub fn rules() -> Vec<Rewrite> { vec![
 
     rw!("i-one"; "(i 1 ?x)" => "?x"),
     rw!("i-power-const"; "(i (pow ?x ?c) ?x)" =>
-        "(/ (pow ?x (+ ?c 1)) (+ ?c 1))" if c_is_const),
+        "(/ (pow ?x (+ ?c 1)) (+ ?c 1))" if is_const("?c")),
     rw!("i-cos"; "(i (cos ?x) ?x)" => "(sin ?x)"),
     rw!("i-sin"; "(i (sin ?x) ?x)" => "(* -1 (cos ?x))"),
     rw!("i-sum"; "(i (+ ?f ?g) ?x)" => "(+ (i ?f ?x) (i ?g ?x))"),

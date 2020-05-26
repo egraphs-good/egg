@@ -31,8 +31,9 @@ define_language! {
         "+" = Add([Id; 2]),
         "*" = Mul([Id; 2]),
         // language items are parsed in order, and we want symbol to
-        // be a fallback, so we put it last
-        Symbol(String),
+        // be a fallback, so we put it last.
+        // `Symbol` is an egg-provided interned string type
+        Symbol(egg::Symbol),
     }
 }
 
@@ -68,6 +69,7 @@ mod rewrite;
 mod run;
 mod subst;
 mod unionfind;
+mod util;
 
 /// A key to identify [`EClass`](struct.EClass.html)es within an
 /// [`EGraph`](struct.EGraph.html).
@@ -88,6 +90,7 @@ pub use {
     rewrite::{Applier, Condition, ConditionEqual, ConditionalApplier, Rewrite, Searcher},
     run::*,
     subst::{Subst, Var},
+    util::*,
 };
 
 #[cfg(test)]

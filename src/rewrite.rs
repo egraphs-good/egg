@@ -175,7 +175,7 @@ where
 /// An [`Applier`] is anything that can do something with a
 /// substitition ([`Subst`]). This allows you to implement rewrites
 /// that determine when and how to respond to a match using custom
-/// logic, including access to the [`Metadata`] of an [`EClass`].
+/// logic, including access to the [`Analysis`] data of an [`EClass`].
 ///
 /// Notably, [`Pattern`] implements [`Applier`], which suffices in
 /// most cases.
@@ -192,7 +192,7 @@ where
 ///         Num(i32),
 ///         "+" = Add([Id; 2]),
 ///         "*" = Mul([Id; 2]),
-///         Symbol(String),
+///         Symbol(Symbol),
 ///     }
 /// }
 ///
@@ -237,7 +237,7 @@ where
 ///
 /// impl Applier<Math, MinSize> for Funky {
 ///     fn apply_one(&self, egraph: &mut EGraph, matched_id: Id, subst: &Subst) -> Vec<Id> {
-///         let a: Id = subst[&self.a];
+///         let a: Id = subst[self.a];
 ///         // In a custom Applier, you can inspect the analysis data,
 ///         // which is powerful combination!
 ///         let size_of_a = egraph[a].data;
@@ -249,8 +249,8 @@ where
 ///             // (+ (+ ?a 0) (* (+ ?b 0) (+ ?c 0)))
 ///             // to be unified with the original:
 ///             // (+    ?a    (*    ?b       ?c   ))
-///             let b: Id = subst[&self.b];
-///             let c: Id = subst[&self.c];
+///             let b: Id = subst[self.b];
+///             let c: Id = subst[self.c];
 ///             let zero = egraph.add(Math::Num(0));
 ///             let a0 = egraph.add(Math::Add([a, zero]));
 ///             let b0 = egraph.add(Math::Add([b, zero]));
@@ -441,7 +441,7 @@ where
 #[cfg(test)]
 mod tests {
 
-    use crate::{StringLang as S, *};
+    use crate::{SymbolLang as S, *};
     use std::str::FromStr;
 
     type EGraph = crate::EGraph<S, ()>;
@@ -490,18 +490,18 @@ mod tests {
 
         let root = egraph.add_expr(&start);
 
-        fn get(egraph: &EGraph, id: Id) -> &str {
-            &egraph[id].nodes[0].op
+        fn get(egraph: &EGraph, id: Id) -> Symbol {
+            egraph[id].nodes[0].op
         }
 
         #[derive(Debug)]
         struct Appender;
-        impl Applier<StringLang, ()> for Appender {
+        impl Applier<SymbolLang, ()> for Appender {
             fn apply_one(&self, egraph: &mut EGraph, _eclass: Id, subst: &Subst) -> Vec<Id> {
                 let a: Var = "?a".parse().unwrap();
                 let b: Var = "?b".parse().unwrap();
-                let a = get(&egraph, subst[&a]);
-                let b = get(&egraph, subst[&b]);
+                let a = get(&egraph, subst[a]);
+                let b = get(&egraph, subst[b]);
                 let s = format!("{}{}", a, b);
                 vec![egraph.add(S::leaf(&s))]
             }

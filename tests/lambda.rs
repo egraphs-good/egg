@@ -18,7 +18,7 @@ define_language! {
         "if" = If([Id; 3]),
 
         "subst" = Subst([Id; 3]),
-        String(String),
+        Symbol(egg::Symbol),
     }
 }
 
@@ -62,12 +62,12 @@ impl Analysis<Lambda> for ConstantFold {
 fn is_not_same_var(v1: &'static str, v2: &'static str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let v1 = v1.parse().unwrap();
     let v2 = v2.parse().unwrap();
-    move |egraph, _, subst| egraph.find(subst[&v1]) != egraph.find(subst[&v2])
+    move |egraph, _, subst| egraph.find(subst[v1]) != egraph.find(subst[v2])
 }
 
 fn is_const(v1: &'static str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let v1 = v1.parse().unwrap();
-    move |egraph, _, subst| egraph[subst[&v1]].data.is_some()
+    move |egraph, _, subst| egraph[subst[v1]].data.is_some()
 }
 
 fn rules() -> Vec<Rewrite<Lambda, ConstantFold>> {

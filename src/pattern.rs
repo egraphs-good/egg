@@ -231,7 +231,7 @@ fn apply_pat<L: Language, A: Analysis<L>>(
     trace!("apply_rec {:2?} {:?}", pat, subst);
 
     let result = match pat.last().unwrap() {
-        ENodeOrVar::Var(w) => subst[&w],
+        ENodeOrVar::Var(w) => subst[*w],
         ENodeOrVar::ENode(e) => {
             let n = e
                 .clone()
@@ -248,7 +248,7 @@ fn apply_pat<L: Language, A: Analysis<L>>(
 #[cfg(test)]
 mod tests {
 
-    use crate::{StringLang as S, *};
+    use crate::{SymbolLang as S, *};
 
     type EGraph = crate::EGraph<S, ()>;
 

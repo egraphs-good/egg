@@ -57,14 +57,14 @@ the operator:
 ```
 # use egg::*;
 struct SillyCostFn;
-impl CostFunction<StringLang> for SillyCostFn {
+impl CostFunction<SymbolLang> for SillyCostFn {
     type Cost = f64;
     // you're passed in an enode whose children are costs instead of eclass ids
-    fn cost<C>(&mut self, enode: &StringLang, mut costs: C) -> Self::Cost
+    fn cost<C>(&mut self, enode: &SymbolLang, mut costs: C) -> Self::Cost
     where
         C: FnMut(Id) -> Self::Cost
     {
-        let op_cost = match enode.op.as_ref() {
+        let op_cost = match enode.op.as_str() {
             "foo" => 100.0,
             "bar" => 0.7,
             _ => 1.0
@@ -73,7 +73,7 @@ impl CostFunction<StringLang> for SillyCostFn {
     }
 }
 
-let e: RecExpr<StringLang> = "(do_it foo bar baz)".parse().unwrap();
+let e: RecExpr<SymbolLang> = "(do_it foo bar baz)".parse().unwrap();
 assert_eq!(SillyCostFn.cost_rec(&e), 102.7);
 assert_eq!(AstSize.cost_rec(&e), 4);
 assert_eq!(AstDepth.cost_rec(&e), 2);
@@ -120,7 +120,7 @@ pub trait CostFunction<L: Language> {
 
 ```
 # use egg::*;
-let e: RecExpr<StringLang> = "(do_it foo bar baz)".parse().unwrap();
+let e: RecExpr<SymbolLang> = "(do_it foo bar baz)".parse().unwrap();
 assert_eq!(AstSize.cost_rec(&e), 4);
 ```
 
@@ -141,7 +141,7 @@ impl<L: Language> CostFunction<L> for AstSize {
 
 ```
 # use egg::*;
-let e: RecExpr<StringLang> = "(do_it foo bar baz)".parse().unwrap();
+let e: RecExpr<SymbolLang> = "(do_it foo bar baz)".parse().unwrap();
 assert_eq!(AstDepth.cost_rec(&e), 2);
 ```
 

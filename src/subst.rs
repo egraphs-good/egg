@@ -1,12 +1,7 @@
-use crate::Id;
-use indexmap::IndexSet;
-use once_cell::sync::Lazy;
-
 use std::fmt;
 use std::str::FromStr;
-use std::sync::Mutex;
 
-static STRINGS: Lazy<Mutex<IndexSet<String>>> = Lazy::new(Default::default);
+use crate::{Id, Symbol};
 
 /// A variable for use in [`Pattern`]s or [`Subst`]s.
 ///
@@ -16,17 +11,15 @@ static STRINGS: Lazy<Mutex<IndexSet<String>>> = Lazy::new(Default::default);
 /// [`Pattern`]: struct.Pattern.html
 /// [`Subst`]: struct.Subst.html
 /// [`FromStr`]: https://doc.rust-lang.org/std/str/trait.FromStr.html
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Var(u32);
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Var(Symbol);
 
 impl FromStr for Var {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.starts_with('?') && s.len() > 1 {
-            let mut strings = STRINGS.lock().unwrap();
-            let (i, _) = strings.insert_full(s.to_owned());
-            Ok(Var(i as u32))
+            Ok(Var(s.into()))
         } else {
             Err(format!("{} doesn't start with '?'", s))
         }
@@ -35,19 +28,13 @@ impl FromStr for Var {
 
 impl fmt::Display for Var {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let i = self.0 as usize;
-        let strings = STRINGS.lock().unwrap();
-        let s = strings.get_index(i).unwrap();
-        write!(f, "{}", s)
+        write!(f, "{}", self.0)
     }
 }
 
 impl fmt::Debug for Var {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let i = self.0 as usize;
-        let strings = STRINGS.lock().unwrap();
-        let s = strings.get_index(i).unwrap();
-        write!(f, "{}", s)
+        write!(f, "{}", self.0)
     }
 }
 
@@ -80,17 +67,18 @@ impl Subst {
     }
 
     /// Retrieve a `Var`, returning `None` if not present.
-    pub fn get(&self, var: &Var) -> Option<&Id> {
+    #[inline(never)]
+    pub fn get(&self, var: Var) -> Option<&Id> {
         self.vec
             .iter()
-            .find_map(|(v, id)| if v == var { Some(id) } else { None })
+            .find_map(|(v, id)| if *v == var { Some(id) } else { None })
     }
 }
 
-impl std::ops::Index<&Var> for Subst {
+impl std::ops::Index<Var> for Subst {
     type Output = Id;
 
-    fn index(&self, var: &Var) -> &Self::Output {
+    fn index(&self, var: Var) -> &Self::Output {
         match self.get(var) {
             Some(id) => id,
             None => panic!("Var '{}={}' not found in {:?}", var.0, var, self),

@@ -41,7 +41,7 @@ define_language! {
         Num(i32),
         // language items are parsed in order, and we want symbol to
         // be a fallback, so we put it last
-        Symbol(String),
+        Symbol(Symbol),
     }
 }
 ```
@@ -248,7 +248,7 @@ impl Applier<SimpleLanguage, ()> for MySillyApplier {
 fn is_not_zero(var: &'static str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let var = var.parse().unwrap();
     let zero = SimpleLanguage::Num(0);
-    move |egraph, _, subst| !egraph[subst[&var]].nodes.contains(&zero)
+    move |egraph, _, subst| !egraph[subst[var]].nodes.contains(&zero)
 }
 ```
 
@@ -304,7 +304,7 @@ mod tests {
             "-" = Neg(Id),
             "pi" = Pi,
             Int(i32),
-            Var(String),
+            Var(Symbol),
         }
     }
 

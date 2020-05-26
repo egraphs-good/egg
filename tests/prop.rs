@@ -7,7 +7,7 @@ define_language! {
         "~" = Not(Id),
         "|" = Or([Id; 2]),
         "->" = Implies([Id; 2]),
-        Variable(String),
+        Symbol(Symbol),
     }
 }
 
@@ -25,7 +25,7 @@ impl Analysis<Prop> for ConstantFold {
         let x = |i: &Id| egraph[*i].data;
         let result = match enode {
             Prop::Bool(c) => Some(*c),
-            Prop::Variable(_) => None,
+            Prop::Symbol(_) => None,
             Prop::And([a, b]) => Some(x(a)? && x(b)?),
             Prop::Not(a) => Some(!x(a)?),
             Prop::Or([a, b]) => Some(x(a)? || x(b)?),

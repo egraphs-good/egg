@@ -90,7 +90,7 @@ define_language! {
         Num(i32),
         "+" = Add([Id; 2]),
         "*" = Mul([Id; 2]),
-        Symbol(String),
+        Symbol(Symbol),
     }
 }
 

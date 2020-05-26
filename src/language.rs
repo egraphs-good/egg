@@ -1,7 +1,7 @@
 use std::fmt::{self, Debug, Display};
 use std::hash::Hash;
 
-use crate::{EGraph, Id};
+use crate::{EGraph, Id, Symbol};
 
 use symbolic_expressions::Sexp;
 
@@ -16,7 +16,7 @@ use symbolic_expressions::Sexp;
 /// should override them if you want to parse or pretty-print expressions.
 /// [`define_language!`] implements these for you.
 ///
-/// See [`StringLang`](struct.StringLang.html) for quick-and-dirty use cases.
+/// See [`SymbolLang`](struct.SymbolLang.html) for quick-and-dirty use cases.
 ///
 /// [`define_language!`]: macro.define_language.html
 /// [`Language`]: trait.Language.html
@@ -190,7 +190,7 @@ impl<L: Language> RecExpr<L> {
     /// # Example
     /// ```
     /// # use egg::*;
-    /// let e: RecExpr<StringLang> = "(* (+ 2 2) (+ x y))".parse().unwrap();
+    /// let e: RecExpr<SymbolLang> = "(* (+ 2 2) (+ x y))".parse().unwrap();
     /// assert_eq!(e.pretty(10), "
     /// (*
     ///   (+ 2 2)
@@ -302,7 +302,7 @@ define_language! {
         "+" = Add([Id; 2]),
         "*" = Mul([Id; 2]),
         Num(i32),
-        Variable(String),
+        Symbol(Symbol),
     }
 }
 
@@ -413,27 +413,27 @@ impl<L: Language> Analysis<L> for () {
 
 /// A simple language used for testing.
 #[derive(Debug, Hash, PartialEq, Eq, Clone, PartialOrd, Ord)]
-pub struct StringLang {
+pub struct SymbolLang {
     /// The operator for an enode
-    pub op: String,
+    pub op: Symbol,
     /// The enode's children `Id`s
     pub children: Vec<Id>,
 }
 
-impl StringLang {
+impl SymbolLang {
     /// Create an enode with the given string and children
-    pub fn new(op: impl Into<String>, children: Vec<Id>) -> Self {
+    pub fn new(op: impl Into<Symbol>, children: Vec<Id>) -> Self {
         let op = op.into();
         Self { op, children }
     }
 
     /// Create childless enode with the given string
-    pub fn leaf(op: impl Into<String>) -> Self {
+    pub fn leaf(op: impl Into<Symbol>) -> Self {
         Self::new(op, vec![])
     }
 }
 
-impl Language for StringLang {
+impl Language for SymbolLang {
     fn matches(&self, other: &Self) -> bool {
         self.op == other.op && self.len() == other.len()
     }

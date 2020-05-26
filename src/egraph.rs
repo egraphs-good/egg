@@ -183,7 +183,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// Returns `true` if the egraph is empty
     /// # Example
     /// ```
-    /// use egg::{*, StringLang as S};
+    /// use egg::{*, SymbolLang as S};
     /// let mut egraph = EGraph::<S, ()>::default();
     /// assert!(egraph.is_empty());
     /// egraph.add(S::leaf("foo"));
@@ -198,7 +198,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// Actually returns the size of the hashcons index.
     /// # Example
     /// ```
-    /// use egg::{*, StringLang as S};
+    /// use egg::{*, SymbolLang as S};
     /// let mut egraph = EGraph::<S, ()>::default();
     /// let x = egraph.add(S::leaf("x"));
     /// let y = egraph.add(S::leaf("y"));
@@ -230,7 +230,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     ///
     /// # Example
     /// ```
-    /// use egg::{*, StringLang as S};
+    /// use egg::{*, SymbolLang as S};
     /// let mut egraph = EGraph::<S, ()>::default();
     /// let x = egraph.add(S::leaf("x"));
     /// let y = egraph.add(S::leaf("y"));
@@ -275,7 +275,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     ///
     /// # Example
     /// ```
-    /// use egg::{*, StringLang as S};
+    /// use egg::{*, SymbolLang as S};
     /// let mut egraph = EGraph::<S, ()>::default();
     /// let x = egraph.add(S::leaf("x"));
     /// let y = egraph.add(S::leaf("y"));
@@ -593,7 +593,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     ///
     /// # Example
     /// ```
-    /// use egg::{*, StringLang as S};
+    /// use egg::{*, SymbolLang as S};
     /// let mut egraph = EGraph::<S, ()>::default();
     /// let x = egraph.add(S::leaf("x"));
     /// let y = egraph.add(S::leaf("y"));
@@ -685,7 +685,7 @@ mod tests {
 
     #[test]
     fn simple_add() {
-        use StringLang as S;
+        use SymbolLang as S;
 
         crate::init_logger();
         let mut egraph = EGraph::<S, ()>::default();
