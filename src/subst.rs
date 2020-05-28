@@ -42,9 +42,9 @@ impl fmt::Debug for Var {
 ///
 /// [`Var`]: struct.Var.html
 /// [`Id`]: type.Id.html
-#[derive(Default, Clone)]
+#[derive(Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Subst {
-    vec: smallvec::SmallVec<[(Var, Id); 3]>,
+    pub(crate) vec: smallvec::SmallVec<[(Var, Id); 3]>,
 }
 
 impl Subst {

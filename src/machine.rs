@@ -1,262 +1,214 @@
-use std::fmt;
+use crate::{Analysis, EClass, EGraph, ENodeOrVar, Id, Language, PatternAst, Subst, Var};
+use std::cmp::Ordering;
 
-use crate::{Analysis, EGraph, ENodeOrVar, Id, Language, PatternAst, Subst, Var};
-
-struct Machine<'a, L> {
-    pc: usize,
+struct Machine {
     reg: Vec<Id>,
-    stack: Vec<Binder<'a, L>>,
 }
 
-impl<'a, L> Default for Machine<'a, L> {
+impl Default for Machine {
     fn default() -> Self {
-        Self {
-            pc: 0,
-            reg: vec![],
-            stack: vec![],
-        }
+        Self { reg: vec![] }
     }
 }
 
-type Addr = usize;
-type Reg = usize;
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+struct Reg(u32);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Instruction<L> {
-    Bind(Reg, L, Reg),
-    Check(Reg, L),
-    Compare(Reg, Reg),
-    Yield(Vec<Reg>),
+enum Instruction<L> {
+    Bind {
+        node: L,
+        i: Reg,
+        out: Reg,
+        next: Vec<Instruction<L>>,
+    },
+    Yield(Subst),
+    CheckLeaf {
+        i: Reg,
+        node: L,
+        next: Box<Instruction<L>>,
+    },
+    Compare {
+        i: Reg,
+        j: Reg,
+        next: Box<Instruction<L>>,
+    },
 }
 
-struct Binder<'a, L> {
-    out: Reg,
-    next: Addr,
-    nodes: std::slice::Iter<'a, L>,
-    // in debug mode, we keep the node around to make sure that it matches
-    #[cfg(debug_assertions)]
-    node: L,
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Program<L> {
+    instruction: Instruction<L>,
+    v2r: VarToReg,
 }
 
-impl<'a, L: Language> Binder<'a, L> {
-    #[inline(never)]
-    fn new(out: Reg, next: Addr, node: &'a L, nodes: &'a [L]) -> Self {
-        let slice_iter = if nodes.len() < 100 {
-            let mut iter = nodes.iter();
-            match iter.position(|n| node.matches(n)) {
-                None => [].iter(),
-                Some(start) => match iter.position(|n| !node.matches(n)) {
-                    None => nodes[start..].iter(),
-                    Some(offset) => nodes[start..start + offset + 1].iter(),
-                },
-            }
-        } else {
-            let zero = node.clone().map_children(|_| 0);
-            let start = nodes.binary_search(&zero).unwrap_or_else(|i| i);
-            let big = zero.map_children(|_| Id::MAX);
-            let offset = nodes[start..]
-                .binary_search(&big)
-                .expect_err("Shouldn't be a matching enode");
-            nodes[start..start + offset].iter()
-        };
-        Self {
-            out,
-            next,
-            nodes: slice_iter,
-            #[cfg(debug_assertions)]
-            node: node.clone(),
-        }
-    }
-
-    #[inline]
-    fn next(&mut self) -> Option<&'a L> {
-        let n = self.nodes.next()?;
-        #[cfg(debug_assertions)]
-        assert!(self.node.matches(n));
-        Some(n)
+#[inline(always)]
+fn for_each_matching_node<L, D>(eclass: &EClass<L, D>, node: &L, f: impl FnMut(&L))
+where
+    L: Language,
+{
+    if eclass.nodes.len() < 50 {
+        eclass.nodes.iter().filter(|n| node.matches(n)).for_each(f)
+    } else {
+        debug_assert!(node.children().iter().all(|&id| id == 0));
+        let start = eclass.nodes.binary_search(node).unwrap_or_else(|i| i);
+        eclass.nodes[start..]
+            .iter()
+            .take_while(|n| node.matches(n))
+            .for_each(f)
     }
 }
 
-use Instruction::*;
-
-impl<'a, L: Language> Machine<'a, L> {
-    #[must_use]
-    fn backtrack(&mut self) -> Option<()> {
-        log::trace!("Backtracking, stack size: {}", self.stack.len());
-        while let Some(binder) = self.stack.last_mut() {
-            if let Some(matched) = binder.next() {
-                log::trace!("Binding: {:?}", matched);
-                self.reg.truncate(binder.out);
-                self.reg.extend_from_slice(matched.children());
-                self.pc = binder.next;
-                return Some(());
-            } else {
-                self.stack.pop().expect("we know the stack isn't empty");
-            }
-        }
-        None
+impl Machine {
+    #[inline(always)]
+    fn reg(&self, reg: Reg) -> Id {
+        self.reg[reg.0 as usize]
     }
 
-    fn run<N>(
+    fn run<L, N>(
         &mut self,
-        egraph: &'a EGraph<L, N>,
-        program: &'a [Instruction<L>],
-        mut yield_fn: impl FnMut(&Self, &[Reg]),
+        egraph: &EGraph<L, N>,
+        instruction: &Instruction<L>,
+        yield_fn: &mut impl FnMut(&Self, &Subst),
     ) where
+        L: Language,
         N: Analysis<L>,
     {
-        macro_rules! backtrack {
-            () => {
-                if self.backtrack().is_none() {
-                    return;
-                }
-            };
-        }
-
-        loop {
-            let instr = &program[self.pc];
-            self.pc += 1;
-
-            log::trace!("Executing {:?}", instr);
-
-            match instr {
-                Bind(i, node, out) => {
-                    let eclass = &egraph[self.reg[*i]];
-                    self.stack
-                        .push(Binder::new(*out, self.pc, node, &eclass.nodes));
-                    backtrack!();
-                }
-                Check(i, t) => {
-                    debug_assert!(t.is_leaf());
-                    let id = self.reg[*i];
-                    let eclass = &egraph[id];
-                    if !eclass.nodes.contains(t) {
-                        backtrack!()
+        match instruction {
+            Instruction::Bind { i, out, next, node } => {
+                debug_assert!(!next.is_empty());
+                for_each_matching_node(&egraph[self.reg(*i)], node, |matched| {
+                    self.reg.truncate(out.0 as usize);
+                    self.reg.extend_from_slice(matched.children());
+                    for next_instr in next {
+                        self.run(egraph, next_instr, yield_fn)
                     }
-                    // TODO the below is more efficient, but is broken
-                    // because we don't support look up of ground
-                    // terms, because people can just push into eclasses
-                    //
-                    // let id1 = self.find_reg(*i);
-                    // let id2 = self.egraph.get_leaf(t.clone());
-
-                    // if Some(id1) == id2 {
-                    //     trace!("Check(r{} = e{}, {:?}) passed", i, id1, t);
-                    // } else {
-                    //     trace!("Check(r{} = e{}, {:?}) failed", i, id1, t);
-                    //     // self.backtrack()?;
-                    // }
-                }
-                Compare(i, j) => {
-                    if egraph.find(self.reg[*i]) != egraph.find(self.reg[*j]) {
-                        backtrack!()
-                    }
-                }
-                Yield(regs) => {
-                    // let ids = regs.iter().map(|r| self.reg[*r]).collect();
-                    // backtrack, but don't fail so we can yield
-                    yield_fn(self, regs);
-                    backtrack!()
-                    // return Some(ids);
+                })
+            }
+            Instruction::CheckLeaf { node, i, next } => {
+                debug_assert!(node.is_leaf());
+                let id = self.reg(*i);
+                let eclass = &egraph[id];
+                if eclass.nodes.contains(node) {
+                    self.run(egraph, next, yield_fn)
                 }
             }
+            Instruction::Compare { i, j, next } => {
+                if egraph.find(self.reg(*i)) == egraph.find(self.reg(*j)) {
+                    self.run(egraph, next, yield_fn)
+                }
+            }
+            Instruction::Yield(subst) => yield_fn(self, subst),
         }
     }
 }
 
-type RegToPat<N> = indexmap::IndexMap<Reg, ENodeOrVar<N>>;
 type VarToReg = indexmap::IndexMap<Var, Reg>;
+type TodoList<L> = std::collections::BinaryHeap<Todo<L>>;
 
-// fn size<N: ENode>(p: &[ENodeOrVar<N>], root: u32) -> usize {
-//     match &p[root as usize] {
-//         ENodeOrVar::ENode(e) => 1 + e.children().iter().map(|i| size(p, *i)).sum::<usize>(),
-//         ENodeOrVar::Var(_) => 1,
-//     }
-// }
+#[derive(PartialEq, Eq)]
+struct Todo<L> {
+    reg: Reg,
+    pat: ENodeOrVar<L>,
+}
 
-// fn n_free<N: ENode>(v2r: &VarToReg, p: &[ENodeOrVar<N>], root: u32) -> usize {
-//     match &p[root as usize] {
-//         ENodeOrVar::ENode(e) => e.children().iter().map(|i| n_free(v2r, p, *i)).sum::<usize>(),
-//         ENodeOrVar::Var(v) => !v2r.contains_key(v) as usize,
-//     }
-// }
+impl<L: Language> PartialOrd for Todo<L> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
 
-// fn rank<N: ENode>(v2r: &VarToReg, p1: &[ENodeOrVar<N>], p2: &[ENodeOrVar<N>], root1: u32, root2: u32) -> Ordering {
-//     let cost1 = (n_free(v2r, p1, 0), size(p1, 0));
-//     let cost2 = (n_free(v2r, p2, 0), size(p2, 0));
-//     cost1.cmp(&cost2)
-// }
+impl<L: Language> Ord for Todo<L> {
+    // TodoList is a max-heap, so we greater is higher priority
+    fn cmp(&self, other: &Self) -> Ordering {
+        use ENodeOrVar::*;
+        match (&self.pat, &other.pat) {
+            // fewer children means higher priority
+            (ENode(e1), ENode(e2)) => e2.len().cmp(&e1.len()),
+            // Var is higher prio than enode
+            (ENode(_), Var(_)) => Ordering::Less,
+            (Var(_), ENode(_)) => Ordering::Greater,
+            (Var(_), Var(_)) => Ordering::Equal,
+        }
+    }
+}
 
-fn compile<L: Language>(
-    pattern: &[ENodeOrVar<L>],
-    r2p: &mut RegToPat<L>,
-    v2r: &mut VarToReg,
-    mut next_reg: Reg,
-    buf: &mut Vec<Instruction<L>>,
-) {
-    while let Some((reg, pat)) = r2p.pop() {
-        match pat {
-            ENodeOrVar::ENode(e) if e.is_leaf() => {
-                // e is a ground term, it has no children
-                buf.push(Check(reg, e))
-            }
-            ENodeOrVar::Var(v) => {
-                if let Some(&r) = v2r.get(&v) {
-                    buf.push(Compare(r, reg))
-                } else {
-                    v2r.insert(v, reg);
-                }
-            }
-            ENodeOrVar::ENode(e) => {
-                assert!(!e.is_leaf());
-                buf.push(Bind(reg, e.clone(), next_reg));
+struct Compiler<'a, L> {
+    pattern: &'a [ENodeOrVar<L>],
+    v2r: VarToReg,
+    todo: TodoList<L>,
+    out: Reg,
+}
 
-                for (i, &child) in e.children().iter().enumerate() {
-                    r2p.insert(next_reg + i, pattern[child as usize].clone());
-                }
-
-                // sort in reverse order so we pop the cheapest
-                // NOTE, this doesn't seem to have a very large effect right now
-                // TODO restore sorting
-                // r2p.sort_by(|_, p1, _, p2| rank(v2r, p1, p2).reverse());
-                // r2p.sort_keys();
-                // r2p.sort_by(|_, p1, _, p2| p1.cmp(p2).reverse());
-                next_reg += e.len();
-            }
+impl<'a, L: Language> Compiler<'a, L> {
+    fn compile(pattern: &'a [ENodeOrVar<L>]) -> Program<L> {
+        let last = pattern.last().unwrap();
+        let mut compiler = Self {
+            pattern,
+            v2r: Default::default(),
+            todo: Default::default(),
+            out: Reg(1),
+        };
+        compiler.todo.push(Todo {
+            reg: Reg(0),
+            pat: last.clone(),
+        });
+        Program {
+            instruction: compiler.go(),
+            v2r: compiler.v2r,
         }
     }
 
-    assert!(r2p.is_empty());
-    let registers = v2r.values().copied().collect();
-    buf.push(Yield(registers));
-}
+    fn go(&mut self) -> Instruction<L> {
+        let Todo { reg: i, pat } = match self.todo.pop() {
+            Some(tup) => tup,
+            None => {
+                let mut subst = Subst::default();
+                for (v, r) in &self.v2r {
+                    subst.insert(*v, r.0);
+                }
+                return Instruction::Yield(subst);
+            }
+        };
 
-#[derive(PartialEq, Clone)]
-pub struct Program<L> {
-    v2r: VarToReg,
-    instrs: Vec<Instruction<L>>,
-}
+        match pat {
+            ENodeOrVar::Var(v) => {
+                if let Some(&j) = self.v2r.get(&v) {
+                    let next = Box::new(self.go());
+                    Instruction::Compare { i, j, next }
+                } else {
+                    self.v2r.insert(v, i);
+                    self.go()
+                }
+            }
+            ENodeOrVar::ENode(node) => {
+                if node.is_leaf() {
+                    let next = Box::new(self.go());
+                    Instruction::CheckLeaf { i, node, next }
+                } else {
+                    let out = self.out;
+                    self.out.0 += node.len() as u32;
 
-impl<L: fmt::Debug> fmt::Debug for Program<L> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "Program")?;
-        for (i, instr) in self.instrs.iter().enumerate() {
-            writeln!(f, "{}: {:?}", i, instr)?;
+                    for (id, &child) in node.children().iter().enumerate() {
+                        let r = Reg(out.0 + id as u32);
+                        self.todo.push(Todo {
+                            reg: r,
+                            pat: self.pattern[child as usize].clone(),
+                        });
+                    }
+
+                    // zero out the children so Bind can use it to sort
+                    let node = node.map_children(|_| 0);
+                    let next = vec![self.go()];
+                    Instruction::Bind { i, node, out, next }
+                }
+            }
         }
-        Ok(())
     }
 }
 
 impl<L: Language> Program<L> {
     pub(crate) fn compile_from_pat(pattern: &PatternAst<L>) -> Program<L> {
-        let mut instrs = Vec::new();
-        let mut r2p = RegToPat::new();
-        let mut v2r = VarToReg::new();
-
-        r2p.insert(0, pattern.as_ref().last().unwrap().clone());
-        compile(pattern.as_ref(), &mut r2p, &mut v2r, 1, &mut instrs);
-
-        let program = Program { instrs, v2r };
+        let program = Compiler::compile(pattern.as_ref());
         log::debug!("Compiled {:?} to {:?}", pattern.as_ref(), program);
         program
     }
@@ -271,14 +223,13 @@ impl<L: Language> Program<L> {
         machine.reg.push(eclass);
 
         let mut substs = Vec::new();
-        machine.run(egraph, &self.instrs, |machine, regs| {
-            let mut s = Subst::with_capacity(self.v2r.len());
-            let ids = regs.iter().map(|r| machine.reg[*r]);
-            for (i, id) in ids.enumerate() {
-                let var = self.v2r.get_index(i).unwrap().0;
-                s.insert(var.clone(), id);
-            }
-            substs.push(s)
+        machine.run(egraph, &self.instruction, &mut |machine, subst| {
+            let subst_vec = subst
+                .vec
+                .iter()
+                .map(|(v, reg_id)| (*v, machine.reg(Reg(*reg_id))))
+                .collect();
+            substs.push(Subst { vec: subst_vec })
         });
 
         log::trace!("Ran program, found {:?}", substs);
