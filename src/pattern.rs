@@ -66,12 +66,12 @@ use crate::{machine, Analysis, Applier, EGraph, Id, Language, RecExpr, Searcher,
 /// [`Applier`]: trait.Applier.html
 /// [`Language`]: trait.Language.html
 #[derive(Debug, PartialEq, Clone)]
-pub struct Pattern<N> {
-    ast: PatternAst<N>,
-    program: machine::Program<N>,
+pub struct Pattern<L> {
+    ast: PatternAst<L>,
+    program: machine::Program<L>,
 }
 
-pub(crate) type PatternAst<N> = RecExpr<ENodeOrVar<N>>;
+pub(crate) type PatternAst<L> = RecExpr<ENodeOrVar<L>>;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, PartialOrd, Ord)]
 pub(crate) enum ENodeOrVar<L> {
@@ -79,7 +79,7 @@ pub(crate) enum ENodeOrVar<L> {
     Var(Var),
 }
 
-impl<N: Language> Language for ENodeOrVar<N> {
+impl<L: Language> Language for ENodeOrVar<L> {
     fn matches(&self, _other: &Self) -> bool {
         panic!("Should never call this")
     }
@@ -112,7 +112,7 @@ impl<N: Language> Language for ENodeOrVar<N> {
                 ))
             }
         } else {
-            N::from_op_str(op_str, children).map(ENodeOrVar::ENode)
+            L::from_op_str(op_str, children).map(ENodeOrVar::ENode)
         }
     }
 
