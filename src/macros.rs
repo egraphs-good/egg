@@ -221,13 +221,11 @@ define_language! {
 
 type EGraph = egg::EGraph<SimpleLanguage, ()>;
 
-let rules: &[Rewrite<SimpleLanguage, ()>] = &[
+let mut rules: Vec<Rewrite<SimpleLanguage, ()>> = vec![
     rewrite!("commute-add"; "(+ ?a ?b)" => "(+ ?b ?a)"),
     rewrite!("commute-mul"; "(* ?a ?b)" => "(* ?b ?a)"),
 
-    rewrite!("add-0"; "(+ ?a 0)" => "?a"),
     rewrite!("mul-0"; "(* ?a 0)" => "0"),
-    rewrite!("mul-1"; "(* ?a 1)" => "?a"),
 
     rewrite!("silly"; "(* ?a 1)" => { MySillyApplier("foo") }),
 
@@ -235,6 +233,13 @@ let rules: &[Rewrite<SimpleLanguage, ()>] = &[
              "(/ ?a ?b)" => "(* ?a (/ 1 ?b))"
              if is_not_zero("?b")),
 ];
+
+// rewrite! supports bidirectional rules too
+// it returns a Vec of length 2, so you need to concat
+rules.extend(vec![
+    rewrite!("add-0"; "(+ ?a 0)" <=> "?a"),
+    rewrite!("mul-1"; "(* ?a 1)" <=> "?a"),
+].concat());
 
 #[derive(Debug)]
 struct MySillyApplier(&'static str);
@@ -272,6 +277,18 @@ macro_rules! rewrite {
         let core_applier = $crate::__rewrite!(@parse $rhs);
         let applier = $crate::__rewrite!(@applier core_applier; $($cond,)*);
         $crate::Rewrite::new($name, long_name, searcher, applier)
+    }};
+    (
+        $name:expr;
+        $lhs:tt <=> $rhs:tt
+        $(if $cond:expr)*
+    )  => {{
+        let name = $name;
+        let name2 = String::from(name.clone()) + "-rev";
+        vec![
+            $crate::rewrite!(name;  $lhs => $rhs $(if $cond)*),
+            $crate::rewrite!(name2; $rhs => $lhs $(if $cond)*)
+        ]
     }};
 }
 
@@ -317,11 +334,12 @@ mod tests {
 
     #[test]
     fn some_rewrites() {
-        let _: Vec<Rewrite<Simple, ()>> = vec![
+        let mut rws: Vec<Rewrite<Simple, ()>> = vec![
             // here it should parse the rhs
             rewrite!("rule"; "cons" => "f"),
             // here it should just accept the rhs without trying to parse
             rewrite!("rule"; "f" => { "pat".parse::<Pattern<_>>().unwrap() }),
         ];
+        rws.extend(rewrite!("two-way"; "foo" <=> "bar"));
     }
 }
