@@ -109,6 +109,11 @@ fn rules() -> Vec<Rewrite<Lambda, ConstantFold>> {
             "(subst ?e ?v1 (lam ?v2 ?body))" =>
             "(lam ?v2 (subst ?e ?v1 ?body))"
             if is_not_same_var("?v1", "?v2")),
+        rw!("subst-fix-same"; "(subst ?e ?v1 (fix ?v1 ?body))" => "(fix ?v1 ?body)"),
+        rw!("subst-fix-diff";
+            "(subst ?e ?v1 (fix ?v2 ?body))" =>
+            "(fix ?v2 (subst ?e ?v1 ?body))"
+            if is_not_same_var("?v1", "?v2")),
     ]
 }
 
@@ -166,6 +171,45 @@ egg::test_fn! {
 egg::test_fn! {
     lambda_if_simple, rules(),
     "(if (= 1 1) 7 9)" => "7"
+}
+
+egg::test_fn! {
+    lambda_compose_many, rules(),
+    "(let compose (lam f (lam g (lam x (app (var f)
+                                       (app (var g) (var x))))))
+     (let add1 (lam y (+ (var y) 1))
+     (app (app (var compose) (var add1))
+          (app (app (var compose) (var add1))
+               (app (app (var compose) (var add1))
+                    (app (app (var compose) (var add1))
+                         (app (app (var compose) (var add1))
+                              (app (app (var compose) (var add1))
+                                   (var add1)))))))))"
+    =>
+    "(lam x (+ (var x) 7))"
+}
+
+egg::test_fn! {
+    lambda_function_repeat, rules(),
+    runner = Runner::default()
+        .with_time_limit(std::time::Duration::from_secs(20))
+        .with_node_limit(1_000_000)
+        .with_iter_limit(60),
+    "(let compose (lam f (lam g (lam x (app (var f)
+                                       (app (var g) (var x))))))
+     (let repeat (fix repeat (lam fun (lam n
+        (if (= (var n) 0)
+            (lam x (var x))
+            (app (app (var compose) (var fun))
+                 (app (app (var repeat)
+                           (var fun))
+                      (+ (var n) -1)))))))
+     (let add1 (lam y (+ (var y) 1))
+     (app (app (var repeat)
+               (var add1))
+          3))))"
+    =>
+    "(lam x (+ (var x) 3))"
 }
 
 egg::test_fn! {

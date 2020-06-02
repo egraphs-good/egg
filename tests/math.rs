@@ -235,6 +235,13 @@ egg::test_fn! {
     "(/ 1 (sqrt five))"
 }
 
+egg::test_fn! {
+    math_simplify_factor, rules(),
+    "(* (+ x 3) (+ x 1))"
+    =>
+    "(+ (+ (* x x) (* 4 x)) 3)"
+}
+
 egg::test_fn! {math_diff_same,      rules(), "(d x x)" => "1"}
 egg::test_fn! {math_diff_different, rules(), "(d x y)" => "0"}
 egg::test_fn! {math_diff_simple1,   rules(), "(d x (+ 1 (* 2 x)))" => "2"}
