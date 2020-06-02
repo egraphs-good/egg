@@ -198,7 +198,7 @@ macro_rules! test_fn {
         $crate::test_fn! {
             $(#[$meta])*
             $name, $rules,
-            runner = Runner::<_, _, ()>::default(),
+            runner = $crate::Runner::<_, _, ()>::default(),
             $start => $( $goal ),+
             $(@check $check_fn)?
         }
