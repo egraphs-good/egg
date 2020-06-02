@@ -99,7 +99,7 @@ impl<L: Language> Language for ENodeOrVar<L> {
     }
 
     fn from_op_str(op_str: &str, children: Vec<Id>) -> Result<Self, String> {
-        if op_str.starts_with('?') {
+        if op_str.starts_with('?') && op_str.len() > 1 {
             if children.is_empty() {
                 op_str
                     .parse()
