@@ -189,6 +189,8 @@ macro_rules! __define_language {
 The `rewrite!` macro greatly simplifies creating simple, purely
 syntactic rewrites while also allowing more complex ones.
 
+This panics if [`Rewrite::new`](struct.Rewrite.html#method.new) fails.
+
 The simplest form `rewrite!(a; b => c)` creates a [`Rewrite`]
 with name `a`, [`Searcher`] `b`, and [`Applier`] `c`.
 Note that in the `b` and `c` position, the macro only accepts a single
@@ -276,7 +278,7 @@ macro_rules! rewrite {
         let searcher = $crate::__rewrite!(@parse $lhs);
         let core_applier = $crate::__rewrite!(@parse $rhs);
         let applier = $crate::__rewrite!(@applier core_applier; $($cond,)*);
-        $crate::Rewrite::new($name, long_name, searcher, applier)
+        $crate::Rewrite::new($name, long_name, searcher, applier).unwrap()
     }};
     (
         $name:expr;
@@ -341,5 +343,20 @@ mod tests {
             rewrite!("rule"; "f" => { "pat".parse::<Pattern<_>>().unwrap() }),
         ];
         rws.extend(rewrite!("two-way"; "foo" <=> "bar"));
+    }
+
+    #[test]
+    #[should_panic(expected = "refers to unbound var ?x")]
+    fn rewrite_simple_panic() {
+        let _: Rewrite<Simple, ()> = rewrite!("bad"; "?a" => "?x");
+    }
+
+    #[test]
+    #[should_panic(expected = "refers to unbound var ?x")]
+    fn rewrite_conditional_panic() {
+        let x: Pattern<Simple> = "?x".parse().unwrap();
+        let _: Rewrite<Simple, ()> = rewrite!(
+            "bad"; "?a" => "?a" if ConditionEqual(x.clone(), x)
+        );
     }
 }

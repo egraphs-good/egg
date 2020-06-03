@@ -73,6 +73,21 @@ pub struct Pattern<L> {
 
 pub(crate) type PatternAst<L> = RecExpr<ENodeOrVar<L>>;
 
+impl<L> Pattern<L> {
+    /// Returns a list of the [`Var`](struct.Var.html)s in this pattern.
+    pub fn vars(&self) -> Vec<Var> {
+        let mut vars = vec![];
+        for n in &self.ast.nodes {
+            if let ENodeOrVar::Var(v) = n {
+                if !vars.contains(v) {
+                    vars.push(*v)
+                }
+            }
+        }
+        vars
+    }
+}
+
 #[derive(Debug, Hash, PartialEq, Eq, Clone, PartialOrd, Ord)]
 pub(crate) enum ENodeOrVar<L> {
     ENode(L),
@@ -210,6 +225,10 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
             Some(SearchMatches { eclass, substs })
         }
     }
+
+    fn vars(&self) -> Vec<Var> {
+        Pattern::vars(self)
+    }
 }
 
 impl<L, A> Applier<L, A> for Pattern<L>
@@ -220,6 +239,10 @@ where
     fn apply_one(&self, egraph: &mut EGraph<L, A>, _: Id, subst: &Subst) -> Vec<Id> {
         let id = apply_pat(self.ast.as_ref(), egraph, subst);
         vec![id]
+    }
+
+    fn vars(&self) -> Vec<Var> {
+        Pattern::vars(self)
     }
 }
 

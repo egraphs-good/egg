@@ -8,6 +8,7 @@
 - `egg` now provides `Symbol`s, a simple interned string that users can (and
   should) use in their `Language`s.
 - `egg` will now warn you when you try to use `Rewrite`s with the same name.
+- Rewrite creation will now fail if the searcher doesn't bind the right variables.
   
 ### Fixed
 - The `rewrite!` macro builds conditional rewrites in the correct order now.

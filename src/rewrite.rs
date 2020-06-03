@@ -1,7 +1,7 @@
 use std::fmt;
 use std::rc::Rc;
 
-use crate::{Analysis, EGraph, Id, Language, SearchMatches, Subst};
+use crate::{Analysis, EGraph, Id, Language, SearchMatches, Subst, Var};
 
 /// A rewrite that searches for the lefthand side and applies the righthand side.
 ///
@@ -88,13 +88,25 @@ impl<L: Language, N: Analysis<L>> Rewrite<L, N> {
         long_name: impl Into<String>,
         searcher: impl Searcher<L, N> + 'static,
         applier: impl Applier<L, N> + 'static,
-    ) -> Self {
-        Self {
-            name: name.into(),
-            long_name: long_name.into(),
-            searcher: Rc::new(searcher),
-            applier: Rc::new(applier),
+    ) -> Result<Self, String> {
+        let name = name.into();
+        let long_name = long_name.into();
+        let searcher = Rc::new(searcher);
+        let applier = Rc::new(applier);
+
+        let bound_vars = searcher.vars();
+        for v in applier.vars() {
+            if !bound_vars.contains(&v) {
+                return Err(format!("Rewrite {} refers to unbound var {}", name, v));
+            }
         }
+
+        Ok(Self {
+            name,
+            long_name,
+            searcher,
+            applier,
+        })
     }
 
     /// Call [`search`] on the [`Searcher`].
@@ -168,6 +180,9 @@ where
             .filter_map(|e| self.search_eclass(egraph, e.id))
             .collect()
     }
+
+    /// Returns a list of the variables bound by this Searcher
+    fn vars(&self) -> Vec<Var>;
 }
 
 /// The righthand side of a [`Rewrite`].
@@ -329,6 +344,16 @@ where
     /// [`Id`]: type.Id.html
     /// [`apply_matches`]: trait.Applier.html#method.apply_matches
     fn apply_one(&self, egraph: &mut EGraph<L, N>, eclass: Id, subst: &Subst) -> Vec<Id>;
+
+    /// Returns a list of variables that this Applier assumes are bound.
+    ///
+    /// `egg` will check that the corresponding `Searcher` binds those
+    /// variables.
+    /// By default this return an empty `Vec`, which basically turns off the
+    /// checking.
+    fn vars(&self) -> Vec<Var> {
+        vec![]
+    }
 }
 
 /// An [`Applier`] that checks a [`Condition`] before applying.
@@ -374,6 +399,12 @@ where
             vec![]
         }
     }
+
+    fn vars(&self) -> Vec<Var> {
+        let mut vars = self.applier.vars();
+        vars.extend(self.condition.vars());
+        vars
+    }
 }
 
 /// A condition to check in a [`ConditionalApplier`].
@@ -400,6 +431,16 @@ where
     /// [`Id`]: type.Id.html
     /// [`ConditionalApplier`]: struct.ConditionalApplier.html
     fn check(&self, egraph: &mut EGraph<L, N>, eclass: Id, subst: &Subst) -> bool;
+
+    /// Returns a list of variables that this Condition assumes are bound.
+    ///
+    /// `egg` will check that the corresponding `Searcher` binds those
+    /// variables.
+    /// By default this return an empty `Vec`, which basically turns off the
+    /// checking.
+    fn vars(&self) -> Vec<Var> {
+        vec![]
+    }
 }
 
 impl<L, F, N> Condition<L, N> for F
@@ -435,6 +476,12 @@ where
         assert_eq!(a1.len(), 1);
         assert_eq!(a2.len(), 1);
         a1[0] == a2[0]
+    }
+
+    fn vars(&self) -> Vec<Var> {
+        let mut vars = self.0.vars();
+        vars.extend(self.1.vars());
+        vars
     }
 }
 
