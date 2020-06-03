@@ -9,6 +9,7 @@
   should) use in their `Language`s.
 - `egg` will now warn you when you try to use `Rewrite`s with the same name.
 - Rewrite creation will now fail if the searcher doesn't bind the right variables.
+- The `rewrite!` macro supports bidirectional rewrites now.
   
 ### Fixed
 - The `rewrite!` macro builds conditional rewrites in the correct order now.
