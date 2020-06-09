@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fmt::{self, Debug};
 
 use indexmap::IndexMap;
@@ -126,7 +127,7 @@ same eclass.
 pub struct EGraph<L: Language, N: Analysis<L>> {
     /// The `Analysis` given when creating this `EGraph`.
     pub analysis: N,
-    memo: IndexMap<L, Id>,
+    memo: HashMap<L, Id>,
     unionfind: UnionFind,
     classes: SparseVec<EClass<L, N::Data>>,
     dirty_unions: Vec<Id>,
@@ -156,7 +157,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     pub fn new(analysis: N) -> Self {
         Self {
             analysis,
-            memo: IndexMap::default(),
+            memo: Default::default(),
             classes: Default::default(),
             unionfind: Default::default(),
             dirty_unions: Default::default(),
