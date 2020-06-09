@@ -131,6 +131,7 @@ pub struct EGraph<L: Language, N: Analysis<L>> {
     unionfind: UnionFind,
     classes: SparseVec<EClass<L, N::Data>>,
     dirty_unions: Vec<Id>,
+    repairs_since_rebuild: usize,
     pub(crate) classes_by_op: IndexMap<std::mem::Discriminant<L>, indexmap::IndexSet<Id>>,
 }
 
@@ -162,6 +163,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             unionfind: Default::default(),
             dirty_unions: Default::default(),
             classes_by_op: IndexMap::default(),
+            repairs_since_rebuild: 0,
         }
     }
 
@@ -524,8 +526,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     }
 
     #[inline(never)]
-    fn process_unions(&mut self) -> usize {
-        let mut n_unions = 0;
+    fn process_unions(&mut self) {
         let mut to_union = vec![];
 
         while !self.dirty_unions.is_empty() {
@@ -540,7 +541,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             assert!(!todo.is_empty());
 
             for id in todo {
-                n_unions += 1;
+                self.repairs_since_rebuild += 1;
                 let mut parents = std::mem::take(&mut self[id].parents);
 
                 for (n, _e) in &parents {
@@ -581,7 +582,6 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
         assert!(self.dirty_unions.is_empty());
         assert!(to_union.is_empty());
-        n_unions
     }
 
     /// Restores the egraph invariants of congruence and enode uniqueness.
@@ -622,7 +622,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
         let start = instant::Instant::now();
 
-        let n_unions = self.process_unions();
+        self.process_unions();
+        let n_unions = std::mem::take(&mut self.repairs_since_rebuild);
         let trimmed_nodes = self.rebuild_classes();
 
         let elapsed = start.elapsed();
