@@ -73,7 +73,7 @@ pub struct Pattern<L> {
 
 pub(crate) type PatternAst<L> = RecExpr<ENodeOrVar<L>>;
 
-impl<L> Pattern<L> {
+impl<L: Language> Pattern<L> {
     /// Returns a list of the [`Var`](struct.Var.html)s in this pattern.
     pub fn vars(&self) -> Vec<Var> {
         let mut vars = vec![];
@@ -85,6 +85,11 @@ impl<L> Pattern<L> {
             }
         }
         vars
+    }
+
+    /// Pretty print this pattern as a sexp with the given width
+    pub fn pretty(&self, width: usize) -> String {
+        self.ast.pretty(width)
     }
 }
 
