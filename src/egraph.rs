@@ -4,7 +4,9 @@ use std::fmt::{self, Debug};
 use indexmap::IndexMap;
 use log::*;
 
-use crate::{Analysis, Dot, EClass, Id, Language, RecExpr, UnionFind};
+use crate::{
+    Analysis, AstSize, Dot, EClass, Extractor, Id, Language, Pattern, RecExpr, Searcher, UnionFind,
+};
 
 /** A data structure to keep track of equalities between expressions.
 
@@ -357,7 +359,6 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     ///
     /// [`RecExpr`]: struct.RecExpr.html
     pub fn equivs(&self, expr1: &RecExpr<L>, expr2: &RecExpr<L>) -> Vec<Id> {
-        use crate::{Pattern, Searcher};
         let matches1 = Pattern::from(expr1.as_ref()).search(self);
         trace!("Matches1: {:?}", matches1);
 
@@ -375,6 +376,28 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         }
 
         equiv_eclasses
+    }
+
+    /// Panic if the given eclass doesn't contain the given patterns
+    ///
+    /// Useful for testing.
+    pub fn check_goals(&self, id: Id, goals: &[Pattern<L>]) {
+        let (cost, best) = Extractor::new(self, AstSize).find_best(id);
+        println!("End ({}): {}", cost, best.pretty(80));
+
+        for (i, goal) in goals.iter().enumerate() {
+            println!("Trying to prove goal {}: {}", i, goal.pretty(40));
+            let matches = goal.search_eclass(&self, id);
+            if matches.is_none() {
+                let best = Extractor::new(&self, AstSize).find_best(id).1;
+                panic!(
+                    "Could not prove goal {}:\n{}\nBest thing found:\n{}",
+                    i,
+                    goal.pretty(40),
+                    best.pretty(40),
+                );
+            }
+        }
     }
 
     #[inline]

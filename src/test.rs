@@ -6,7 +6,7 @@ These are not considered part of the public api.
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-use crate::{Analysis, AstSize, Extractor, Language, Pattern, Runner, Searcher};
+use crate::{Analysis, Language, Runner};
 
 fn mean_stdev(data: &[f64]) -> (f64, f64) {
     assert_ne!(data.len(), 0);
@@ -27,7 +27,7 @@ fn mean_stdev(data: &[f64]) -> (f64, f64) {
     (mean, variance.sqrt())
 }
 
-fn var<T>(s: &str) -> Option<T>
+pub fn env_var<T>(s: &str) -> Option<T>
 where
     T: std::str::FromStr,
     T::Err: std::fmt::Debug,
@@ -36,6 +36,7 @@ where
     match std::env::var(s) {
         Err(VarError::NotPresent) => None,
         Err(VarError::NotUnicode(_)) => panic!("Environment variable {} isn't unicode", s),
+        Ok(v) if v.is_empty() => None,
         Ok(v) => match v.parse() {
             Ok(v) => Some(v),
             Err(err) => panic!("Couldn't parse environment variable {}={}, {:?}", s, v, err),
@@ -59,7 +60,7 @@ impl<T> Reporter<T> {
 
     #[cfg(not(feature = "reports"))]
     pub fn report<R>(self, to_report: impl FnOnce(&T) -> &R) -> T {
-        if let Some(dir) = var::<PathBuf>("EGG_BENCH_DIR") {
+        if let Some(dir) = env_var::<PathBuf>("EGG_BENCH_DIR") {
             eprintln!(
                 "EGG_BENCH_DIR is set to '{:?}', but the 'reports' feature is not enabled",
                 dir
@@ -74,7 +75,7 @@ impl<T> Reporter<T> {
     where
         R: serde::Serialize,
     {
-        let directory = match var::<PathBuf>("EGG_BENCH_DIR") {
+        let directory = match env_var::<PathBuf>("EGG_BENCH_DIR") {
             None => {
                 eprintln!("EGG_BENCH_DIR not set, skipping reporting");
                 return self.result;
@@ -109,7 +110,7 @@ impl<T> Reporter<T> {
 
 pub fn run<T>(name: impl Into<String>, mut f: impl FnMut() -> T) -> Reporter<T> {
     let name = name.into();
-    let seconds: f64 = match var("EGG_BENCH") {
+    let seconds: f64 = match env_var("EGG_BENCH") {
         Some(s) => s,
         None => {
             return Reporter {
@@ -147,39 +148,6 @@ pub fn run<T>(name: impl Into<String>, mut f: impl FnMut() -> T) -> Reporter<T> 
         name,
         times: Some(times),
         result,
-    }
-}
-
-impl<L, N, IterData> Runner<L, N, IterData>
-where
-    L: Language,
-    N: Analysis<L>,
-{
-    pub fn check_goals(&self, goals: &[Pattern<L>]) {
-        let egraph = &self.egraph;
-
-        // NOTE this is a bit of hack, we rely on the fact that the
-        // initial root is the last epr added by the runner. We can't
-        // use egraph.find_expr(start) because it may have been pruned
-        // away
-        let id = egraph.find(*self.roots.last().unwrap());
-
-        let (cost, best) = Extractor::new(egraph, AstSize).find_best(id);
-        println!("End ({}): {}", cost, best.pretty(80));
-
-        for (i, goal) in goals.iter().enumerate() {
-            println!("Trying to prove goal {}: {}", i, goal.pretty(40));
-            let matches = goal.search_eclass(&egraph, id);
-            if matches.is_none() {
-                let best = Extractor::new(&egraph, AstSize).find_best(id).1;
-                panic!(
-                    "Could not prove goal {}:\n{}\nBest thing found:\n{}",
-                    i,
-                    goal.pretty(40),
-                    best.pretty(40),
-                );
-            }
-        }
     }
 }
 
@@ -221,7 +189,17 @@ macro_rules! test_fn {
             let rules = $rules;
 
             let runner: $crate::Runner<_, _, ()> = $crate::test::run(name, || {
-                $runner.with_expr(&start).run(&rules)
+                let mut runner = $runner.with_expr(&start);
+                if let Some(lim) = $crate::test::env_var("EGG_NODE_LIMIT") {
+                    runner = runner.with_node_limit(lim)
+                }
+                if let Some(lim) = $crate::test::env_var("EGG_ITER_LIMIT") {
+                    runner = runner.with_iter_limit(lim)
+                }
+                if let Some(lim) = $crate::test::env_var("EGG_TIME_LIMIT") {
+                    runner = runner.with_time_limit(std::time::Duration::from_secs(lim))
+                }
+                runner.run(&rules)
             }).report(|r| &r.iterations);
             runner.print_report();
 
@@ -229,7 +207,12 @@ macro_rules! test_fn {
                 $goal.parse().unwrap()
             ),+];
 
-            runner.check_goals(goals);
+            // NOTE this is a bit of hack, we rely on the fact that the
+            // initial root is the last expr added by the runner. We can't
+            // use egraph.find_expr(start) because it may have been pruned
+            // away
+            let id = runner.egraph.find(*runner.roots.last().unwrap());
+            runner.egraph.check_goals(id, goals);
 
             $( ($check_fn)(runner) )?
         }

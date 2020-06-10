@@ -224,6 +224,8 @@ pub struct Iteration<IterData> {
     pub data: IterData,
     /// The number of rebuild iterations done after this iteration completed.
     pub n_rebuilds: usize,
+    /// If the runner stopped on this iterations, this is the reason
+    pub stop_reason: Option<StopReason>,
 }
 
 type RunnerResult<T> = std::result::Result<T, StopReason>;
@@ -305,6 +307,19 @@ where
             if let Err(stop_reason) = self.run_one(rules) {
                 info!("Stopping: {:?}", stop_reason);
                 self.stop_reason = Some(stop_reason);
+                // push on a final iteration to mark the end state
+                self.iterations.push(Iteration {
+                    stop_reason: self.stop_reason.clone(),
+                    egraph_nodes: self.egraph.total_number_of_nodes(),
+                    egraph_classes: self.egraph.number_of_classes(),
+                    data: IterData::make(&self),
+                    applied: Default::default(),
+                    search_time: Default::default(),
+                    apply_time: Default::default(),
+                    rebuild_time: Default::default(),
+                    total_time: Default::default(),
+                    n_rebuilds: Default::default(),
+                });
                 break;
             }
         }
@@ -417,6 +432,7 @@ where
             n_rebuilds,
             data: IterData::make(&self),
             total_time: start_time.elapsed().as_secs_f64(),
+            stop_reason: None,
         });
 
         if saturated {
