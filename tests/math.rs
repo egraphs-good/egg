@@ -151,7 +151,6 @@ pub fn rules() -> Vec<Rewrite> { vec![
     rw!("distribute"; "(* ?a (+ ?b ?c))"        => "(+ (* ?a ?b) (* ?a ?c))"),
     rw!("factor"    ; "(+ (* ?a ?b) (* ?a ?c))" => "(* ?a (+ ?b ?c))"),
 
-    rw!("pow-intro"; "?a" => "(pow ?a 1)"),
     rw!("pow-mul"; "(* (pow ?a ?b) (pow ?a ?c))" => "(pow ?a (+ ?b ?c))"),
     rw!("pow0"; "(pow ?x 0)" => "1"
         if is_not_zero("?x")),
