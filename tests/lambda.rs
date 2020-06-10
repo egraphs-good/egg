@@ -1,4 +1,5 @@
 use egg::{rewrite as rw, *};
+use std::collections::HashSet;
 
 define_language! {
     enum Lambda {
@@ -31,28 +32,66 @@ impl Lambda {
     }
 }
 
-type EGraph = egg::EGraph<Lambda, ConstantFold>;
+type EGraph = egg::EGraph<Lambda, LambdaAnalysis>;
 
 #[derive(Default)]
-struct ConstantFold;
-impl Analysis<Lambda> for ConstantFold {
-    type Data = Option<Lambda>;
-    fn merge(&self, to: &mut Self::Data, from: Self::Data) -> bool {
-        merge_if_different(to, to.clone().or(from))
-    }
+struct LambdaAnalysis;
 
-    fn make(egraph: &EGraph, enode: &Lambda) -> Self::Data {
-        let x = |i: &Id| egraph[*i].data.clone();
-        match enode {
-            Lambda::Num(_) | Lambda::Bool(_) => Some(enode.clone()),
-            Lambda::Add([a, b]) => Some(Lambda::Num(x(a)?.num()? + x(b)?.num()?)),
-            Lambda::Eq([a, b]) => Some(Lambda::Bool(x(a)? == x(b)?)),
-            _ => None,
+#[derive(Debug)]
+struct Data {
+    free: HashSet<Id>,
+    constant: Option<Lambda>,
+}
+
+fn eval(egraph: &EGraph, enode: &Lambda) -> Option<Lambda> {
+    let x = |i: &Id| egraph[*i].data.constant.clone();
+    match enode {
+        Lambda::Num(_) | Lambda::Bool(_) => Some(enode.clone()),
+        Lambda::Add([a, b]) => Some(Lambda::Num(x(a)?.num()? + x(b)?.num()?)),
+        Lambda::Eq([a, b]) => Some(Lambda::Bool(x(a)? == x(b)?)),
+        _ => None,
+    }
+}
+
+impl Analysis<Lambda> for LambdaAnalysis {
+    type Data = Data;
+    fn merge(&self, to: &mut Data, from: Data) -> bool {
+        let before_len = to.free.len();
+        // to.free.extend(from.free);
+        to.free.retain(|i| from.free.contains(i));
+        let did_change = before_len != to.free.len();
+        if to.constant.is_none() && from.constant.is_some() {
+            to.constant = from.constant;
+            true
+        } else {
+            did_change
         }
     }
 
+    fn make(egraph: &EGraph, enode: &Lambda) -> Data {
+        let f = |i: &Id| egraph[*i].data.free.iter().cloned();
+        let mut free = HashSet::default();
+        match enode {
+            Lambda::Var(v) => {
+                free.insert(*v);
+            }
+            Lambda::Let([v, a, b]) | Lambda::Subst([a, v, b]) => {
+                free.extend(f(b));
+                free.remove(v);
+                free.extend(f(a));
+            }
+            Lambda::Lambda([v, a]) | Lambda::Fix([v, a]) => {
+                free.extend(f(a));
+                free.remove(v);
+            }
+            _ => enode.for_each(|c| free.extend(&egraph[c].data.free)),
+        }
+        let constant = eval(egraph, enode);
+        Data { constant, free }
+    }
+
     fn modify(egraph: &mut EGraph, id: Id) {
-        if let Some(c) = egraph[id].data.clone() {
+        if let Some(c) = egraph[id].data.constant.clone() {
             let const_id = egraph.add(c);
             egraph.union(id, const_id);
         }
@@ -67,10 +106,10 @@ fn is_not_same_var(v1: &'static str, v2: &'static str) -> impl Fn(&mut EGraph, I
 
 fn is_const(v1: &'static str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let v1 = v1.parse().unwrap();
-    move |egraph, _, subst| egraph[subst[v1]].data.is_some()
+    move |egraph, _, subst| egraph[subst[v1]].data.constant.is_some()
 }
 
-fn rules() -> Vec<Rewrite<Lambda, ConstantFold>> {
+fn rules() -> Vec<Rewrite<Lambda, LambdaAnalysis>> {
     vec![
         // open term rules
         rw!("if-true";  "(if  true ?then ?else)" => "?then"),
@@ -107,14 +146,54 @@ fn rules() -> Vec<Rewrite<Lambda, ConstantFold>> {
         rw!("subst-lam-same"; "(subst ?e ?v1 (lam ?v1 ?body))" => "(lam ?v1 ?body)"),
         rw!("subst-lam-diff";
             "(subst ?e ?v1 (lam ?v2 ?body))" =>
-            "(lam ?v2 (subst ?e ?v1 ?body))"
+            { CaptureAvoid::new(
+                "(lam ?v2 (subst ?e ?v1 ?body))",
+                "(lam ?fresh (subst ?e ?v1 (subst (var ?fresh) ?v2 ?body)))") }
             if is_not_same_var("?v1", "?v2")),
         rw!("subst-fix-same"; "(subst ?e ?v1 (fix ?v1 ?body))" => "(fix ?v1 ?body)"),
         rw!("subst-fix-diff";
             "(subst ?e ?v1 (fix ?v2 ?body))" =>
-            "(fix ?v2 (subst ?e ?v1 ?body))"
+            { CaptureAvoid::new(
+                "(fix ?v2 (subst ?e ?v1 ?body))",
+                "(fix ?fresh (subst ?e ?v1 (subst (var ?fresh) ?v2 ?body)))") }
             if is_not_same_var("?v1", "?v2")),
     ]
+}
+
+struct CaptureAvoid {
+    fresh: Var,
+    v2: Var,
+    e: Var,
+    if_not_free: Pattern<Lambda>,
+    if_free: Pattern<Lambda>,
+}
+
+impl CaptureAvoid {
+    fn new(if_not_free: &str, if_free: &str) -> Self {
+        Self {
+            fresh: "?fresh".parse().unwrap(),
+            v2: "?v2".parse().unwrap(),
+            e: "?e".parse().unwrap(),
+            if_not_free: if_not_free.parse().unwrap(),
+            if_free: if_free.parse().unwrap(),
+        }
+    }
+}
+
+impl Applier<Lambda, LambdaAnalysis> for CaptureAvoid {
+    fn apply_one(&self, egraph: &mut EGraph, eclass: Id, subst: &Subst) -> Vec<Id> {
+        let e = subst[self.e];
+        let v2 = subst[self.v2];
+        let v2_free_in_e = egraph[e].data.free.contains(&v2);
+        if v2_free_in_e {
+            let mut subst = subst.clone();
+            let sym = Lambda::Symbol(format!("_{}", eclass).into());
+            subst.insert(self.fresh, egraph.add(sym));
+            self.if_free.apply_one(egraph, eclass, &subst)
+        } else {
+            self.if_not_free.apply_one(egraph, eclass, &subst)
+        }
+    }
 }
 
 egg::test_fn! {
@@ -143,8 +222,8 @@ egg::test_fn! {
      (let y 1
      (+ (var x) (var y))))"
     =>
-    "(let y 1
-     (+ 0 (var y)))",
+    "(let ?y 1
+     (+ 0 (var ?y)))",
     "(+ 0 1)",
     "1",
 }
@@ -156,16 +235,22 @@ egg::test_fn! {
 }
 
 egg::test_fn! {
+    #[should_panic(expected = "Could not prove goal 0")]
+    lambda_capture_free, rules(),
+    "(subst (+ (var x) (var x)) y (lam x (var y)))" => "(lam x (+ (var x) (var x)))"
+}
+
+egg::test_fn! {
     lambda_compose, rules(),
     "(let compose (lam f (lam g (lam x (app (var f)
                                        (app (var g) (var x))))))
      (let add1 (lam y (+ (var y) 1))
      (app (app (var compose) (var add1)) (var add1))))"
     =>
-    "(lam x (+ 1
-               (app (lam y (+ 1 (var y)))
-                    (var x))))",
-    "(lam x (+ (var x) 2))"
+    "(lam ?x (+ 1
+                (app (lam ?y (+ 1 (var ?y)))
+                     (var ?x))))",
+    "(lam ?x (+ (var ?x) 2))"
 }
 
 egg::test_fn! {
@@ -186,20 +271,20 @@ egg::test_fn! {
                               (app (app (var compose) (var add1))
                                    (var add1)))))))))"
     =>
-    "(lam x (+ (var x) 7))"
+    "(lam ?x (+ (var ?x) 7))"
 }
 
 egg::test_fn! {
     lambda_function_repeat, rules(),
     runner = Runner::default()
         .with_time_limit(std::time::Duration::from_secs(20))
-        .with_node_limit(1_000_000)
+        .with_node_limit(100_000)
         .with_iter_limit(60),
     "(let compose (lam f (lam g (lam x (app (var f)
                                        (app (var g) (var x))))))
      (let repeat (fix repeat (lam fun (lam n
         (if (= (var n) 0)
-            (lam x (var x))
+            (lam i (var i))
             (app (app (var compose) (var fun))
                  (app (app (var repeat)
                            (var fun))
@@ -207,9 +292,9 @@ egg::test_fn! {
      (let add1 (lam y (+ (var y) 1))
      (app (app (var repeat)
                (var add1))
-          3))))"
+          2))))"
     =>
-    "(lam x (+ (var x) 3))"
+    "(lam ?x (+ (var ?x) 2))"
 }
 
 egg::test_fn! {
