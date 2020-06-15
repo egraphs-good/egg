@@ -6,8 +6,6 @@ These are not considered part of the public api.
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-use crate::{Analysis, Language, Runner};
-
 fn mean_stdev(data: &[f64]) -> (f64, f64) {
     assert_ne!(data.len(), 0);
 
