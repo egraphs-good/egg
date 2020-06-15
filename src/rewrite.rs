@@ -1,7 +1,7 @@
 use std::fmt;
 use std::rc::Rc;
 
-use crate::{Analysis, EGraph, Id, Language, SearchMatches, Subst, Var};
+use crate::{Analysis, EGraph, Id, Language, Pattern, SearchMatches, Subst, Var};
 
 /// A rewrite that searches for the lefthand side and applies the righthand side.
 ///
@@ -41,7 +41,6 @@ where
             }
         }
 
-        use crate::Pattern;
         use std::any::Any;
 
         let mut d = f.debug_struct("Rewrite");
@@ -462,6 +461,15 @@ where
 /// [`Applier`]: trait.Applier.html
 /// [`Condition`]: trait.Condition.html
 pub struct ConditionEqual<A1, A2>(pub A1, pub A2);
+
+impl<L: Language> ConditionEqual<Pattern<L>, Pattern<L>> {
+    /// Create a ConditionEqual by parsing two pattern strings.
+    ///
+    /// This panics if the parsing fails.
+    pub fn parse(a1: &str, a2: &str) -> Self {
+        Self(a1.parse().unwrap(), a2.parse().unwrap())
+    }
+}
 
 impl<L, N, A1, A2> Condition<L, N> for ConditionEqual<A1, A2>
 where

@@ -114,18 +114,11 @@ fn rules() -> Vec<Rewrite<Lambda, LambdaAnalysis>> {
         // open term rules
         rw!("if-true";  "(if  true ?then ?else)" => "?then"),
         rw!("if-false"; "(if false ?then ?else)" => "?else"),
-        rw!("if-elim1"; "(if (= (var ?x) (var ?y)) ?then ?else)" => "?else" if {
-            let thn: Pattern<_> = "(subst (var ?x) ?y ?then)".parse().unwrap();
-            let els: Pattern<_> = "(subst (var ?x) ?y ?else)".parse().unwrap();
-            ConditionEqual(thn, els)
-        }),
-        rw!("if-elim2"; "(if (= (var ?x) (var ?y)) ?then ?else)" => "?else" if {
-            let thn: Pattern<_> = "(subst (var ?y) ?x ?then)".parse().unwrap();
-            let els: Pattern<_> = "(subst (var ?y) ?x ?else)".parse().unwrap();
-            ConditionEqual(thn, els)
-        }),
+        rw!("if-elim"; "(if (= (var ?x) (var ?y)) ?then ?else)" => "?else"
+            if ConditionEqual::parse("(subst (var ?x) ?y ?then)", "(subst (var ?x) ?y ?else)")),
         rw!("add-comm";  "(+ ?a ?b)"        => "(+ ?b ?a)"),
         rw!("add-assoc"; "(+ (+ ?a ?b) ?c)" => "(+ ?a (+ ?b ?c))"),
+        rw!("eq-comm";   "(= ?a ?b)"        => "(= ?b ?a)"),
         // subst rules
         rw!("fix";     "(fix ?v ?e)"             => "(subst (fix ?v ?e) ?v ?e)"),
         rw!("beta";    "(app (lam ?v ?body) ?e)" => "(subst ?e ?v ?body)"),
