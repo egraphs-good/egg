@@ -114,8 +114,8 @@ fn rules() -> Vec<Rewrite<Lambda, LambdaAnalysis>> {
         // open term rules
         rw!("if-true";  "(if  true ?then ?else)" => "?then"),
         rw!("if-false"; "(if false ?then ?else)" => "?else"),
-        rw!("if-elim"; "(if (= (var ?x) (var ?y)) ?then ?else)" => "?else"
-            if ConditionEqual::parse("(subst (var ?x) ?y ?then)", "(subst (var ?x) ?y ?else)")),
+        rw!("if-elim"; "(if (= (var ?x) ?e) ?then ?else)" => "?else"
+            if ConditionEqual::parse("(subst ?e ?x ?then)", "(subst ?e ?x ?else)")),
         rw!("add-comm";  "(+ ?a ?b)"        => "(+ ?b ?a)"),
         rw!("add-assoc"; "(+ (+ ?a ?b) ?c)" => "(+ ?a (+ ?b ?c))"),
         rw!("eq-comm";   "(= ?a ?b)"        => "(= ?b ?a)"),
@@ -308,6 +308,7 @@ egg::test_fn! {
 
 egg::test_fn! {
     lambda_fib, rules(),
+    runner = Runner::default().with_iter_limit(60),
     "(let fib (fix fib (lam n
         (if (= (var n) 0)
             0
