@@ -527,8 +527,10 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                     assert_eq!(
                         self.find(old),
                         self.find(id),
-                        "Found unexpected equivalence for {:?}",
-                        node
+                        "Found unexpected equivalence for {:?}\n{:?}\nvs\n{:?}",
+                        node,
+                        self[self.find(id)].nodes,
+                        self[self.find(old)].nodes,
                     );
                 }
             }

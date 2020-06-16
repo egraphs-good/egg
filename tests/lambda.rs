@@ -18,7 +18,6 @@ define_language! {
 
         "if" = If([Id; 3]),
 
-        "subst" = Subst([Id; 3]),
         Symbol(egg::Symbol),
     }
 }
@@ -75,7 +74,7 @@ impl Analysis<Lambda> for LambdaAnalysis {
             Lambda::Var(v) => {
                 free.insert(*v);
             }
-            Lambda::Let([v, a, b]) | Lambda::Subst([a, v, b]) => {
+            Lambda::Let([v, a, b]) => {
                 free.extend(f(b));
                 free.remove(v);
                 free.extend(f(a));
@@ -92,7 +91,7 @@ impl Analysis<Lambda> for LambdaAnalysis {
 
     fn modify(egraph: &mut EGraph, id: Id) {
         if let Some(c) = egraph[id].data.constant.clone() {
-            let const_id = egraph.add(c);
+            let const_id = egraph.add(c.clone());
             egraph.union(id, const_id);
         }
     }
@@ -115,40 +114,31 @@ fn rules() -> Vec<Rewrite<Lambda, LambdaAnalysis>> {
         rw!("if-true";  "(if  true ?then ?else)" => "?then"),
         rw!("if-false"; "(if false ?then ?else)" => "?else"),
         rw!("if-elim"; "(if (= (var ?x) ?e) ?then ?else)" => "?else"
-            if ConditionEqual::parse("(subst ?e ?x ?then)", "(subst ?e ?x ?else)")),
+            if ConditionEqual::parse("(let ?x ?e ?then)", "(let ?x ?e ?else)")),
         rw!("add-comm";  "(+ ?a ?b)"        => "(+ ?b ?a)"),
         rw!("add-assoc"; "(+ (+ ?a ?b) ?c)" => "(+ ?a (+ ?b ?c))"),
         rw!("eq-comm";   "(= ?a ?b)"        => "(= ?b ?a)"),
         // subst rules
-        rw!("fix";     "(fix ?v ?e)"             => "(subst (fix ?v ?e) ?v ?e)"),
-        rw!("beta";    "(app (lam ?v ?body) ?e)" => "(subst ?e ?v ?body)"),
-        rw!("let-lam"; "(let ?v ?e ?body)"       => "(app (lam ?v ?body) ?e)"),
-        rw!("lam-let"; "(app (lam ?v ?body) ?e)" => "(let ?v ?e ?body)"),
-        rw!("subst-app";  "(subst ?e ?v (app ?a ?b))" => "(app (subst ?e ?v ?a) (subst ?e ?v ?b))"),
-        rw!("subst-add";  "(subst ?e ?v (+ ?a ?b))"   => "(+ (subst ?e ?v ?a) (subst ?e ?v ?b))"),
-        rw!("subst-eq";   "(subst ?e ?v (= ?a ?b))"   => "(= (subst ?e ?v ?a) (subst ?e ?v ?b))"),
-        rw!("subst-const";
-            "(subst ?e ?v ?c)" => "?c" if is_const("?c")),
-        rw!("subst-if";
-            "(subst ?e ?v (if ?cond ?then ?else))" =>
-            "(if (subst ?e ?v ?cond) (subst ?e ?v ?then) (subst ?e ?v ?else))"
+        rw!("fix";      "(fix ?v ?e)"             => "(let ?v (fix ?v ?e) ?e)"),
+        rw!("beta";     "(app (lam ?v ?body) ?e)" => "(let ?v ?e ?body)"),
+        rw!("let-app";  "(let ?v ?e (app ?a ?b))" => "(app (let ?v ?e ?a) (let ?v ?e ?b))"),
+        rw!("let-add";  "(let ?v ?e (+   ?a ?b))" => "(+   (let ?v ?e ?a) (let ?v ?e ?b))"),
+        rw!("let-eq";   "(let ?v ?e (=   ?a ?b))" => "(=   (let ?v ?e ?a) (let ?v ?e ?b))"),
+        rw!("let-const";
+            "(let ?v ?e ?c)" => "?c" if is_const("?c")),
+        rw!("let-if";
+            "(let ?v ?e (if ?cond ?then ?else))" =>
+            "(if (let ?v ?e ?cond) (let ?v ?e ?then) (let ?v ?e ?else))"
         ),
-        rw!("subst-var-same"; "(subst ?e ?v1 (var ?v1))" => "?e"),
-        rw!("subst-var-diff"; "(subst ?e ?v1 (var ?v2))" => "(var ?v2)"
+        rw!("let-var-same"; "(let ?v1 ?e (var ?v1))" => "?e"),
+        rw!("let-var-diff"; "(let ?v1 ?e (var ?v2))" => "(var ?v2)"
             if is_not_same_var("?v1", "?v2")),
-        rw!("subst-lam-same"; "(subst ?e ?v1 (lam ?v1 ?body))" => "(lam ?v1 ?body)"),
-        rw!("subst-lam-diff";
-            "(subst ?e ?v1 (lam ?v2 ?body))" =>
+        rw!("let-lam-same"; "(let ?v1 ?e (lam ?v1 ?body))" => "(lam ?v1 ?body)"),
+        rw!("let-lam-diff";
+            "(let ?v1 ?e (lam ?v2 ?body))" =>
             { CaptureAvoid::new(
-                "(lam ?v2 (subst ?e ?v1 ?body))",
-                "(lam ?fresh (subst ?e ?v1 (subst (var ?fresh) ?v2 ?body)))") }
-            if is_not_same_var("?v1", "?v2")),
-        rw!("subst-fix-same"; "(subst ?e ?v1 (fix ?v1 ?body))" => "(fix ?v1 ?body)"),
-        rw!("subst-fix-diff";
-            "(subst ?e ?v1 (fix ?v2 ?body))" =>
-            { CaptureAvoid::new(
-                "(fix ?v2 (subst ?e ?v1 ?body))",
-                "(fix ?fresh (subst ?e ?v1 (subst (var ?fresh) ?v2 ?body)))") }
+                "(lam ?v2 (let ?v1 ?e ?body))",
+                "(lam ?fresh (let ?v1 ?e (let ?v2 (var ?fresh) ?body)))") }
             if is_not_same_var("?v1", "?v2")),
     ]
 }
@@ -195,8 +185,8 @@ egg::test_fn! {
                (app (lam y (var y))
                     4)))"
     =>
-    "(lam x (+ 4 (subst 4 y (var y))))",
-    "(lam x (+ 4 4))",
+    // "(lam x (+ 4 (let y 4 (var y))))",
+    // "(lam x (+ 4 4))",
     "(lam x 8))",
 }
 
@@ -215,22 +205,33 @@ egg::test_fn! {
      (let y 1
      (+ (var x) (var y))))"
     =>
-    "(let ?y 1
-     (+ 0 (var ?y)))",
-    "(+ 0 1)",
+    // "(let ?a 0
+    //  (+ (var ?a) 1))",
+    // "(+ 0 1)",
     "1",
 }
 
 egg::test_fn! {
     #[should_panic(expected = "Could not prove goal 0")]
     lambda_capture, rules(),
-    "(subst 1 x (lam x (var x)))" => "(lam x 1)"
+    "(let x 1 (lam x (var x)))" => "(lam x 1)"
 }
 
 egg::test_fn! {
     #[should_panic(expected = "Could not prove goal 0")]
     lambda_capture_free, rules(),
-    "(subst (+ (var x) (var x)) y (lam x (var y)))" => "(lam x (+ (var x) (var x)))"
+    "(let y (+ (var x) (var x)) (lam x (var y)))" => "(lam x (+ (var x) (var x)))"
+}
+
+egg::test_fn! {
+    #[should_panic(expected = "Could not prove goal 0")]
+    lambda_closure_not_seven, rules(),
+    "(let five 5
+     (let add-five (lam x (+ (var x) (var five)))
+     (let five 6
+     (app (var add-five) 1))))"
+    =>
+    "7"
 }
 
 egg::test_fn! {
@@ -299,16 +300,14 @@ egg::test_fn! {
         (+ (app (var zeroone) 0)
         (app (var zeroone) 10)))"
     =>
-    "(+
-        (if false 0 1)
-        (if true 0 1))",
-    "(+ 1 0)",
+    // "(+ (if false 0 1) (if true 0 1))",
+    // "(+ 1 0)",
     "1",
 }
 
 egg::test_fn! {
     lambda_fib, rules(),
-    runner = Runner::default().with_iter_limit(60),
+    runner = Runner::default().with_iter_limit(60).with_node_limit(50_000),
     "(let fib (fix fib (lam n
         (if (= (var n) 0)
             0
