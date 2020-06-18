@@ -269,6 +269,7 @@ egg::test_fn! {
 }
 
 egg::test_fn! {
+    #[cfg_attr(feature = "upward-merging", ignore)]
     lambda_function_repeat, rules(),
     runner = Runner::default()
         .with_time_limit(std::time::Duration::from_secs(20))
@@ -306,8 +307,11 @@ egg::test_fn! {
 }
 
 egg::test_fn! {
+    #[cfg_attr(feature = "upward-merging", ignore)]
     lambda_fib, rules(),
-    runner = Runner::default().with_iter_limit(60).with_node_limit(50_000),
+    runner = Runner::default()
+        .with_iter_limit(60)
+        .with_node_limit(50_000),
     "(let fib (fix fib (lam n
         (if (= (var n) 0)
             0
