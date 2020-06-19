@@ -10,6 +10,7 @@
 - `egg` will now warn you when you try to use `Rewrite`s with the same name.
 - Rewrite creation will now fail if the searcher doesn't bind the right variables.
 - The `rewrite!` macro supports bidirectional rewrites now.
+- `define_language!` now supports variable numbers of children with `Box<[Id]>`.
   
 ### Fixed
 - The `rewrite!` macro builds conditional rewrites in the correct order now.

@@ -31,6 +31,10 @@ define_language! {
         "-" = Sub([Id; 2]),
         "*" = Mul([Id; 2]),
 
+        // can also do a variable number of children in a boxed slice
+        // this will only match if the lengths are the same
+        "list" = List(Box<[Id]>),
+
         // string variants with a single child `Id`
         // note that this is distinct from `Sub`, even though it has the same
         // string, because it has a different number of children
@@ -139,6 +143,26 @@ macro_rules! __define_language {
                 ids.copy_from_slice(&v);
                 Ok($name::$variant(ids))
             }, }
+        );
+    };
+
+    ($(#[$meta:meta])* $vis:vis enum $name:ident
+     {
+         $string:literal = $variant:ident (Box<[Id]>),
+         $($variants:tt)*
+     } ->
+     { $($decl:tt)* } { $($matches:tt)* } { $($children:tt)* } { $($children_mut:tt)* }
+     { $($display_op:tt)* } { $($from_op_str:tt)* }
+    ) => {
+        $crate::__define_language!(
+            $(#[$meta])* $vis enum $name
+            { $($variants)* } ->
+            { $($decl)*          $variant( Box<[Id]> ), }
+            { $($matches)*       ($name::$variant(l), $name::$variant(r)) => l.len() == r.len(), }
+            { $($children)*      $name::$variant(ids) => ids.as_ref(), }
+            { $($children_mut)*  $name::$variant(ids) => ids.as_mut(), }
+            { $($display_op)*    $name::$variant(..) => &$string, }
+            { $($from_op_str)*   (s, v) if s == $string => Ok($name::$variant(v.into_boxed_slice())), }
         );
     };
 
@@ -321,6 +345,7 @@ mod tests {
             "-" = Sub([Id; 2]),
             "*" = Mul([Id; 2]),
             "-" = Neg(Id),
+            "list" = List(Box<[Id]>),
             "pi" = Pi,
             Int(i32),
             Var(Symbol),
