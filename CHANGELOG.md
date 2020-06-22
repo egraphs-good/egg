@@ -4,6 +4,8 @@
 
 ## [Unreleased] - ReleaseDate
 
+## [0.5.0] - 2020-06-22
+
 ### Added
 - `egg` now provides `Symbol`s, a simple interned string that users can (and
   should) use in their `Language`s.
@@ -106,7 +108,8 @@ But hopefully things will be a little more stable from here on out
 since the API is a lot nicer.
 
 <!-- next-url -->
-[Unreleased]: https://github.com/mwillsey/egg/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/mwillsey/egg/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/mwillsey/egg/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/mwillsey/egg/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/mwillsey/egg/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/mwillsey/egg/compare/v0.2.0...v0.3.0
