@@ -1,4 +1,3 @@
-enable-features = ["serde-1"]
 dev-version-ext = "dev"
 
 [[pre-release-replacements]]
