@@ -59,7 +59,6 @@ the operator:
 struct SillyCostFn;
 impl CostFunction<SymbolLang> for SillyCostFn {
     type Cost = f64;
-    // you're passed in an enode whose children are costs instead of eclass ids
     fn cost<C>(&mut self, enode: &SymbolLang, mut costs: C) -> Self::Cost
     where
         C: FnMut(Id) -> Self::Cost
