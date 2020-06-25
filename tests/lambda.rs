@@ -97,15 +97,16 @@ impl Analysis<Lambda> for LambdaAnalysis {
     }
 }
 
-fn is_not_same_var(v1: &'static str, v2: &'static str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
-    let v1 = v1.parse().unwrap();
-    let v2 = v2.parse().unwrap();
+fn var(s: &str) -> Var {
+    s.parse().unwrap()
+}
+
+fn is_not_same_var(v1: Var, v2: Var) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     move |egraph, _, subst| egraph.find(subst[v1]) != egraph.find(subst[v2])
 }
 
-fn is_const(v1: &'static str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
-    let v1 = v1.parse().unwrap();
-    move |egraph, _, subst| egraph[subst[v1]].data.constant.is_some()
+fn is_const(v: Var) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
+    move |egraph, _, subst| egraph[subst[v]].data.constant.is_some()
 }
 
 fn rules() -> Vec<Rewrite<Lambda, LambdaAnalysis>> {
@@ -125,21 +126,23 @@ fn rules() -> Vec<Rewrite<Lambda, LambdaAnalysis>> {
         rw!("let-add";  "(let ?v ?e (+   ?a ?b))" => "(+   (let ?v ?e ?a) (let ?v ?e ?b))"),
         rw!("let-eq";   "(let ?v ?e (=   ?a ?b))" => "(=   (let ?v ?e ?a) (let ?v ?e ?b))"),
         rw!("let-const";
-            "(let ?v ?e ?c)" => "?c" if is_const("?c")),
+            "(let ?v ?e ?c)" => "?c" if is_const(var("?c"))),
         rw!("let-if";
             "(let ?v ?e (if ?cond ?then ?else))" =>
             "(if (let ?v ?e ?cond) (let ?v ?e ?then) (let ?v ?e ?else))"
         ),
         rw!("let-var-same"; "(let ?v1 ?e (var ?v1))" => "?e"),
         rw!("let-var-diff"; "(let ?v1 ?e (var ?v2))" => "(var ?v2)"
-            if is_not_same_var("?v1", "?v2")),
+            if is_not_same_var(var("?v1"), var("?v2"))),
         rw!("let-lam-same"; "(let ?v1 ?e (lam ?v1 ?body))" => "(lam ?v1 ?body)"),
         rw!("let-lam-diff";
             "(let ?v1 ?e (lam ?v2 ?body))" =>
-            { CaptureAvoid::new(
-                "(lam ?v2 (let ?v1 ?e ?body))",
-                "(lam ?fresh (let ?v1 ?e (let ?v2 (var ?fresh) ?body)))") }
-            if is_not_same_var("?v1", "?v2")),
+            { CaptureAvoid {
+                fresh: var("?fresh"), v2: var("?v2"), e: var("?e"),
+                if_not_free: "(lam ?v2 (let ?v1 ?e ?body))".parse().unwrap(),
+                if_free: "(lam ?fresh (let ?v1 ?e (let ?v2 (var ?fresh) ?body)))".parse().unwrap(),
+            }}
+            if is_not_same_var(var("?v1"), var("?v2"))),
     ]
 }
 
@@ -149,18 +152,6 @@ struct CaptureAvoid {
     e: Var,
     if_not_free: Pattern<Lambda>,
     if_free: Pattern<Lambda>,
-}
-
-impl CaptureAvoid {
-    fn new(if_not_free: &str, if_free: &str) -> Self {
-        Self {
-            fresh: "?fresh".parse().unwrap(),
-            v2: "?v2".parse().unwrap(),
-            e: "?e".parse().unwrap(),
-            if_not_free: if_not_free.parse().unwrap(),
-            if_free: if_free.parse().unwrap(),
-        }
-    }
 }
 
 impl Applier<Lambda, LambdaAnalysis> for CaptureAvoid {
