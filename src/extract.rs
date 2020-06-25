@@ -195,27 +195,21 @@ where
     /// given eclass.
     pub fn find_best(&mut self, eclass: Id) -> (CF::Cost, RecExpr<L>) {
         let mut expr = RecExpr::default();
-        self.find_best_rec(&mut expr, eclass);
-        let cost = self.cost_function.cost_rec(&expr);
-        (cost, expr)
+        let (_, cost) = self.find_best_rec(&mut expr, eclass);
+        (cost.expect("should have found a cost by now!"), expr)
     }
 
-    fn find_best_rec(&mut self, expr: &mut RecExpr<L>, eclass: Id) -> Id {
-        let eclass = self.egraph.find(eclass);
-
-        let best_node = self.egraph[eclass]
+    fn find_best_rec(&mut self, expr: &mut RecExpr<L>, eclass: Id) -> (Id, Option<CF::Cost>) {
+        let (best_node, best_cost) = self.egraph[eclass]
             .iter()
-            .min_by(|a, b| {
-                let a = self.node_total_cost(a);
-                let b = self.node_total_cost(b);
-                cmp(&a, &b)
-            })
+            .map(|n| (n, self.node_total_cost(n)))
+            .min_by(|(_, cost1), (_, cost2)| cmp(&cost1, &cost2))
             .expect("eclass shouldn't be empty");
 
         let node = best_node
             .clone()
-            .map_children(|child| self.find_best_rec(expr, child));
-        expr.add(node)
+            .map_children(|child| self.find_best_rec(expr, child).0);
+        (expr.add(node), best_cost)
     }
 
     fn node_total_cost(&mut self, node: &L) -> Option<CF::Cost> {
