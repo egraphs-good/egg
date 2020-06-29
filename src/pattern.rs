@@ -155,10 +155,8 @@ impl<L: Language> std::str::FromStr for Pattern<L> {
 
 impl<'a, L: Language> From<&'a [L]> for Pattern<L> {
     fn from(expr: &'a [L]) -> Self {
-        let mut ast = RecExpr::default();
-        for n in expr {
-            ast.add(ENodeOrVar::ENode(n.clone()));
-        }
+        let nodes = expr.iter().cloned().map(ENodeOrVar::ENode).collect();
+        let ast = RecExpr { nodes };
         let program = machine::Program::compile_from_pat(&ast);
         Pattern { ast, program }
     }
