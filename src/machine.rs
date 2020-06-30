@@ -27,19 +27,44 @@ enum Instruction<L> {
 }
 
 #[inline(always)]
-fn for_each_matching_node<L, D>(eclass: &EClass<L, D>, node: &L, f: impl FnMut(&L))
+fn for_each_matching_node<L, D>(eclass: &EClass<L, D>, node: &L, mut f: impl FnMut(&L))
 where
     L: Language,
 {
+    #[allow(clippy::mem_discriminant_non_enum)]
     if eclass.nodes.len() < 50 {
         eclass.nodes.iter().filter(|n| node.matches(n)).for_each(f)
     } else {
         debug_assert!(node.children().iter().all(|&id| id == 0));
-        let start = eclass.nodes.binary_search(node).unwrap_or_else(|i| i);
-        eclass.nodes[start..]
+        debug_assert!(eclass.nodes.windows(2).all(|w| &w[0] < &w[1]));
+        let mut start = eclass.nodes.binary_search(node).unwrap_or_else(|i| i);
+        let discrim = std::mem::discriminant(node);
+        while start > 0 {
+            if std::mem::discriminant(&eclass.nodes[start - 1]) == discrim {
+                start -= 1;
+            } else {
+                break;
+            }
+        }
+        let matching = eclass.nodes[start..]
             .iter()
-            .take_while(|n| node.matches(n))
-            .for_each(f)
+            .take_while(|&n| std::mem::discriminant(n) == discrim)
+            .filter(|n| node.matches(n));
+        debug_assert_eq!(
+            matching.clone().count(),
+            eclass.nodes.iter().filter(|n| node.matches(n)).count(),
+            "matching node {:?}\nstart={}\n{:?} != {:?}\nnodes: {:?}",
+            node,
+            start,
+            matching.clone().collect::<indexmap::IndexSet<_>>(),
+            eclass
+                .nodes
+                .iter()
+                .filter(|n| node.matches(n))
+                .collect::<indexmap::IndexSet<_>>(),
+            eclass.nodes
+        );
+        matching.for_each(&mut f);
     }
 }
 
