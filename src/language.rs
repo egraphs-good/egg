@@ -118,7 +118,7 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
 /// [`Language`]: trait.Language.html
 /// [ser]: https://docs.rs/serde/latest/serde/trait.Serialize.html
 /// [pretty]: struct.RecExpr.html#method.pretty
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RecExpr<L> {
     pub(crate) nodes: Vec<L>,
 }
