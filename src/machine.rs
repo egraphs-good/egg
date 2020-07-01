@@ -36,7 +36,7 @@ where
         eclass.nodes.iter().filter(|n| node.matches(n)).for_each(f)
     } else {
         debug_assert!(node.children().iter().all(|&id| id == 0));
-        debug_assert!(eclass.nodes.windows(2).all(|w| &w[0] < &w[1]));
+        debug_assert!(eclass.nodes.windows(2).all(|w| w[0] < w[1]));
         let mut start = eclass.nodes.binary_search(node).unwrap_or_else(|i| i);
         let discrim = std::mem::discriminant(node);
         while start > 0 {
