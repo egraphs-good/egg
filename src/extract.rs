@@ -41,7 +41,7 @@ assert_eq!(best, "10".parse().unwrap());
 **/
 pub struct Extractor<'a, CF: CostFunction<L>, L: Language, N: Analysis<L>> {
     cost_function: CF,
-    costs: HashMap<Id, CF::Cost>,
+    costs: HashMap<Id, (CF::Cost, L)>,
     egraph: &'a EGraph<L, N>,
 }
 
@@ -196,26 +196,27 @@ where
     pub fn find_best(&mut self, eclass: Id) -> (CF::Cost, RecExpr<L>) {
         let mut expr = RecExpr::default();
         let (_, cost) = self.find_best_rec(&mut expr, eclass);
-        (cost.expect("should have found a cost by now!"), expr)
+        (cost, expr)
     }
 
-    fn find_best_rec(&mut self, expr: &mut RecExpr<L>, eclass: Id) -> (Id, Option<CF::Cost>) {
-        let (best_node, best_cost) = self.egraph[eclass]
-            .iter()
-            .map(|n| (n, self.node_total_cost(n)))
-            .min_by(|(_, cost1), (_, cost2)| cmp(&cost1, &cost2))
-            .expect("eclass shouldn't be empty");
+    fn find_best_rec(&mut self, expr: &mut RecExpr<L>, eclass: Id) -> (Id, CF::Cost) {
+        let id = self.egraph.find(eclass);
+        let (best_cost, best_node) = match self.costs.get(&id) {
+            Some(result) => result.clone(),
+            None => panic!("Failed to extract from eclass {}", id),
+        };
 
-        let node = best_node
-            .clone()
-            .map_children(|child| self.find_best_rec(expr, child).0);
+        let node = best_node.map_children(|child| self.find_best_rec(expr, child).0);
         (expr.add(node), best_cost)
     }
 
     fn node_total_cost(&mut self, node: &L) -> Option<CF::Cost> {
-        if node.children().iter().all(|id| self.costs.contains_key(id)) {
+        let eg = &self.egraph;
+        let has_cost = |&id| self.costs.contains_key(&eg.find(id));
+        if node.children().iter().all(has_cost) {
             let costs = &self.costs;
-            Some(self.cost_function.cost(&node, |i| costs[&i].clone()))
+            let cost_f = |id| costs[&eg.find(id)].0.clone();
+            Some(self.cost_function.cost(&node, cost_f))
         } else {
             None
         }
@@ -229,11 +230,11 @@ where
             for class in self.egraph.classes() {
                 let pass = self.make_pass(class);
                 match (self.costs.get(&class.id), pass) {
-                    (None, Some(cost)) => {
-                        self.costs.insert(class.id, cost);
+                    (None, Some(new)) => {
+                        self.costs.insert(class.id, new);
                         did_something = true;
                     }
-                    (Some(old), Some(new)) if new < *old => {
+                    (Some(old), Some(new)) if new.0 < old.0 => {
                         self.costs.insert(class.id, new);
                         did_something = true;
                     }
@@ -241,13 +242,24 @@ where
                 }
             }
         }
+
+        for class in self.egraph.classes() {
+            if !self.costs.contains_key(&class.id) {
+                log::warn!(
+                    "Failed to compute cost for eclass {}: {:?}",
+                    class.id,
+                    class.nodes
+                )
+            }
+        }
     }
 
-    fn make_pass(&mut self, eclass: &EClass<L, N::Data>) -> Option<CF::Cost> {
-        eclass
+    fn make_pass(&mut self, eclass: &EClass<L, N::Data>) -> Option<(CF::Cost, L)> {
+        let (cost, node) = eclass
             .iter()
-            .map(|n| self.node_total_cost(n))
-            .min_by(cmp)
-            .unwrap_or_else(|| panic!("Can't extract, eclass is empty: {:#?}", eclass))
+            .map(|n| (self.node_total_cost(n), n))
+            .min_by(|a, b| cmp(&a.0, &b.0))
+            .unwrap_or_else(|| panic!("Can't extract, eclass is empty: {:#?}", eclass));
+        cost.map(|c| (c, node.clone()))
     }
 }

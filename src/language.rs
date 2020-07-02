@@ -205,8 +205,12 @@ impl<L: Language> RecExpr<L> {
 
 impl<L: Language> Display for RecExpr<L> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = self.to_sexp(self.nodes.len() as Id - 1).to_string();
-        write!(f, "{}", s)
+        if self.nodes.is_empty() {
+            write!(f, "()")
+        } else {
+            let s = self.to_sexp(self.nodes.len() as Id - 1).to_string();
+            write!(f, "{}", s)
+        }
     }
 }
 
