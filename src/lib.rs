@@ -75,10 +75,7 @@ mod util;
 /// [`EGraph`](struct.EGraph.html).
 pub type Id = u32;
 
-pub(crate) use {
-    pattern::{ENodeOrVar, PatternAst},
-    unionfind::UnionFind,
-};
+pub(crate) use unionfind::UnionFind;
 
 pub use {
     dot::Dot,
@@ -86,7 +83,7 @@ pub use {
     egraph::EGraph,
     extract::*,
     language::*,
-    pattern::{Pattern, SearchMatches},
+    pattern::{ENodeOrVar, Pattern, PatternAst, SearchMatches},
     rewrite::{Applier, Condition, ConditionEqual, ConditionalApplier, Rewrite, Searcher},
     run::*,
     subst::{Subst, Var},

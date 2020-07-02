@@ -5,7 +5,8 @@
 ## [Unreleased] - ReleaseDate
 
 ### Fixed
-- Fixed a bug when making Patterns from RecExprs
+- Fixed a bug when making `Pattern`s from `RecExpr`s.
+- Improved the `RecExpr` API.
 
 ## [0.5.0] - 2020-06-22
 

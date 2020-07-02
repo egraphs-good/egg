@@ -67,17 +67,20 @@ use crate::{machine, Analysis, Applier, EGraph, Id, Language, RecExpr, Searcher,
 /// [`Language`]: trait.Language.html
 #[derive(Debug, PartialEq, Clone)]
 pub struct Pattern<L> {
-    ast: PatternAst<L>,
+    /// The actual pattern as a [`RecExpr`](struct.RecExpr.html)
+    pub ast: PatternAst<L>,
     program: machine::Program<L>,
 }
 
-pub(crate) type PatternAst<L> = RecExpr<ENodeOrVar<L>>;
+/// A [`RecExpr`](struct.RecExpr.html) that represents a
+/// [`Pattern`](struct.Pattern.html).
+pub type PatternAst<L> = RecExpr<ENodeOrVar<L>>;
 
 impl<L: Language> Pattern<L> {
     /// Returns a list of the [`Var`](struct.Var.html)s in this pattern.
     pub fn vars(&self) -> Vec<Var> {
         let mut vars = vec![];
-        for n in &self.ast.nodes {
+        for n in self.ast.as_ref() {
             if let ENodeOrVar::Var(v) = n {
                 if !vars.contains(v) {
                     vars.push(*v)
@@ -93,9 +96,14 @@ impl<L: Language> Pattern<L> {
     }
 }
 
+/// The language of [`Pattern`]s.
+///
+/// [`Pattern`]: struct.Pattern.html
 #[derive(Debug, Hash, PartialEq, Eq, Clone, PartialOrd, Ord)]
-pub(crate) enum ENodeOrVar<L> {
+pub enum ENodeOrVar<L> {
+    /// An enode from the underlying [`Language`](trait.Language.html)
     ENode(L),
+    /// A pattern variable
     Var(Var),
 }
 
@@ -147,16 +155,20 @@ impl<L: Language> Language for ENodeOrVar<L> {
 impl<L: Language> std::str::FromStr for Pattern<L> {
     type Err = String;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let ast: PatternAst<L> = s.parse()?;
-        let program = machine::Program::compile_from_pat(&ast);
-        Ok(Pattern { ast, program })
+        PatternAst::from_str(s).map(Self::from)
     }
 }
 
 impl<'a, L: Language> From<&'a [L]> for Pattern<L> {
     fn from(expr: &'a [L]) -> Self {
-        let nodes = expr.iter().cloned().map(ENodeOrVar::ENode).collect();
-        let ast = RecExpr { nodes };
+        let nodes: Vec<_> = expr.iter().cloned().map(ENodeOrVar::ENode).collect();
+        let ast = RecExpr::from(nodes);
+        Self::from(ast)
+    }
+}
+
+impl<'a, L: Language> From<PatternAst<L>> for Pattern<L> {
+    fn from(ast: PatternAst<L>) -> Self {
         let program = machine::Program::compile_from_pat(&ast);
         Pattern { ast, program }
     }
@@ -165,14 +177,14 @@ impl<'a, L: Language> From<&'a [L]> for Pattern<L> {
 impl<L: Language> TryFrom<Pattern<L>> for RecExpr<L> {
     type Error = Var;
     fn try_from(pat: Pattern<L>) -> Result<Self, Self::Error> {
-        let nodes = pat.ast.nodes.into_iter();
-        let ns: Result<_, _> = nodes
+        let nodes = pat.ast.as_ref().iter().cloned();
+        let ns: Result<Vec<_>, _> = nodes
             .map(|n| match n {
                 ENodeOrVar::ENode(n) => Ok(n),
                 ENodeOrVar::Var(v) => Err(v),
             })
             .collect();
-        ns.map(|nodes| RecExpr { nodes })
+        ns.map(RecExpr::from)
     }
 }
 

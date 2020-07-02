@@ -101,6 +101,40 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
         self.for_each(|id| acc = f(acc.clone(), id));
         acc
     }
+
+    /// Make a `RecExpr` converting this enodes children to `RecExpr`s
+    ///
+    /// # Example
+    /// ```
+    /// # use egg::*;
+    /// let a_plus_2: RecExpr<SymbolLang> = "(+ a 2)".parse().unwrap();
+    /// // here's an enode with some meaningless child ids
+    /// let enode = SymbolLang::new("*", vec![1, 3]);
+    /// // make a new recexpr, replacing enode's childen with a_plus_2
+    /// let recexpr = enode.to_recexpr(|_id| a_plus_2.as_ref());
+    /// assert_eq!(recexpr, "(* (+ a 2) (+ a 2))".parse().unwrap())
+    /// ```
+    fn to_recexpr<'a, F>(&self, mut child_recexpr: F) -> RecExpr<Self>
+    where
+        Self: 'a,
+        F: FnMut(Id) -> &'a [Self],
+    {
+        fn build<L: Language>(to: &mut RecExpr<L>, from: &[L]) -> Id {
+            let last = from.last().unwrap().clone();
+            let new_node = last.map_children(|id| {
+                let i = id as usize + 1;
+                build(to, &from[0..i])
+            });
+            to.add(new_node)
+        }
+
+        let mut expr = RecExpr::default();
+        let node = self
+            .clone()
+            .map_children(|id| build(&mut expr, child_recexpr(id)));
+        expr.add(node);
+        expr
+    }
 }
 
 /// A recursive expression from a user-defined [`Language`].
@@ -120,7 +154,7 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
 /// [pretty]: struct.RecExpr.html#method.pretty
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RecExpr<L> {
-    pub(crate) nodes: Vec<L>,
+    nodes: Vec<L>,
 }
 
 #[cfg(feature = "serde-1")]
@@ -136,13 +170,19 @@ impl<L: Language> serde::Serialize for RecExpr<L> {
 
 impl<L> Default for RecExpr<L> {
     fn default() -> Self {
-        Self { nodes: vec![] }
+        Self::from(vec![])
     }
 }
 
 impl<L> AsRef<[L]> for RecExpr<L> {
     fn as_ref(&self) -> &[L] {
         &self.nodes
+    }
+}
+
+impl<L> From<Vec<L>> for RecExpr<L> {
+    fn from(nodes: Vec<L>) -> Self {
+        Self { nodes }
     }
 }
 
