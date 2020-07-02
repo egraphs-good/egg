@@ -126,7 +126,7 @@ let runner = MyRunner::new(Default::default())
     .with_node_limit(10_000)
     .with_expr(&start)
     .with_scheduler(SimpleScheduler)
-    .run(&rules);
+    .run(rules);
 
 // Now we can check our iteration data to make sure that the cost only
 // got better over time
@@ -294,7 +294,7 @@ where
     ///          println!("Egraph is this big: {}", runner.egraph.total_size());
     ///          Ok(())
     ///     })
-    ///     .run(&rules);
+    ///     .run(rules);
     /// ```
     /// [`Runner`]: struct.Runner.html
     pub fn with_hook<F>(mut self, hook: F) -> Self
@@ -336,12 +336,18 @@ where
     /// After this, the field
     /// [`stop_reason`](#structfield.stop_reason) is guaranteeed to be
     /// set.
-    pub fn run(mut self, rules: &[Rewrite<L, N>]) -> Self {
-        check_rules(rules);
+    pub fn run<'a, R>(mut self, rules: R) -> Self
+    where
+        R: IntoIterator<Item = &'a Rewrite<L, N>>,
+        L: 'a,
+        N: 'a,
+    {
+        let rules: Vec<&Rewrite<L, N>> = rules.into_iter().collect();
+        check_rules(&rules);
         self.egraph.rebuild();
         // TODO check that we haven't
         loop {
-            if let Err(stop_reason) = self.run_one(rules) {
+            if let Err(stop_reason) = self.run_one(&rules) {
                 info!("Stopping: {:?}", stop_reason);
                 self.stop_reason = Some(stop_reason);
                 // push on a final iteration to mark the end state
@@ -389,7 +395,7 @@ where
         println!("    Rebuild: ({:.2}) {}", rebuild_time / total_time, rebuild_time);
     }
 
-    fn run_one(&mut self, rules: &[Rewrite<L, N>]) -> RunnerResult<()> {
+    fn run_one(&mut self, rules: &[&Rewrite<L, N>]) -> RunnerResult<()> {
         assert!(self.stop_reason.is_none());
 
         info!("\nIteration {}", self.iterations.len());
@@ -512,7 +518,7 @@ where
     }
 }
 
-fn check_rules<L, N>(rules: &[Rewrite<L, N>]) {
+fn check_rules<L, N>(rules: &[&Rewrite<L, N>]) {
     let mut name_counts = IndexMap::new();
     for rw in rules {
         *name_counts.entry(rw.name()).or_default() += 1

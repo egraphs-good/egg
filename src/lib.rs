@@ -47,7 +47,7 @@ let rules: &[Rewrite<SimpleLanguage, ()>] = &[
 ];
 
 let start = "(+ 0 (* 1 foo))".parse().unwrap();
-let runner = Runner::default().with_expr(&start).run(&rules);
+let runner = Runner::default().with_expr(&start).run(rules);
 println!(
     "Stopped after {} iterations, reason: {:?}",
     runner.iterations.len(),

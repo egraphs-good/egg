@@ -27,7 +27,7 @@ let rules: &[Rewrite<SimpleLanguage, ()>] = &[
 ];
 
 let start = "(+ 0 (* 1 10))".parse().unwrap();
-let runner = Runner::default().with_expr(&start).run(&rules);
+let runner = Runner::default().with_expr(&start).run(rules);
 let (egraph, root) = (runner.egraph, runner.roots[0]);
 
 let mut extractor = Extractor::new(&egraph, AstSize);
