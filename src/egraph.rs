@@ -1,5 +1,8 @@
 use std::collections::HashMap;
-use std::fmt::{self, Debug};
+use std::{
+    borrow::BorrowMut,
+    fmt::{self, Debug},
+};
 
 use indexmap::IndexMap;
 use log::*;
@@ -307,6 +310,42 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         id
     }
 
+    /// Lookup the eclass of the given enode.
+    ///
+    /// You can pass in either an owned enode or a `&mut` enode,
+    /// in which case the enode's children will be canonicalized.
+    ///
+    /// # Example
+    /// ```
+    /// # use egg::*;
+    /// let mut egraph: EGraph<SymbolLang, ()> = Default::default();
+    /// let a = egraph.add(SymbolLang::leaf("a"));
+    /// let b = egraph.add(SymbolLang::leaf("b"));
+    /// let c = egraph.add(SymbolLang::leaf("c"));
+    ///
+    /// // lookup will find this node if its in the egraph
+    /// let mut node_f_ac = SymbolLang::new("f", vec![a, c]);
+    /// assert_eq!(egraph.lookup(node_f_ac.clone()), None);
+    /// let id = egraph.add(node_f_ac.clone());
+    /// assert_eq!(egraph.lookup(node_f_ac.clone()), Some(id));
+    ///
+    /// // if the query node isn't canonical, and its passed in by &mut instead of owned,
+    /// // its children will be canonicalized
+    /// egraph.union(b, c);
+    /// egraph.rebuild();
+    /// assert_eq!(egraph.lookup(&mut node_f_ac), Some(id));
+    /// assert_eq!(node_f_ac, SymbolLang::new("f", vec![a, b]));
+    /// ```
+    pub fn lookup<B>(&mut self, mut enode: B) -> Option<Id>
+    where
+        B: BorrowMut<L>,
+    {
+        let enode = enode.borrow_mut();
+        enode.update_children(|id| self.find(id));
+        let id = self.memo.get(enode);
+        id.map(|&id| self.find(id))
+    }
+
     /// Adds an enode to the [`EGraph`].
     ///
     /// When adding an enode, to the egraph, [`add`] it performs
@@ -321,36 +360,29 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// [`EClass`]: struct.EClass.html
     /// [`add`]: struct.EGraph.html#method.add
     pub fn add(&mut self, mut enode: L) -> Id {
-        log::trace!("Adding {:?}", enode);
-        enode.update_children(|id| self.find(id));
-        log::trace!("Adding as {:?}", enode);
+        self.lookup(&mut enode).unwrap_or_else(|| {
+            let id = self.unionfind.make_set();
+            log::trace!("  ...adding to {}", id);
+            let class = Box::new(EClass {
+                id,
+                nodes: vec![enode.clone()],
+                data: N::make(self, &enode),
+                parents: Default::default(),
+            });
 
-        match self.memo.get(&enode) {
-            Some(id) => self.find(*id),
-            None => {
-                let id = self.unionfind.make_set();
-                log::trace!("  ...adding to {}", id);
-                let class = Box::new(EClass {
-                    id,
-                    nodes: vec![enode.clone()],
-                    data: N::make(self, &enode),
-                    parents: Default::default(),
-                });
+            // add this enode to the parent lists of its children
+            enode.for_each(|child| {
+                let tup = (enode.clone(), id);
+                self[child].parents.push(tup);
+            });
 
-                // add this enode to the parent lists of its children
-                enode.for_each(|child| {
-                    let tup = (enode.clone(), id);
-                    self[child].parents.push(tup);
-                });
+            assert_eq!(self.classes.len(), id as usize);
+            self.classes.push(Some(class));
+            assert!(self.memo.insert(enode, id).is_none());
 
-                assert_eq!(self.classes.len(), id as usize);
-                self.classes.push(Some(class));
-                assert!(self.memo.insert(enode, id).is_none());
-
-                N::modify(self, id);
-                id
-            }
-        }
+            N::modify(self, id);
+            id
+        })
     }
 
     /// Checks whether two [`RecExpr`]s are equivalent.
