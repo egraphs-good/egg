@@ -681,7 +681,6 @@ where
 {
     fn can_stop(&mut self, iteration: usize) -> bool {
         let n_stats = self.stats.len();
-        assert!(n_stats > 0);
 
         let mut banned: Vec<_> = self
             .stats
