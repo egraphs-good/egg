@@ -336,7 +336,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// assert_eq!(egraph.lookup(&mut node_f_ac), Some(id));
     /// assert_eq!(node_f_ac, SymbolLang::new("f", vec![a, b]));
     /// ```
-    pub fn lookup<B>(&mut self, mut enode: B) -> Option<Id>
+    pub fn lookup<B>(&self, mut enode: B) -> Option<Id>
     where
         B: BorrowMut<L>,
     {
