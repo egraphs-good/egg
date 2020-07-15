@@ -273,7 +273,7 @@ fn apply_pat<L: Language, A: Analysis<L>>(
         ENodeOrVar::ENode(e) => {
             let n = e
                 .clone()
-                .map_children(|child| apply_pat(&pat[..child as usize + 1], egraph, subst));
+                .map_children(|child| apply_pat(&pat[..usize::from(child) + 1], egraph, subst));
             trace!("adding: {:?}", n);
             egraph.add(n)
         }
@@ -331,7 +331,7 @@ mod tests {
         use crate::extract::{AstSize, Extractor};
 
         let mut ext = Extractor::new(&egraph, AstSize);
-        let (_, best) = ext.find_best(2);
+        let (_, best) = ext.find_best(plus);
         eprintln!("Best: {:#?}", best);
     }
 }

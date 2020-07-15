@@ -35,7 +35,7 @@ where
     if eclass.nodes.len() < 50 {
         eclass.nodes.iter().filter(|n| node.matches(n)).for_each(f)
     } else {
-        debug_assert!(node.children().iter().all(|&id| id == 0));
+        debug_assert!(node.children().iter().all(|&id| id == Id::from(0)));
         debug_assert!(eclass.nodes.windows(2).all(|w| w[0] < w[1]));
         let mut start = eclass.nodes.binary_search(node).unwrap_or_else(|i| i);
         let discrim = std::mem::discriminant(node);
@@ -179,12 +179,12 @@ impl<'a, L: Language> Compiler<'a, L> {
                         let r = Reg(out.0 + id as u32);
                         self.todo.push(Todo {
                             reg: r,
-                            pat: self.pattern[child as usize].clone(),
+                            pat: self.pattern[usize::from(child)].clone(),
                         });
                     }
 
                     // zero out the children so Bind can use it to sort
-                    let node = node.map_children(|_| 0);
+                    let node = node.map_children(|_| Id::from(0));
                     instructions.push(Instruction::Bind { i, node, out })
                 }
             }
@@ -192,7 +192,7 @@ impl<'a, L: Language> Compiler<'a, L> {
 
         let mut subst = Subst::default();
         for (v, r) in &self.v2r {
-            subst.insert(*v, r.0);
+            subst.insert(*v, Id::from(r.0 as usize));
         }
         Program {
             instructions,
@@ -226,7 +226,8 @@ impl<L: Language> Program<L> {
                 let subst_vec = subst
                     .vec
                     .iter()
-                    .map(|(v, reg_id)| (*v, machine.reg(Reg(*reg_id))))
+                    // HACK we are reusing Ids here, this is bad
+                    .map(|(v, reg_id)| (*v, machine.reg(Reg(usize::from(*reg_id) as u32))))
                     .collect();
                 substs.push(Subst { vec: subst_vec })
             },

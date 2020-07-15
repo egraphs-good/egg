@@ -118,7 +118,7 @@ same eclass.
 [`Runner`]: struct.Runner.html
 [`Language`]: trait.Language.html
 [`Analysis`]: trait.Analysis.html
-[`Id`]: type.Id.html
+[`Id`]: struct.Id.html
 [`add`]: struct.EGraph.html#method.add
 [`union`]: struct.EGraph.html#method.union
 [`rebuild`]: struct.EGraph.html#method.rebuild
@@ -263,7 +263,7 @@ impl<L: Language, N: Analysis<L>> std::ops::Index<Id> for EGraph<L, N> {
     type Output = EClass<L, N::Data>;
     fn index(&self, id: Id) -> &Self::Output {
         let id = self.find(id);
-        self.classes[id as usize]
+        self.classes[usize::from(id)]
             .as_ref()
             .unwrap_or_else(|| panic!("Invalid id {}", id))
     }
@@ -272,7 +272,7 @@ impl<L: Language, N: Analysis<L>> std::ops::Index<Id> for EGraph<L, N> {
 impl<L: Language, N: Analysis<L>> std::ops::IndexMut<Id> for EGraph<L, N> {
     fn index_mut(&mut self, id: Id) -> &mut Self::Output {
         let id = self.find(id);
-        self.classes[id as usize]
+        self.classes[usize::from(id)]
             .as_mut()
             .unwrap_or_else(|| panic!("Invalid id {}", id))
     }
@@ -302,7 +302,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     fn add_expr_rec(&mut self, expr: &[L]) -> Id {
         log::trace!("Adding expr {:?}", expr);
         let e = expr.last().unwrap().clone().map_children(|i| {
-            let child = &expr[..i as usize + 1];
+            let child = &expr[..usize::from(i) + 1];
             self.add_expr_rec(child)
         });
         let id = self.add(e);
@@ -376,7 +376,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                 self[child].parents.push(tup);
             });
 
-            assert_eq!(self.classes.len(), id as usize);
+            assert_eq!(self.classes.len(), usize::from(id));
             self.classes.push(Some(class));
             assert!(self.memo.insert(enode, id).is_none());
 
@@ -448,8 +448,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             self.dirty_unions.push(to);
 
             // update the classes data structure
-            let from_class = self.classes[from as usize].take().unwrap();
-            let to_class = self.classes[to as usize].as_mut().unwrap();
+            let from_class = self.classes[usize::from(from)].take().unwrap();
+            let to_class = self.classes[usize::from(to)].as_mut().unwrap();
 
             self.analysis.merge(&mut to_class.data, from_class.data);
             concat(&mut to_class.nodes, from_class.nodes);
@@ -548,7 +548,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         let mut test_memo = IndexMap::new();
 
         for (id, class) in self.classes.iter().enumerate() {
-            let id = id as Id;
+            let id = Id::from(id);
             let class = match class.as_ref() {
                 Some(class) => class,
                 None => continue,
@@ -710,7 +710,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         for (n, e) in parents {
             let e = self.find(*e);
             let node_data = N::make(self, n);
-            let class = self.classes[e as usize].as_mut().unwrap();
+            let class = self.classes[usize::from(e)].as_mut().unwrap();
             if self.analysis.merge(&mut class.data, node_data) {
                 // self.dirty_unions.push(e); // NOTE: i dont think this is necessary
                 let e_parents = std::mem::take(&mut class.parents);

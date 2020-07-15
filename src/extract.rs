@@ -108,9 +108,9 @@ pub trait CostFunction<L: Language> {
         let mut costs: HashMap<Id, Self::Cost> = HashMap::default();
         for (i, node) in expr.as_ref().iter().enumerate() {
             let cost = self.cost(node, |i| costs[&i].clone());
-            costs.insert(i as Id, cost);
+            costs.insert(Id::from(i), cost);
         }
-        let last_id = expr.as_ref().len() as Id - 1;
+        let last_id = Id::from(expr.as_ref().len() - 1);
         costs[&last_id].clone()
     }
 }

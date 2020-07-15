@@ -305,7 +305,7 @@ where
     /// The default implementation does this and should suffice for
     /// most use cases.
     ///
-    /// [`Id`]: type.Id.html
+    /// [`Id`]: struct.Id.html
     /// [`apply_one`]: trait.Applier.html#method.apply_one
     fn apply_matches(&self, egraph: &mut EGraph<L, N>, matches: &[SearchMatches]) -> Vec<Id> {
         let mut added = vec![];
@@ -340,7 +340,7 @@ where
     /// be unioned with `eclass`. There can be zero, one, or many.
     ///
     /// [`Applier`]: trait.Applier.html
-    /// [`Id`]: type.Id.html
+    /// [`Id`]: struct.Id.html
     /// [`apply_matches`]: trait.Applier.html#method.apply_matches
     fn apply_one(&self, egraph: &mut EGraph<L, N>, eclass: Id, subst: &Subst) -> Vec<Id>;
 
@@ -427,7 +427,7 @@ where
     /// `eclass` is the eclass [`Id`] where the match (`subst`) occured.
     /// If this is true, then the [`ConditionalApplier`] will fire.
     ///
-    /// [`Id`]: type.Id.html
+    /// [`Id`]: struct.Id.html
     /// [`ConditionalApplier`]: struct.ConditionalApplier.html
     fn check(&self, egraph: &mut EGraph<L, N>, eclass: Id, subst: &Subst) -> bool;
 

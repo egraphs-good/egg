@@ -354,9 +354,9 @@ mod tests {
 
     #[test]
     fn modify_children() {
-        let mut add = Simple::Add([0, 0]);
-        add.for_each_mut(|id| *id = 1);
-        assert_eq!(add, Simple::Add([1, 1]));
+        let mut add = Simple::Add([0.into(), 0.into()]);
+        add.for_each_mut(|id| *id = 1.into());
+        assert_eq!(add, Simple::Add([1.into(), 1.into()]));
     }
 
     #[test]

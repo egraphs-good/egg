@@ -73,7 +73,32 @@ mod util;
 
 /// A key to identify [`EClass`](struct.EClass.html)es within an
 /// [`EGraph`](struct.EGraph.html).
-pub type Id = u32;
+#[derive(Clone, Copy, Default, Ord, PartialOrd, Eq, PartialEq, Hash)]
+pub struct Id(u32);
+
+impl From<usize> for Id {
+    fn from(n: usize) -> Id {
+        Id(n as u32)
+    }
+}
+
+impl From<Id> for usize {
+    fn from(id: Id) -> usize {
+        id.0 as usize
+    }
+}
+
+impl std::fmt::Debug for Id {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl std::fmt::Display for Id {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 pub(crate) use unionfind::UnionFind;
 

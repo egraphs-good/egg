@@ -41,7 +41,7 @@ impl fmt::Debug for Var {
 /// A substitition mapping [`Var`]s to eclass [`Id`]s.
 ///
 /// [`Var`]: struct.Var.html
-/// [`Id`]: type.Id.html
+/// [`Id`]: struct.Id.html
 #[derive(Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Subst {
     pub(crate) vec: smallvec::SmallVec<[(Var, Id); 3]>,

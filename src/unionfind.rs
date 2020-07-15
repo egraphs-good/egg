@@ -13,19 +13,19 @@ pub struct UnionFind {
 
 impl UnionFind {
     pub fn make_set(&mut self) -> Id {
-        let id = self.parents.len() as Id;
+        let id = Id::from(self.parents.len());
         self.parents.push(Cell::new(id));
         id
     }
 
     #[inline(always)]
     fn parent(&self, query: Id) -> Id {
-        self.parents[query as usize].get()
+        self.parents[usize::from(query)].get()
     }
 
     #[inline(always)]
     fn set_parent(&self, query: Id, new_parent: Id) {
-        self.parents[query as usize].set(new_parent)
+        self.parents[usize::from(query)].set(new_parent)
     }
 
     pub fn find(&self, mut current: Id) -> Id {
@@ -70,7 +70,7 @@ mod tests {
             let mut map: IndexMap<Id, IndexSet<Id>> = Default::default();
 
             for i in 0..self.parents.len() {
-                let i = i as Id;
+                let i = Id::from(i);
                 let leader = self.find(i);
                 map.entry(leader).or_default().insert(i);
             }
@@ -79,7 +79,7 @@ mod tests {
         }
     }
 
-    fn make_union_find(n: u32) -> UnionFind {
+    fn make_union_find(n: usize) -> UnionFind {
         let mut uf = UnionFind::default();
         for _ in 0..n {
             uf.make_set();
@@ -91,46 +91,51 @@ mod tests {
     fn union_find() {
         let n = 10;
 
+        fn id(u: usize) -> Id {
+            u.into()
+        }
+
         let mut uf = make_union_find(n);
 
         // test the initial condition of everyone in their own set
         for i in 0..n {
+            let i = Id::from(i);
             assert_eq!(uf.find(i), i);
             assert_eq!(uf.find(i), i);
         }
 
         // make sure build_sets works
         let expected_sets = (0..n)
-            .map(|i| (i, indexset!(i)))
+            .map(|i| (id(i), indexset!(id(i))))
             .collect::<IndexMap<_, _>>();
         assert_eq!(uf.build_sets(), expected_sets);
 
         // build up one set
-        assert_eq!(uf.union(0, 1), (0, 1));
-        assert_eq!(uf.union(1, 2), (0, 2));
-        assert_eq!(uf.union(3, 2), (0, 3));
+        assert_eq!(uf.union(id(0), id(1)), (id(0), id(1)));
+        assert_eq!(uf.union(id(1), id(2)), (id(0), id(2)));
+        assert_eq!(uf.union(id(3), id(2)), (id(0), id(3)));
 
         // build up another set
-        assert_eq!(uf.union(6, 7), (6, 7));
-        assert_eq!(uf.union(8, 9), (8, 9));
-        assert_eq!(uf.union(7, 9), (6, 8));
+        assert_eq!(uf.union(id(6), id(7)), (id(6), id(7)));
+        assert_eq!(uf.union(id(8), id(9)), (id(8), id(9)));
+        assert_eq!(uf.union(id(7), id(9)), (id(6), id(8)));
 
         // make sure union on same set returns to == from
-        assert_eq!(uf.union(1, 3), (0, 0));
-        assert_eq!(uf.union(7, 8), (6, 6));
+        assert_eq!(uf.union(id(1), id(3)), (id(0), id(0)));
+        assert_eq!(uf.union(id(7), id(8)), (id(6), id(6)));
 
         // check set structure
         let expected_sets = indexmap!(
-            0 => indexset!(0, 1, 2, 3),
-            4 => indexset!(4),
-            5 => indexset!(5),
-            6 => indexset!(6, 7, 8, 9),
+            id(0) => indexset!(id(0), id(1), id(2), id(3)),
+            id(4) => indexset!(id(4)),
+            id(5) => indexset!(id(5)),
+            id(6) => indexset!(id(6), id(7), id(8), id(9)),
         );
         assert_eq!(uf.build_sets(), expected_sets);
 
         // all paths should be compressed at this point
         for i in 0..n {
-            assert_eq!(uf.parent(i), uf.find(i));
+            assert_eq!(uf.parent(id(i)), uf.find(id(i)));
         }
     }
 }

@@ -4,6 +4,9 @@
 
 ## [Unreleased] - ReleaseDate
 
+### Added
+- `Id` is now a struct not a type alias. This should help prevent some bugs.
+
 ### Fixed
 - Fixed a bug when making `Pattern`s from `RecExpr`s.
 - Improved the `RecExpr` API.

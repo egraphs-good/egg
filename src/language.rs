@@ -109,7 +109,7 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
     /// # use egg::*;
     /// let a_plus_2: RecExpr<SymbolLang> = "(+ a 2)".parse().unwrap();
     /// // here's an enode with some meaningless child ids
-    /// let enode = SymbolLang::new("*", vec![1, 3]);
+    /// let enode = SymbolLang::new("*", vec![Id::from(0), Id::from(0)]);
     /// // make a new recexpr, replacing enode's childen with a_plus_2
     /// let recexpr = enode.to_recexpr(|_id| a_plus_2.as_ref());
     /// assert_eq!(recexpr, "(* (+ a 2) (+ a 2))".parse().unwrap())
@@ -122,7 +122,7 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
         fn build<L: Language>(to: &mut RecExpr<L>, from: &[L]) -> Id {
             let last = from.last().unwrap().clone();
             let new_node = last.map_children(|id| {
-                let i = id as usize + 1;
+                let i = usize::from(id) + 1;
                 build(to, &from[0..i])
             });
             to.add(new_node)
@@ -163,7 +163,7 @@ impl<L: Language> serde::Serialize for RecExpr<L> {
     where
         S: serde::Serializer,
     {
-        let s = self.to_sexp(self.nodes.len() as Id - 1).to_string();
+        let s = self.to_sexp(self.nodes.len() - 1).to_string();
         serializer.serialize_str(&s)
     }
 }
@@ -193,13 +193,13 @@ impl<L: Language> RecExpr<L> {
         debug_assert!(
             node.children()
                 .iter()
-                .all(|&id| (id as usize) < self.nodes.len()),
+                .all(|&id| usize::from(id) < self.nodes.len()),
             "node {:?} has children not in this expr: {:?}",
             node,
             self
         );
         self.nodes.push(node);
-        self.nodes.len() as Id - 1
+        Id::from(self.nodes.len() - 1)
     }
 }
 
@@ -208,21 +208,21 @@ impl<L: Language> Display for RecExpr<L> {
         if self.nodes.is_empty() {
             write!(f, "()")
         } else {
-            let s = self.to_sexp(self.nodes.len() as Id - 1).to_string();
+            let s = self.to_sexp(self.nodes.len() - 1).to_string();
             write!(f, "{}", s)
         }
     }
 }
 
 impl<L: Language> RecExpr<L> {
-    fn to_sexp(&self, i: Id) -> Sexp {
-        let node = &self.nodes[i as usize];
+    fn to_sexp(&self, i: usize) -> Sexp {
+        let node = &self.nodes[i];
         let op = Sexp::String(node.display_op().to_string());
         if node.is_leaf() {
             op
         } else {
             let mut vec = vec![op];
-            node.for_each(|id| vec.push(self.to_sexp(id)));
+            node.for_each(|id| vec.push(self.to_sexp(id.into())));
             Sexp::List(vec)
         }
     }
@@ -243,7 +243,7 @@ impl<L: Language> RecExpr<L> {
     /// ```
     pub fn pretty(&self, width: usize) -> String {
         use std::fmt::{Result, Write};
-        let sexp = self.to_sexp(self.nodes.len() as Id - 1);
+        let sexp = self.to_sexp(self.nodes.len() - 1);
 
         fn pp(buf: &mut String, sexp: &Sexp, width: usize, level: usize) -> Result {
             if let Sexp::List(list) = sexp {
