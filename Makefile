@@ -1,6 +1,7 @@
 .PHONY:
 test: test-egg test-web
 	cargo fmt -- --check
+	cargo clean --doc
 	cargo doc --no-deps
 	cargo deadlinks
 
