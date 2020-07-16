@@ -1,7 +1,7 @@
 #![warn(missing_docs)]
 /*!
 
-`egg` is a e-graph library optimized for equality saturation.
+`egg` (**e**-**g**raphs **g**ood) is a e-graph library optimized for equality saturation.
 
 This is the API documentation.
 

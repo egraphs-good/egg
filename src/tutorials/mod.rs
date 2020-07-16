@@ -17,6 +17,8 @@ Most of the code examples here are typechecked and run, so you may copy-paste th
 There is also a [paper](https://arxiv.org/abs/2004.03082)
 describing `egg` and if are keen to read more about its technical novelties.
 
+The tutorials are a work-in-progress with more to be added soon.
+
 */
 
 pub mod _01_background;

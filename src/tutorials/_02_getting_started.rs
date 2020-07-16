@@ -98,7 +98,7 @@ assert_eq!(foo, foo2);
 ## Searching an [`EGraph`] with [`Pattern`]s
 
 Now that we can add stuff to an [`EGraph`], let's see if we can find it.
-We'll use [`Pattern`]s, which implement the [`Searcher`] trait,
+We'll use a [`Pattern`], which implements the [`Searcher`] trait,
   to search the e-graph for matches:
 
 ```
