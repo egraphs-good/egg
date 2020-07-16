@@ -3,7 +3,7 @@
  
 # A Guide-level Explanation of `egg`
 
-`egg` is a e-graph library optimizes for equality saturation.
+`egg` is a e-graph library optimized for equality saturation.
 Using these techniques, one can pretty easily build an optimizer or synthesizer for a language.
 
 This tutorial is targeted at readers who may not have seen e-graphs, equality saturation, or Rust.
