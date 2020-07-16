@@ -4,6 +4,8 @@
 
 ## [Unreleased] - ReleaseDate
 
+## [0.6.0] - 2020-07-16
+
 ### Added
 - `Id` is now a struct not a type alias. This should help prevent some bugs.
 - `Runner` hooks allow you to modify the `Runner` each iteration and stop early if you want.
@@ -119,7 +121,8 @@ But hopefully things will be a little more stable from here on out
 since the API is a lot nicer.
 
 <!-- next-url -->
-[Unreleased]: https://github.com/mwillsey/egg/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/mwillsey/egg/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/mwillsey/egg/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/mwillsey/egg/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/mwillsey/egg/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/mwillsey/egg/compare/v0.3.0...v0.4.0
