@@ -1,3 +1,4 @@
+use std::convert::TryFrom;
 use std::fmt::{self, Debug, Display};
 use std::hash::Hash;
 
@@ -135,6 +136,73 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
         expr.add(node);
         expr
     }
+}
+
+/// A marker that defines acceptable children types for [`define_language!`].
+///
+/// See [`define_language!`] for more details.
+/// You should not have to implement this trait.
+///
+/// [`define_language!`]: macro.define_language.html
+pub trait LanguageChildren {
+    /// Checks if there are no children.
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+    /// Returns the number of children.
+    fn len(&self) -> usize;
+    /// Checks if n is an acceptable number of children for this type.
+    fn can_be_length(n: usize) -> bool;
+    /// Create an instance of this type from a `Vec<Id>`,
+    /// with the guarantee that can_be_length is already true on the `Vec`.
+    fn from_vec(v: Vec<Id>) -> Self;
+    /// Returns a slice of the children `Id`s.
+    fn as_slice(&self) -> &[Id];
+    /// Returns a mutable slice of the children `Id`s.
+    fn as_mut_slice(&mut self) -> &mut [Id];
+}
+
+macro_rules! impl_array {
+    () => {};
+    ($n:literal, $($rest:tt)*) => {
+        impl LanguageChildren for [Id; $n] {
+            fn len(&self) -> usize                   { <[Id]>::len(self) }
+            fn can_be_length(n: usize) -> bool       { n == $n }
+            fn from_vec(v: Vec<Id>) -> Self          { Self::try_from(v.as_slice()).unwrap() }
+            fn as_slice(&self) -> &[Id]              { self }
+            fn as_mut_slice(&mut self) -> &mut [Id]  { self }
+        }
+        impl_array!($($rest)*);
+    };
+}
+
+impl_array!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,);
+
+#[rustfmt::skip]
+impl LanguageChildren for Box<[Id]> {
+    fn len(&self) -> usize                   { <[Id]>::len(self) }
+    fn can_be_length(_: usize) -> bool       { true }
+    fn from_vec(v: Vec<Id>) -> Self          { v.into() }
+    fn as_slice(&self) -> &[Id]              { self }
+    fn as_mut_slice(&mut self) -> &mut [Id]  { self }
+}
+
+#[rustfmt::skip]
+impl LanguageChildren for Vec<Id> {
+    fn len(&self) -> usize                   { <[Id]>::len(self) }
+    fn can_be_length(_: usize) -> bool       { true }
+    fn from_vec(v: Vec<Id>) -> Self          { v }
+    fn as_slice(&self) -> &[Id]              { self }
+    fn as_mut_slice(&mut self) -> &mut [Id]  { self }
+}
+
+#[rustfmt::skip]
+impl LanguageChildren for Id {
+    fn len(&self) -> usize                   { 1 }
+    fn can_be_length(n: usize) -> bool       { n == 1 }
+    fn from_vec(v: Vec<Id>) -> Self          { v[0] }
+    fn as_slice(&self) -> &[Id]              { std::slice::from_ref(self) }
+    fn as_mut_slice(&mut self) -> &mut [Id]  { std::slice::from_mut(self) }
 }
 
 /// A recursive expression from a user-defined [`Language`].
