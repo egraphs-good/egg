@@ -6,6 +6,8 @@
 
 ### Added
 - `Id` is now a struct not a type alias. This should help prevent some bugs.
+- `Runner` hooks allow you to modify the `Runner` each iteration and stop early if you want.
+- Added a way to lookup an e-node without adding it.
 
 ### Fixed
 - Fixed a bug when making `Pattern`s from `RecExpr`s.
