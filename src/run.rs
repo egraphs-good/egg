@@ -334,7 +334,7 @@ where
 
     /// Run this `Runner` until it stops.
     /// After this, the field
-    /// [`stop_reason`](#structfield.stop_reason) is guaranteeed to be
+    /// [`stop_reason`](#structfield.stop_reason) is guaranteed to be
     /// set.
     pub fn run<'a, R>(mut self, rules: R) -> Self
     where
