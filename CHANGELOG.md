@@ -8,6 +8,8 @@
 - `Id` is now a struct not a type alias. This should help prevent some bugs.
 - `Runner` hooks allow you to modify the `Runner` each iteration and stop early if you want.
 - Added a way to lookup an e-node without adding it.
+- `define_language!` now support variants with data _and_ children.
+- Added a tutorial in the documentation!
 
 ### Fixed
 - Fixed a bug when making `Pattern`s from `RecExpr`s.
