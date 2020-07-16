@@ -6,7 +6,7 @@ search = "egg = .*"
 replace="{{crate_name}} = \"{{version}}\""
 
 [[pre-release-replacements]]
-file = "src/lib.rs"
+file = "src/tutorials/_02_getting_started.rs"
 search = "egg = .*"
 replace="{{crate_name}} = \"{{version}}\""
 
