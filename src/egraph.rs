@@ -314,7 +314,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                 assert!(added_memo.insert(e.clone(), id).is_none());
                 log::trace!("Added!! expr {:?}", expr);
                 id
-            },
+            }
         }
     }
 
