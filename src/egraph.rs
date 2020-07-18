@@ -296,18 +296,26 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// [`RecExpr`]: struct.RecExpr.html
     /// [`add_expr`]: struct.EGraph.html#method.add_expr
     pub fn add_expr(&mut self, expr: &RecExpr<L>) -> Id {
-        self.add_expr_rec(expr.as_ref())
+        let mut added_memo: HashMap<L, Id> = Default::default();
+        self.add_expr_rec(expr.as_ref(), &mut added_memo)
     }
 
-    fn add_expr_rec(&mut self, expr: &[L]) -> Id {
-        log::trace!("Adding expr {:?}", expr);
-        let e = expr.last().unwrap().clone().map_children(|i| {
-            let child = &expr[..usize::from(i) + 1];
-            self.add_expr_rec(child)
-        });
-        let id = self.add(e);
-        log::trace!("Added!! expr {:?}", expr);
-        id
+    fn add_expr_rec(&mut self, expr: &[L], added_memo: &mut HashMap<L, Id>) -> Id {
+        let e = expr.last().unwrap();
+        match added_memo.get(e) {
+            Some(id) => *id,
+            None => {
+                log::trace!("Adding expr {:?}", expr);
+                let e_mapped = e.clone().map_children(|i| {
+                    let child = &expr[..usize::from(i) + 1];
+                    self.add_expr_rec(child, added_memo)
+                });
+                let id = self.add(e_mapped);
+                assert!(added_memo.insert(e.clone(), id).is_none());
+                log::trace!("Added!! expr {:?}", expr);
+                id
+            },
+        }
     }
 
     /// Lookup the eclass of the given enode.
