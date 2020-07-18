@@ -195,19 +195,34 @@ where
     /// given eclass.
     pub fn find_best(&mut self, eclass: Id) -> (CF::Cost, RecExpr<L>) {
         let mut expr = RecExpr::default();
-        let (_, cost) = self.find_best_rec(&mut expr, eclass);
+        // added_memo maps eclass id to id in expr
+        let mut added_memo: HashMap<Id, Id> = Default::default();
+        let (_, cost) = self.find_best_rec(&mut expr, eclass, &mut added_memo);
         (cost, expr)
     }
 
-    fn find_best_rec(&mut self, expr: &mut RecExpr<L>, eclass: Id) -> (Id, CF::Cost) {
+    fn find_best_rec(
+        &mut self,
+        expr: &mut RecExpr<L>,
+        eclass: Id,
+        added_memo: &mut HashMap<Id, Id>,
+    ) -> (Id, CF::Cost) {
         let id = self.egraph.find(eclass);
         let (best_cost, best_node) = match self.costs.get(&id) {
             Some(result) => result.clone(),
             None => panic!("Failed to extract from eclass {}", id),
         };
 
-        let node = best_node.map_children(|child| self.find_best_rec(expr, child).0);
-        (expr.add(node), best_cost)
+        match added_memo.get(&id) {
+            Some(id_expr) => (*id_expr, best_cost),
+            None => {
+                let node =
+                    best_node.map_children(|child| self.find_best_rec(expr, child, added_memo).0);
+                let id_expr = expr.add(node);
+                assert!(added_memo.insert(id, id_expr).is_none());
+                (id_expr, best_cost)
+            }
+        }
     }
 
     fn node_total_cost(&mut self, node: &L) -> Option<CF::Cost> {
