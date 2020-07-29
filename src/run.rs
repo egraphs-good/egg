@@ -280,6 +280,9 @@ where
 
     /// Add a hook to instrument or modify the behavior of a [`Runner`].
     ///
+    /// If your hook modifies the e-graph, make sure to call
+    /// [`rebuild`](struct.EGraph.html#method.rebuild).
+    ///
     /// # Example
     /// ```
     /// # use egg::*;
