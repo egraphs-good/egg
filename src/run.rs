@@ -403,6 +403,9 @@ where
         self.try_start();
         self.check_limits()?;
 
+        let egraph_nodes = self.egraph.total_size();
+        let egraph_classes = self.egraph.number_of_classes();
+
         let hook_time = Instant::now();
         let mut hooks = std::mem::take(&mut self.hooks);
         for hook in &mut hooks {
@@ -411,9 +414,10 @@ where
         self.hooks = hooks;
         let hook_time = hook_time.elapsed().as_secs_f64();
 
+        let egraph_nodes_after_hooks = self.egraph.total_size();
+        let egraph_classes_after_hooks = self.egraph.number_of_classes();
+
         let i = self.iterations.len();
-        let egraph_nodes = self.egraph.total_size();
-        let egraph_classes = self.egraph.number_of_classes();
         trace!("EGraph {:?}", self.egraph.dump());
 
         let start_time = Instant::now();
@@ -472,7 +476,10 @@ where
             self.egraph.number_of_classes()
         );
 
-        let saturated = applied.is_empty() && self.scheduler.can_stop(i);
+        let saturated = applied.is_empty()
+            && self.scheduler.can_stop(i)
+            && (egraph_nodes == egraph_nodes_after_hooks)
+            && (egraph_classes == egraph_classes_after_hooks);
 
         self.iterations.push(Iteration {
             applied,
