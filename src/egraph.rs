@@ -296,26 +296,13 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// [`RecExpr`]: struct.RecExpr.html
     /// [`add_expr`]: struct.EGraph.html#method.add_expr
     pub fn add_expr(&mut self, expr: &RecExpr<L>) -> Id {
-        let mut added_memo: HashMap<L, Id> = Default::default();
-        self.add_expr_rec(expr.as_ref(), &mut added_memo)
-    }
-
-    fn add_expr_rec(&mut self, expr: &[L], added_memo: &mut HashMap<L, Id>) -> Id {
-        let e = expr.last().unwrap();
-        match added_memo.get(e) {
-            Some(id) => *id,
-            None => {
-                log::trace!("Adding expr {:?}", expr);
-                let e_mapped = e.clone().map_children(|i| {
-                    let child = &expr[..usize::from(i) + 1];
-                    self.add_expr_rec(child, added_memo)
-                });
-                let id = self.add(e_mapped);
-                assert!(added_memo.insert(e.clone(), id).is_none());
-                log::trace!("Added!! expr {:?}", expr);
-                id
-            }
+        let nodes = expr.as_ref();
+        let mut new_ids = Vec::with_capacity(nodes.len());
+        for node in nodes {
+            let node = node.clone().map_children(|i| new_ids[usize::from(i)]);
+            new_ids.push(self.add(node))
         }
+        *new_ids.last().unwrap()
     }
 
     /// Lookup the eclass of the given enode.
