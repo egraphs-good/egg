@@ -1,7 +1,7 @@
 use std::fmt;
-use std::rc::Rc;
+use std::{any::Any, sync::Arc};
 
-use crate::{Analysis, EGraph, Id, Language, Pattern, SearchMatches, Subst, Var};
+use crate::{Analysis, DisplayAsDebug, EGraph, Id, Language, Pattern, SearchMatches, Subst, Var};
 
 /// A rewrite that searches for the lefthand side and applies the righthand side.
 ///
@@ -22,10 +22,12 @@ use crate::{Analysis, EGraph, Id, Language, Pattern, SearchMatches, Subst, Var};
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct Rewrite<L, N> {
-    name: String,
-    long_name: String,
-    searcher: Rc<dyn Searcher<L, N>>,
-    applier: Rc<dyn Applier<L, N>>,
+    /// The name of the rewrite.
+    pub name: String,
+    /// The searcher (left-hand side) of the rewrite.
+    pub searcher: Arc<dyn Searcher<L, N>>,
+    /// The applier (right-hand side) of the rewrite.
+    pub applier: Arc<dyn Applier<L, N>>,
 }
 
 impl<L, N> fmt::Debug for Rewrite<L, N>
@@ -34,18 +36,8 @@ where
     N: 'static,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        struct DisplayAsDebug<T>(T);
-        impl<T: fmt::Display> fmt::Debug for DisplayAsDebug<T> {
-            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                write!(f, "{}", self.0)
-            }
-        }
-
-        use std::any::Any;
-
         let mut d = f.debug_struct("Rewrite");
-        d.field("name", &self.name)
-            .field("long_name", &self.long_name);
+        d.field("name", &self.name);
 
         if let Some(pat) = Any::downcast_ref::<Pattern<L>>(&self.searcher) {
             d.field("searcher", &DisplayAsDebug(pat));
@@ -68,12 +60,6 @@ impl<L, N> Rewrite<L, N> {
     pub fn name(&self) -> &str {
         &self.name
     }
-
-    /// Returns the long name of the rewrite which should only be used for
-    /// debugging and displaying.
-    pub fn long_name(&self) -> &str {
-        &self.long_name
-    }
 }
 
 impl<L: Language, N: Analysis<L>> Rewrite<L, N> {
@@ -84,14 +70,12 @@ impl<L: Language, N: Analysis<L>> Rewrite<L, N> {
     /// [`rewrite!`]: macro.rewrite.html
     pub fn new(
         name: impl Into<String>,
-        long_name: impl Into<String>,
         searcher: impl Searcher<L, N> + 'static,
         applier: impl Applier<L, N> + 'static,
     ) -> Result<Self, String> {
         let name = name.into();
-        let long_name = long_name.into();
-        let searcher = Rc::new(searcher);
-        let applier = Rc::new(applier);
+        let searcher = Arc::new(searcher);
+        let applier = Arc::new(applier);
 
         let bound_vars = searcher.vars();
         for v in applier.vars() {
@@ -102,7 +86,6 @@ impl<L: Language, N: Analysis<L>> Rewrite<L, N> {
 
         Ok(Self {
             name,
-            long_name,
             searcher,
             applier,
         })

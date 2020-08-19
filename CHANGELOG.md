@@ -7,6 +7,7 @@
 ### Changed
 - `EGraph::add_expr` now proceeds linearly through the given `RecExpr`, which
   should be faster and include _all_ e-nodes from the expression.
+- `Rewrite` now has public `searcher` and `applier` fields and no `long_name`.
 
 ## [0.6.0] - 2020-07-16
 

@@ -65,7 +65,7 @@ impl OptionalRewrite {
                 <input type="checkbox", checked=self.enabled, onclick=|_| Msg::ToggleRewrite(i),></input>
                 <details>
                     <summary> {counts} {" "} {self.rewrite.name()}</summary>
-                    <div class="longname",> {self.rewrite.long_name()} </div>
+                    <div class="longname",> {format!("{:?}", self.rewrite)} </div>
                 </details>
             </div>
         }

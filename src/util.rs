@@ -92,3 +92,12 @@ impl fmt::Debug for Symbol {
         write!(f, "{:?}", self.as_str())
     }
 }
+
+/// A wrapper that uses display implementation as debug
+pub(crate) struct DisplayAsDebug<T>(pub T);
+
+impl<T: fmt::Display> fmt::Debug for DisplayAsDebug<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}

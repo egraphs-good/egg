@@ -287,11 +287,10 @@ macro_rules! rewrite {
         $lhs:tt => $rhs:tt
         $(if $cond:expr)*
     )  => {{
-        let long_name = format!("{} => {}", stringify!($lhs), stringify!($rhs));
         let searcher = $crate::__rewrite!(@parse $lhs);
         let core_applier = $crate::__rewrite!(@parse $rhs);
         let applier = $crate::__rewrite!(@applier core_applier; $($cond,)*);
-        $crate::Rewrite::new($name, long_name, searcher, applier).unwrap()
+        $crate::Rewrite::new($name, searcher, applier).unwrap()
     }};
     (
         $name:expr;
