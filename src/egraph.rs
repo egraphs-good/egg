@@ -13,104 +13,30 @@ use crate::{
 
 /** A data structure to keep track of equalities between expressions.
 
-# What's an egraph?
+Check out the [background tutorial](tutorials/_01_background)
+for more information on e-graphs in general.
 
-An egraph ([/'igraf/][sound]) is a data structure to maintain equivalence
+# E-graphs in `egg`
 
-classes of expressions.
-An egraph conceptually is a set of eclasses, each of which
-contains equivalent enodes.
-An enode is conceptually and operator with children, but instead of
-children being other operators or values, the children are eclasses.
-
-In `egg`, these are respresented by the [`EGraph`], [`EClass`], and
-[`Language`] (enodes) types.
-
-
-Here's an egraph created and rendered by [this example](struct.Dot.html).
-As described in the documentation for [egraph visualization][dot] and
-in the academic literature, we picture eclasses as dotted boxes
-surrounding the equivalent enodes:
-
-<img src="https://mwillsey.com/assets/simple-egraph.svg"/>
-
-We say a term _t_ is _represented_ in an eclass _e_ if you can pick a
-single enode from each eclass such that _t_ is in _e_.
-A term is represented in the egraph if it's represented in any eclass.
-In the image above, the terms `2 * a`, `a * 2`, and `a << 1` are all
-represented in the same eclass and thus are equivalent.
-The terms `1`, `(a * 2) / 2`, and `(a << 1) / 2` are represented in
-the egraph, but not in the same eclass as the prior three terms, so
-these three are not equivalent to those three.
-
-Egraphs are useful when you have a bunch of very similar expressions,
-some of which are equivalent, and you'd like a compactly store them.
-This compactness allows rewrite systems based on egraphs to
-efficiently "remember" the expression before and after rewriting, so
-you can essentially apply all rewrites at once.
-See [`Rewrite`] and [`Runner`] for more details about rewrites and
-running rewrite systems, respectively.
-
-# Invariants and Rebuilding
-
-An egraph has two core operations that modify the egraph:
-[`add`] which adds enodes to the egraph, and
-[`union`] which merges two eclasses.
-These operations maintains two key (related) invariants:
-
-1. **Uniqueness of enodes**
-
-   There do not exist two distinct enodes with equal operators and equal
-   children in the eclass, either in the same eclass or different eclasses.
-   This is maintained in part by the hashconsing performed by [`add`],
-   and by deduplication performed by [`union`] and [`rebuild`].
-
-2. **Congruence closure**
-
-   An egraph maintains not just an [equivalence relation] over
-   expressions, but a [congruence relation].
-   So as the user calls [`union`], many eclasses other than the given
-   two may need to merge to maintain congruence.
-
-   For example, suppose terms `a + x` and `a + y` are represented in
-   eclasses 1 and 2, respectively.
-   At some later point, `x` and `y` become
-   equivalent (perhaps the user called [`union`] on their containing
-   eclasses).
-   Eclasses 1 and 2 must merge, because now the two `+`
-   operators have equivalent arguments, making them equivalent.
-
-`egg` takes a delayed approach to maintaining these invariants.
-Specifically, the effects of calling [`union`] (or applying a rewrite,
-which calls [`union`]) may not be reflected immediately.
-To restore the egraph invariants and make these effects visible, the
-user *must* call the [`rebuild`] method.
-
-`egg`s choice here allows for a higher performance implementation.
-Maintaining the congruence relation complicates the core egraph data
-structure and requires an expensive traversal through the egraph on
-every [`union`].
-`egg` chooses to relax these invariants for better performance, only
-restoring the invariants on a call to [`rebuild`].
-See the [`rebuild`] documentation for more information.
-Note also that [`Runner`]s take care of this for you, calling
-[`rebuild`] between rewrite iterations.
-
-# egraphs in `egg`
-
-In `egg`, the main types associated with egraphs are
+In `egg`, the main types associated with e-graphs are
 [`EGraph`], [`EClass`], [`Language`], and [`Id`].
 
 [`EGraph`] and [`EClass`] are all generic over a
 [`Language`], meaning that types actually floating around in the
 egraph are all user-defined.
-In particular, the enodes are elements of your [`Language`].
+In particular, the e-nodes are elements of your [`Language`].
 [`EGraph`]s and [`EClass`]es are additionally parameterized by some
-[`Analysis`], abritrary data associated with each eclass.
+[`Analysis`], abritrary data associated with each e-class.
 
-Many methods of [`EGraph`] deal with [`Id`]s, which represent eclasses.
+Many methods of [`EGraph`] deal with [`Id`]s, which represent e-classes.
 Because eclasses are frequently merged, many [`Id`]s will refer to the
-same eclass.
+same e-class.
+
+You can use the `egraph[id]` syntax to get an [`EClass`] from an [`Id`], because
+[`EGraph`] implements
+[`Index`](struct.EGraph.html#impl-Index<Id>)
+and
+[`IndexMut`](struct.EGraph.html#impl-IndexMut<Id>).
 
 [`EGraph`]: struct.EGraph.html
 [`EClass`]: struct.EClass.html
@@ -259,6 +185,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     }
 }
 
+/// Given an `Id` using the `egraph[id]` syntax, retrieve the e-class.
 impl<L: Language, N: Analysis<L>> std::ops::Index<Id> for EGraph<L, N> {
     type Output = EClass<L, N::Data>;
     fn index(&self, id: Id) -> &Self::Output {
@@ -269,6 +196,8 @@ impl<L: Language, N: Analysis<L>> std::ops::Index<Id> for EGraph<L, N> {
     }
 }
 
+/// Given an `Id` using the `&mut egraph[id]` syntax, retrieve a mutable
+/// reference to the e-class.
 impl<L: Language, N: Analysis<L>> std::ops::IndexMut<Id> for EGraph<L, N> {
     fn index_mut(&mut self, id: Id) -> &mut Self::Output {
         let id = self.find(id);
