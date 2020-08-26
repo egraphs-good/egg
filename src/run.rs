@@ -642,6 +642,7 @@ pub struct BackoffScheduler {
     ban_length: usize,
     stats: IndexMap<String, RuleStats>,
     dont_ban: IndexSet<String>,
+    ban_rules: IndexMap<String, (usize, usize)>,
 }
 
 struct RuleStats {
@@ -671,6 +672,26 @@ impl BackoffScheduler {
         self.dont_ban.insert(name.into());
         self
     }
+
+    /// Ban a particular rule, setting the initial match limit.
+    pub fn ban_rule_with_limit(mut self, limit: usize, name: impl Into<String>) -> Self {
+        let (ban_limit, _) = self
+            .ban_rules
+            .entry(name.into())
+            .or_insert((self.initial_match_limit, self.ban_length));
+        *ban_limit = limit;
+        self
+    }
+
+    /// Ban a particular rule, setting the initial ban length.
+    pub fn ban_rule_with_length(mut self, length: usize, name: impl Into<String>) -> Self {
+        let (_, ban_length) = self
+            .ban_rules
+            .entry(name.into())
+            .or_insert((self.initial_match_limit, self.ban_length));
+        *ban_length = length;
+        self
+    }
 }
 
 impl Default for BackoffScheduler {
@@ -680,6 +701,7 @@ impl Default for BackoffScheduler {
             stats: Default::default(),
             initial_match_limit: 1_000,
             ban_length: 5,
+            ban_rules: Default::default(),
         }
     }
 }
@@ -751,9 +773,17 @@ where
 
             let matches = rewrite.search(egraph);
             let total_len: usize = matches.iter().map(|m| m.substs.len()).sum();
-            let threshold = self.initial_match_limit << limit.times_banned;
+            let threshold = self
+                .ban_rules
+                .get(rewrite.name())
+                .map_or(self.initial_match_limit, |(limit, _)| *limit)
+                << limit.times_banned;
             if total_len > threshold {
-                let ban_length = self.ban_length << limit.times_banned;
+                let ban_length = self
+                    .ban_rules
+                    .get(rewrite.name())
+                    .map_or(self.ban_length, |(_, length)| *length)
+                    << limit.times_banned;
                 limit.times_banned += 1;
                 limit.banned_until = iteration + ban_length;
                 info!(
