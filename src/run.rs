@@ -777,9 +777,8 @@ where
 
         let matches = rewrite.search(egraph);
         let total_len: usize = matches.iter().map(|m| m.substs.len()).sum();
-        // add one otherwise you'll always ban the first time
-        let threshold = stats.match_limit * (1 + stats.times_banned);
-        if total_len >= threshold {
+        let threshold = stats.match_limit << stats.times_banned;
+        if total_len > threshold {
             let ban_length = stats.ban_length << stats.times_banned;
             stats.times_banned += 1;
             stats.banned_until = iteration + ban_length;
