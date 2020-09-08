@@ -1,4 +1,4 @@
-use indexmap::{IndexMap, IndexSet};
+use indexmap::IndexMap;
 use instant::{Duration, Instant};
 use log::*;
 
@@ -638,58 +638,63 @@ where
 /// [`RewriteScheduler`]: trait.RewriteScheduler.html
 /// [`BackoffScheduler`]: struct.BackoffScheduler.html
 pub struct BackoffScheduler {
-    initial_match_limit: usize,
-    ban_length: usize,
+    default_match_limit: usize,
+    default_ban_length: usize,
     stats: IndexMap<String, RuleStats>,
-    dont_ban: IndexSet<String>,
-    ban_rules: IndexMap<String, (usize, usize)>,
 }
 
 struct RuleStats {
     times_applied: usize,
     banned_until: usize,
     times_banned: usize,
+    match_limit: usize,
+    ban_length: usize,
 }
 
 impl BackoffScheduler {
     /// Set the initial match limit after which a rule will be banned.
     /// Default: 1,000
-    pub fn with_initial_match_limit(self, initial_match_limit: usize) -> Self {
-        Self {
-            initial_match_limit,
-            ..self
-        }
+    pub fn with_initial_match_limit(mut self, limit: usize) -> Self {
+        self.default_match_limit = limit;
+        self
     }
 
     /// Set the initial ban length.
     /// Default: 5 iterations
-    pub fn with_ban_length(self, ban_length: usize) -> Self {
-        Self { ban_length, ..self }
+    pub fn with_ban_length(mut self, ban_length: usize) -> Self {
+        self.default_ban_length = ban_length;
+        self
+    }
+
+    fn rule_stats(&mut self, name: &str) -> &mut RuleStats {
+        if self.stats.contains_key(name) {
+            &mut self.stats[name]
+        } else {
+            self.stats.entry(name.to_owned()).or_insert(RuleStats {
+                times_applied: 0,
+                banned_until: 0,
+                times_banned: 0,
+                match_limit: self.default_match_limit,
+                ban_length: self.default_ban_length,
+            })
+        }
     }
 
     /// Never ban a particular rule.
-    pub fn do_not_ban(mut self, name: impl Into<String>) -> Self {
-        self.dont_ban.insert(name.into());
+    pub fn do_not_ban(mut self, name: &str) -> Self {
+        self.rule_stats(name).match_limit = usize::MAX;
         self
     }
 
-    /// Ban a particular rule, setting the initial match limit.
-    pub fn ban_rule_with_limit(mut self, limit: usize, name: impl Into<String>) -> Self {
-        let (ban_limit, _) = self
-            .ban_rules
-            .entry(name.into())
-            .or_insert((self.initial_match_limit, self.ban_length));
-        *ban_limit = limit;
+    /// Set the initial match limit for a rule.
+    pub fn rule_match_limit(mut self, name: &str, limit: usize) -> Self {
+        self.rule_stats(name).match_limit = limit;
         self
     }
 
-    /// Ban a particular rule, setting the initial ban length.
-    pub fn ban_rule_with_length(mut self, length: usize, name: impl Into<String>) -> Self {
-        let (_, ban_length) = self
-            .ban_rules
-            .entry(name.into())
-            .or_insert((self.initial_match_limit, self.ban_length));
-        *ban_length = length;
+    /// Set the initial ban length for a rule.
+    pub fn rule_ban_length(mut self, name: &str, length: usize) -> Self {
+        self.rule_stats(name).ban_length = length;
         self
     }
 }
@@ -697,11 +702,9 @@ impl BackoffScheduler {
 impl Default for BackoffScheduler {
     fn default() -> Self {
         Self {
-            dont_ban: Default::default(),
             stats: Default::default(),
-            initial_match_limit: 1_000,
-            ban_length: 5,
-            ban_rules: Default::default(),
+            default_match_limit: 1_000,
+            default_ban_length: 5,
         }
     }
 }
@@ -759,59 +762,40 @@ where
         egraph: &EGraph<L, N>,
         rewrite: &Rewrite<L, N>,
     ) -> Vec<SearchMatches> {
-        if let Some(limit) = self.stats.get_mut(rewrite.name()) {
-            if iteration < limit.banned_until {
-                debug!(
-                    "Skipping {} ({}-{}), banned until {}...",
-                    rewrite.name(),
-                    limit.times_applied,
-                    limit.times_banned,
-                    limit.banned_until,
-                );
-                return vec![];
-            }
+        let stats = self.rule_stats(rewrite.name());
 
-            let matches = rewrite.search(egraph);
-            let total_len: usize = matches.iter().map(|m| m.substs.len()).sum();
-            let threshold = self
-                .ban_rules
-                .get(rewrite.name())
-                .map_or(self.initial_match_limit, |(limit, _)| *limit)
-                * limit.times_banned;
-            if total_len >= threshold {
-                let ban_length = self
-                    .ban_rules
-                    .get(rewrite.name())
-                    .map_or(self.ban_length, |(_, length)| *length)
-                    << limit.times_banned;
-                limit.times_banned += 1;
-                limit.banned_until = iteration + ban_length;
-                info!(
-                    "Banning {} ({}-{}) for {} iters: {} < {}",
-                    rewrite.name(),
-                    limit.times_applied,
-                    limit.times_banned,
-                    ban_length,
-                    threshold,
-                    total_len,
-                );
-                vec![]
-            } else {
-                limit.times_applied += 1;
-                matches
-            }
+        if iteration < stats.banned_until {
+            debug!(
+                "Skipping {} ({}-{}), banned until {}...",
+                rewrite.name(),
+                stats.times_applied,
+                stats.times_banned,
+                stats.banned_until,
+            );
+            return vec![];
+        }
+
+        let matches = rewrite.search(egraph);
+        let total_len: usize = matches.iter().map(|m| m.substs.len()).sum();
+        // add one otherwise you'll always ban the first time
+        let threshold = stats.match_limit * (1 + stats.times_banned);
+        if total_len >= threshold {
+            let ban_length = stats.ban_length << stats.times_banned;
+            stats.times_banned += 1;
+            stats.banned_until = iteration + ban_length;
+            info!(
+                "Banning {} ({}-{}) for {} iters: {} < {}",
+                rewrite.name(),
+                stats.times_applied,
+                stats.times_banned,
+                ban_length,
+                threshold,
+                total_len,
+            );
+            vec![]
         } else {
-            if !self.dont_ban.contains(rewrite.name()) {
-                self.stats.insert(
-                    rewrite.name().into(),
-                    RuleStats {
-                        times_applied: 0,
-                        banned_until: 0,
-                        times_banned: 0,
-                    },
-                );
-            }
-            rewrite.search(egraph)
+            stats.times_applied += 1;
+            matches
         }
     }
 }
