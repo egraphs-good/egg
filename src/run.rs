@@ -777,8 +777,8 @@ where
                 .ban_rules
                 .get(rewrite.name())
                 .map_or(self.initial_match_limit, |(limit, _)| *limit)
-                << limit.times_banned;
-            if total_len > threshold {
+                * limit.times_banned;
+            if total_len >= threshold {
                 let ban_length = self
                     .ban_rules
                     .get(rewrite.name())
