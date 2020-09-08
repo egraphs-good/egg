@@ -4,6 +4,9 @@
 
 ## [Unreleased] - ReleaseDate
 
+### Added
+- The `BackoffScheduler` is now more flexible.
+
 ### Changed
 - `EGraph::add_expr` now proceeds linearly through the given `RecExpr`, which
   should be faster and include _all_ e-nodes from the expression.
