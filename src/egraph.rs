@@ -61,6 +61,7 @@ pub struct EGraph<L: Language, N: Analysis<L>> {
     memo: HashMap<L, Id>,
     unionfind: UnionFind,
     classes: SparseVec<EClass<L, N::Data>>,
+    n_classes: usize,
     dirty_unions: Vec<Id>,
     repairs_since_rebuild: usize,
     pub(crate) classes_by_op: IndexMap<std::mem::Discriminant<L>, indexmap::IndexSet<Id>>,
@@ -95,6 +96,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             dirty_unions: Default::default(),
             classes_by_op: IndexMap::default(),
             repairs_since_rebuild: 0,
+            n_classes: 0,
         }
     }
 
@@ -154,7 +156,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
     /// Returns the number of eclasses in the egraph.
     pub fn number_of_classes(&self) -> usize {
-        self.classes().count()
+        debug_assert_eq!(self.classes().count(), self.n_classes);
+        self.n_classes
     }
 
     /// Canonicalizes an eclass id.
@@ -302,6 +305,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
             assert_eq!(self.classes.len(), usize::from(id));
             self.classes.push(Some(class));
+            self.n_classes += 1;
             assert!(self.memo.insert(enode, id).is_none());
 
             N::modify(self, id);
@@ -378,6 +382,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             self.analysis.merge(&mut to_class.data, from_class.data);
             concat(&mut to_class.nodes, from_class.nodes);
             concat(&mut to_class.parents, from_class.parents);
+
+            self.n_classes -= 1;
 
             N::modify(self, to);
         }
