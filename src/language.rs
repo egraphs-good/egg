@@ -31,20 +31,20 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
     /// This should only consider the operator, not the children `Id`s.
     fn matches(&self, other: &Self) -> bool;
 
-    /// Return a slice of the children `Id`s.
-    fn children(&self) -> &[Id];
-
-    /// Return a mutable slice of the children `Id`s.
-    fn children_mut(&mut self) -> &mut [Id];
-
     /// Runs a given function on each child `Id`.
-    fn for_each<F: FnMut(Id)>(&self, f: F) {
-        self.children().iter().copied().for_each(f)
-    }
+    fn for_each<F: FnMut(Id)>(&self, f: F);
 
     /// Runs a given function on each child `Id`, allowing mutation of that `Id`.
-    fn for_each_mut<F: FnMut(&mut Id)>(&mut self, f: F) {
-        self.children_mut().iter_mut().for_each(f)
+    fn for_each_mut<F: FnMut(&mut Id)>(&mut self, f: F);
+
+    /// Runs a falliable function on each child, stopping if the function returns
+    /// an error.
+    fn try_for_each<E, F>(&self, mut f: F) -> Result<(), E>
+    where
+        F: FnMut(Id) -> Result<(), E>,
+        E: Clone,
+    {
+        self.fold(Ok(()), |res, id| res.and_then(|_| f(id)))
     }
 
     /// Returns something that will print the operator.
@@ -74,12 +74,12 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
     /// The default implementation uses `fold` to accumulate the number of
     /// children.
     fn len(&self) -> usize {
-        self.children().len()
+        self.fold(0, |len, _| len + 1)
     }
 
     /// Returns true if this enode has no children.
     fn is_leaf(&self) -> bool {
-        self.children().is_empty()
+        self.all(|_| false)
     }
 
     /// Runs a given function to replace the children.
@@ -102,6 +102,18 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
         let mut acc = init;
         self.for_each(|id| acc = f(acc.clone(), id));
         acc
+    }
+
+    /// Returns true if the predicate is true on all children.
+    /// Does not short circuit.
+    fn all<F: FnMut(Id) -> bool>(&self, mut f: F) -> bool {
+        self.fold(true, |acc, id| acc && f(id))
+    }
+
+    /// Returns true if the predicate is true on any children.
+    /// Does not short circuit.
+    fn any<F: FnMut(Id) -> bool>(&self, mut f: F) -> bool {
+        self.fold(false, |acc, id| acc || f(id))
     }
 
     /// Make a `RecExpr` converting this enodes children to `RecExpr`s
@@ -260,9 +272,7 @@ impl<L: Language> RecExpr<L> {
     /// The enode's children `Id`s must refer to elements already in this list.
     pub fn add(&mut self, node: L) -> Id {
         debug_assert!(
-            node.children()
-                .iter()
-                .all(|&id| usize::from(id) < self.nodes.len()),
+            node.all(|id| usize::from(id) < self.nodes.len()),
             "node {:?} has children not in this expr: {:?}",
             node,
             self
@@ -575,14 +585,6 @@ impl Language for SymbolLang {
         self.op == other.op && self.len() == other.len()
     }
 
-    fn children(&self) -> &[Id] {
-        &self.children
-    }
-
-    fn children_mut(&mut self) -> &mut [Id] {
-        &mut self.children
-    }
-
     fn display_op(&self) -> &dyn Display {
         &self.op
     }
@@ -592,5 +594,13 @@ impl Language for SymbolLang {
             op: op_str.into(),
             children,
         })
+    }
+
+    fn for_each<F: FnMut(Id)>(&self, f: F) {
+        self.children.iter().copied().for_each(f)
+    }
+
+    fn for_each_mut<F: FnMut(&mut Id)>(&mut self, f: F) {
+        self.children.iter_mut().for_each(f)
     }
 }

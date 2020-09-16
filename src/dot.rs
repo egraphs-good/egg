@@ -189,10 +189,11 @@ where
 
         for class in self.egraph.classes() {
             for (i_in_class, node) in class.iter().enumerate() {
-                for (arg_i, child) in node.children().iter().enumerate() {
+                let mut arg_i = 0;
+                node.try_for_each(|child| {
                     // write the edge to the child, but clip it to the eclass with lhead
                     let (anchor, label) = edge(arg_i, node.len());
-                    let child_leader = self.egraph.find(*child);
+                    let child_leader = self.egraph.find(child);
 
                     if child_leader == class.id {
                         writeln!(
@@ -209,7 +210,9 @@ where
                             class.id, i_in_class, anchor, child, child_leader, label
                         )?;
                     }
-                }
+                    arg_i += 1;
+                    Ok(())
+                })?;
             }
         }
 
