@@ -50,7 +50,7 @@ impl<L: Language, D> EClass<L, D> {
                 leaves.all(|l| l == first),
                 "Different leaves in eclass {}: {:?}",
                 self.id,
-                self.leaves().collect::<indexmap::IndexSet<_>>()
+                self.leaves().collect::<crate::util::HashSet<_>>()
             );
         }
     }

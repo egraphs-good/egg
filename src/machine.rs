@@ -1,3 +1,4 @@
+use crate::util::HashSet;
 use crate::{Analysis, EClass, EGraph, ENodeOrVar, Id, Language, PatternAst, Subst, Var};
 use std::cmp::Ordering;
 
@@ -56,12 +57,12 @@ where
             "matching node {:?}\nstart={}\n{:?} != {:?}\nnodes: {:?}",
             node,
             start,
-            matching.clone().collect::<indexmap::IndexSet<_>>(),
+            matching.clone().collect::<HashSet<_>>(),
             eclass
                 .nodes
                 .iter()
                 .filter(|n| node.matches(n))
-                .collect::<indexmap::IndexSet<_>>(),
+                .collect::<HashSet<_>>(),
             eclass.nodes
         );
         matching.for_each(&mut f);
@@ -107,7 +108,7 @@ impl Machine {
     }
 }
 
-type VarToReg = indexmap::IndexMap<Var, Reg>;
+type VarToReg = crate::util::IndexMap<Var, Reg>;
 type TodoList<L> = std::collections::BinaryHeap<Todo<L>>;
 
 #[derive(PartialEq, Eq)]

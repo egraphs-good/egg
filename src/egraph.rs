@@ -1,10 +1,9 @@
-use std::collections::HashMap;
+use crate::util::{HashMap, HashSet};
 use std::{
     borrow::BorrowMut,
     fmt::{self, Debug},
 };
 
-use indexmap::IndexMap;
 use log::*;
 
 use crate::{
@@ -60,14 +59,11 @@ pub struct EGraph<L: Language, N: Analysis<L>> {
     pub analysis: N,
     memo: HashMap<L, Id>,
     unionfind: UnionFind,
-    classes: SparseVec<EClass<L, N::Data>>,
-    n_classes: usize,
+    classes: HashMap<Id, EClass<L, N::Data>>,
     dirty_unions: Vec<Id>,
     repairs_since_rebuild: usize,
-    pub(crate) classes_by_op: IndexMap<std::mem::Discriminant<L>, indexmap::IndexSet<Id>>,
+    pub(crate) classes_by_op: HashMap<std::mem::Discriminant<L>, HashSet<Id>>,
 }
-
-type SparseVec<T> = Vec<Option<Box<T>>>;
 
 impl<L: Language, N: Analysis<L> + Default> Default for EGraph<L, N> {
     fn default() -> Self {
@@ -94,26 +90,19 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             classes: Default::default(),
             unionfind: Default::default(),
             dirty_unions: Default::default(),
-            classes_by_op: IndexMap::default(),
+            classes_by_op: Default::default(),
             repairs_since_rebuild: 0,
-            n_classes: 0,
         }
     }
 
     /// Returns an iterator over the eclasses in the egraph.
-    pub fn classes(&self) -> impl Iterator<Item = &EClass<L, N::Data>> {
-        self.classes
-            .iter()
-            .filter_map(Option::as_ref)
-            .map(AsRef::as_ref)
+    pub fn classes(&self) -> impl ExactSizeIterator<Item = &EClass<L, N::Data>> {
+        self.classes.values()
     }
 
     /// Returns an mutating iterator over the eclasses in the egraph.
-    pub fn classes_mut(&mut self) -> impl Iterator<Item = &mut EClass<L, N::Data>> {
-        self.classes
-            .iter_mut()
-            .filter_map(Option::as_mut)
-            .map(AsMut::as_mut)
+    pub fn classes_mut(&mut self) -> impl ExactSizeIterator<Item = &mut EClass<L, N::Data>> {
+        self.classes.values_mut()
     }
 
     /// Returns `true` if the egraph is empty
@@ -156,8 +145,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
     /// Returns the number of eclasses in the egraph.
     pub fn number_of_classes(&self) -> usize {
-        debug_assert_eq!(self.classes().count(), self.n_classes);
-        self.n_classes
+        self.classes.len()
     }
 
     /// Canonicalizes an eclass id.
@@ -193,8 +181,8 @@ impl<L: Language, N: Analysis<L>> std::ops::Index<Id> for EGraph<L, N> {
     type Output = EClass<L, N::Data>;
     fn index(&self, id: Id) -> &Self::Output {
         let id = self.find(id);
-        self.classes[usize::from(id)]
-            .as_ref()
+        self.classes
+            .get(&id)
             .unwrap_or_else(|| panic!("Invalid id {}", id))
     }
 }
@@ -204,8 +192,8 @@ impl<L: Language, N: Analysis<L>> std::ops::Index<Id> for EGraph<L, N> {
 impl<L: Language, N: Analysis<L>> std::ops::IndexMut<Id> for EGraph<L, N> {
     fn index_mut(&mut self, id: Id) -> &mut Self::Output {
         let id = self.find(id);
-        self.classes[usize::from(id)]
-            .as_mut()
+        self.classes
+            .get_mut(&id)
             .unwrap_or_else(|| panic!("Invalid id {}", id))
     }
 }
@@ -290,12 +278,12 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         self.lookup(&mut enode).unwrap_or_else(|| {
             let id = self.unionfind.make_set();
             log::trace!("  ...adding to {}", id);
-            let class = Box::new(EClass {
+            let class = EClass {
                 id,
                 nodes: vec![enode.clone()],
                 data: N::make(self, &enode),
                 parents: Default::default(),
-            });
+            };
 
             // add this enode to the parent lists of its children
             enode.for_each(|child| {
@@ -303,9 +291,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                 self[child].parents.push(tup);
             });
 
-            assert_eq!(self.classes.len(), usize::from(id));
-            self.classes.push(Some(class));
-            self.n_classes += 1;
+            self.classes.insert(id, class);
             assert!(self.memo.insert(enode, id).is_none());
 
             N::modify(self, id);
@@ -380,14 +366,12 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             self.dirty_unions.push(to);
 
             // update the classes data structure
-            let from_class = self.classes[usize::from(from)].take().unwrap();
-            let to_class = self.classes[usize::from(to)].as_mut().unwrap();
+            let from_class = self.classes.remove(&from).unwrap();
+            let to_class = self.classes.get_mut(&to).unwrap();
 
             self.analysis.merge(&mut to_class.data, from_class.data);
             concat(&mut to_class.nodes, from_class.nodes);
             concat(&mut to_class.parents, from_class.parents);
-
-            self.n_classes -= 1;
 
             N::modify(self, to);
         }
@@ -432,7 +416,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         let mut trimmed = 0;
 
         let uf = &self.unionfind;
-        for class in self.classes.iter_mut().filter_map(Option::as_mut) {
+        for class in self.classes.values_mut() {
             let old_len = class.len();
             class
                 .nodes
@@ -469,7 +453,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
         #[cfg(debug_assertions)]
         for ids in classes_by_op.values_mut() {
-            let unique: indexmap::IndexSet<Id> = ids.iter().copied().collect();
+            let unique: HashSet<Id> = ids.iter().copied().collect();
             assert_eq!(ids.len(), unique.len());
         }
 
@@ -479,14 +463,9 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
     #[inline(never)]
     fn check_memo(&self) -> bool {
-        let mut test_memo = IndexMap::new();
+        let mut test_memo = HashMap::default();
 
-        for (id, class) in self.classes.iter().enumerate() {
-            let id = Id::from(id);
-            let class = match class.as_ref() {
-                Some(class) => class,
-                None => continue,
-            };
+        for (&id, class) in self.classes.iter() {
             assert_eq!(class.id, id);
             for node in &class.nodes {
                 if let Some(old) = test_memo.insert(node, id) {
@@ -644,7 +623,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         for (n, e) in parents {
             let e = self.find(*e);
             let node_data = N::make(self, n);
-            let class = self.classes[usize::from(e)].as_mut().unwrap();
+            let class = self.classes.get_mut(&e).unwrap();
             if self.analysis.merge(&mut class.data, node_data) {
                 // self.dirty_unions.push(e); // NOTE: i dont think this is necessary
                 let e_parents = std::mem::take(&mut class.parents);

@@ -2,8 +2,16 @@ use std::fmt;
 use std::str::FromStr;
 use std::sync::Mutex;
 
-use indexmap::IndexSet;
 use once_cell::sync::Lazy;
+
+pub(crate) type Hasher = fxhash::FxHasher;
+
+pub(crate) type HashMap<K, V> =
+    std::collections::HashMap<K, V, std::hash::BuildHasherDefault<Hasher>>;
+pub(crate) type HashSet<K> = std::collections::HashSet<K, std::hash::BuildHasherDefault<Hasher>>;
+
+pub(crate) type IndexMap<K, V> = indexmap::IndexMap<K, V, std::hash::BuildHasherDefault<Hasher>>;
+pub(crate) type IndexSet<K> = indexmap::IndexSet<K, std::hash::BuildHasherDefault<Hasher>>;
 
 static STRINGS: Lazy<Mutex<IndexSet<&'static str>>> = Lazy::new(Default::default);
 

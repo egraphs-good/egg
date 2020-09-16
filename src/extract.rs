@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
-use std::collections::HashMap;
 use std::fmt::Debug;
 
+use crate::util::HashMap;
 use crate::{Analysis, EClass, EGraph, Id, Language, RecExpr};
 
 /** Extracting a single [`RecExpr`] from an [`EGraph`].
