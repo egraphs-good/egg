@@ -201,6 +201,12 @@ where
         (cost, expr)
     }
 
+    /// Find the cost of the term that would be extracted from this e-class.
+    pub fn find_best_cost(&mut self, eclass: Id) -> CF::Cost {
+        let (cost, _) = &self.costs[&self.egraph.find(eclass)];
+        cost.clone()
+    }
+
     fn find_best_rec(
         &mut self,
         expr: &mut RecExpr<L>,
