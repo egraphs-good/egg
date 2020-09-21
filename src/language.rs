@@ -479,6 +479,14 @@ pub trait Analysis<L: Language>: Sized {
     /// [`Analysis`]: trait.Analysis.html
     fn make(egraph: &EGraph<L, Self>, enode: &L) -> Self::Data;
 
+    /// An optional hook that allows inspection before a [`union`] occurs.
+    ///
+    /// By default it does nothing.
+    ///
+    /// [`union`]: struct.EGraph.html#method.union
+    #[allow(unused_variables)]
+    fn pre_union(egraph: &EGraph<L, Self>, id1: Id, id2: Id) {}
+
     /// Defines how to merge two `Data`s when their containing
     /// [`EClass`]es merge.
     ///

@@ -369,6 +369,10 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             to.extend(from);
         }
 
+        if id1 != id2 {
+            N::pre_union(self, id1, id2);
+        }
+
         let (to, from) = self.unionfind.union(id1, id2);
         debug_assert_eq!(to, self.find(id1));
         debug_assert_eq!(to, self.find(id2));

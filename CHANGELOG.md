@@ -6,6 +6,7 @@
 
 ### Added
 - The `BackoffScheduler` is now more flexible.
+- `EGraph::pre_union` allows inspection of unions, which can be useful for debugging.
 
 ### Changed
 - `EGraph::add_expr` now proceeds linearly through the given `RecExpr`, which
