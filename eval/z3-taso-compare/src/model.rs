@@ -3,7 +3,7 @@
 // #![allow(non_snake_case)]
 
 // include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
-// 
+//
 // use rand::prelude::*;
 // use root::taso::*;
 
@@ -50,8 +50,8 @@ define_language! {
 //      let mut graph = Box::new(Graph::new());
 //      Graph_Graph(&mut *graph);
 //      TensorAnalysis { graph: std::cell::RefCell::new(graph) }
-//    } 
-//  } 
+//    }
+//  }
 //}
 //
 //#[derive(Debug)]
@@ -128,7 +128,7 @@ define_language! {
 //      other => {println!("{:?}", other); todo!()}
 //    }
 //  }
-// 
+//
 //  // TODO may not need modify to do anything?
 //  fn modify(egraph: &mut EGraph<Mdl, Self>, id: Id) {
 //  }

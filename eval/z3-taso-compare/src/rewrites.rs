@@ -2,7 +2,7 @@ use crate::model::*;
 use egg::{rewrite as rw, *};
 
 // TODO egg now provides bidirectional rules whic should cut down
-// this list in half. 
+// this list in half.
 #[rustfmt::skip]
 pub fn rules<A: Analysis<Mdl>>() -> Vec<Rewrite<Mdl, A>> { vec![
         rw!("ewadd-is-associative"            ; "(ewadd ?x (ewadd ?y ?z)) "                                             => "(ewadd (ewadd ?x ?y) ?z)"),
