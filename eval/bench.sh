@@ -5,7 +5,10 @@
 # versus and "upward merging" mode which emulates the traditional
 # method of congruence maintenance.
 
-function fail() { >&2 echo $@; exit 1}
+function fail() {
+    >&2 echo $@
+    exit 1
+}
 
 # these parameters ensure that all of the tests have the same
 # time/node/iterations limits

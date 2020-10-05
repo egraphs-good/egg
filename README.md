@@ -44,7 +44,7 @@ The password for the `aec` user is `aec`.
 
 ## Relevant project layout
 
-Not all the files/folders in this repository are relevant for artifact evalation, 
+Not all the files/folders in this repository are relevant for artifact evaluation,
 since this is the actual folder layout for the `egg` project.
 
 Here are the important parts:
@@ -54,10 +54,10 @@ Here are the important parts:
 - `tests` contains the integration tests, referred to as the "test suite" in the POPL paper.
   There are three test suites.
   - `prop.rs` implements propositional logic and proves some simple
-    theorems. These tests are very small, and are not included in the benchmark set.
-  - `math.rs` implements "real" arithmetic, with a little bit of symbolic differentiation.
+    theorems. These tests are very small, and are not included in the benchmark set run by `bench.sh`.
+  - `math.rs` implements "real" arithmetic, with some symbolic differentiation.
   - `lambda.rs` implements a small lambda calculus, using `egg` as a partial evaluator.
-    A slightly-edited version of this source code was presented in the POPL paper.
+    A slightly-edited version of this source code was presented in the POPL paper (Fig. 9 and 10).
 - `eval` contains the scripts to be run for artifact evaluation.
   These are not present in the main branch of the `egg` repo.
 - `data` will contain the output of the eval scripts. 
@@ -89,6 +89,8 @@ Running the scripts in the `eval` folder will reproduce the artifact. From the `
 
 ```sh
 # run the tests as a sanity check
+# this may have to compile egg first
+# expected time: < 1 min
 $ cargo test --release
 
 # generate the data by running the egg test suite
@@ -98,6 +100,7 @@ $ ./eval/bench.sh
 
 # process the data, generating plots in the data/ directory
 # this additionally prints out some summary data
+# expected time: < 5 sec
 $ ./eval/plot.py
 ```
 
@@ -126,7 +129,7 @@ The `./eval/plot.py` script will additionally print the overall speedups include
 #### Figure 6: The speedup grows as more rewrites are applied
 
 Figure 6 investigates the claim of super-linear speedup more closely.
-Here, easy individual test is plotted as a line.
+Here, each individual test is plotted as a line.
 For each test, equality saturation takes many iterations, applying many rewrites. 
 A point on a line shows the relative speedup (of congruence phase of the algorithm)
   of our rebuilding technique vs the traditional approach
@@ -183,6 +186,26 @@ $ cargo run --release taso_rules.txt
 ```
 
 
-### Herbie
+### Herbie and other case studies
 
-https://github.com/uwplse/herbie/pull/272
+In the abstract and intro of the POPL submission, 
+  we claim a 3000x speedup over an older implementation of e-graphs inside 
+  [Herbie](http://herbie.uwplse.org/).
+As part of the camera ready revisions, we will contain discussion of this point into 
+  Section 6.1 (Case Studies) to better contextualize those speedups.
+  
+Replication of the case studies would require extensive source-level
+  modifications to projects other than `egg`, 
+and thus are outside the scope of this artifact.
+
+While this artifact does not include the code to reproduce the Herbie results,
+we do have the logs in Herbie's nightly reporting system.
+Each one of these reports corresponds to a bar in Figure 11, from left to right.
+The relevant metric is `simplify` in green:
+
+- initial Racket implementation ([report](http://herbie.uwplse.org/reports/1593517043:debbie:old-regraph:8ccfdff1f7/timeline.html))
+- Racket + batching ([report](http://herbie.uwplse.org/reports/1593526873:debbie:old-regraph:8ccfdff1f7/timeline.html))
+- Latest Racket implementation, including batching and rebuilding
+  ([report](http://herbie.uwplse.org/reports/1593539656:debbie:old-regraph:8ccfdff1f7/timeline.html))
+- Using `egg` ([report](http://herbie.uwplse.org/reports/1593541610:debbie:old-regraph:8ccfdff1f7/timeline.html))
+  
