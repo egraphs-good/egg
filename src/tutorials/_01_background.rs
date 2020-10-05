@@ -225,7 +225,7 @@ Equality saturation
 `egg` implements a variant of equality saturation in the [`Runner`] API that
   looks like the following pseudocode:
 
-```ignore
+```text
 fn equality_saturation(expr: Expression, rewrites: Vec<Rewrite>) -> Expression {
     let mut egraph = make_initial_egraph(expr);
 
