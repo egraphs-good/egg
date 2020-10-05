@@ -1,0 +1,144 @@
+{
+  "data": [
+    {
+      "applied": {
+        "add-zero": 3,
+        "d-ln": 1,
+        "mul-one": 3
+      },
+      "apply_time": 6.492e-6,
+      "data": null,
+      "egraph_classes": 3,
+      "egraph_nodes": 3,
+      "hook_time": 4e-8,
+      "n_rebuilds": 3,
+      "rebuild_time": 3.757e-6,
+      "search_time": 0.00001019,
+      "stop_reason": null,
+      "total_time": 0.000020559
+    },
+    {
+      "applied": {
+        "comm-add": 3,
+        "comm-mul": 3,
+        "d-add": 1,
+        "d-mul": 1,
+        "div-canon": 1
+      },
+      "apply_time": 0.000013486,
+      "data": null,
+      "egraph_classes": 5,
+      "egraph_nodes": 12,
+      "hook_time": 4e-8,
+      "n_rebuilds": 5,
+      "rebuild_time": 8.796e-6,
+      "search_time": 0.000011001,
+      "stop_reason": null,
+      "total_time": 0.000033393
+    },
+    {
+      "applied": {
+        "add-zero": 4,
+        "assoc-add": 3,
+        "comm-add": 2,
+        "comm-mul": 2,
+        "d-constant": 2,
+        "d-mul": 2,
+        "distribute": 2,
+        "mul-one": 4
+      },
+      "apply_time": 0.000023003,
+      "data": null,
+      "egraph_classes": 10,
+      "egraph_nodes": 30,
+      "hook_time": 3e-8,
+      "n_rebuilds": 6,
+      "rebuild_time": 0.000016411,
+      "search_time": 0.000018865,
+      "stop_reason": null,
+      "total_time": 0.000058399
+    },
+    {
+      "applied": {
+        "assoc-add": 6,
+        "comm-add": 4,
+        "comm-mul": 1,
+        "distribute": 1,
+        "factor": 2,
+        "mul-one": 1,
+        "zero-mul": 1
+      },
+      "apply_time": 0.000032191,
+      "data": null,
+      "egraph_classes": 10,
+      "egraph_nodes": 41,
+      "hook_time": 3.1e-8,
+      "n_rebuilds": 4,
+      "rebuild_time": 0.000015058,
+      "search_time": 0.000024776,
+      "stop_reason": null,
+      "total_time": 0.000072145
+    },
+    {
+      "applied": {
+        "assoc-add": 1,
+        "factor": 2,
+        "mul-one": 1
+      },
+      "apply_time": 0.000014056,
+      "data": null,
+      "egraph_classes": 8,
+      "egraph_nodes": 37,
+      "hook_time": 3e-8,
+      "n_rebuilds": 2,
+      "rebuild_time": 2.825e-6,
+      "search_time": 0.000015669,
+      "stop_reason": null,
+      "total_time": 0.000032671
+    },
+    {
+      "applied": {
+        "comm-add": 1,
+        "comm-mul": 1
+      },
+      "apply_time": 0.000013665,
+      "data": null,
+      "egraph_classes": 8,
+      "egraph_nodes": 43,
+      "hook_time": 3e-8,
+      "n_rebuilds": 1,
+      "rebuild_time": 2.285e-6,
+      "search_time": 0.000016762,
+      "stop_reason": null,
+      "total_time": 0.000032822
+    },
+    {
+      "applied": {},
+      "apply_time": 0.000015178,
+      "data": null,
+      "egraph_classes": 8,
+      "egraph_nodes": 45,
+      "hook_time": 3e-8,
+      "n_rebuilds": 2,
+      "rebuild_time": 5.39e-6,
+      "search_time": 0.000017503,
+      "stop_reason": null,
+      "total_time": 0.000038252
+    },
+    {
+      "applied": {},
+      "apply_time": 0.0,
+      "data": null,
+      "egraph_classes": 8,
+      "egraph_nodes": 28,
+      "hook_time": 0.0,
+      "n_rebuilds": 0,
+      "rebuild_time": 0.0,
+      "search_time": 0.0,
+      "stop_reason": "Saturated",
+      "total_time": 0.0
+    }
+  ],
+  "name": "math_diff_ln",
+  "times": null
+}

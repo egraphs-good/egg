@@ -1,0 +1,47 @@
+{
+  "data": [
+    {
+      "applied": {
+        "let-lam-same": 1
+      },
+      "apply_time": 5.38e-6,
+      "data": null,
+      "egraph_classes": 5,
+      "egraph_nodes": 5,
+      "hook_time": 1.01e-7,
+      "n_rebuilds": 1,
+      "rebuild_time": 1.453e-6,
+      "search_time": 0.000013966,
+      "stop_reason": null,
+      "total_time": 0.000021049
+    },
+    {
+      "applied": {},
+      "apply_time": 1.212e-6,
+      "data": null,
+      "egraph_classes": 4,
+      "egraph_nodes": 5,
+      "hook_time": 6e-8,
+      "n_rebuilds": 0,
+      "rebuild_time": 8.62e-7,
+      "search_time": 6.092e-6,
+      "stop_reason": null,
+      "total_time": 8.506e-6
+    },
+    {
+      "applied": {},
+      "apply_time": 0.0,
+      "data": null,
+      "egraph_classes": 4,
+      "egraph_nodes": 5,
+      "hook_time": 0.0,
+      "n_rebuilds": 0,
+      "rebuild_time": 0.0,
+      "search_time": 0.0,
+      "stop_reason": "Saturated",
+      "total_time": 0.0
+    }
+  ],
+  "name": "lambda_capture",
+  "times": null
+}

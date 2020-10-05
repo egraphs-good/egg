@@ -1,0 +1,154 @@
+{
+  "data": [
+    {
+      "applied": {
+        "add-zero": 4,
+        "comm-add": 2,
+        "comm-mul": 1,
+        "distribute": 1,
+        "mul-one": 4
+      },
+      "apply_time": 0.000010048,
+      "data": null,
+      "egraph_classes": 6,
+      "egraph_nodes": 6,
+      "hook_time": 5e-8,
+      "n_rebuilds": 6,
+      "rebuild_time": 6.502e-6,
+      "search_time": 0.000016061,
+      "stop_reason": null,
+      "total_time": 0.000032732
+    },
+    {
+      "applied": {
+        "add-zero": 1,
+        "assoc-add": 2,
+        "assoc-mul": 1,
+        "comm-add": 5,
+        "comm-mul": 5,
+        "distribute": 5
+      },
+      "apply_time": 0.000018034,
+      "data": null,
+      "egraph_classes": 8,
+      "egraph_nodes": 24,
+      "hook_time": 3e-8,
+      "n_rebuilds": 6,
+      "rebuild_time": 0.000011672,
+      "search_time": 0.000014668,
+      "stop_reason": null,
+      "total_time": 0.000044484
+    },
+    {
+      "applied": {
+        "add-zero": 3,
+        "assoc-add": 6,
+        "assoc-mul": 1,
+        "comm-add": 8,
+        "comm-mul": 5,
+        "distribute": 9,
+        "factor": 1,
+        "mul-one": 3,
+        "zero-mul": 2
+      },
+      "apply_time": 0.000044654,
+      "data": null,
+      "egraph_classes": 14,
+      "egraph_nodes": 51,
+      "hook_time": 3e-8,
+      "n_rebuilds": 9,
+      "rebuild_time": 0.000025649,
+      "search_time": 0.000028894,
+      "stop_reason": null,
+      "total_time": 0.000099317
+    },
+    {
+      "applied": {
+        "add-zero": 3,
+        "assoc-add": 19,
+        "assoc-mul": 1,
+        "comm-add": 9,
+        "comm-mul": 7,
+        "distribute": 7,
+        "mul-one": 2,
+        "zero-mul": 1
+      },
+      "apply_time": 0.000073829,
+      "data": null,
+      "egraph_classes": 23,
+      "egraph_nodes": 94,
+      "hook_time": 3e-8,
+      "n_rebuilds": 16,
+      "rebuild_time": 0.000046928,
+      "search_time": 0.000048251,
+      "stop_reason": null,
+      "total_time": 0.000169128
+    },
+    {
+      "applied": {
+        "assoc-add": 18,
+        "comm-add": 13,
+        "comm-mul": 3,
+        "distribute": 6,
+        "factor": 1,
+        "mul-one": 4
+      },
+      "apply_time": 0.000078518,
+      "data": null,
+      "egraph_classes": 22,
+      "egraph_nodes": 117,
+      "hook_time": 3e-8,
+      "n_rebuilds": 12,
+      "rebuild_time": 0.000025748,
+      "search_time": 0.000057919,
+      "stop_reason": null,
+      "total_time": 0.000162305
+    },
+    {
+      "applied": {
+        "assoc-add": 25,
+        "comm-add": 24,
+        "comm-mul": 6,
+        "zero-mul": 1
+      },
+      "apply_time": 0.000131246,
+      "data": null,
+      "egraph_classes": 35,
+      "egraph_nodes": 170,
+      "hook_time": 3e-8,
+      "n_rebuilds": 20,
+      "rebuild_time": 0.000065333,
+      "search_time": 0.000084529,
+      "stop_reason": null,
+      "total_time": 0.000281208
+    },
+    {
+      "applied": {},
+      "apply_time": 0.000098175,
+      "data": null,
+      "egraph_classes": 20,
+      "egraph_nodes": 167,
+      "hook_time": 3e-8,
+      "n_rebuilds": 1,
+      "rebuild_time": 9.728e-6,
+      "search_time": 0.000076824,
+      "stop_reason": null,
+      "total_time": 0.000184897
+    },
+    {
+      "applied": {},
+      "apply_time": 0.0,
+      "data": null,
+      "egraph_classes": 20,
+      "egraph_nodes": 142,
+      "hook_time": 0.0,
+      "n_rebuilds": 0,
+      "rebuild_time": 0.0,
+      "search_time": 0.0,
+      "stop_reason": "Saturated",
+      "total_time": 0.0
+    }
+  ],
+  "name": "math_simplify_factor",
+  "times": null
+}

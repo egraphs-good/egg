@@ -61,9 +61,8 @@ Here are the important parts:
 - `eval` contains the scripts to be run for artifact evaluation.
   These are not present in the main branch of the `egg` repo.
 - `data` will contain the output of the eval scripts. 
-  This directory is not present initially, it is created by the eval scripts.
+  This is already populated with data generated on a Ryzen 9 3900X CPU.
   You may delete it at any time and re-run the eval scripts.
-  The VM comes with this pre-populated.
     
 ## Kicking the tires
 
@@ -94,7 +93,7 @@ Running the scripts in the `eval` folder will reproduce the artifact. From the `
 $ cargo test --release
 
 # generate the data by running the egg test suite
-# in the VM, this has already been run; to re-run, first run `rm -r data/`
+# if there is data already there, this will fail; run `rm -r data/` to proceed
 # the data goes in the data/ directory, see bench.sh for more info
 $ ./eval/bench.sh
 

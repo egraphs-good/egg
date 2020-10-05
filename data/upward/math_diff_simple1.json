@@ -1,0 +1,113 @@
+{
+  "data": [
+    {
+      "applied": {
+        "add-zero": 4,
+        "comm-add": 1,
+        "comm-mul": 1,
+        "d-add": 1,
+        "mul-one": 4
+      },
+      "apply_time": 0.000017804,
+      "data": null,
+      "egraph_classes": 6,
+      "egraph_nodes": 6,
+      "hook_time": 7e-8,
+      "n_rebuilds": 15,
+      "rebuild_time": 1.483e-6,
+      "search_time": 0.000012113,
+      "stop_reason": null,
+      "total_time": 0.00003152
+    },
+    {
+      "applied": {
+        "add-zero": 2,
+        "comm-add": 5,
+        "comm-mul": 4,
+        "d-add": 1,
+        "d-constant": 1,
+        "d-mul": 4,
+        "mul-one": 2
+      },
+      "apply_time": 0.00004232,
+      "data": null,
+      "egraph_classes": 9,
+      "egraph_nodes": 24,
+      "hook_time": 3e-8,
+      "n_rebuilds": 24,
+      "rebuild_time": 2.986e-6,
+      "search_time": 0.000015609,
+      "stop_reason": null,
+      "total_time": 0.000061025
+    },
+    {
+      "applied": {
+        "add-zero": 5,
+        "assoc-add": 14,
+        "comm-add": 3,
+        "comm-mul": 4,
+        "d-constant": 2,
+        "d-mul": 2,
+        "d-variable": 1,
+        "distribute": 3,
+        "mul-one": 5,
+        "zero-mul": 2
+      },
+      "apply_time": 0.000176261,
+      "data": null,
+      "egraph_classes": 14,
+      "egraph_nodes": 47,
+      "hook_time": 3e-8,
+      "n_rebuilds": 75,
+      "rebuild_time": 3.657e-6,
+      "search_time": 0.000025748,
+      "stop_reason": null,
+      "total_time": 0.000205787
+    },
+    {
+      "applied": {
+        "comm-add": 2,
+        "comm-mul": 1,
+        "zero-mul": 1
+      },
+      "apply_time": 0.000038593,
+      "data": null,
+      "egraph_classes": 10,
+      "egraph_nodes": 58,
+      "hook_time": 3e-8,
+      "n_rebuilds": 7,
+      "rebuild_time": 1.122e-6,
+      "search_time": 0.000024055,
+      "stop_reason": null,
+      "total_time": 0.00006388
+    },
+    {
+      "applied": {},
+      "apply_time": 9.968e-6,
+      "data": null,
+      "egraph_classes": 6,
+      "egraph_nodes": 44,
+      "hook_time": 3e-8,
+      "n_rebuilds": 0,
+      "rebuild_time": 1.011e-6,
+      "search_time": 0.000013436,
+      "stop_reason": null,
+      "total_time": 0.000024597
+    },
+    {
+      "applied": {},
+      "apply_time": 0.0,
+      "data": null,
+      "egraph_classes": 6,
+      "egraph_nodes": 20,
+      "hook_time": 0.0,
+      "n_rebuilds": 0,
+      "rebuild_time": 0.0,
+      "search_time": 0.0,
+      "stop_reason": "Saturated",
+      "total_time": 0.0
+    }
+  ],
+  "name": "math_diff_simple1",
+  "times": null
+}

@@ -1,0 +1,96 @@
+{
+  "data": [
+    {
+      "applied": {
+        "add-zero": 5,
+        "comm-add": 1,
+        "comm-mul": 1,
+        "d-add": 1,
+        "mul-one": 5
+      },
+      "apply_time": 0.000018124,
+      "data": null,
+      "egraph_classes": 6,
+      "egraph_nodes": 6,
+      "hook_time": 6e-8,
+      "n_rebuilds": 15,
+      "rebuild_time": 1.683e-6,
+      "search_time": 0.000011592,
+      "stop_reason": null,
+      "total_time": 0.000031519
+    },
+    {
+      "applied": {
+        "add-zero": 2,
+        "comm-add": 6,
+        "comm-mul": 5,
+        "d-add": 1,
+        "d-constant": 1,
+        "d-mul": 4,
+        "distribute": 2,
+        "mul-one": 2
+      },
+      "apply_time": 0.000045856,
+      "data": null,
+      "egraph_classes": 9,
+      "egraph_nodes": 24,
+      "hook_time": 3e-8,
+      "n_rebuilds": 27,
+      "rebuild_time": 3.296e-6,
+      "search_time": 0.000017153,
+      "stop_reason": null,
+      "total_time": 0.000066425
+    },
+    {
+      "applied": {
+        "add-zero": 5,
+        "assoc-add": 16,
+        "comm-add": 5,
+        "comm-mul": 6,
+        "d-constant": 2,
+        "d-variable": 1,
+        "distribute": 3,
+        "mul-one": 5,
+        "zero-mul": 4
+      },
+      "apply_time": 0.000209404,
+      "data": null,
+      "egraph_classes": 16,
+      "egraph_nodes": 52,
+      "hook_time": 3e-8,
+      "n_rebuilds": 89,
+      "rebuild_time": 3.667e-6,
+      "search_time": 0.000030567,
+      "stop_reason": null,
+      "total_time": 0.000243758
+    },
+    {
+      "applied": {},
+      "apply_time": 0.00001611,
+      "data": null,
+      "egraph_classes": 6,
+      "egraph_nodes": 44,
+      "hook_time": 3e-8,
+      "n_rebuilds": 0,
+      "rebuild_time": 1.342e-6,
+      "search_time": 0.000017834,
+      "stop_reason": null,
+      "total_time": 0.000035487
+    },
+    {
+      "applied": {},
+      "apply_time": 0.0,
+      "data": null,
+      "egraph_classes": 6,
+      "egraph_nodes": 26,
+      "hook_time": 0.0,
+      "n_rebuilds": 0,
+      "rebuild_time": 0.0,
+      "search_time": 0.0,
+      "stop_reason": "Saturated",
+      "total_time": 0.0
+    }
+  ],
+  "name": "math_diff_simple2",
+  "times": null
+}

@@ -1,0 +1,175 @@
+{
+  "data": [
+    {
+      "applied": {
+        "add-comm": 1,
+        "eq-comm": 1
+      },
+      "apply_time": 5.811e-6,
+      "data": null,
+      "egraph_classes": 8,
+      "egraph_nodes": 8,
+      "hook_time": 5.1e-8,
+      "n_rebuilds": 2,
+      "rebuild_time": 1.432e-6,
+      "search_time": 5.861e-6,
+      "stop_reason": null,
+      "total_time": 0.000013225
+    },
+    {
+      "applied": {
+        "let-add": 3
+      },
+      "apply_time": 6.662e-6,
+      "data": null,
+      "egraph_classes": 10,
+      "egraph_nodes": 12,
+      "hook_time": 3e-8,
+      "n_rebuilds": 3,
+      "rebuild_time": 1.403e-6,
+      "search_time": 5.21e-6,
+      "stop_reason": null,
+      "total_time": 0.000013395
+    },
+    {
+      "applied": {
+        "let-add": 3,
+        "let-var-diff": 1,
+        "let-var-same": 1
+      },
+      "apply_time": 0.000014838,
+      "data": null,
+      "egraph_classes": 14,
+      "egraph_nodes": 19,
+      "hook_time": 3e-8,
+      "n_rebuilds": 7,
+      "rebuild_time": 1.764e-6,
+      "search_time": 8.526e-6,
+      "stop_reason": null,
+      "total_time": 0.000025248
+    },
+    {
+      "applied": {
+        "if-elim": 1,
+        "let-var-diff": 1,
+        "let-var-same": 1
+      },
+      "apply_time": 0.000018014,
+      "data": null,
+      "egraph_classes": 13,
+      "egraph_nodes": 22,
+      "hook_time": 3e-8,
+      "n_rebuilds": 7,
+      "rebuild_time": 1.423e-6,
+      "search_time": 0.000018555,
+      "stop_reason": null,
+      "total_time": 0.000038092
+    },
+    {
+      "applied": {
+        "let-if": 2
+      },
+      "apply_time": 8.546e-6,
+      "data": null,
+      "egraph_classes": 8,
+      "egraph_nodes": 19,
+      "hook_time": 3e-8,
+      "n_rebuilds": 2,
+      "rebuild_time": 1.332e-6,
+      "search_time": 8.215e-6,
+      "stop_reason": null,
+      "total_time": 0.000018214
+    },
+    {
+      "applied": {
+        "let-eq": 2,
+        "let-if": 2
+      },
+      "apply_time": 0.000013685,
+      "data": null,
+      "egraph_classes": 10,
+      "egraph_nodes": 23,
+      "hook_time": 3e-8,
+      "n_rebuilds": 4,
+      "rebuild_time": 1.973e-6,
+      "search_time": 0.00001067,
+      "stop_reason": null,
+      "total_time": 0.000026449
+    },
+    {
+      "applied": {
+        "let-eq": 2
+      },
+      "apply_time": 0.000011532,
+      "data": null,
+      "egraph_classes": 12,
+      "egraph_nodes": 29,
+      "hook_time": 3e-8,
+      "n_rebuilds": 2,
+      "rebuild_time": 1.683e-6,
+      "search_time": 0.000013074,
+      "stop_reason": null,
+      "total_time": 0.000026409
+    },
+    {
+      "applied": {
+        "let-add": 2,
+        "let-if": 2
+      },
+      "apply_time": 0.000013665,
+      "data": null,
+      "egraph_classes": 12,
+      "egraph_nodes": 29,
+      "hook_time": 3e-8,
+      "n_rebuilds": 4,
+      "rebuild_time": 2.134e-6,
+      "search_time": 0.000013335,
+      "stop_reason": null,
+      "total_time": 0.000029245
+    },
+    {
+      "applied": {
+        "let-eq": 2,
+        "let-var-same": 2
+      },
+      "apply_time": 0.000032692,
+      "data": null,
+      "egraph_classes": 16,
+      "egraph_nodes": 37,
+      "hook_time": 3e-8,
+      "n_rebuilds": 12,
+      "rebuild_time": 2.425e-6,
+      "search_time": 0.000017332,
+      "stop_reason": null,
+      "total_time": 0.000052569
+    },
+    {
+      "applied": {},
+      "apply_time": 9.719e-6,
+      "data": null,
+      "egraph_classes": 10,
+      "egraph_nodes": 33,
+      "hook_time": 3e-8,
+      "n_rebuilds": 0,
+      "rebuild_time": 1.663e-6,
+      "search_time": 0.000014447,
+      "stop_reason": null,
+      "total_time": 0.000025999
+    },
+    {
+      "applied": {},
+      "apply_time": 0.0,
+      "data": null,
+      "egraph_classes": 10,
+      "egraph_nodes": 33,
+      "hook_time": 0.0,
+      "n_rebuilds": 0,
+      "rebuild_time": 0.0,
+      "search_time": 0.0,
+      "stop_reason": "Saturated",
+      "total_time": 0.0
+    }
+  ],
+  "name": "lambda_if_elim",
+  "times": null
+}

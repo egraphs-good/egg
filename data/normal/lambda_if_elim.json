@@ -1,0 +1,175 @@
+{
+  "data": [
+    {
+      "applied": {
+        "add-comm": 1,
+        "eq-comm": 1
+      },
+      "apply_time": 4.378e-6,
+      "data": null,
+      "egraph_classes": 8,
+      "egraph_nodes": 8,
+      "hook_time": 3e-8,
+      "n_rebuilds": 2,
+      "rebuild_time": 2.805e-6,
+      "search_time": 5.831e-6,
+      "stop_reason": null,
+      "total_time": 0.000013134
+    },
+    {
+      "applied": {
+        "let-add": 3
+      },
+      "apply_time": 6.683e-6,
+      "data": null,
+      "egraph_classes": 10,
+      "egraph_nodes": 12,
+      "hook_time": 3e-8,
+      "n_rebuilds": 2,
+      "rebuild_time": 1.703e-6,
+      "search_time": 5.109e-6,
+      "stop_reason": null,
+      "total_time": 0.000013595
+    },
+    {
+      "applied": {
+        "let-add": 3,
+        "let-var-diff": 1,
+        "let-var-same": 1
+      },
+      "apply_time": 6.963e-6,
+      "data": null,
+      "egraph_classes": 14,
+      "egraph_nodes": 19,
+      "hook_time": 3.1e-8,
+      "n_rebuilds": 4,
+      "rebuild_time": 6.663e-6,
+      "search_time": 8.806e-6,
+      "stop_reason": null,
+      "total_time": 0.000022532
+    },
+    {
+      "applied": {
+        "if-elim": 1,
+        "let-var-diff": 1,
+        "let-var-same": 1
+      },
+      "apply_time": 5.591e-6,
+      "data": null,
+      "egraph_classes": 13,
+      "egraph_nodes": 22,
+      "hook_time": 3e-8,
+      "n_rebuilds": 3,
+      "rebuild_time": 7.995e-6,
+      "search_time": 9.528e-6,
+      "stop_reason": null,
+      "total_time": 0.000023234
+    },
+    {
+      "applied": {
+        "let-if": 2
+      },
+      "apply_time": 6.723e-6,
+      "data": null,
+      "egraph_classes": 8,
+      "egraph_nodes": 19,
+      "hook_time": 3e-8,
+      "n_rebuilds": 2,
+      "rebuild_time": 3.516e-6,
+      "search_time": 8.446e-6,
+      "stop_reason": null,
+      "total_time": 0.000018796
+    },
+    {
+      "applied": {
+        "let-eq": 2,
+        "let-if": 2
+      },
+      "apply_time": 0.000012353,
+      "data": null,
+      "egraph_classes": 10,
+      "egraph_nodes": 23,
+      "hook_time": 3e-8,
+      "n_rebuilds": 4,
+      "rebuild_time": 6.392e-6,
+      "search_time": 0.000011241,
+      "stop_reason": null,
+      "total_time": 0.000030116
+    },
+    {
+      "applied": {
+        "let-eq": 2
+      },
+      "apply_time": 9.769e-6,
+      "data": null,
+      "egraph_classes": 12,
+      "egraph_nodes": 29,
+      "hook_time": 3e-8,
+      "n_rebuilds": 2,
+      "rebuild_time": 3.306e-6,
+      "search_time": 0.000013184,
+      "stop_reason": null,
+      "total_time": 0.000026379
+    },
+    {
+      "applied": {
+        "let-add": 2,
+        "let-if": 2
+      },
+      "apply_time": 0.000012884,
+      "data": null,
+      "egraph_classes": 12,
+      "egraph_nodes": 29,
+      "hook_time": 3e-8,
+      "n_rebuilds": 2,
+      "rebuild_time": 3.036e-6,
+      "search_time": 0.000013135,
+      "stop_reason": null,
+      "total_time": 0.000029175
+    },
+    {
+      "applied": {
+        "let-eq": 2,
+        "let-var-same": 2
+      },
+      "apply_time": 0.000011752,
+      "data": null,
+      "egraph_classes": 16,
+      "egraph_nodes": 37,
+      "hook_time": 3e-8,
+      "n_rebuilds": 8,
+      "rebuild_time": 0.000020479,
+      "search_time": 0.000016841,
+      "stop_reason": null,
+      "total_time": 0.000049172
+    },
+    {
+      "applied": {},
+      "apply_time": 9.688e-6,
+      "data": null,
+      "egraph_classes": 10,
+      "egraph_nodes": 33,
+      "hook_time": 3e-8,
+      "n_rebuilds": 0,
+      "rebuild_time": 1.793e-6,
+      "search_time": 0.000013906,
+      "stop_reason": null,
+      "total_time": 0.000025578
+    },
+    {
+      "applied": {},
+      "apply_time": 0.0,
+      "data": null,
+      "egraph_classes": 10,
+      "egraph_nodes": 33,
+      "hook_time": 0.0,
+      "n_rebuilds": 0,
+      "rebuild_time": 0.0,
+      "search_time": 0.0,
+      "stop_reason": "Saturated",
+      "total_time": 0.0
+    }
+  ],
+  "name": "lambda_if_elim",
+  "times": null
+}

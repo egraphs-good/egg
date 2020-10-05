@@ -1,0 +1,98 @@
+{
+  "data": [
+    {
+      "applied": {
+        "add-zero": 4,
+        "assoc-add": 1,
+        "comm-add": 2,
+        "mul-one": 4
+      },
+      "apply_time": 0.000014046,
+      "data": null,
+      "egraph_classes": 4,
+      "egraph_nodes": 4,
+      "hook_time": 7e-8,
+      "n_rebuilds": 11,
+      "rebuild_time": 1.582e-6,
+      "search_time": 0.00001044,
+      "stop_reason": null,
+      "total_time": 0.00002619
+    },
+    {
+      "applied": {
+        "comm-add": 4,
+        "comm-mul": 4,
+        "factor": 2
+      },
+      "apply_time": 0.00002696,
+      "data": null,
+      "egraph_classes": 6,
+      "egraph_nodes": 17,
+      "hook_time": 3e-8,
+      "n_rebuilds": 15,
+      "rebuild_time": 1.502e-6,
+      "search_time": 0.000012694,
+      "stop_reason": null,
+      "total_time": 0.000041277
+    },
+    {
+      "applied": {
+        "comm-mul": 2,
+        "factor": 2
+      },
+      "apply_time": 0.000026911,
+      "data": null,
+      "egraph_classes": 7,
+      "egraph_nodes": 33,
+      "hook_time": 3e-8,
+      "n_rebuilds": 10,
+      "rebuild_time": 1.563e-6,
+      "search_time": 0.000018885,
+      "stop_reason": null,
+      "total_time": 0.000047469
+    },
+    {
+      "applied": {
+        "comm-mul": 2
+      },
+      "apply_time": 0.000032651,
+      "data": null,
+      "egraph_classes": 9,
+      "egraph_nodes": 45,
+      "hook_time": 3e-8,
+      "n_rebuilds": 11,
+      "rebuild_time": 1.503e-6,
+      "search_time": 0.000020489,
+      "stop_reason": null,
+      "total_time": 0.000054753
+    },
+    {
+      "applied": {},
+      "apply_time": 0.000030237,
+      "data": null,
+      "egraph_classes": 9,
+      "egraph_nodes": 56,
+      "hook_time": 3e-8,
+      "n_rebuilds": 4,
+      "rebuild_time": 1.373e-6,
+      "search_time": 0.000020689,
+      "stop_reason": null,
+      "total_time": 0.000052479
+    },
+    {
+      "applied": {},
+      "apply_time": 0.0,
+      "data": null,
+      "egraph_classes": 9,
+      "egraph_nodes": 36,
+      "hook_time": 0.0,
+      "n_rebuilds": 0,
+      "rebuild_time": 0.0,
+      "search_time": 0.0,
+      "stop_reason": "Saturated",
+      "total_time": 0.0
+    }
+  ],
+  "name": "math_simplify_add",
+  "times": null
+}

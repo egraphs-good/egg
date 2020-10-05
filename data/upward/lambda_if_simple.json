@@ -1,0 +1,47 @@
+{
+  "data": [
+    {
+      "applied": {
+        "if-true": 1
+      },
+      "apply_time": 2.104e-6,
+      "data": null,
+      "egraph_classes": 5,
+      "egraph_nodes": 6,
+      "hook_time": 3e-8,
+      "n_rebuilds": 1,
+      "rebuild_time": 6.61e-7,
+      "search_time": 4.959e-6,
+      "stop_reason": null,
+      "total_time": 7.865e-6
+    },
+    {
+      "applied": {},
+      "apply_time": 5.81e-7,
+      "data": null,
+      "egraph_classes": 4,
+      "egraph_nodes": 6,
+      "hook_time": 4e-8,
+      "n_rebuilds": 0,
+      "rebuild_time": 4.91e-7,
+      "search_time": 3.116e-6,
+      "stop_reason": null,
+      "total_time": 4.368e-6
+    },
+    {
+      "applied": {},
+      "apply_time": 0.0,
+      "data": null,
+      "egraph_classes": 4,
+      "egraph_nodes": 6,
+      "hook_time": 0.0,
+      "n_rebuilds": 0,
+      "rebuild_time": 0.0,
+      "search_time": 0.0,
+      "stop_reason": "Saturated",
+      "total_time": 0.0
+    }
+  ],
+  "name": "lambda_if_simple",
+  "times": null
+}

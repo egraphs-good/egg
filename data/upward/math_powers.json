@@ -1,0 +1,86 @@
+{
+  "data": [
+    {
+      "applied": {
+        "add-zero": 5,
+        "comm-mul": 1,
+        "mul-one": 5,
+        "pow-mul": 1
+      },
+      "apply_time": 0.000015058,
+      "data": null,
+      "egraph_classes": 6,
+      "egraph_nodes": 6,
+      "hook_time": 7e-8,
+      "n_rebuilds": 14,
+      "rebuild_time": 1.683e-6,
+      "search_time": 0.000011232,
+      "stop_reason": null,
+      "total_time": 0.000028093
+    },
+    {
+      "applied": {
+        "assoc-add": 1,
+        "comm-add": 6,
+        "comm-mul": 5,
+        "distribute": 2,
+        "mul-one": 1
+      },
+      "apply_time": 0.000031199,
+      "data": null,
+      "egraph_classes": 9,
+      "egraph_nodes": 23,
+      "hook_time": 3.1e-8,
+      "n_rebuilds": 19,
+      "rebuild_time": 2.444e-6,
+      "search_time": 0.000015098,
+      "stop_reason": null,
+      "total_time": 0.000048861
+    },
+    {
+      "applied": {
+        "comm-add": 3,
+        "comm-mul": 3,
+        "zero-mul": 2
+      },
+      "apply_time": 0.0000323,
+      "data": null,
+      "egraph_classes": 11,
+      "egraph_nodes": 44,
+      "hook_time": 3e-8,
+      "n_rebuilds": 9,
+      "rebuild_time": 1.974e-6,
+      "search_time": 0.000023774,
+      "stop_reason": null,
+      "total_time": 0.000058159
+    },
+    {
+      "applied": {},
+      "apply_time": 0.000016681,
+      "data": null,
+      "egraph_classes": 9,
+      "egraph_nodes": 47,
+      "hook_time": 4e-8,
+      "n_rebuilds": 0,
+      "rebuild_time": 1.593e-6,
+      "search_time": 0.000020789,
+      "stop_reason": null,
+      "total_time": 0.000039234
+    },
+    {
+      "applied": {},
+      "apply_time": 0.0,
+      "data": null,
+      "egraph_classes": 9,
+      "egraph_nodes": 36,
+      "hook_time": 0.0,
+      "n_rebuilds": 0,
+      "rebuild_time": 0.0,
+      "search_time": 0.0,
+      "stop_reason": "Saturated",
+      "total_time": 0.0
+    }
+  ],
+  "name": "math_powers",
+  "times": null
+}

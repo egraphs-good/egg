@@ -1,0 +1,105 @@
+{
+  "data": [
+    {
+      "applied": {
+        "add-zero": 4,
+        "comm-add": 1,
+        "comm-mul": 1,
+        "mul-one": 3,
+        "sub-canon": 1
+      },
+      "apply_time": 0.000017974,
+      "data": null,
+      "egraph_classes": 6,
+      "egraph_nodes": 7,
+      "hook_time": 8e-8,
+      "n_rebuilds": 14,
+      "rebuild_time": 1.423e-6,
+      "search_time": 0.00001095,
+      "stop_reason": null,
+      "total_time": 0.000030457
+    },
+    {
+      "applied": {
+        "add-zero": 1,
+        "assoc-add": 1,
+        "assoc-mul": 1,
+        "cancel-sub": 1,
+        "comm-add": 4,
+        "comm-mul": 3
+      },
+      "apply_time": 0.000032211,
+      "data": null,
+      "egraph_classes": 8,
+      "egraph_nodes": 22,
+      "hook_time": 3e-8,
+      "n_rebuilds": 17,
+      "rebuild_time": 1.142e-6,
+      "search_time": 0.000012353,
+      "stop_reason": null,
+      "total_time": 0.000045816
+    },
+    {
+      "applied": {
+        "assoc-add": 1,
+        "comm-add": 2,
+        "comm-mul": 1,
+        "mul-one": 1
+      },
+      "apply_time": 0.00001094,
+      "data": null,
+      "egraph_classes": 7,
+      "egraph_nodes": 30,
+      "hook_time": 3e-8,
+      "n_rebuilds": 5,
+      "rebuild_time": 1.142e-6,
+      "search_time": 0.00001064,
+      "stop_reason": null,
+      "total_time": 0.000022832
+    },
+    {
+      "applied": {
+        "comm-add": 1,
+        "comm-mul": 1
+      },
+      "apply_time": 0.000011631,
+      "data": null,
+      "egraph_classes": 7,
+      "egraph_nodes": 35,
+      "hook_time": 3e-8,
+      "n_rebuilds": 3,
+      "rebuild_time": 1.132e-6,
+      "search_time": 0.000012133,
+      "stop_reason": null,
+      "total_time": 0.000024997
+    },
+    {
+      "applied": {},
+      "apply_time": 9.849e-6,
+      "data": null,
+      "egraph_classes": 7,
+      "egraph_nodes": 38,
+      "hook_time": 3e-8,
+      "n_rebuilds": 0,
+      "rebuild_time": 9.42e-7,
+      "search_time": 0.000012383,
+      "stop_reason": null,
+      "total_time": 0.000023354
+    },
+    {
+      "applied": {},
+      "apply_time": 0.0,
+      "data": null,
+      "egraph_classes": 7,
+      "egraph_nodes": 21,
+      "hook_time": 0.0,
+      "n_rebuilds": 0,
+      "rebuild_time": 0.0,
+      "search_time": 0.0,
+      "stop_reason": "Saturated",
+      "total_time": 0.0
+    }
+  ],
+  "name": "math_simplify_const",
+  "times": null
+}

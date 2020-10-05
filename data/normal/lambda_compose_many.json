@@ -1,0 +1,386 @@
+{
+  "data": [
+    {
+      "applied": {
+        "add-comm": 1,
+        "let-app": 1
+      },
+      "apply_time": 3.877e-6,
+      "data": null,
+      "egraph_classes": 29,
+      "egraph_nodes": 29,
+      "hook_time": 5e-8,
+      "n_rebuilds": 2,
+      "rebuild_time": 3.236e-6,
+      "search_time": 7.204e-6,
+      "stop_reason": null,
+      "total_time": 0.000014437
+    },
+    {
+      "applied": {
+        "let-app": 3
+      },
+      "apply_time": 5.31e-6,
+      "data": null,
+      "egraph_classes": 31,
+      "egraph_nodes": 33,
+      "hook_time": 3e-8,
+      "n_rebuilds": 3,
+      "rebuild_time": 4.809e-6,
+      "search_time": 5.45e-6,
+      "stop_reason": null,
+      "total_time": 0.000015679
+    },
+    {
+      "applied": {
+        "let-app": 3,
+        "let-var-diff": 1,
+        "let-var-same": 1
+      },
+      "apply_time": 6.232e-6,
+      "data": null,
+      "egraph_classes": 36,
+      "egraph_nodes": 41,
+      "hook_time": 3e-8,
+      "n_rebuilds": 5,
+      "rebuild_time": 8.606e-6,
+      "search_time": 9.368e-6,
+      "stop_reason": null,
+      "total_time": 0.000024316
+    },
+    {
+      "applied": {
+        "let-app": 2,
+        "let-lam-diff": 1,
+        "let-var-same": 1
+      },
+      "apply_time": 7.124e-6,
+      "data": null,
+      "egraph_classes": 38,
+      "egraph_nodes": 48,
+      "hook_time": 3e-8,
+      "n_rebuilds": 4,
+      "rebuild_time": 6.782e-6,
+      "search_time": 0.000012073,
+      "stop_reason": null,
+      "total_time": 0.0000261
+    },
+    {
+      "applied": {
+        "beta": 1,
+        "let-add": 2,
+        "let-app": 2
+      },
+      "apply_time": 0.00001095,
+      "data": null,
+      "egraph_classes": 40,
+      "egraph_nodes": 54,
+      "hook_time": 2e-8,
+      "n_rebuilds": 4,
+      "rebuild_time": 5.641e-6,
+      "search_time": 0.000014176,
+      "stop_reason": null,
+      "total_time": 0.000030878
+    },
+    {
+      "applied": {
+        "let-app": 2,
+        "let-const": 1,
+        "let-lam-diff": 1,
+        "let-var-diff": 1
+      },
+      "apply_time": 9.468e-6,
+      "data": null,
+      "egraph_classes": 44,
+      "egraph_nodes": 63,
+      "hook_time": 3e-8,
+      "n_rebuilds": 7,
+      "rebuild_time": 0.000013124,
+      "search_time": 0.000017934,
+      "stop_reason": null,
+      "total_time": 0.000040616
+    },
+    {
+      "applied": {
+        "beta": 5,
+        "let-app": 1,
+        "let-lam-diff": 1
+      },
+      "apply_time": 0.000011,
+      "data": null,
+      "egraph_classes": 42,
+      "egraph_nodes": 65,
+      "hook_time": 3.1e-8,
+      "n_rebuilds": 7,
+      "rebuild_time": 7.705e-6,
+      "search_time": 0.000019166,
+      "stop_reason": null,
+      "total_time": 0.000037981
+    },
+    {
+      "applied": {
+        "beta": 1,
+        "let-app": 1,
+        "let-lam-diff": 5
+      },
+      "apply_time": 0.000013555,
+      "data": null,
+      "egraph_classes": 43,
+      "egraph_nodes": 73,
+      "hook_time": 3e-8,
+      "n_rebuilds": 7,
+      "rebuild_time": 0.00001053,
+      "search_time": 0.000022052,
+      "stop_reason": null,
+      "total_time": 0.000046247
+    },
+    {
+      "applied": {
+        "let-app": 6,
+        "let-lam-diff": 1,
+        "let-var-same": 1
+      },
+      "apply_time": 0.000018285,
+      "data": null,
+      "egraph_classes": 50,
+      "egraph_nodes": 87,
+      "hook_time": 2e-8,
+      "n_rebuilds": 8,
+      "rebuild_time": 0.000019025,
+      "search_time": 0.000027521,
+      "stop_reason": null,
+      "total_time": 0.000064942
+    },
+    {
+      "applied": {
+        "beta": 1,
+        "let-app": 6,
+        "let-lam-diff": 5,
+        "let-var-diff": 2
+      },
+      "apply_time": 0.000030097,
+      "data": null,
+      "egraph_classes": 62,
+      "egraph_nodes": 107,
+      "hook_time": 3e-8,
+      "n_rebuilds": 15,
+      "rebuild_time": 0.000020589,
+      "search_time": 0.000041057,
+      "stop_reason": null,
+      "total_time": 0.000091853
+    },
+    {
+      "applied": {
+        "beta": 5,
+        "let-add": 12,
+        "let-app": 1,
+        "let-lam-diff": 1,
+        "let-var-diff": 5,
+        "let-var-same": 5
+      },
+      "apply_time": 0.000033032,
+      "data": null,
+      "egraph_classes": 76,
+      "egraph_nodes": 135,
+      "hook_time": 3e-8,
+      "n_rebuilds": 19,
+      "rebuild_time": 0.000032091,
+      "search_time": 0.000051767,
+      "stop_reason": null,
+      "total_time": 0.000117
+    },
+    {
+      "applied": {
+        "beta": 6,
+        "let-add": 24,
+        "let-const": 6,
+        "let-var-diff": 6,
+        "let-var-same": 2
+      },
+      "apply_time": 0.000050726,
+      "data": null,
+      "egraph_classes": 81,
+      "egraph_nodes": 169,
+      "hook_time": 3e-8,
+      "n_rebuilds": 27,
+      "rebuild_time": 0.000093696,
+      "search_time": 0.00007455,
+      "stop_reason": null,
+      "total_time": 0.000219072
+    },
+    {
+      "applied": {
+        "beta": 1,
+        "let-add": 20,
+        "let-app": 5,
+        "let-const": 6,
+        "let-var-diff": 1,
+        "let-var-same": 5
+      },
+      "apply_time": 0.000056406,
+      "data": null,
+      "egraph_classes": 69,
+      "egraph_nodes": 196,
+      "hook_time": 3e-8,
+      "n_rebuilds": 17,
+      "rebuild_time": 0.000063941,
+      "search_time": 0.000068609,
+      "stop_reason": null,
+      "total_time": 0.000189056
+    },
+    {
+      "applied": {
+        "add-assoc": 10,
+        "let-add": 12,
+        "let-app": 9,
+        "let-const": 2,
+        "let-lam-diff": 1,
+        "let-var-same": 1
+      },
+      "apply_time": 0.000061565,
+      "data": null,
+      "egraph_classes": 64,
+      "egraph_nodes": 210,
+      "hook_time": 3e-8,
+      "n_rebuilds": 22,
+      "rebuild_time": 0.000067587,
+      "search_time": 0.000075342,
+      "stop_reason": null,
+      "total_time": 0.000204615
+    },
+    {
+      "applied": {
+        "add-assoc": 14,
+        "add-comm": 5,
+        "beta": 6,
+        "let-add": 14,
+        "let-app": 11,
+        "let-const": 1,
+        "let-lam-diff": 1,
+        "let-lam-same": 4,
+        "let-var-same": 2
+      },
+      "apply_time": 0.000078607,
+      "data": null,
+      "egraph_classes": 75,
+      "egraph_nodes": 248,
+      "hook_time": 2e-8,
+      "n_rebuilds": 46,
+      "rebuild_time": 0.000183375,
+      "search_time": 0.000089648,
+      "stop_reason": null,
+      "total_time": 0.000351741
+    },
+    {
+      "applied": {
+        "add-assoc": 30,
+        "add-comm": 9,
+        "beta": 5,
+        "let-add": 23,
+        "let-app": 12,
+        "let-lam-diff": 2,
+        "let-var-diff": 1
+      },
+      "apply_time": 0.000102412,
+      "data": null,
+      "egraph_classes": 60,
+      "egraph_nodes": 256,
+      "hook_time": 3e-8,
+      "n_rebuilds": 38,
+      "rebuild_time": 0.00021777,
+      "search_time": 0.000091202,
+      "stop_reason": null,
+      "total_time": 0.000411494
+    },
+    {
+      "applied": {
+        "add-assoc": 17,
+        "add-comm": 12,
+        "beta": 4,
+        "let-add": 10,
+        "let-app": 7,
+        "let-lam-diff": 3,
+        "let-lam-same": 2
+      },
+      "apply_time": 0.000107492,
+      "data": null,
+      "egraph_classes": 61,
+      "egraph_nodes": 275,
+      "hook_time": 3e-8,
+      "n_rebuilds": 23,
+      "rebuild_time": 0.000080351,
+      "search_time": 0.00009015,
+      "stop_reason": null,
+      "total_time": 0.000278113
+    },
+    {
+      "applied": {
+        "add-assoc": 13,
+        "add-comm": 7,
+        "beta": 1,
+        "let-add": 8,
+        "let-app": 1,
+        "let-lam-diff": 2
+      },
+      "apply_time": 0.000099828,
+      "data": null,
+      "egraph_classes": 61,
+      "egraph_nodes": 292,
+      "hook_time": 3e-8,
+      "n_rebuilds": 14,
+      "rebuild_time": 0.000046788,
+      "search_time": 0.000091762,
+      "stop_reason": null,
+      "total_time": 0.000238498
+    },
+    {
+      "applied": {
+        "add-assoc": 1,
+        "add-comm": 1,
+        "beta": 1,
+        "let-add": 2,
+        "let-app": 1,
+        "let-lam-diff": 3,
+        "let-lam-same": 1
+      },
+      "apply_time": 0.00009561,
+      "data": null,
+      "egraph_classes": 63,
+      "egraph_nodes": 299,
+      "hook_time": 3e-8,
+      "n_rebuilds": 13,
+      "rebuild_time": 0.000037059,
+      "search_time": 0.000097423,
+      "stop_reason": null,
+      "total_time": 0.000230212
+    },
+    {
+      "applied": {},
+      "apply_time": 0.000084338,
+      "data": null,
+      "egraph_classes": 56,
+      "egraph_nodes": 288,
+      "hook_time": 3.1e-8,
+      "n_rebuilds": 0,
+      "rebuild_time": 0.000011501,
+      "search_time": 0.000089989,
+      "stop_reason": null,
+      "total_time": 0.000186009
+    },
+    {
+      "applied": {},
+      "apply_time": 0.0,
+      "data": null,
+      "egraph_classes": 56,
+      "egraph_nodes": 280,
+      "hook_time": 0.0,
+      "n_rebuilds": 0,
+      "rebuild_time": 0.0,
+      "search_time": 0.0,
+      "stop_reason": "Saturated",
+      "total_time": 0.0
+    }
+  ],
+  "name": "lambda_compose_many",
+  "times": null
+}
