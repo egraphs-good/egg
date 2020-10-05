@@ -1,0 +1,6 @@
+name = { (ASCII_ALPHANUMERIC | "_")+ }
+expr = { apply | name }
+apply = { name ~ "(" ~ args ~ ")" }
+args = { expr ~ ("," ~ expr)* }
+eq = { expr ~ "==" ~ expr }
+prog = { eq+ }

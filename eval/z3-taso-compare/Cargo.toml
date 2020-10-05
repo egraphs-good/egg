@@ -1,0 +1,14 @@
+[package]
+name = "tamago"
+version = "0.1.0"
+authors = ["Remy Wang <remywang@uw.edu>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+env_logger = { version =  "0.7", default_features = false }
+pest = "2.0"
+pest_derive = "2.0"
+rand = "0.7"
+egg = { path = "../.." }

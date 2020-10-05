@@ -17,16 +17,30 @@ claims in the POPL '21 paper.
 What follows is documentation specific to artifact evaluation; for more general
 usages, please visit one of the above links.
 
-## Installing
+## Installing on your own machine
 
-If you are using the virtual machine provided to the AEC, 
-  you may navigate to `~/egg` in the terminal and skip this section.
-  
-Otherwise, install the following dependencies and then clone and navigate to this repo:
+These are these instructions to get started on your own machine.
+If you'd like to use a pre-made virtual machine, see the next section.
+
+Evaluating the core artifact requires relatively few dependencies:
 
 - [Rust](https://www.rust-lang.org/) 
 - `graphviz`
 - Python 3 with the `matplotlib`, `numpy`, and `scipy` libraries
+
+Make sure to clone this branch of the repository:
+```
+git clone --branch popl21 https://github.com/egraphs-good/egg
+```
+
+## Using the provided virtual machine
+
+TODO
+
+If you are using the virtual machine provided to the AEC, 
+  you may navigate to `~/egg` in the terminal and skip this section.
+The password for the `aec` user is `aec`.
+
 
 ## Relevant project layout
 
@@ -49,6 +63,7 @@ Here are the important parts:
 - `data` will contain the output of the eval scripts. 
   This directory is not present initially, it is created by the eval scripts.
   You may delete it at any time and re-run the eval scripts.
+  The VM comes with this pre-populated.
     
 ## Kicking the tires
 
@@ -77,8 +92,8 @@ Running the scripts in the `eval` folder will reproduce the artifact. From the `
 $ cargo test --release
 
 # generate the data by running the egg test suite
-# the data goes in the data/ directory
-# see bench.sh for more info
+# in the VM, this has already been run; to re-run, first run `rm -r data/`
+# the data goes in the data/ directory, see bench.sh for more info
 $ ./eval/bench.sh
 
 # process the data, generating plots in the data/ directory
@@ -140,6 +155,33 @@ Because of the log-log scale, we use Spearman correlation to show that the numbe
 does indeed correlate with congruence time.
 In the paper, Spearman correlation yields r = 0.98 with a p-value of 3.6e-47.
 The `./eval/plot.py` will print the result of Spearman correlation.
+
+#### Section 2.3: Z3 comparison
+
+In Section 2.3, we claim that `egg` is faster that `Z3` on a certain kind of
+theorem proving task derived from another research project, TASO (SOSP '19).
+
+To replicate this, you will additionally need `z3`, `protobuf`, and their Python 3 
+libraries (all pre-installed in the VM). 
+From the `egg` directory, these steps can replicate the results:
+
+``` sh
+# enter the directory containing this part of the eval
+$ cd eval/z3-taso-compare
+
+# run the z3-backed verification procedure
+# this was pulled straight from the TASO implementation
+# make sure to time it, as the performance isn't recorded anywhere
+# expected time: 10-30 sec
+$ time ./verify.py graph_subst.pb 
+
+# now run the egg-backed verification procedure in "batched" mode
+# you can un-batch it on line 6 of eval/z3-taso-compare/src/main.rs
+# Rust may have to compile first, the tool will print the overall runtime
+# expected time: ~1 sec
+$ cargo run --release taso_rules.txt
+```
+
 
 ### Herbie
 

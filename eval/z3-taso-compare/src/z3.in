@@ -1,0 +1,9 @@
+(declare-sort I)
+
+(declare-fun ewadd (I I) I)
+(declare-const one I)
+
+(assert (forall ((x I) (y I) (z I) (w I)) (= (ewadd x (ewadd y z)) (ewadd (ewadd x y) z))))
+(assert (not (= (ewadd one (ewadd one one)) (ewadd (ewadd one one) one) )))
+
+(check-sat)

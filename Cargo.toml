@@ -36,4 +36,5 @@ reports = [ "serde-1", "serde_json" ]
 members = [
     ".",
     "web-demo",
+    "eval/z3-taso-compare"
 ]
