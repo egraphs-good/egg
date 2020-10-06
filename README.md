@@ -45,7 +45,8 @@ The VM is shipped as a VirtualBox appliance (`.ova` file).
 First, [download](https://www.virtualbox.org/wiki/Downloads) VirtualBox 6 for your host machine.
 From VirtualBox, you can then import the appliance with `File > Import Appliance`.
 Make sure the VM settings are valid for your hardware (check memory, CPU cores etc. in `Settings > System`), 
-and adjust accordingly if not. We recommand closing all other programs while running the benchmarks, 
+and adjust accordingly if not. 
+We recommend closing all other programs while running the benchmarks, 
 especially on less powerful systems. 
 We have tested the artifact on a 2017 MacBook Pro with 2.3 GHz Dual-Core Intel Core i5 and 8 GB memory. 
 
