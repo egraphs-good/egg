@@ -44,6 +44,7 @@ to view the artifact.
 The VM is shipped as a VirtualBox appliance (`.ova` file).
 First, [download](https://www.virtualbox.org/wiki/Downloads) VirtualBox 6 for your host machine.
 From VirtualBox, you can then import the appliance with `File > Import Appliance`.
+Make sure the VM settings are valid for your hardware (check memory, CPU cores etc. in `Settings > System`). 
 
 The VM is running Ubuntu 20.04, the user is `aec`, and the password is `aec`.
 All necessary dependencies have already been installed,
