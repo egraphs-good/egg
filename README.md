@@ -11,7 +11,8 @@ This is the artifact submitted for [artifact evaluation](https://popl21.sigplan.
 - Documentation (including [tutorial](https://docs.rs/egg/*/egg/tutorials/index.html))
   at [docs.rs](https://docs.rs/egg/) generated from this repository.
 
-This branch of the repository is based off the `0.6.0` release of `egg`, and
+[This branch](https://github.com/egraphs-good/egg/tree/popl21)
+of the repository is based off the `0.6.0` release of `egg`, and
 this includes additional documentation and scripts needed to reproduce the
 claims in the POPL '21 paper.
 
