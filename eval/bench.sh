@@ -2,7 +2,7 @@
 #
 # This script benchmarks egg in its default mode
 # (which uses the rebuilding contribution of the POPL paper),
-# versus and "upward merging" mode which emulates the traditional
+# versus an "upward merging" mode which emulates the traditional
 # method of congruence maintenance.
 
 function fail() {
