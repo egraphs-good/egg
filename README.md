@@ -38,7 +38,9 @@ $ git clone --branch popl21 https://github.com/egraphs-good/egg
 
 ## Using the provided virtual machine
 
-You may also use [this virtual machine](TODO LINK) to view the artifact.
+You may also use
+[this virtual machine](https://drive.google.com/file/d/19OMFirhrwmz4nPx-FZiMu-T8Psk9tVl8)
+to view the artifact.
 The VM is shipped as a VirtualBox appliance (`.ova` file).
 First, [download](https://www.virtualbox.org/wiki/Downloads) VirtualBox 6 for your host machine.
 From VirtualBox, you can then import the appliance with `File > Import Appliance`.
