@@ -1,7 +1,7 @@
 # <img src="doc/egg.svg" alt="egg logo" height="40" align="left"> egg: POPL '21 Artifact Evaluation
 
 `egg` is an e-graph library presented in the POPL paper "Fast and Extensible Equality Saturation".
-The anonimized name of the library for submission was "Lego".
+The anonymized name of the library for submission was "Lego".
 This is the artifact submitted for [artifact evaluation](https://popl21.sigplan.org/track/POPL-2021-Artifact-Evaluation).
 
 `egg` is available online in the following ways:
