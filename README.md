@@ -53,6 +53,7 @@ The VM comes with 12GB of memory allocated by default;
   this is necessary only if you plan to reproduce the benchmarks.
 We recommend closing all other programs while running the benchmarks,
   especially on less powerful systems.
+We have reproduced the benchmarks in the VM on a host machine with 32GB of memory.
 
 The VM is running Ubuntu 20.04, the user is `aec`, and the password is `aec`.
 All necessary dependencies have already been installed,
