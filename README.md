@@ -54,7 +54,7 @@ The VM is running Ubuntu 20.04, the user is `aec`, and the password is `aec`.
 All necessary dependencies have already been installed,
   and programs have been pre-compiled.
 This repository is already present at `~/egg`; navigate there in the terminal to proceed.
-You can perform a `git pull` from that directory to grab the latest verion of this document.
+You can perform a `git pull` from that directory to grab the latest version of this document.
 
 ## Relevant project layout
 
