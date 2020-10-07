@@ -35,6 +35,9 @@ upward_dir=$top/data/upward/
 mkdir $normal_dir || fail "$normal_dir is already present, please delete it (or the whole 'data' folder) to proceed"
 mkdir $upward_dir || fail "$upward_dir is already present, please delete it (or the whole 'data' folder) to proceed"
 
+# below, we use egg's benchmarking functionality
+# this runs all tests, but only benchmarks those using the `egg::test_fn!` harness
+
 # first, benchmark egg in its normal mode
 export EGG_BENCH_DIR=$normal_dir
 cargo test --tests --features "reports"                --release -- --test-threads=1 --nocapture

@@ -4,6 +4,8 @@
 The anonymized name of the library for submission was "Lego".
 This is the artifact submitted for [artifact evaluation](https://popl21.sigplan.org/track/POPL-2021-Artifact-Evaluation).
 
+This artifact is available on Zenodo with DOI: [10.5281/zenodo.4072013](https://zenodo.org/record/4072013).
+
 `egg` is available online in the following ways:
 
 - Source code at [Github](https://github.com/egraphs-good/egg).
@@ -38,17 +40,19 @@ $ git clone --branch popl21 https://github.com/egraphs-good/egg
 
 ## Using the provided virtual machine
 
-You may also use
-[this virtual machine](https://drive.google.com/file/d/19OMFirhrwmz4nPx-FZiMu-T8Psk9tVl8)
-to view the artifact.
+The [Zenodo upload](https://zenodo.org/record/4072013)
+includes a virtual machine you may use to reproduce the artifact.
+
 The VM is shipped as a VirtualBox appliance (`.ova` file).
 First, [download](https://www.virtualbox.org/wiki/Downloads) VirtualBox 6 for your host machine.
 From VirtualBox, you can then import the appliance with `File > Import Appliance`.
-Make sure the VM settings are valid for your hardware (check memory, CPU cores etc. in `Settings > System`), 
-and adjust accordingly if not. 
-We recommend closing all other programs while running the benchmarks, 
-especially on less powerful systems. 
-We have tested the artifact on a 2017 MacBook Pro with 2.3 GHz Dual-Core Intel Core i5 and 8 GB memory. 
+Make sure the VM settings are valid for your hardware (check memory, CPU cores etc. in `Settings > System`),
+and adjust accordingly if not.
+
+The VM comes with 12GB of memory allocated by default;
+  this is necessary only if you plan to reproduce the benchmarks.
+We recommend closing all other programs while running the benchmarks,
+  especially on less powerful systems.
 
 The VM is running Ubuntu 20.04, the user is `aec`, and the password is `aec`.
 All necessary dependencies have already been installed,
@@ -121,6 +125,10 @@ $ ./eval/plot.py
 # view the results
 $ xdg-open data/
 ```
+
+In the `bench.sh` output, you may see some messages about panicking;
+  those are expected failures in the test suite (asserting that something fails in a particular way).
+The Rust testing harness will still print `ok` after these, indicating that the test passed.
 
 ## Claims
 
