@@ -4,7 +4,7 @@
 [![Crates.io](https://img.shields.io/crates/v/egg.svg)](https://crates.io/crates/egg)
 [![Docs.rs](https://docs.rs/egg/badge.svg)](https://docs.rs/egg/)
 
-Check out the [web demo](https://mwillsey.com/stuff/egg) for some quick egraph action.
+(web demo under construction!)
 
 ## Using egg
 
