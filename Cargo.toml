@@ -28,12 +28,6 @@ ordered-float = "1"
 
 [features]
 upward-merging = []
-stdweb = [ "instant/stdweb" ]
+wasm-bindgen = [ "instant/wasm-bindgen" ]
 serde-1 = [ "serde", "indexmap/serde-1" ]
 reports = [ "serde-1", "serde_json" ]
-
-[workspace]
-members = [
-    ".",
-    "web-demo",
-]

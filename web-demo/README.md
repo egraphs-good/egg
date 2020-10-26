@@ -1,3 +1,0 @@
-# eggo
-
-egg online

@@ -14,8 +14,6 @@ jobs:
       with:
         path: ~/.cargo/bin
         key: ${{ runner.os }}-cargo-bin
-    - name: Install cargo web
-      run: which cargo-web || cargo install cargo-web
     - name: Install cargo deadlinks
       run: which cargo-deadlinks || cargo install cargo-deadlinks
     - name: Install graphviz

@@ -1,5 +1,5 @@
 .PHONY:
-test: test-egg test-web
+test: test-egg
 	cargo fmt -- --check
 	cargo clean --doc
 	cargo doc --no-deps
@@ -14,20 +14,6 @@ test-egg:
 	cargo clippy --tests
 	cargo clippy --tests --features "serde-1"
 	cargo clippy --tests --features "reports"
-
-
-.PHONY: test-web
-test-web:
-	cd web-demo; cargo web build
-	 # cargo web test ${CI+--verbose}
-	cd web-demo; cargo clippy
-	cd web-demo; cargo fmt -- --check
-
-.PHONY: deploy-web-demo
-deploy-web-demo:
-	cd web-demo; cargo web deploy --release
-	rsync -a target/deploy/ ~/src/site/stuff/egg/
-	cd ~/src/site; make deploy
 
 .PHONY: deploy-nightlies
 deploy-nightlies:
