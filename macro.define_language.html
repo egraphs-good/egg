@@ -1,0 +1,56 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="API documentation for the Rust `define_language` macro in crate `egg`."><meta name="keywords" content="rust, rustlang, rust-lang, define_language"><title>egg::define_language - Rust</title><link rel="stylesheet" type="text/css" href="../normalize.css"><link rel="stylesheet" type="text/css" href="../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../ayu.css" disabled ><script src="../storage.js"></script><noscript><link rel="stylesheet" href="../noscript.css"></noscript><link rel="shortcut icon" href="../favicon.ico"><style type="text/css">#crate-search{background-image:url("../down-arrow.svg");}</style></head><body class="rustdoc macro"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../egg/index.html'><div class='logo-container rust-logo'><img src='../rust-logo.png' alt='logo'></div></a><div class="sidebar-elems"><p class='location'><a href='index.html'>egg</a></p><script>window.sidebarCurrent = {name: 'define_language', ty: 'macro', relpath: ''};</script><script defer src="sidebar-items.js"></script></div></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><span class="help-button">?</span>
+                <a id="settings-menu" href="../settings.html"><img src="../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><h1 class='fqn'><span class='out-of-band'><span id='render-detail'><a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class='inner'>&#x2212;</span>]</a></span><a class='srclink' href='../src/egg/macros.rs.html#65-69' title='goto source code'>[src]</a></span><span class='in-band'>Macro <a href='index.html'>egg</a>::<wbr><a class="macro" href=''>define_language</a></span></h1><div class="docblock type-decl hidden-by-usual-hider"><div class="example-wrap"><pre class="rust macro">
+<span class="macro">macro_rules</span><span class="macro">!</span> <span class="ident">define_language</span> {
+    ($(<span class="attribute">#[<span class="macro-nonterminal">$</span><span class="macro-nonterminal">meta</span>:<span class="ident">meta</span>]</span>)<span class="op">*</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">vis</span>:<span class="ident">vis</span> <span class="kw">enum</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">name</span>:<span class="ident">ident</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">variants</span>:<span class="ident">tt</span>) <span class="op">=&gt;</span> { ... };
+}</pre></div>
+</div><div class='docblock'><p>A macro to easily create a <a href="trait.Language.html"><code>Language</code></a>.</p>
+<p><code>define_language</code> derives <code>Debug</code>, <code>PartialEq</code>, <code>Eq</code>, <code>PartialOrd</code>, <code>Ord</code>,
+<code>Hash</code>, and <code>Clone</code> on the given <code>enum</code> so it can implement <a href="trait.Language.html"><code>Language</code></a>.
+The macro also implements
+<a href="trait.Language.html#method.from_op_str"><code>Language::from_op_str</code></a> and
+<a href="trait.Language.html#method.display_op"><code>Language::display_op</code></a> for the <code>enum</code>
+based on either the data of variants or the provided strings.</p>
+<p>The final variant <strong>must have a trailing comma</strong>; this is due to limitations in
+macro parsing.</p>
+<p>See <a href="trait.LanguageChildren.html"><code>LanguageChildren</code></a> for acceptable types of children <code>Id</code>s.</p>
+<p>Note that you can always implement <a href="trait.Language.html"><code>Language</code></a> yourself by just not using this
+macro.</p>
+<p>Presently, the macro does not support data variant with children, but that may
+be added later.</p>
+<h1 id="example" class="section-header"><a href="#example">Example</a></h1>
+<p>The following macro invocation shows the the accepted forms of variants:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered">
+<span class="macro">define_language</span><span class="macro">!</span> {
+    <span class="kw">enum</span> <span class="ident">SimpleLanguage</span> {
+        <span class="comment">// string variant with no children</span>
+        <span class="string">&quot;pi&quot;</span> <span class="op">=</span> <span class="ident">Pi</span>,
+
+        <span class="comment">// string variants with an array of child `Id`s (any static size)</span>
+        <span class="comment">// any type that implements LanguageChildren may be used here</span>
+        <span class="string">&quot;+&quot;</span> <span class="op">=</span> <span class="ident">Add</span>([<span class="ident">Id</span>; <span class="number">2</span>]),
+        <span class="string">&quot;-&quot;</span> <span class="op">=</span> <span class="ident">Sub</span>([<span class="ident">Id</span>; <span class="number">2</span>]),
+        <span class="string">&quot;*&quot;</span> <span class="op">=</span> <span class="ident">Mul</span>([<span class="ident">Id</span>; <span class="number">2</span>]),
+
+        <span class="comment">// can also do a variable number of children in a boxed slice</span>
+        <span class="comment">// this will only match if the lengths are the same</span>
+        <span class="string">&quot;list&quot;</span> <span class="op">=</span> <span class="ident">List</span>(<span class="ident">Box</span><span class="op">&lt;</span>[<span class="ident">Id</span>]<span class="op">&gt;</span>),
+
+        <span class="comment">// string variants with a single child `Id`</span>
+        <span class="comment">// note that this is distinct from `Sub`, even though it has the same</span>
+        <span class="comment">// string, because it has a different number of children</span>
+        <span class="string">&quot;-&quot;</span>  <span class="op">=</span> <span class="ident">Neg</span>(<span class="ident">Id</span>),
+
+        <span class="comment">// data variants with a single field</span>
+        <span class="comment">// this field must implement `FromStr` and `Display`</span>
+        <span class="ident">Num</span>(<span class="ident">i32</span>),
+        <span class="comment">// language items are parsed in order, and we want symbol to</span>
+        <span class="comment">// be a fallback, so we put it last</span>
+        <span class="ident">Symbol</span>(<span class="ident">Symbol</span>),
+        <span class="comment">// This is the ultimate fallback, it will parse any operator (as a string)</span>
+        <span class="comment">// and any number of children.</span>
+        <span class="comment">// Note that if there were 0 children, the previous branch would have succeeded</span>
+        <span class="ident">Other</span>(<span class="ident">Symbol</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span>),
+    }
+}</pre></div>
+</div></section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../";window.currentCrate = "egg";</script><script src="../main.js"></script><script defer src="../search-index.js"></script></body></html>
