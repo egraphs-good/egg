@@ -15,9 +15,9 @@ jobs:
         path: ~/.cargo/bin
         key: ${{ runner.os }}-cargo-bin
     - name: Install cargo deadlinks
-      run:
-        - wget -o ~/.cargo/bin/cargo-deadlinks https://github.com/deadlinks/cargo-deadlinks/releases/download/0.4.2/deadlinks-linux
-        - chmod +x ~/.cargo/bin/cargo-deadlinks
+      run: |
+        wget -O ~/.cargo/bin/cargo-deadlinks https://github.com/deadlinks/cargo-deadlinks/releases/download/0.4.2/deadlinks-linux
+        chmod +x ~/.cargo/bin/cargo-deadlinks
     - name: Install graphviz
       run: sudo apt-get install graphviz
     - name: Build and Test
