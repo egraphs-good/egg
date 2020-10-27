@@ -4,7 +4,7 @@ on:
     branches:
       - master
 jobs:
-  build:
+  docs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -17,5 +17,5 @@ jobs:
       with:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         BRANCH: gh-pages # The branch the action should deploy to.
-        FOLDER: target/doc/egg # The folder the action should deploy.
+        FOLDER: target/doc # The folder the action should deploy.
         CLEAN: true # Automatically remove deleted files from the deploy branch
