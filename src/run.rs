@@ -279,6 +279,8 @@ where
     }
 
     /// Add a hook to instrument or modify the behavior of a [`Runner`].
+    /// Each hook will run at the beginning of each iteration, i.e. before
+    /// all the rewrites. 
     ///
     /// If your hook modifies the e-graph, make sure to call
     /// [`rebuild`](struct.EGraph.html#method.rebuild).
