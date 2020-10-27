@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["egg"] = [{"text":"impl&lt;L:&nbsp;Language&gt; FromStr for RecExpr&lt;L&gt;","synthetic":false,"types":[]},{"text":"impl&lt;L:&nbsp;Language&gt; FromStr for Pattern&lt;L&gt;","synthetic":false,"types":[]},{"text":"impl FromStr for Var","synthetic":false,"types":[]},{"text":"impl FromStr for Symbol","synthetic":false,"types":[]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
