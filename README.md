@@ -2,9 +2,10 @@
 
 [![Build Status](https://github.com/mwillsey/egg/workflows/Build%20and%20Test/badge.svg?branch=master)](https://github.com/mwillsey/egg/actions)
 [![Crates.io](https://img.shields.io/crates/v/egg.svg)](https://crates.io/crates/egg)
-[![Docs.rs](https://docs.rs/egg/badge.svg)](https://docs.rs/egg/)
+[![Released Docs.rs](https://docs.rs/egg/badge.svg)](https://docs.rs/egg/)
+[![Master docs](https://img.shields.io/badge/docs-master-blue)](https://egraphs-good.github.io/egg)
 
-(web demo under construction!)
+Check out the [web demo](https://egraphs-good.github.io/egg-web-demo) for some quick e-graph action!
 
 ## Using egg
 
