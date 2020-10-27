@@ -8,15 +8,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: Cache cargo bin
-      uses: actions/cache@v1
+      uses: actions/cache@v2
       with:
         path: ~/.cargo/bin
         key: ${{ runner.os }}-cargo-bin
     - name: Install cargo deadlinks
-      run: which cargo-deadlinks || cargo install cargo-deadlinks
+      run:
+        - wget -o ~/.cargo/bin/cargo-deadlinks https://github.com/deadlinks/cargo-deadlinks/releases/download/0.4.2/deadlinks-linux
+        - chmod +x ~/.cargo/bin/cargo-deadlinks
     - name: Install graphviz
-      run: sudo apt-get update && sudo apt-get install graphviz
+      run: sudo apt-get install graphviz
     - name: Build and Test
       run: make
