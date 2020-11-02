@@ -578,6 +578,9 @@
 <span id="577">577</span>
 <span id="578">578</span>
 <span id="579">579</span>
+<span id="580">580</span>
+<span id="581">581</span>
+<span id="582">582</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">convert</span>::<span class="ident">TryFrom</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fmt</span>::{<span class="self">self</span>, <span class="ident">Debug</span>, <span class="ident">Display</span>};
@@ -1063,6 +1066,9 @@ assert_eq!(runner.egraph.find(runner.roots[0]), runner.egraph.find(just_foo));
     <span class="doccomment">/// An optional hook that allows inspection before a [`union`] occurs.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// By default it does nothing.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// `pre_union` is called _a lot_, so doing anything significant</span>
+    <span class="doccomment">/// (like printing) will cause things to slow down.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// [`union`]: struct.EGraph.html#method.union</span>
     <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">unused_variables</span>)]</span>
