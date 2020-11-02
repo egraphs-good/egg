@@ -483,6 +483,9 @@ pub trait Analysis<L: Language>: Sized {
     ///
     /// By default it does nothing.
     ///
+    /// `pre_union` is called _a lot_, so doing anything significant
+    /// (like printing) will cause things to slow down.
+    ///
     /// [`union`]: struct.EGraph.html#method.union
     #[allow(unused_variables)]
     fn pre_union(egraph: &EGraph<L, Self>, id1: Id, id2: Id) {}
