@@ -491,7 +491,7 @@ pub trait Analysis<L: Language>: Sized {
     fn pre_union(egraph: &EGraph<L, Self>, id1: Id, id2: Id) {}
 
     /// Defines how to merge two `Data`s when their containing
-    /// [`EClass`]es merge.
+    /// [`EClass`]es merge. Returns whether `to` is changed.
     ///
     /// [`EClass`]: struct.EClass.html
     fn merge(&self, to: &mut Self::Data, from: Self::Data) -> bool;
