@@ -213,6 +213,7 @@ pub struct SearchMatches {
 
 impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
     fn search(&self, egraph: &EGraph<L, A>) -> Vec<SearchMatches> {
+        use rayon::prelude::*;
         match self.ast.as_ref().last().unwrap() {
             ENodeOrVar::ENode(e) => {
                 #[allow(clippy::mem_discriminant_non_enum)]
@@ -220,7 +221,7 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
                 match egraph.classes_by_op.get(&key) {
                     None => vec![],
                     Some(ids) => ids
-                        .iter()
+                        .par_iter()
                         .filter_map(|&id| self.search_eclass(egraph, id))
                         .collect(),
                 }

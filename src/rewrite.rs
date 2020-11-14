@@ -1,6 +1,8 @@
 use std::fmt;
 use std::{any::Any, sync::Arc};
 
+use rayon::prelude::*;
+
 use crate::{Analysis, DisplayAsDebug, EGraph, Id, Language, Pattern, SearchMatches, Subst, Var};
 
 /// A rewrite that searches for the lefthand side and applies the righthand side.
@@ -143,7 +145,7 @@ impl<L: Language, N: Analysis<L>> Rewrite<L, N> {
 /// [`Rewrite`]: struct.Rewrite.html
 /// [`Searcher`]: trait.Searcher.html
 /// [`Pattern`]: struct.Pattern.html
-pub trait Searcher<L, N>
+pub trait Searcher<L, N>: Sync
 where
     L: Language,
     N: Analysis<L>,
@@ -161,7 +163,7 @@ where
     /// [`SearchMatches`]: struct.SearchMatches.html
     fn search(&self, egraph: &EGraph<L, N>) -> Vec<SearchMatches> {
         egraph
-            .classes()
+            .par_classes()
             .filter_map(|e| self.search_eclass(egraph, e.id))
             .collect()
     }

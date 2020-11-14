@@ -1,3 +1,5 @@
+use rayon::prelude::*;
+
 use std::collections::HashMap;
 use std::{
     borrow::BorrowMut,
@@ -104,6 +106,14 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     pub fn classes(&self) -> impl Iterator<Item = &EClass<L, N::Data>> {
         self.classes
             .iter()
+            .filter_map(Option::as_ref)
+            .map(AsRef::as_ref)
+    }
+
+    /// Returns a parallel iterator over the eclasses in the egraph.
+    pub fn par_classes(&self) -> impl ParallelIterator<Item = &EClass<L, N::Data>> {
+        self.classes
+            .par_iter()
             .filter_map(Option::as_ref)
             .map(AsRef::as_ref)
     }

@@ -427,7 +427,7 @@ where
 
         let start_time = Instant::now();
 
-        let matches: Vec<Vec<SearchMatches>> = {
+        let mut matches: Vec<Vec<SearchMatches>> = {
             use rayon::prelude::*;
             let sched = &self.scheduler;
             let egraph = &self.egraph;
@@ -442,6 +442,10 @@ where
                 })
                 .collect()
         };
+
+        if self.check_limits().is_err() {
+            matches.clear();
+        }
 
         // for rule in IntoParallelIterator::into_par_iter(rules) {
         //     let ms = self.scheduler.search_rewrite(i, &self.egraph, rule);
