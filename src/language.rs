@@ -25,7 +25,7 @@ use symbolic_expressions::Sexp;
 /// [`FromStr`]: https://doc.rust-lang.org/std/str/trait.FromStr.html
 /// [`Display`]: https://doc.rust-lang.org/std/fmt/trait.Display.html
 #[allow(clippy::len_without_is_empty)]
-pub trait Language: Debug + Clone + Eq + Ord + Hash {
+pub trait Language: Debug + Clone + Eq + Ord + Hash + Send + Sync {
     /// Returns true if this enode matches another enode.
     /// This should only consider the operator, not the children `Id`s.
     fn matches(&self, other: &Self) -> bool;
@@ -469,9 +469,9 @@ assert_eq!(runner.egraph.find(runner.roots[0]), runner.egraph.find(just_foo));
 [`prop.rs`]: https://github.com/mwillsey/egg/blob/master/tests/prop.rs
 */
 
-pub trait Analysis<L: Language>: Sized {
+pub trait Analysis<L: Language>: Sized + Send + Sync {
     /// The per-[`EClass`](struct.EClass.html) data for this analysis.
-    type Data: Debug;
+    type Data: Debug + Send + Sync;
 
     /// Makes a new [`Analysis`] for a given enode
     /// [`Analysis`].

@@ -1,5 +1,4 @@
 use crate::Id;
-use std::cell::Cell;
 use std::fmt::Debug;
 
 // The Key bound on UnionFind is necessary to derive clone. We only
@@ -8,27 +7,37 @@ use std::fmt::Debug;
 
 #[derive(Debug, Clone, Default)]
 pub struct UnionFind {
-    parents: Vec<Cell<Id>>,
+    parents: Vec<Id>,
 }
 
 impl UnionFind {
     pub fn make_set(&mut self) -> Id {
         let id = Id::from(self.parents.len());
-        self.parents.push(Cell::new(id));
+        self.parents.push(id);
         id
     }
 
     #[inline(always)]
     fn parent(&self, query: Id) -> Id {
-        self.parents[usize::from(query)].get()
+        self.parents[usize::from(query)]
     }
 
     #[inline(always)]
-    fn set_parent(&self, query: Id, new_parent: Id) {
-        self.parents[usize::from(query)].set(new_parent)
+    fn set_parent(&mut self, query: Id, new_parent: Id) {
+        self.parents[usize::from(query)] = new_parent
     }
 
     pub fn find(&self, mut current: Id) -> Id {
+        loop {
+            let parent = self.parent(current);
+            if current == parent {
+                return parent;
+            }
+            current = parent;
+        }
+    }
+
+    pub fn find_mut(&mut self, mut current: Id) -> Id {
         loop {
             let parent = self.parent(current);
             if current == parent {
@@ -43,8 +52,8 @@ impl UnionFind {
 
     /// Returns (new_leader, old_leader)
     pub fn union(&mut self, set1: Id, set2: Id) -> (Id, Id) {
-        let mut root1 = self.find(set1);
-        let mut root2 = self.find(set2);
+        let mut root1 = self.find_mut(set1);
+        let mut root2 = self.find_mut(set2);
 
         if root1 == root2 {
             (root1, root2)
@@ -135,7 +144,7 @@ mod tests {
 
         // all paths should be compressed at this point
         for i in 0..n {
-            assert_eq!(uf.parent(id(i)), uf.find(id(i)));
+            assert_eq!(uf.find_mut(id(i)), uf.parent(id(i)));
         }
     }
 }

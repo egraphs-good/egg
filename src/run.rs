@@ -427,16 +427,31 @@ where
 
         let start_time = Instant::now();
 
-        let mut matches = Vec::new();
-        for rule in rules {
-            let ms = self.scheduler.search_rewrite(i, &self.egraph, rule);
-            matches.push(ms);
-            if self.check_limits().is_err() {
-                // bail on searching, make sure applying doesn't do anything
-                matches.clear();
-                break;
-            }
-        }
+        let matches: Vec<Vec<SearchMatches>> = {
+            use rayon::prelude::*;
+            let sched = &self.scheduler;
+            let egraph = &self.egraph;
+            rules
+                .par_iter()
+                .map(|rule| {
+                    if sched.should_search_rewrite(i, egraph, rule) {
+                        rule.search(egraph)
+                    } else {
+                        vec![]
+                    }
+                })
+                .collect()
+        };
+
+        // for rule in IntoParallelIterator::into_par_iter(rules) {
+        //     let ms = self.scheduler.search_rewrite(i, &self.egraph, rule);
+        //     matches.push(ms);
+        //     if self.check_limits().is_err() {
+        //         // bail on searching, make sure applying doesn't do anything
+        //         matches.clear();
+        //         break;
+        //     }
+        // }
 
         let search_time = start_time.elapsed().as_secs_f64();
         info!("Search time: {}", search_time);
@@ -559,7 +574,7 @@ the [`EGraph`] and dominating how much time is spent while running the
 [`Rewrite`]: struct.Rewrite.html
 */
 #[allow(unused_variables)]
-pub trait RewriteScheduler<L, N>
+pub trait RewriteScheduler<L, N>: Send + Sync
 where
     L: Language,
     N: Analysis<L>,
@@ -573,18 +588,17 @@ where
         true
     }
 
-    /// A hook allowing you to customize rewrite searching behavior.
+    /// A hook allowing you to determine whether to search a rewrite.
     /// Useful to implement rule management.
     ///
-    /// Default implementation just calls
-    /// [`Rewrite::search`](struct.Rewrite.html#method.search).
-    fn search_rewrite(
-        &mut self,
+    /// Default implementation is just true.
+    fn should_search_rewrite(
+        &self,
         iteration: usize,
         egraph: &EGraph<L, N>,
         rewrite: &Rewrite<L, N>,
-    ) -> Vec<SearchMatches> {
-        rewrite.search(egraph)
+    ) -> bool {
+        true
     }
 
     /// A hook allowing you to customize rewrite application behavior.
@@ -758,26 +772,38 @@ where
         }
     }
 
-    fn search_rewrite(
+    fn should_search_rewrite(
+        &self,
+        iteration: usize,
+        _: &EGraph<L, N>,
+        rewrite: &Rewrite<L, N>,
+    ) -> bool {
+        if let Some(stats) = self.stats.get(rewrite.name()) {
+            let can_run = iteration >= stats.banned_until;
+            if !can_run {
+                debug!(
+                    "Skipping {} ({}-{}), banned until {}...",
+                    rewrite.name(),
+                    stats.times_applied,
+                    stats.times_banned,
+                    stats.banned_until,
+                );
+            }
+            can_run
+        } else {
+            // no stats, we haven't banned it
+            true
+        }
+    }
+
+    fn apply_rewrite(
         &mut self,
         iteration: usize,
-        egraph: &EGraph<L, N>,
+        egraph: &mut EGraph<L, N>,
         rewrite: &Rewrite<L, N>,
-    ) -> Vec<SearchMatches> {
+        matches: Vec<SearchMatches>,
+    ) -> usize {
         let stats = self.rule_stats(rewrite.name());
-
-        if iteration < stats.banned_until {
-            debug!(
-                "Skipping {} ({}-{}), banned until {}...",
-                rewrite.name(),
-                stats.times_applied,
-                stats.times_banned,
-                stats.banned_until,
-            );
-            return vec![];
-        }
-
-        let matches = rewrite.search(egraph);
         let total_len: usize = matches.iter().map(|m| m.substs.len()).sum();
         let threshold = stats.match_limit << stats.times_banned;
         if total_len > threshold {
@@ -793,10 +819,10 @@ where
                 threshold,
                 total_len,
             );
-            vec![]
+            0
         } else {
             stats.times_applied += 1;
-            matches
+            rewrite.apply(egraph, &matches).len()
         }
     }
 }
@@ -814,7 +840,7 @@ where
 /// [`Runner`]: struct.Runner.html
 /// [`Iteration`]: struct.Iteration.html
 /// [`IterationData`]: trait.IterationData.html
-pub trait IterationData<L, N>: Sized
+pub trait IterationData<L, N>: Sized + Send + Sync
 where
     L: Language,
     N: Analysis<L>,

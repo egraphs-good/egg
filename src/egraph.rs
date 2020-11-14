@@ -180,6 +180,10 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         self.unionfind.find(id)
     }
 
+    fn find_mut(&mut self, id: Id) -> Id {
+        self.unionfind.find_mut(id)
+    }
+
     /// Creates a [`Dot`] to visualize this egraph. See [`Dot`].
     ///
     /// [`Dot`]: struct.Dot.html
@@ -203,7 +207,7 @@ impl<L: Language, N: Analysis<L>> std::ops::Index<Id> for EGraph<L, N> {
 /// reference to the e-class.
 impl<L: Language, N: Analysis<L>> std::ops::IndexMut<Id> for EGraph<L, N> {
     fn index_mut(&mut self, id: Id) -> &mut Self::Output {
-        let id = self.find(id);
+        let id = self.find_mut(id);
         self.classes[usize::from(id)]
             .as_mut()
             .unwrap_or_else(|| panic!("Invalid id {}", id))
@@ -431,13 +435,13 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
         let mut trimmed = 0;
 
-        let uf = &self.unionfind;
+        let uf = &mut self.unionfind;
         for class in self.classes.iter_mut().filter_map(Option::as_mut) {
             let old_len = class.len();
             class
                 .nodes
                 .iter_mut()
-                .for_each(|n| n.update_children(|id| uf.find(id)));
+                .for_each(|n| n.update_children(|id| uf.find_mut(id)));
             class.nodes.sort_unstable();
             class.nodes.dedup();
 
@@ -524,7 +528,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             // take the worklist, we'll get the stuff that's added the next time around
             // deduplicate the dirty list to avoid extra work
             let mut todo = std::mem::take(&mut self.dirty_unions);
-            todo.iter_mut().for_each(|id| *id = self.find(*id));
+            todo.iter_mut().for_each(|id| *id = self.find_mut(*id));
             if cfg!(not(feature = "upward-merging")) {
                 todo.sort_unstable();
                 todo.dedup();
@@ -540,8 +544,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                 }
 
                 parents.iter_mut().for_each(|(n, id)| {
-                    n.update_children(|child| self.find(child));
-                    *id = self.find(*id);
+                    n.update_children(|child| self.find_mut(child));
+                    *id = self.find_mut(*id);
                 });
                 parents.sort_unstable();
                 parents.dedup_by(|(n1, e1), (n2, e2)| {
@@ -642,7 +646,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     #[inline(never)]
     fn propagate_metadata(&mut self, parents: &[(L, Id)]) {
         for (n, e) in parents {
-            let e = self.find(*e);
+            let e = self.find_mut(*e);
             let node_data = N::make(self, n);
             let class = self.classes[usize::from(e)].as_mut().unwrap();
             if self.analysis.merge(&mut class.data, node_data) {

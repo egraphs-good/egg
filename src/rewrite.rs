@@ -30,6 +30,9 @@ pub struct Rewrite<L, N> {
     pub applier: Arc<dyn Applier<L, N>>,
 }
 
+unsafe impl<L, N> Send for Rewrite<L, N> {}
+unsafe impl<L, N> Sync for Rewrite<L, N> {}
+
 impl<L, N> fmt::Debug for Rewrite<L, N>
 where
     L: Language + 'static,
