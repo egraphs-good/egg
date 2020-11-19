@@ -252,35 +252,55 @@ where
     A: Analysis<L>,
 {
     fn apply_one(&self, egraph: &mut EGraph<L, A>, _: Id, subst: &Subst) -> Vec<Id> {
-        let id = apply_pat(self.ast.as_ref(), egraph, subst);
+        let ast = self.ast.as_ref();
+        let mut id_buf = vec![0.into(); ast.len()];
+        let id = apply_pat(&mut id_buf, ast, egraph, subst);
         vec![id]
     }
 
     fn vars(&self) -> Vec<Var> {
         Pattern::vars(self)
     }
+
+    fn apply_matches(&self, egraph: &mut EGraph<L, A>, matches: &[SearchMatches]) -> Vec<Id> {
+        let mut added = vec![];
+        let ast = self.ast.as_ref();
+        let mut id_buf = vec![0.into(); ast.len()];
+        for mat in matches {
+            for subst in &mat.substs {
+                let id = apply_pat(&mut id_buf, ast, egraph, subst);
+                let (to, did_something) = egraph.union(id, mat.eclass);
+                if did_something {
+                    added.push(to)
+                }
+            }
+        }
+        added
+    }
 }
 
 fn apply_pat<L: Language, A: Analysis<L>>(
+    ids: &mut [Id],
     pat: &[ENodeOrVar<L>],
     egraph: &mut EGraph<L, A>,
     subst: &Subst,
 ) -> Id {
+    debug_assert_eq!(pat.len(), ids.len());
     trace!("apply_rec {:2?} {:?}", pat, subst);
 
-    let result = match pat.last().unwrap() {
-        ENodeOrVar::Var(w) => subst[*w],
-        ENodeOrVar::ENode(e) => {
-            let n = e
-                .clone()
-                .map_children(|child| apply_pat(&pat[..usize::from(child) + 1], egraph, subst));
-            trace!("adding: {:?}", n);
-            egraph.add(n)
-        }
-    };
+    for (i, pat_node) in pat.iter().enumerate() {
+        let id = match pat_node {
+            ENodeOrVar::Var(w) => subst[*w],
+            ENodeOrVar::ENode(e) => {
+                let n = e.clone().map_children(|child| ids[usize::from(child)]);
+                trace!("adding: {:?}", n);
+                egraph.add(n)
+            }
+        };
+        ids[i] = id;
+    }
 
-    trace!("result: {:?}", result);
-    result
+    *ids.last().unwrap()
 }
 
 #[cfg(test)]
