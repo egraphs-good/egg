@@ -1,6 +1,7 @@
 use std::convert::TryFrom;
 use std::fmt::{self, Debug, Display};
 use std::hash::Hash;
+use std::ops::{Index, IndexMut};
 
 use crate::{EGraph, Id, Symbol};
 
@@ -268,6 +269,19 @@ impl<L: Language> RecExpr<L> {
         );
         self.nodes.push(node);
         Id::from(self.nodes.len() - 1)
+    }
+}
+
+impl<L: Language> Index<Id> for RecExpr<L> {
+    type Output = L;
+    fn index(&self, id: Id) -> &L {
+        &self.nodes[usize::from(id)]
+    }
+}
+
+impl<L: Language> IndexMut<Id> for RecExpr<L> {
+    fn index_mut(&mut self, id: Id) -> &mut L {
+        &mut self.nodes[usize::from(id)]
     }
 }
 
