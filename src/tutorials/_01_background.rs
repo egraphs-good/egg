@@ -41,9 +41,9 @@ you try to match the pattern _l_ against the term _t_,
 For example, consider the term 42 × (7 + 7) and the rewrite _x + x → 2 × x_:
 - The left-hand side would match at the subterm 7 + 7,
   generating the substitution _σ_ = {_x_: 7}.
-- Applying the substitution gives _r[σ] =_ 2 × 7.
-  (_r[σ]_ means apply the substitution _σ_ to _r_)
-- Replacing the matched subterm 7 + 7 with _r[σ] =_ 2 × 7 gives the result: 42 × (2 × 7).
+- Applying the substitution gives _r\[σ\] =_ 2 × 7.
+  (_r\[σ\]_ means apply the substitution _σ_ to _r_)
+- Replacing the matched subterm 7 + 7 with _r\[σ\] =_ 2 × 7 gives the result: 42 × (2 × 7).
 
 One issue with term rewriting
   (and other programming language techniques that involve manipulating terms)
@@ -137,7 +137,7 @@ Additionally, rewrites add entire _classes_ of terms at a time.
 To perform a rewrite _l → r_ over an e-graph,
   you first search _l_ in the e-graph, yielding pairs of (_c_, _σ_),
   where _c_ is the matching e-class and _σ_ is the substitution.
-Then, you `add` the term _r[σ]_ to the e-graph
+Then, you `add` the term _r\[σ\]_ to the e-graph
   and `union` it with the matching e-class _c_.
 
 Let's put it all together with an example referring to the four e-graphs in the

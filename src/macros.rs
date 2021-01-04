@@ -207,7 +207,7 @@ This panics if [`Rewrite::new`](struct.Rewrite.html#method.new) fails.
 The simplest form `rewrite!(a; b => c)` creates a [`Rewrite`]
 with name `a`, [`Searcher`] `b`, and [`Applier`] `c`.
 Note that in the `b` and `c` position, the macro only accepts a single
-token tree (see the [macros reference][macros] for more info).
+token tree (see the [macros reference][macro] for more info).
 In short, that means you should pass in an identifier, literal, or
 something surrounded by parentheses or braces.
 

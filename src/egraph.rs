@@ -401,7 +401,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     ///
     /// [`Debug`]: https://doc.rust-lang.org/stable/std/fmt/trait.Debug.html
     /// [`EGraph`]: struct.EGraph.html
-    pub fn dump<'a>(&'a self) -> impl Debug + 'a {
+    pub fn dump(&self) -> impl Debug + '_ {
         EGraphDump(self)
     }
 }
@@ -672,7 +672,5 @@ mod tests {
         egraph.rebuild();
 
         egraph.dot().to_dot("target/foo.dot").unwrap();
-
-        assert_eq!(2 + 2, 4);
     }
 }
