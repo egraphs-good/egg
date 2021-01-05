@@ -1,16 +1,14 @@
 use std::fmt;
 use std::str::FromStr;
 
-use crate::{Id, Symbol};
+use crate::*;
 
 /// A variable for use in [`Pattern`]s or [`Subst`]s.
 ///
 /// This implements [`FromStr`], and will only parse if it has a
 /// leading `?`.
 ///
-/// [`Pattern`]: struct.Pattern.html
-/// [`Subst`]: struct.Subst.html
-/// [`FromStr`]: https://doc.rust-lang.org/std/str/trait.FromStr.html
+/// [`FromStr`]: std::str::FromStr
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Var(Symbol);
 
@@ -40,8 +38,6 @@ impl fmt::Debug for Var {
 
 /// A substitition mapping [`Var`]s to eclass [`Id`]s.
 ///
-/// [`Var`]: struct.Var.html
-/// [`Id`]: struct.Id.html
 #[derive(Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Subst {
     pub(crate) vec: smallvec::SmallVec<[(Var, Id); 3]>,

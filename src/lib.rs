@@ -5,7 +5,7 @@
 
 This is the API documentation.
 
-The [tutorial](tutorials/index.html) is a good starting point if you're new to
+The [tutorial](tutorials) is a good starting point if you're new to
 e-graphs, equality saturation, or Rust.
 
 The [tests](https://github.com/mwillsey/egg/tree/master/tests)
@@ -33,8 +33,8 @@ mod subst;
 mod unionfind;
 mod util;
 
-/// A key to identify [`EClass`](struct.EClass.html)es within an
-/// [`EGraph`](struct.EGraph.html).
+/// A key to identify [`EClass`]es within an
+/// [`EGraph`].
 #[derive(Clone, Copy, Default, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub struct Id(u32);
 

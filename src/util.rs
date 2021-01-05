@@ -4,6 +4,9 @@ use std::sync::Mutex;
 
 use once_cell::sync::Lazy;
 
+#[allow(unused_imports)]
+use crate::*;
+
 pub(crate) type Hasher = fxhash::FxHasher;
 
 pub(crate) type HashMap<K, V> =
@@ -44,9 +47,6 @@ static STRINGS: Lazy<Mutex<IndexSet<&'static str>>> = Lazy::new(Default::default
 /// assert_ne!(Symbol::from("foo"), Symbol::from("bar"));
 /// ```
 ///
-/// [`Var`]: struct.Var.html
-/// [`Symbol`]: struct.Symbol.html
-/// [`Language`]: trait.Language.html
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Symbol(u32);
 

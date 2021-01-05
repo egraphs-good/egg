@@ -3,8 +3,6 @@ EGraph visualization with [GraphViz]
 
 Use the [`Dot`] struct to visualize an [`EGraph`]
 
-[`Dot`]: struct.Dot.html
-[`EGraph`]: struct.EGraph.html
 [GraphViz]: https://graphviz.gitlab.io/
 !*/
 
@@ -19,7 +17,7 @@ use crate::{egraph::EGraph, Analysis, Language};
 A wrapper for an [`EGraph`] that can output [GraphViz] for
 visualization.
 
-The [`EGraph::dot`](struct.EGraph.html#method.dot) method creates `Dot`s.
+The [`EGraph::dot`](EGraph::dot()) method creates `Dot`s.
 
 # Example
 
@@ -50,7 +48,6 @@ rendered improperly due to a deficiency in GraphViz.
 So the example above will render with an from the "+" enode to itself
 instead of to its own eclass.
 
-[`EGraph`]: struct.EGraph.html
 [GraphViz]: https://graphviz.gitlab.io/
 **/
 pub struct Dot<'a, L: Language, N: Analysis<L>> {

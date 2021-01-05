@@ -12,7 +12,7 @@ use crate::{
 
 /** A data structure to keep track of equalities between expressions.
 
-Check out the [background tutorial](tutorials/_01_background)
+Check out the [background tutorial](crate::tutorials::_01_background)
 for more information on e-graphs in general.
 
 # E-graphs in `egg`
@@ -37,20 +37,13 @@ You can use the `egraph[id]` syntax to get an [`EClass`] from an [`Id`], because
 and
 [`IndexMut`](struct.EGraph.html#impl-IndexMut<Id>).
 
-[`EGraph`]: struct.EGraph.html
-[`EClass`]: struct.EClass.html
-[`Rewrite`]: struct.Rewrite.html
-[`Runner`]: struct.Runner.html
-[`Language`]: trait.Language.html
-[`Analysis`]: trait.Analysis.html
-[`Id`]: struct.Id.html
-[`add`]: struct.EGraph.html#method.add
-[`union`]: struct.EGraph.html#method.union
-[`rebuild`]: struct.EGraph.html#method.rebuild
+[`add`]: EGraph::add()
+[`union`]: EGraph::union()
+[`rebuild`]: EGraph::rebuild()
 [equivalence relation]: https://en.wikipedia.org/wiki/Equivalence_relation
 [congruence relation]: https://en.wikipedia.org/wiki/Congruence_relation
-[dot]: struct.Dot.html
-[extract]: struct.Extractor.html
+[dot]: Dot
+[extract]: Extractor
 [sound]: https://itinerarium.github.io/phoneme-synthesis/?w=/'igraf/
 **/
 #[derive(Clone)]
@@ -170,7 +163,6 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
     /// Creates a [`Dot`] to visualize this egraph. See [`Dot`].
     ///
-    /// [`Dot`]: struct.Dot.html
     pub fn dot(&self) -> Dot<L, N> {
         Dot { egraph: self }
     }
@@ -212,9 +204,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// assert_eq!(plus, egraph.add_expr(&plus_recexpr));
     /// ```
     ///
-    /// [`EGraph`]: struct.EGraph.html
-    /// [`RecExpr`]: struct.RecExpr.html
-    /// [`add_expr`]: struct.EGraph.html#method.add_expr
+    /// [`add_expr`]: EGraph::add_expr()
     pub fn add_expr(&mut self, expr: &RecExpr<L>) -> Id {
         let nodes = expr.as_ref();
         let mut new_ids = Vec::with_capacity(nodes.len());
@@ -271,9 +261,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// eclass in which the enode was found.
     /// Otherwise
     ///
-    /// [`EGraph`]: struct.EGraph.html
-    /// [`EClass`]: struct.EClass.html
-    /// [`add`]: struct.EGraph.html#method.add
+    /// [`add`]: EGraph::add()
     pub fn add(&mut self, mut enode: L) -> Id {
         self.lookup(&mut enode).unwrap_or_else(|| {
             let id = self.unionfind.make_set();
@@ -303,7 +291,6 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// Returns a list of id where both expression are represented.
     /// In most cases, there will none or exactly one id.
     ///
-    /// [`RecExpr`]: struct.RecExpr.html
     pub fn equivs(&self, expr1: &RecExpr<L>, expr2: &RecExpr<L>) -> Vec<Id> {
         let matches1 = Pattern::from(expr1.as_ref()).search(self);
         trace!("Matches1: {:?}", matches1);
@@ -399,8 +386,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// This method returns a wrapper that implements [`Debug`] in a
     /// slightly nicer way, just dumping enodes in each eclass.
     ///
-    /// [`Debug`]: https://doc.rust-lang.org/stable/std/fmt/trait.Debug.html
-    /// [`EGraph`]: struct.EGraph.html
+    /// [`Debug`]: std::fmt::Debug
     pub fn dump(&self) -> impl Debug + '_ {
         EGraphDump(self)
     }
@@ -556,7 +542,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
     /// Restores the egraph invariants of congruence and enode uniqueness.
     ///
-    /// As mentioned [above](struct.EGraph.html#invariants-and-rebuilding),
+    /// As mentioned [above](EGraph#invariants-and-rebuilding),
     /// `egg` takes a lazy approach to maintaining the egraph invariants.
     /// The `rebuild` method allows the user to manually restore those
     /// invariants at a time of their choosing. It's a reasonably

@@ -6,7 +6,7 @@
 This tutorial is aimed at getting you up and running with `egg`,
   even if you have little Rust experience.
 If you haven't heard about e-graphs, you may want to read the
-[background tutorial](../_01_background/index.html).
+[background tutorial](super::_01_background).
 If you do have prior Rust experience, you may want to skim around in this section.
 
 ## Getting started with Rust
@@ -171,19 +171,19 @@ assert_eq!(best_expr, "a".parse().unwrap());
 assert_eq!(best_cost, 1);
 ```
 
-[`EGraph`]: ../../struct.EGraph.html
-[`Id`]: ../../struct.Id.html
-[`Language`]: ../../trait.Language.html
-[`Searcher`]: ../../trait.Searcher.html
-[`Pattern`]: ../../struct.Pattern.html
-[`RecExpr`]: ../../struct.RecExpr.html
-[`SymbolLang`]: ../../struct.SymbolLang.html
-[`define_language!`]: ../../macro.define_language.html
-[`rewrite!`]: ../../macro.rewrite.html
-[`FromStr`]: https://doc.rust-lang.org/std/str/trait.FromStr.html
-[`Display`]: https://doc.rust-lang.org/stable/std/fmt/trait.Display.html
-[`Rewrite`]: ../../struct.Rewrite.html
-[`Runner`]: ../../struct.Runner.html
-[`Extractor`]: ../../struct.Extractor.html
+[`EGraph`]: super::super::EGraph
+[`Id`]: super::super::Id
+[`Language`]: super::super::Language
+[`Searcher`]: super::super::Searcher
+[`Pattern`]: super::super::Pattern
+[`RecExpr`]: super::super::RecExpr
+[`SymbolLang`]: super::super::SymbolLang
+[`define_language!`]: super::super::define_language!
+[`rewrite!`]: super::super::rewrite!
+[`FromStr`]: std::str::FromStr
+[`Display`]: std::fmt::Display
+[`Rewrite`]: super::super::Rewrite
+[`Runner`]: super::super::Runner
+[`Extractor`]: super::super::Extractor
 
 */

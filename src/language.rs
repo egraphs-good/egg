@@ -3,7 +3,7 @@ use std::fmt::{self, Debug, Display};
 use std::hash::Hash;
 use std::ops::{Index, IndexMut};
 
-use crate::{EGraph, Id, Symbol};
+use crate::*;
 
 use symbolic_expressions::Sexp;
 
@@ -13,18 +13,15 @@ use symbolic_expressions::Sexp;
 /// a [`Language`].
 ///
 /// Note that the default implementations of
-/// [`from_op_str`](trait.Language.html#method.from_op_str) and
-/// [`display_op`](trait.Language.html#method.display_op) panic. You
+/// [`from_op_str`](Language::from_op_str()) and
+/// [`display_op`](Language::display_op()) panic. You
 /// should override them if you want to parse or pretty-print expressions.
 /// [`define_language!`] implements these for you.
 ///
-/// See [`SymbolLang`](struct.SymbolLang.html) for quick-and-dirty use cases.
+/// See [`SymbolLang`] for quick-and-dirty use cases.
 ///
-/// [`define_language!`]: macro.define_language.html
-/// [`Language`]: trait.Language.html
-/// [`EGraph`]: struct.EGraph.html
-/// [`FromStr`]: https://doc.rust-lang.org/std/str/trait.FromStr.html
-/// [`Display`]: https://doc.rust-lang.org/std/fmt/trait.Display.html
+/// [`FromStr`]: std::str::FromStr
+/// [`Display`]: std::fmt::Display
 #[allow(clippy::len_without_is_empty)]
 pub trait Language: Debug + Clone + Eq + Ord + Hash {
     /// Returns true if this enode matches another enode.
@@ -51,7 +48,7 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
     ///
     /// Default implementation panics, so make sure to implement this if you
     /// want to print `Language` elements.
-    /// The [`define_language!`](macro.define_language.html) macro will
+    /// The [`define_language!`] macro will
     /// implement this for you.
     fn display_op(&self) -> &dyn Display {
         unimplemented!("display_op not implemented")
@@ -62,7 +59,7 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
     ///
     /// Default implementation panics, so make sure to implement this if you
     /// want to parse `Language` elements.
-    /// The [`define_language!`](macro.define_language.html) macro will
+    /// The [`define_language!`] macro will
     /// implement this for you.
     #[allow(unused_variables)]
     fn from_op_str(op_str: &str, children: Vec<Id>) -> Result<Self, String> {
@@ -156,7 +153,6 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
 /// See [`define_language!`] for more details.
 /// You should not have to implement this trait.
 ///
-/// [`define_language!`]: macro.define_language.html
 pub trait LanguageChildren {
     /// Checks if there are no children.
     fn is_empty(&self) -> bool {
@@ -227,12 +223,9 @@ impl LanguageChildren for Id {
 /// elements that come before it in the list.
 ///
 /// If the `serde-1` feature is enabled, this implements
-/// [`serde::Serialize`][ser].
+/// [`serde::Serialize`][https://docs.rs/serde/latest/serde/trait.Serialize.html].
 ///
-/// [`RecExpr`]: struct.RecExpr.html
-/// [`Language`]: trait.Language.html
-/// [ser]: https://docs.rs/serde/latest/serde/trait.Serialize.html
-/// [pretty]: struct.RecExpr.html#method.pretty
+/// [pretty]: RecExpr::pretty()
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RecExpr<L> {
     nodes: Vec<L>,
@@ -486,21 +479,17 @@ let just_foo = runner.egraph.add_expr(&"foo".parse().unwrap());
 assert_eq!(runner.egraph.find(runner.roots[0]), runner.egraph.find(just_foo));
 ```
 
-[`Analysis`]: trait.Analysis.html
-[`EClass`]: struct.EClass.html
-[`ENode`]: struct.ENode.html
 [`math.rs`]: https://github.com/mwillsey/egg/blob/master/tests/math.rs
 [`prop.rs`]: https://github.com/mwillsey/egg/blob/master/tests/prop.rs
 */
 
 pub trait Analysis<L: Language>: Sized {
-    /// The per-[`EClass`](struct.EClass.html) data for this analysis.
+    /// The per-[`EClass`] data for this analysis.
     type Data: Debug;
 
     /// Makes a new [`Analysis`] for a given enode
     /// [`Analysis`].
     ///
-    /// [`Analysis`]: trait.Analysis.html
     fn make(egraph: &EGraph<L, Self>, enode: &L) -> Self::Data;
 
     /// An optional hook that allows inspection before a [`union`] occurs.
@@ -510,18 +499,17 @@ pub trait Analysis<L: Language>: Sized {
     /// `pre_union` is called _a lot_, so doing anything significant
     /// (like printing) will cause things to slow down.
     ///
-    /// [`union`]: struct.EGraph.html#method.union
+    /// [`union`]: EGraph::union()
     #[allow(unused_variables)]
     fn pre_union(egraph: &EGraph<L, Self>, id1: Id, id2: Id) {}
 
     /// Defines how to merge two `Data`s when their containing
     /// [`EClass`]es merge. Returns whether `to` is changed.
     ///
-    /// [`EClass`]: struct.EClass.html
     fn merge(&self, to: &mut Self::Data, from: Self::Data) -> bool;
 
     /// A hook that allows the modification of the
-    /// [`EGraph`](struct.EGraph.html)
+    /// [`EGraph`]
     ///
     /// By default this does nothing.
     #[allow(unused_variables)]
@@ -532,7 +520,7 @@ pub trait Analysis<L: Language>: Sized {
 /// or not something was done.
 ///
 /// Useful for implementing
-/// [`Analysis::merge`](trait.Analysis.html#tymethod.merge).
+/// [`Analysis::merge`].
 ///
 /// ```
 /// # use egg::*;

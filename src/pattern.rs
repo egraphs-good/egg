@@ -2,7 +2,7 @@ use log::*;
 use std::convert::TryFrom;
 use std::fmt;
 
-use crate::{machine, Analysis, Applier, EGraph, Id, Language, RecExpr, Searcher, Subst, Var};
+use crate::*;
 
 /// A pattern that can function as either a [`Searcher`] or [`Applier`].
 ///
@@ -56,28 +56,20 @@ use crate::{machine, Analysis, Applier, EGraph, Id, Language, RecExpr, Searcher,
 /// assert_eq!(matched_eclasses, vec![a11, a22]);
 /// ```
 ///
-/// [`Pattern`]: struct.Pattern.html
-/// [`Rewrite`]: struct.Rewrite.html
-/// [`EGraph`]: struct.EGraph.html
-/// [`Subst`]: struct.Subst.html
-/// [`FromStr`]: https://doc.rust-lang.org/std/str/trait.FromStr.html
-/// [`Var`]: struct.Var.html
-/// [`Searcher`]: trait.Searcher.html
-/// [`Applier`]: trait.Applier.html
-/// [`Language`]: trait.Language.html
+/// [`FromStr`]: std::str::FromStr
 #[derive(Debug, PartialEq, Clone)]
 pub struct Pattern<L> {
-    /// The actual pattern as a [`RecExpr`](struct.RecExpr.html)
+    /// The actual pattern as a [`RecExpr`]
     pub ast: PatternAst<L>,
     program: machine::Program<L>,
 }
 
-/// A [`RecExpr`](struct.RecExpr.html) that represents a
-/// [`Pattern`](struct.Pattern.html).
+/// A [`RecExpr`] that represents a
+/// [`Pattern`].
 pub type PatternAst<L> = RecExpr<ENodeOrVar<L>>;
 
 impl<L: Language> Pattern<L> {
-    /// Returns a list of the [`Var`](struct.Var.html)s in this pattern.
+    /// Returns a list of the [`Var`]s in this pattern.
     pub fn vars(&self) -> Vec<Var> {
         let mut vars = vec![];
         for n in self.ast.as_ref() {
@@ -98,10 +90,9 @@ impl<L: Language> Pattern<L> {
 
 /// The language of [`Pattern`]s.
 ///
-/// [`Pattern`]: struct.Pattern.html
 #[derive(Debug, Hash, PartialEq, Eq, Clone, PartialOrd, Ord)]
 pub enum ENodeOrVar<L> {
-    /// An enode from the underlying [`Language`](trait.Language.html)
+    /// An enode from the underlying [`Language`]
     ENode(L),
     /// A pattern variable
     Var(Var),
@@ -201,8 +192,6 @@ impl<L: Language> fmt::Display for Pattern<L> {
 /// tells you how many eclasses something was matched in, _not_ how
 /// many matches were found total.
 ///
-/// [`SearchMatches`]: struct.SearchMatches.html
-/// [`Searcher`]: trait.Searcher.html
 #[derive(Debug)]
 pub struct SearchMatches {
     /// The eclass id that these matches were found in.

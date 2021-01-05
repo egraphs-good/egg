@@ -282,23 +282,23 @@ We've already discussed how rebuilding makes `egg`'s e-graphs fast,
   and later tutorials will discuss how [`Analysis`] makes this approach flexible
   and able to handle more than just syntactic rewriting.
 
-[`Searcher`]: ../../trait.Searcher.html
-[`Pattern`]: ../../struct.Pattern.html
-[`EGraph`]: ../../struct.EGraph.html
-[`EClass`]: ../../struct.EClass.html
-[`Rewrite`]: ../../struct.Rewrite.html
-[`Runner`]: ../../struct.Runner.html
-[`Extractor`]: ../../struct.Extractor.html
-[`Language`]: ../../trait.Language.html
-[`Analysis`]: ../../trait.Analysis.html
-[`Id`]: ../../type.Id.html
-[`add`]: ../../struct.EGraph.html#method.add
-[`union`]: ../../struct.EGraph.html#method.union
-[`rebuild`]: ../../struct.EGraph.html#method.rebuild
+[`Searcher`]: super::super::Searcher
+[`Pattern`]: super::super::Pattern
+[`EGraph`]: super::super::EGraph
+[`EClass`]: super::super::EClass
+[`Rewrite`]: super::super::Rewrite
+[`Runner`]: super::super::Runner
+[`Extractor`]: super::super::Extractor
+[`Language`]: super::super::Language
+[`Analysis`]: super::super::Analysis
+[`Id`]: super::super::Id
+[`add`]: super::super::EGraph::add()
+[`union`]: super::super::EGraph::union()
+[`rebuild`]: super::super::EGraph::rebuild()
 [equivalence relation]: https://en.wikipedia.org/wiki/Equivalence_relation
 [congruence relation]: https://en.wikipedia.org/wiki/Congruence_relation
-[dot]: ../../struct.Dot.html
-[extract]: ../../struct.Extractor.html
+[dot]: super::super::Dot
+[extract]: super::super::Extractor
 [sound]: https://itinerarium.github.io/phoneme-synthesis/?w=/'igraf/
 [paper]: https://arxiv.org/abs/2004.03082
 

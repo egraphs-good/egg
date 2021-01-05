@@ -1,7 +1,7 @@
 use std::fmt;
 use std::{any::Any, sync::Arc};
 
-use crate::{Analysis, DisplayAsDebug, EGraph, Id, Language, Pattern, SearchMatches, Subst, Var};
+use crate::*;
 
 /// A rewrite that searches for the lefthand side and applies the righthand side.
 ///
@@ -12,13 +12,6 @@ use crate::{Analysis, DisplayAsDebug, EGraph, Id, Language, Pattern, SearchMatch
 /// It additionally stores a name used to refer to the rewrite and a
 /// long name used for debugging.
 ///
-/// [`rewrite!`]: macro.rewrite.html
-/// [`Searcher`]: trait.Searcher.html
-/// [`Applier`]: trait.Applier.html
-/// [`Condition`]: trait.Condition.html
-/// [`ConditionalApplier`]: struct.ConditionalApplier.html
-/// [`Rewrite`]: struct.Rewrite.html
-/// [`Pattern`]: struct.Pattern.html
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct Rewrite<L, N> {
@@ -66,8 +59,6 @@ impl<L: Language, N: Analysis<L>> Rewrite<L, N> {
     /// Create a new [`Rewrite`]. You typically want to use the
     /// [`rewrite!`] macro instead.
     ///
-    /// [`Rewrite`]: struct.Rewrite.html
-    /// [`rewrite!`]: macro.rewrite.html
     pub fn new(
         name: impl Into<String>,
         searcher: impl Searcher<L, N> + 'static,
@@ -93,16 +84,14 @@ impl<L: Language, N: Analysis<L>> Rewrite<L, N> {
 
     /// Call [`search`] on the [`Searcher`].
     ///
-    /// [`Searcher`]: trait.Searcher.html
-    /// [`search`]: trait.Searcher.html#method.search
+    /// [`search`]: Searcher::search()
     pub fn search(&self, egraph: &EGraph<L, N>) -> Vec<SearchMatches> {
         self.searcher.search(egraph)
     }
 
     /// Call [`apply_matches`] on the [`Applier`].
     ///
-    /// [`Applier`]: trait.Applier.html
-    /// [`apply_matches`]: trait.Applier.html#method.apply_matches
+    /// [`apply_matches`]: Applier::apply_matches()
     pub fn apply(&self, egraph: &mut EGraph<L, N>, matches: &[SearchMatches]) -> Vec<Id> {
         self.applier.apply_matches(egraph, matches)
     }
@@ -137,9 +126,6 @@ impl<L: Language, N: Analysis<L>> Rewrite<L, N> {
 /// matching substititions.
 /// Right now the only significant [`Searcher`] is [`Pattern`].
 ///
-/// [`Rewrite`]: struct.Rewrite.html
-/// [`Searcher`]: trait.Searcher.html
-/// [`Pattern`]: struct.Pattern.html
 pub trait Searcher<L, N>
 where
     L: Language,
@@ -153,9 +139,7 @@ where
     /// [`SearchMatches`] where something was found.
     /// This just calls [`search_eclass`] on each eclass.
     ///
-    /// [`EGraph`]: struct.EGraph.html
-    /// [`search_eclass`]: trait.Searcher.html#tymethod.search_eclass
-    /// [`SearchMatches`]: struct.SearchMatches.html
+    /// [`search_eclass`]: Searcher::search_eclass
     fn search(&self, egraph: &EGraph<L, N>) -> Vec<SearchMatches> {
         egraph
             .classes()
@@ -265,14 +249,6 @@ where
 /// let start = "(+ x (* y z))".parse().unwrap();
 /// Runner::default().with_expr(&start).run(rules);
 /// ```
-/// [`Pattern`]: struct.Pattern.html
-/// [`EClass`]: struct.EClass.html
-/// [`Rewrite`]: struct.Rewrite.html
-/// [`ConditionalApplier`]: struct.ConditionalApplier.html
-/// [`Subst`]: struct.Subst.html
-/// [`Applier`]: trait.Applier.html
-/// [`Condition`]: trait.Condition.html
-/// [`Analysis`]: trait.Analysis.html
 pub trait Applier<L, N>
 where
     L: Language,
@@ -288,8 +264,7 @@ where
     /// The default implementation does this and should suffice for
     /// most use cases.
     ///
-    /// [`Id`]: struct.Id.html
-    /// [`apply_one`]: trait.Applier.html#method.apply_one
+    /// [`apply_one`]: Applier::apply_one()
     fn apply_matches(&self, egraph: &mut EGraph<L, N>, matches: &[SearchMatches]) -> Vec<Id> {
         let mut added = vec![];
         for mat in matches {
@@ -322,9 +297,7 @@ where
     /// This should return a list of [`Id`]s of things you'd like to
     /// be unioned with `eclass`. There can be zero, one, or many.
     ///
-    /// [`Applier`]: trait.Applier.html
-    /// [`Id`]: struct.Id.html
-    /// [`apply_matches`]: trait.Applier.html#method.apply_matches
+    /// [`apply_matches`]: Applier::apply_matches()
     fn apply_one(&self, egraph: &mut EGraph<L, N>, eclass: Id, subst: &Subst) -> Vec<Id>;
 
     /// Returns a list of variables that this Applier assumes are bound.
@@ -346,24 +319,18 @@ where
 ///
 /// See the [`rewrite!`] macro documentation for an example.
 ///
-/// [`rewrite!`]: macro.rewrite.html
-/// [`Applier`]: trait.Applier.html
-/// [`apply_one`]: trait.Applier.html#method.apply_one
-/// [`Condition`]: trait.Condition.html
-/// [`check`]: trait.Condition.html#method.check
-/// [`ConditionalApplier`]: struct.ConditionalApplier.html
+/// [`apply_one`]: Applier::apply_one()
+/// [`check`]: Condition::check()
 #[derive(Clone, Debug)]
 pub struct ConditionalApplier<C, A> {
     /// The [`Condition`] to [`check`] before calling [`apply_one`] on
     /// `applier`.
     ///
-    /// [`apply_one`]: trait.Applier.html#method.apply_one
-    /// [`Condition`]: trait.Condition.html
-    /// [`check`]: trait.Condition.html#method.check
+    /// [`apply_one`]: Applier::apply_one()
+    /// [`check`]: Condition::check()
     pub condition: C,
     /// The inner [`Applier`] to call once `condition` passes.
     ///
-    /// [`Applier`]: trait.Applier.html
     pub applier: A,
 }
 
@@ -396,10 +363,8 @@ where
 /// Notably, any function ([`Fn`]) that doesn't mutate other state
 /// and matches the signature of [`check`] implements [`Condition`].
 ///
-/// [`check`]: trait.Condition.html#method.check
-/// [`Fn`]: https://doc.rust-lang.org/std/ops/trait.Fn.html
-/// [`ConditionalApplier`]: struct.ConditionalApplier.html
-/// [`Condition`]: trait.Condition.html
+/// [`check`]: Condition::check()
+/// [`Fn`]: std::ops::Fn
 pub trait Condition<L, N>
 where
     L: Language,
@@ -410,8 +375,6 @@ where
     /// `eclass` is the eclass [`Id`] where the match (`subst`) occured.
     /// If this is true, then the [`ConditionalApplier`] will fire.
     ///
-    /// [`Id`]: struct.Id.html
-    /// [`ConditionalApplier`]: struct.ConditionalApplier.html
     fn check(&self, egraph: &mut EGraph<L, N>, eclass: Id, subst: &Subst) -> bool;
 
     /// Returns a list of variables that this Condition assumes are bound.
@@ -441,8 +404,6 @@ where
 /// This condition adds its two [`Applier`]s to the egraph and passes
 /// if and only if they are equivalent (in the same eclass).
 ///
-/// [`Applier`]: trait.Applier.html
-/// [`Condition`]: trait.Condition.html
 pub struct ConditionEqual<A1, A2>(pub A1, pub A2);
 
 impl<L: Language> ConditionEqual<Pattern<L>, Pattern<L>> {

@@ -1,16 +1,19 @@
+#[allow(unused_imports)]
+use crate::*;
+
 /** A macro to easily create a [`Language`].
 
 `define_language` derives `Debug`, `PartialEq`, `Eq`, `PartialOrd`, `Ord`,
 `Hash`, and `Clone` on the given `enum` so it can implement [`Language`].
 The macro also implements
-[`Language::from_op_str`](trait.Language.html#method.from_op_str) and
-[`Language::display_op`](trait.Language.html#method.display_op) for the `enum`
+[`Language::from_op_str`](Language::from_op_str()) and
+[`Language::display_op`](Language::display_op()) for the `enum`
 based on either the data of variants or the provided strings.
 
 The final variant **must have a trailing comma**; this is due to limitations in
 macro parsing.
 
-See [`LanguageChildren`](trait.LanguageChildren.html) for acceptable types of children `Id`s.
+See [`LanguageChildren`] for acceptable types of children `Id`s.
 
 Note that you can always implement [`Language`] yourself by just not using this
 macro.
@@ -57,9 +60,8 @@ define_language! {
 }
 ```
 
-[`FromStr`]: https://doc.rust-lang.org/std/str/trait.FromStr.html
-[`Display`]: https://doc.rust-lang.org/std/fmt/trait.Display.html
-[`Language`]: trait.Language.html
+[`FromStr`]: std::str::FromStr
+[`Display`]: std::fmt::Display
 **/
 #[macro_export]
 macro_rules! define_language {
@@ -202,7 +204,7 @@ macro_rules! __define_language {
 The `rewrite!` macro greatly simplifies creating simple, purely
 syntactic rewrites while also allowing more complex ones.
 
-This panics if [`Rewrite::new`](struct.Rewrite.html#method.new) fails.
+This panics if [`Rewrite::new`](Rewrite::new()) fails.
 
 The simplest form `rewrite!(a; b => c)` creates a [`Rewrite`]
 with name `a`, [`Searcher`] `b`, and [`Applier`] `c`.
@@ -272,12 +274,6 @@ fn is_not_zero(var: &'static str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
 }
 ```
 
-[`Searcher`]: trait.Searcher.html
-[`Applier`]: trait.Applier.html
-[`Condition`]: trait.Condition.html
-[`ConditionalApplier`]: struct.ConditionalApplier.html
-[`Rewrite`]: struct.Rewrite.html
-[`Pattern`]: struct.Pattern.html
 [macro]: https://doc.rust-lang.org/stable/reference/macros-by-example.html#metavariables
 **/
 #[macro_export]

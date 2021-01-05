@@ -10,7 +10,7 @@ This tutorial is targeted at readers who may not have seen e-graphs, equality sa
 If you already know some of that stuff, you may just want to skim or skip those chapters.
 
 This is intended to be guide-level introduction using examples to build intuition.
-For more detail, check out the [API documentation](../index.html),
+For more detail, check out the [API documentation](super),
 which the tutorials will link to frequently.
 Most of the code examples here are typechecked and run, so you may copy-paste them to get started.
 

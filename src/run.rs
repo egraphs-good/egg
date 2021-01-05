@@ -2,7 +2,7 @@ use indexmap::IndexMap;
 use instant::{Duration, Instant};
 use log::*;
 
-use crate::{Analysis, EGraph, Id, Language, RecExpr, Rewrite, SearchMatches};
+use crate::*;
 
 /** Faciliates running rewrites over an [`EGraph`].
 
@@ -26,7 +26,7 @@ and when to stop.
 [`Runner`] is `egg`'s provided equality saturation engine that has
 reasonable defaults and implements many useful things like saturation
 checking, egraph size limits, and customizable rule
-[scheduling](trait.RewriteScheduler.html).
+[scheduling](RewriteScheduler).
 Consider using [`Runner`] before rolling your own outer loop.
 
 Here are some of the things [`Runner`] does for you:
@@ -35,25 +35,25 @@ Here are some of the things [`Runner`] does for you:
 
   [`Runner`] checks to see if any of the rules added anything
   new to the [`EGraph`]. If none did, then it stops, returning
-  [`StopReason::Saturated`](enum.StopReason.html#variant.Saturated).
+  [`StopReason::Saturated`].
 
 - Iteration limits
 
   You can set a upper limit of iterations to do in case the search
   doesn't stop for some other reason. If this limit is hit, it stops with
-  [`StopReason::IterationLimit`](enum.StopReason.html#variant.IterationLimit).
+  [`StopReason::IterationLimit`].
 
 - [`EGraph`] size limit
 
   You can set a upper limit on the number of enodes in the egraph.
   If this limit is hit, it stops with
-  [`StopReason::NodeLimit`](enum.StopReason.html#variant.NodeLimit).
+  [`StopReason::NodeLimit`].
 
 - Time limit
 
   You can set a time limit on the runner.
   If this limit is hit, it stops with
-  [`StopReason::TimeLimit`](enum.StopReason.html#variant.TimeLimit).
+  [`StopReason::TimeLimit`].
 
 - Rule scheduling
 
@@ -71,14 +71,6 @@ You can add your own data to this by implementing the
 [`Runner`] is generic over the [`IterationData`] that it will be in the
 [`Iteration`]s, but by default it uses `()`.
 
-[`Runner`]: struct.Runner.html
-[`RewriteScheduler`]: trait.RewriteScheduler.html
-[`Extractor`]: struct.Extractor.html
-[`Rewrite`]: struct.Rewrite.html
-[`BackoffScheduler`]: struct.BackoffScheduler.html
-[`EGraph`]: struct.EGraph.html
-[`Iteration`]: struct.Iteration.html
-[`IterationData`]: trait.IterationData.html
 
 # Example
 
@@ -143,19 +135,19 @@ println!(
 ```
 */
 pub struct Runner<L: Language, N: Analysis<L>, IterData = ()> {
-    /// The [`EGraph`](struct.EGraph.html) used.
+    /// The [`EGraph`] used.
     pub egraph: EGraph<L, N>,
-    /// Data accumulated over each [`Iteration`](struct.Iteration.html).
+    /// Data accumulated over each [`Iteration`].
     pub iterations: Vec<Iteration<IterData>>,
     /// The roots of expressions added by the
-    /// [`with_expr`](#method.with_expr) method, in insertion order.
+    /// [`with_expr`](Runner::with_expr()) method, in insertion order.
     pub roots: Vec<Id>,
     /// Why the `Runner` stopped. This will be `None` if it hasn't
     /// stopped yet.
     pub stop_reason: Option<StopReason>,
 
     /// The hooks added by the
-    /// [`with_hook`](#method.with_hook) method, in insertion order.
+    /// [`with_hook`](Runner::with_hook()) method, in insertion order.
     #[allow(clippy::type_complexity)]
     pub hooks: Vec<Box<dyn FnMut(&mut Self) -> Result<(), String>>>,
 
@@ -180,7 +172,6 @@ where
 
 /// Error returned by [`Runner`] when it stops.
 ///
-/// [`Runner`]: struct.Runner.html
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde-1", derive(serde::Serialize))]
 pub enum StopReason {
@@ -203,7 +194,6 @@ pub enum StopReason {
 /// [`serde::Serialize`][ser], which is useful if you want to output
 /// this as a JSON or some other format.
 ///
-/// [`Runner`]: struct.Runner.html
 /// [ser]: https://docs.rs/serde/latest/serde/trait.Serialize.html
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde-1", derive(serde::Serialize))]
@@ -224,7 +214,7 @@ pub struct Iteration<IterData> {
     pub search_time: f64,
     /// Seconds spent applying rules in this iteration.
     pub apply_time: f64,
-    /// Seconds spent [`rebuild`](struct.EGraph.html#method.rebuild)ing
+    /// Seconds spent [`rebuild`](EGraph::rebuild())ing
     /// the egraph in this iteration.
     pub rebuild_time: f64,
     /// Total time spent in this iteration, including data generation time.
@@ -283,7 +273,7 @@ where
     /// all the rewrites.
     ///
     /// If your hook modifies the e-graph, make sure to call
-    /// [`rebuild`](struct.EGraph.html#method.rebuild).
+    /// [`rebuild`](EGraph::rebuild()).
     ///
     /// # Example
     /// ```
@@ -301,7 +291,6 @@ where
     ///     })
     ///     .run(rules);
     /// ```
-    /// [`Runner`]: struct.Runner.html
     pub fn with_hook<F>(mut self, hook: F) -> Self
     where
         F: FnMut(&mut Self) -> Result<(), String> + 'static,
@@ -313,9 +302,6 @@ where
     /// Change out the [`RewriteScheduler`] used by this [`Runner`].
     /// The default one is [`BackoffScheduler`].
     ///
-    /// [`RewriteScheduler`]: trait.RewriteScheduler.html
-    /// [`BackoffScheduler`]: struct.BackoffScheduler.html
-    /// [`Runner`]: struct.Runner.html
     pub fn with_scheduler(self, scheduler: impl RewriteScheduler<L, N> + 'static) -> Self {
         let scheduler = Box::new(scheduler);
         Self { scheduler, ..self }
@@ -324,7 +310,7 @@ where
     /// Add an expression to the egraph to be run.
     ///
     /// The eclass id of this addition will be recorded in the
-    /// [`roots`](struct.Runner.html#structfield.roots) field, ordered by
+    /// [`roots`](Runner::roots) field, ordered by
     /// insertion order.
     pub fn with_expr(mut self, expr: &RecExpr<L>) -> Self {
         let id = self.egraph.add_expr(expr);
@@ -332,14 +318,14 @@ where
         self
     }
 
-    /// Replace the [`EGraph`](struct.EGraph.html) of this `Runner`.
+    /// Replace the [`EGraph`] of this `Runner`.
     pub fn with_egraph(self, egraph: EGraph<L, N>) -> Self {
         Self { egraph, ..self }
     }
 
     /// Run this `Runner` until it stops.
     /// After this, the field
-    /// [`stop_reason`](#structfield.stop_reason) is guaranteed to be
+    /// [`stop_reason`](Runner::stop_reason) is guaranteed to be
     /// set.
     pub fn run<'a, R>(mut self, rules: R) -> Self
     where
@@ -554,9 +540,6 @@ This gives you a way to prevent certain [`Rewrite`]s from exploding
 the [`EGraph`] and dominating how much time is spent while running the
 [`Runner`].
 
-[`EGraph`]: struct.EGraph.html
-[`Runner`]: struct.Runner.html
-[`Rewrite`]: struct.Rewrite.html
 */
 #[allow(unused_variables)]
 pub trait RewriteScheduler<L, N>
@@ -564,7 +547,7 @@ where
     L: Language,
     N: Analysis<L>,
 {
-    /// Whether or not the [`Runner`](struct.Runner.html) is allowed
+    /// Whether or not the [`Runner`] is allowed
     /// to say it has saturated.
     ///
     /// This is only called when the runner is otherwise saturated.
@@ -577,7 +560,7 @@ where
     /// Useful to implement rule management.
     ///
     /// Default implementation just calls
-    /// [`Rewrite::search`](struct.Rewrite.html#method.search).
+    /// [`Rewrite::search`](Rewrite::search()).
     fn search_rewrite(
         &mut self,
         iteration: usize,
@@ -591,7 +574,7 @@ where
     /// Useful to implement rule management.
     ///
     /// Default implementation just calls
-    /// [`Rewrite::apply`](struct.Rewrite.html#method.apply)
+    /// [`Rewrite::apply`](Rewrite::apply())
     /// and returns number of new applications.
     fn apply_rewrite(
         &mut self,
@@ -612,10 +595,9 @@ where
 /// methods.
 ///
 /// This is not the default scheduler; choose it with the
-/// [`with_scheduler`](struct.Runner.html#method.with_scheduler)
+/// [`with_scheduler`](Runner::with_scheduler())
 /// method.
 ///
-/// [`RewriteScheduler`]: trait.RewriteScheduler.html
 pub struct SimpleScheduler;
 
 impl<L, N> RewriteScheduler<L, N> for SimpleScheduler
@@ -637,8 +619,6 @@ where
 ///
 /// [`BackoffScheduler`] is configurable in the builder-pattern style.
 ///
-/// [`RewriteScheduler`]: trait.RewriteScheduler.html
-/// [`BackoffScheduler`]: struct.BackoffScheduler.html
 pub struct BackoffScheduler {
     default_match_limit: usize,
     default_ban_length: usize,
@@ -811,16 +791,13 @@ where
 /// [`Runner`] is generic over the [`IterationData`] that it will be in the
 /// [`Iteration`]s, but by default it uses `()`.
 ///
-/// [`Runner`]: struct.Runner.html
-/// [`Iteration`]: struct.Iteration.html
-/// [`IterationData`]: trait.IterationData.html
 pub trait IterationData<L, N>: Sized
 where
     L: Language,
     N: Analysis<L>,
 {
-    /// Given the current [`Runner`](struct.Runner.html), make the
-    /// data to be put in this [`Iteration`](struct.Iteration.html).
+    /// Given the current [`Runner`], make the
+    /// data to be put in this [`Iteration`].
     fn make(runner: &Runner<L, N, Self>) -> Self;
 }
 
