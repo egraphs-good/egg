@@ -1,4 +1,6 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `src/egraph.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>egraph.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled ><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../egg/index.html'><div class='logo-container rust-logo'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><span class="help-button">?</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `src/egraph.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>egraph.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled ><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="icon" type="image/svg+xml" href="../../favicon.svg">
+<link rel="alternate icon" type="image/png" href="../../favicon-16x16.png">
+<link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../egg/index.html'><div class='logo-container rust-logo'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><span class="help-button">?</span>
                 <a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
 <span id="2">  2</span>
 <span id="3">  3</span>
@@ -661,51 +663,13 @@
 <span id="660">660</span>
 <span id="661">661</span>
 <span id="662">662</span>
-<span id="663">663</span>
-<span id="664">664</span>
-<span id="665">665</span>
-<span id="666">666</span>
-<span id="667">667</span>
-<span id="668">668</span>
-<span id="669">669</span>
-<span id="670">670</span>
-<span id="671">671</span>
-<span id="672">672</span>
-<span id="673">673</span>
-<span id="674">674</span>
-<span id="675">675</span>
-<span id="676">676</span>
-<span id="677">677</span>
-<span id="678">678</span>
-<span id="679">679</span>
-<span id="680">680</span>
-<span id="681">681</span>
-<span id="682">682</span>
-<span id="683">683</span>
-<span id="684">684</span>
-<span id="685">685</span>
-<span id="686">686</span>
-<span id="687">687</span>
-<span id="688">688</span>
-<span id="689">689</span>
-<span id="690">690</span>
-<span id="691">691</span>
-<span id="692">692</span>
-<span id="693">693</span>
-<span id="694">694</span>
-<span id="695">695</span>
-<span id="696">696</span>
-<span id="697">697</span>
-<span id="698">698</span>
-<span id="699">699</span>
 </pre><div class="example-wrap"><pre class="rust ">
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">HashMap</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">util</span>::{<span class="ident">HashMap</span>, <span class="ident">HashSet</span>};
 <span class="kw">use</span> <span class="ident">std</span>::{
     <span class="ident">borrow</span>::<span class="ident">BorrowMut</span>,
     <span class="ident">fmt</span>::{<span class="self">self</span>, <span class="ident">Debug</span>},
 };
 
-<span class="kw">use</span> <span class="ident">indexmap</span>::<span class="ident">IndexMap</span>;
 <span class="kw">use</span> <span class="ident">log</span>::<span class="kw-2">*</span>;
 
 <span class="kw">use</span> <span class="kw">crate</span>::{
@@ -714,7 +678,7 @@
 
 <span class="doccomment">/** A data structure to keep track of equalities between expressions.
 
-Check out the [background tutorial](tutorials/_01_background)
+Check out the [background tutorial](crate::tutorials::_01_background)
 for more information on e-graphs in general.
 
 # E-graphs in `egg`
@@ -739,46 +703,36 @@ You can use the `egraph[id]` syntax to get an [`EClass`] from an [`Id`], because
 and
 [`IndexMut`](struct.EGraph.html#impl-IndexMut&lt;Id&gt;).
 
-[`EGraph`]: struct.EGraph.html
-[`EClass`]: struct.EClass.html
-[`Rewrite`]: struct.Rewrite.html
-[`Runner`]: struct.Runner.html
-[`Language`]: trait.Language.html
-[`Analysis`]: trait.Analysis.html
-[`Id`]: struct.Id.html
-[`add`]: struct.EGraph.html#method.add
-[`union`]: struct.EGraph.html#method.union
-[`rebuild`]: struct.EGraph.html#method.rebuild
+[`add`]: EGraph::add()
+[`union`]: EGraph::union()
+[`rebuild`]: EGraph::rebuild()
 [equivalence relation]: https://en.wikipedia.org/wiki/Equivalence_relation
 [congruence relation]: https://en.wikipedia.org/wiki/Congruence_relation
-[dot]: struct.Dot.html
-[extract]: struct.Extractor.html
+[dot]: Dot
+[extract]: Extractor
 [sound]: https://itinerarium.github.io/phoneme-synthesis/?w=/&#39;igraf/
 **/</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span>, <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;&gt;</span> {
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span>, <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> {
     <span class="doccomment">/// The `Analysis` given when creating this `EGraph`.</span>
     <span class="kw">pub</span> <span class="ident">analysis</span>: <span class="ident">N</span>,
     <span class="ident">memo</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">Id</span><span class="op">&gt;</span>,
     <span class="ident">unionfind</span>: <span class="ident">UnionFind</span>,
-    <span class="ident">classes</span>: <span class="ident">SparseVec</span><span class="op">&lt;</span><span class="ident">EClass</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span>::<span class="ident">Data</span><span class="op">&gt;&gt;</span>,
-    <span class="ident">n_classes</span>: <span class="ident">usize</span>,
+    <span class="ident">classes</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">Id</span>, <span class="ident">EClass</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span>::<span class="ident">Data</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">dirty_unions</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span>,
     <span class="ident">repairs_since_rebuild</span>: <span class="ident">usize</span>,
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">classes_by_op</span>: <span class="ident">IndexMap</span><span class="op">&lt;</span><span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">Discriminant</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>, <span class="ident">indexmap</span>::<span class="ident">IndexSet</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;&gt;</span>,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">classes_by_op</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">Discriminant</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>, <span class="ident">HashSet</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 }
 
-<span class="kw">type</span> <span class="ident">SparseVec</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;&gt;</span><span class="op">&gt;</span>;
-
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span>, <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Default</span><span class="op">&gt;</span> <span class="ident">Default</span> <span class="kw">for</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">default</span>() <span class="op">-&gt;</span> <span class="self">Self</span> {
+    <span class="kw">fn</span> <span class="ident">default</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="self">Self</span>::<span class="ident">new</span>(<span class="ident">N</span>::<span class="ident">default</span>())
     }
 }
 
 <span class="comment">// manual debug impl to avoid L: Language bound on EGraph defn</span>
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span>, <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;&gt;</span> <span class="ident">Debug</span> <span class="kw">for</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt</span>::<span class="ident">Formatter</span>) <span class="op">-&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span>, <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">Debug</span> <span class="kw">for</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt</span>::<span class="ident">Formatter</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
         <span class="ident">f</span>.<span class="ident">debug_struct</span>(<span class="string">&quot;EGraph&quot;</span>)
             .<span class="ident">field</span>(<span class="string">&quot;memo&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">memo</span>)
             .<span class="ident">field</span>(<span class="string">&quot;classes&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">classes</span>)
@@ -786,35 +740,28 @@ and
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span>, <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;&gt;</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span>, <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span> {
     <span class="doccomment">/// Creates a new, empty `EGraph` with the given `Analysis`</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">analysis</span>: <span class="ident">N</span>) <span class="op">-&gt;</span> <span class="self">Self</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">analysis</span>: <span class="ident">N</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="self">Self</span> {
             <span class="ident">analysis</span>,
             <span class="ident">memo</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
             <span class="ident">classes</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
             <span class="ident">unionfind</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
             <span class="ident">dirty_unions</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
-            <span class="ident">classes_by_op</span>: <span class="ident">IndexMap</span>::<span class="ident">default</span>(),
+            <span class="ident">classes_by_op</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
             <span class="ident">repairs_since_rebuild</span>: <span class="number">0</span>,
-            <span class="ident">n_classes</span>: <span class="number">0</span>,
         }
     }
 
     <span class="doccomment">/// Returns an iterator over the eclasses in the egraph.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">classes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">EClass</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span>::<span class="ident">Data</span><span class="op">&gt;&gt;</span> {
-        <span class="self">self</span>.<span class="ident">classes</span>
-            .<span class="ident">iter</span>()
-            .<span class="ident">filter_map</span>(<span class="prelude-ty">Option</span>::<span class="ident">as_ref</span>)
-            .<span class="ident">map</span>(<span class="ident">AsRef</span>::<span class="ident">as_ref</span>)
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">classes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">impl</span> <span class="ident">ExactSizeIterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">EClass</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span>::<span class="ident">Data</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">values</span>()
     }
 
     <span class="doccomment">/// Returns an mutating iterator over the eclasses in the egraph.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">classes_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-&gt;</span> <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">EClass</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span>::<span class="ident">Data</span><span class="op">&gt;&gt;</span> {
-        <span class="self">self</span>.<span class="ident">classes</span>
-            .<span class="ident">iter_mut</span>()
-            .<span class="ident">filter_map</span>(<span class="prelude-ty">Option</span>::<span class="ident">as_mut</span>)
-            .<span class="ident">map</span>(<span class="ident">AsMut</span>::<span class="ident">as_mut</span>)
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">classes_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">impl</span> <span class="ident">ExactSizeIterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">EClass</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span>::<span class="ident">Data</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">values_mut</span>()
     }
 
     <span class="doccomment">/// Returns `true` if the egraph is empty</span>
@@ -826,7 +773,7 @@ and
     <span class="doccomment">/// egraph.add(S::leaf(&quot;foo&quot;));</span>
     <span class="doccomment">/// assert!(!egraph.is_empty());</span>
     <span class="doccomment">/// ```</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_empty</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">bool</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_empty</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
         <span class="self">self</span>.<span class="ident">memo</span>.<span class="ident">is_empty</span>()
     }
 
@@ -846,19 +793,18 @@ and
     <span class="doccomment">/// assert_eq!(egraph.total_size(), 2);</span>
     <span class="doccomment">/// assert_eq!(egraph.number_of_classes(), 1);</span>
     <span class="doccomment">/// ```</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">total_size</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">usize</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">total_size</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
         <span class="self">self</span>.<span class="ident">memo</span>.<span class="ident">len</span>()
     }
 
     <span class="doccomment">/// Iterates over the classes, returning the total number of nodes.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">total_number_of_nodes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">usize</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">total_number_of_nodes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
         <span class="self">self</span>.<span class="ident">classes</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">c</span><span class="op">|</span> <span class="ident">c</span>.<span class="ident">len</span>()).<span class="ident">sum</span>()
     }
 
     <span class="doccomment">/// Returns the number of eclasses in the egraph.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">number_of_classes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">usize</span> {
-        <span class="macro">debug_assert_eq</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">classes</span>().<span class="ident">count</span>(), <span class="self">self</span>.<span class="ident">n_classes</span>);
-        <span class="self">self</span>.<span class="ident">n_classes</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">number_of_classes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
+        <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">len</span>()
     }
 
     <span class="doccomment">/// Canonicalizes an eclass id.</span>
@@ -877,41 +823,40 @@ and
     <span class="doccomment">/// egraph.union(x, y);</span>
     <span class="doccomment">/// assert_eq!(egraph.find(x), egraph.find(y));</span>
     <span class="doccomment">/// ```</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">find</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">id</span>: <span class="ident">Id</span>) <span class="op">-&gt;</span> <span class="ident">Id</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">find</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">id</span>: <span class="ident">Id</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Id</span> {
         <span class="self">self</span>.<span class="ident">unionfind</span>.<span class="ident">find</span>(<span class="ident">id</span>)
     }
 
     <span class="doccomment">/// Creates a [`Dot`] to visualize this egraph. See [`Dot`].</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// [`Dot`]: struct.Dot.html</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">dot</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">Dot</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">dot</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Dot</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span> {
         <span class="ident">Dot</span> { <span class="ident">egraph</span>: <span class="self">self</span> }
     }
 }
 
 <span class="doccomment">/// Given an `Id` using the `egraph[id]` syntax, retrieve the e-class.</span>
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span>, <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;&gt;</span> <span class="ident">std</span>::<span class="ident">ops</span>::<span class="ident">Index</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span>, <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">std</span>::<span class="ident">ops</span>::<span class="ident">Index</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span> {
     <span class="kw">type</span> <span class="ident">Output</span> <span class="op">=</span> <span class="ident">EClass</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span>::<span class="ident">Data</span><span class="op">&gt;</span>;
-    <span class="kw">fn</span> <span class="ident">index</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">id</span>: <span class="ident">Id</span>) <span class="op">-&gt;</span> <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">Output</span> {
+    <span class="kw">fn</span> <span class="ident">index</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">id</span>: <span class="ident">Id</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">Output</span> {
         <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">find</span>(<span class="ident">id</span>);
-        <span class="self">self</span>.<span class="ident">classes</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">id</span>)]
-            .<span class="ident">as_ref</span>()
-            .<span class="ident">unwrap_or_else</span>(<span class="op">||</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;Invalid id {}&quot;</span>, <span class="ident">id</span>))
+        <span class="self">self</span>.<span class="ident">classes</span>
+            .<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">id</span>)
+            .<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;Invalid id {}&quot;</span>, <span class="ident">id</span>))
     }
 }
 
 <span class="doccomment">/// Given an `Id` using the `&amp;mut egraph[id]` syntax, retrieve a mutable</span>
 <span class="doccomment">/// reference to the e-class.</span>
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span>, <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;&gt;</span> <span class="ident">std</span>::<span class="ident">ops</span>::<span class="ident">IndexMut</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">index_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">id</span>: <span class="ident">Id</span>) <span class="op">-&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span>::<span class="ident">Output</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span>, <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">std</span>::<span class="ident">ops</span>::<span class="ident">IndexMut</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">index_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">id</span>: <span class="ident">Id</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span>::<span class="ident">Output</span> {
         <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">find</span>(<span class="ident">id</span>);
-        <span class="self">self</span>.<span class="ident">classes</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">id</span>)]
-            .<span class="ident">as_mut</span>()
-            .<span class="ident">unwrap_or_else</span>(<span class="op">||</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;Invalid id {}&quot;</span>, <span class="ident">id</span>))
+        <span class="self">self</span>.<span class="ident">classes</span>
+            .<span class="ident">get_mut</span>(<span class="kw-2">&amp;</span><span class="ident">id</span>)
+            .<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;Invalid id {}&quot;</span>, <span class="ident">id</span>))
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span>, <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;&gt;</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span>, <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span> {
     <span class="doccomment">/// Adds a [`RecExpr`] to the [`EGraph`].</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// # Example</span>
@@ -925,10 +870,8 @@ and
     <span class="doccomment">/// assert_eq!(plus, egraph.add_expr(&amp;plus_recexpr));</span>
     <span class="doccomment">/// ```</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// [`EGraph`]: struct.EGraph.html</span>
-    <span class="doccomment">/// [`RecExpr`]: struct.RecExpr.html</span>
-    <span class="doccomment">/// [`add_expr`]: struct.EGraph.html#method.add_expr</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_expr</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">expr</span>: <span class="kw-2">&amp;</span><span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="ident">Id</span> {
+    <span class="doccomment">/// [`add_expr`]: EGraph::add_expr()</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_expr</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">expr</span>: <span class="kw-2">&amp;</span><span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Id</span> {
         <span class="kw">let</span> <span class="ident">nodes</span> <span class="op">=</span> <span class="ident">expr</span>.<span class="ident">as_ref</span>();
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">new_ids</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="ident">nodes</span>.<span class="ident">len</span>());
         <span class="kw">for</span> <span class="ident">node</span> <span class="kw">in</span> <span class="ident">nodes</span> {
@@ -964,7 +907,7 @@ and
     <span class="doccomment">/// assert_eq!(egraph.lookup(&amp;mut node_f_ac), Some(id));</span>
     <span class="doccomment">/// assert_eq!(node_f_ac, SymbolLang::new(&quot;f&quot;, vec![a, b]));</span>
     <span class="doccomment">/// ```</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">lookup</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">enode</span>: <span class="ident">B</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">lookup</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">enode</span>: <span class="ident">B</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span>
     <span class="kw">where</span>
         <span class="ident">B</span>: <span class="ident">BorrowMut</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
     {
@@ -984,19 +927,17 @@ and
     <span class="doccomment">/// eclass in which the enode was found.</span>
     <span class="doccomment">/// Otherwise</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// [`EGraph`]: struct.EGraph.html</span>
-    <span class="doccomment">/// [`EClass`]: struct.EClass.html</span>
-    <span class="doccomment">/// [`add`]: struct.EGraph.html#method.add</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">enode</span>: <span class="ident">L</span>) <span class="op">-&gt;</span> <span class="ident">Id</span> {
-        <span class="self">self</span>.<span class="ident">lookup</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">enode</span>).<span class="ident">unwrap_or_else</span>(<span class="op">||</span> {
+    <span class="doccomment">/// [`add`]: EGraph::add()</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">enode</span>: <span class="ident">L</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Id</span> {
+        <span class="self">self</span>.<span class="ident">lookup</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">enode</span>).<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span> {
             <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">unionfind</span>.<span class="ident">make_set</span>();
             <span class="ident">log</span>::<span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;  ...adding to {}&quot;</span>, <span class="ident">id</span>);
-            <span class="kw">let</span> <span class="ident">class</span> <span class="op">=</span> <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">EClass</span> {
+            <span class="kw">let</span> <span class="ident">class</span> <span class="op">=</span> <span class="ident">EClass</span> {
                 <span class="ident">id</span>,
                 <span class="ident">nodes</span>: <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">enode</span>.<span class="ident">clone</span>()],
                 <span class="ident">data</span>: <span class="ident">N</span>::<span class="ident">make</span>(<span class="self">self</span>, <span class="kw-2">&amp;</span><span class="ident">enode</span>),
                 <span class="ident">parents</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
-            });
+            };
 
             <span class="comment">// add this enode to the parent lists of its children</span>
             <span class="ident">enode</span>.<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">child</span><span class="op">|</span> {
@@ -1004,9 +945,7 @@ and
                 <span class="self">self</span>[<span class="ident">child</span>].<span class="ident">parents</span>.<span class="ident">push</span>(<span class="ident">tup</span>);
             });
 
-            <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">len</span>(), <span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">id</span>));
-            <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">push</span>(<span class="prelude-val">Some</span>(<span class="ident">class</span>));
-            <span class="self">self</span>.<span class="ident">n_classes</span> <span class="op">+=</span> <span class="number">1</span>;
+            <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">insert</span>(<span class="ident">id</span>, <span class="ident">class</span>);
             <span class="macro">assert</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">memo</span>.<span class="ident">insert</span>(<span class="ident">enode</span>, <span class="ident">id</span>).<span class="ident">is_none</span>());
 
             <span class="ident">N</span>::<span class="ident">modify</span>(<span class="self">self</span>, <span class="ident">id</span>);
@@ -1018,8 +957,7 @@ and
     <span class="doccomment">/// Returns a list of id where both expression are represented.</span>
     <span class="doccomment">/// In most cases, there will none or exactly one id.</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// [`RecExpr`]: struct.RecExpr.html</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">equivs</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">expr1</span>: <span class="kw-2">&amp;</span><span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>, <span class="ident">expr2</span>: <span class="kw-2">&amp;</span><span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">equivs</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">expr1</span>: <span class="kw-2">&amp;</span><span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>, <span class="ident">expr2</span>: <span class="kw-2">&amp;</span><span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">matches1</span> <span class="op">=</span> <span class="ident">Pattern</span>::<span class="ident">from</span>(<span class="ident">expr1</span>.<span class="ident">as_ref</span>()).<span class="ident">search</span>(<span class="self">self</span>);
         <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;Matches1: {:?}&quot;</span>, <span class="ident">matches1</span>);
 
@@ -1030,7 +968,7 @@ and
 
         <span class="kw">for</span> <span class="ident">m1</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">matches1</span> {
             <span class="kw">for</span> <span class="ident">m2</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">matches2</span> {
-                <span class="kw">if</span> <span class="self">self</span>.<span class="ident">find</span>(<span class="ident">m1</span>.<span class="ident">eclass</span>) <span class="op">==</span> <span class="self">self</span>.<span class="ident">find</span>(<span class="ident">m2</span>.<span class="ident">eclass</span>) {
+                <span class="kw">if</span> <span class="self">self</span>.<span class="ident">find</span>(<span class="ident">m1</span>.<span class="ident">eclass</span>) <span class="op">=</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">find</span>(<span class="ident">m2</span>.<span class="ident">eclass</span>) {
                     <span class="ident">equiv_eclasses</span>.<span class="ident">push</span>(<span class="ident">m1</span>.<span class="ident">eclass</span>)
                 }
             }
@@ -1062,7 +1000,7 @@ and
     }
 
     <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">fn</span> <span class="ident">union_impl</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">id1</span>: <span class="ident">Id</span>, <span class="ident">id2</span>: <span class="ident">Id</span>) <span class="op">-&gt;</span> (<span class="ident">Id</span>, <span class="ident">bool</span>) {
+    <span class="kw">fn</span> <span class="ident">union_impl</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">id1</span>: <span class="ident">Id</span>, <span class="ident">id2</span>: <span class="ident">Id</span>) <span class="op">-</span><span class="op">&gt;</span> (<span class="ident">Id</span>, <span class="ident">bool</span>) {
         <span class="kw">fn</span> <span class="ident">concat</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(<span class="ident">to</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="kw-2">mut</span> <span class="ident">from</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) {
             <span class="kw">if</span> <span class="ident">to</span>.<span class="ident">len</span>() <span class="op">&lt;</span> <span class="ident">from</span>.<span class="ident">len</span>() {
                 <span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">swap</span>(<span class="ident">to</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">from</span>)
@@ -1070,29 +1008,27 @@ and
             <span class="ident">to</span>.<span class="ident">extend</span>(<span class="ident">from</span>);
         }
 
-        <span class="kw">if</span> <span class="ident">id1</span> <span class="op">!=</span> <span class="ident">id2</span> {
+        <span class="kw">if</span> <span class="ident">id1</span> <span class="op">!</span><span class="op">=</span> <span class="ident">id2</span> {
             <span class="ident">N</span>::<span class="ident">pre_union</span>(<span class="self">self</span>, <span class="ident">id1</span>, <span class="ident">id2</span>);
         }
 
         <span class="kw">let</span> (<span class="ident">to</span>, <span class="ident">from</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">unionfind</span>.<span class="ident">union</span>(<span class="ident">id1</span>, <span class="ident">id2</span>);
         <span class="macro">debug_assert_eq</span><span class="macro">!</span>(<span class="ident">to</span>, <span class="self">self</span>.<span class="ident">find</span>(<span class="ident">id1</span>));
         <span class="macro">debug_assert_eq</span><span class="macro">!</span>(<span class="ident">to</span>, <span class="self">self</span>.<span class="ident">find</span>(<span class="ident">id2</span>));
-        <span class="kw">if</span> <span class="ident">to</span> <span class="op">!=</span> <span class="ident">from</span> {
+        <span class="kw">if</span> <span class="ident">to</span> <span class="op">!</span><span class="op">=</span> <span class="ident">from</span> {
             <span class="self">self</span>.<span class="ident">dirty_unions</span>.<span class="ident">push</span>(<span class="ident">to</span>);
 
             <span class="comment">// update the classes data structure</span>
-            <span class="kw">let</span> <span class="ident">from_class</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">classes</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">from</span>)].<span class="ident">take</span>().<span class="ident">unwrap</span>();
-            <span class="kw">let</span> <span class="ident">to_class</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">classes</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">to</span>)].<span class="ident">as_mut</span>().<span class="ident">unwrap</span>();
+            <span class="kw">let</span> <span class="ident">from_class</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">remove</span>(<span class="kw-2">&amp;</span><span class="ident">from</span>).<span class="ident">unwrap</span>();
+            <span class="kw">let</span> <span class="ident">to_class</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">get_mut</span>(<span class="kw-2">&amp;</span><span class="ident">to</span>).<span class="ident">unwrap</span>();
 
             <span class="self">self</span>.<span class="ident">analysis</span>.<span class="ident">merge</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">to_class</span>.<span class="ident">data</span>, <span class="ident">from_class</span>.<span class="ident">data</span>);
             <span class="ident">concat</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">to_class</span>.<span class="ident">nodes</span>, <span class="ident">from_class</span>.<span class="ident">nodes</span>);
             <span class="ident">concat</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">to_class</span>.<span class="ident">parents</span>, <span class="ident">from_class</span>.<span class="ident">parents</span>);
 
-            <span class="self">self</span>.<span class="ident">n_classes</span> <span class="op">-=</span> <span class="number">1</span>;
-
             <span class="ident">N</span>::<span class="ident">modify</span>(<span class="self">self</span>, <span class="ident">to</span>);
         }
-        (<span class="ident">to</span>, <span class="ident">to</span> <span class="op">!=</span> <span class="ident">from</span>)
+        (<span class="ident">to</span>, <span class="ident">to</span> <span class="op">!</span><span class="op">=</span> <span class="ident">from</span>)
     }
 
     <span class="doccomment">/// Unions two eclasses given their ids.</span>
@@ -1101,7 +1037,7 @@ and
     <span class="doccomment">/// The returned `bool` indicates whether a union was done,</span>
     <span class="doccomment">/// so it&#39;s `false` if they were already equivalent.</span>
     <span class="doccomment">/// Both results are canonical.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">union</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">id1</span>: <span class="ident">Id</span>, <span class="ident">id2</span>: <span class="ident">Id</span>) <span class="op">-&gt;</span> (<span class="ident">Id</span>, <span class="ident">bool</span>) {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">union</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">id1</span>: <span class="ident">Id</span>, <span class="ident">id2</span>: <span class="ident">Id</span>) <span class="op">-</span><span class="op">&gt;</span> (<span class="ident">Id</span>, <span class="ident">bool</span>) {
         <span class="kw">let</span> <span class="ident">union</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">union_impl</span>(<span class="ident">id1</span>, <span class="ident">id2</span>);
         <span class="kw">if</span> <span class="ident">union</span>.<span class="number">1</span> <span class="op">&amp;&amp;</span> <span class="macro">cfg</span><span class="macro">!</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;upward-merging&quot;</span>) {
             <span class="self">self</span>.<span class="ident">process_unions</span>();
@@ -1116,24 +1052,23 @@ and
     <span class="doccomment">/// This method returns a wrapper that implements [`Debug`] in a</span>
     <span class="doccomment">/// slightly nicer way, just dumping enodes in each eclass.</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// [`Debug`]: https://doc.rust-lang.org/stable/std/fmt/trait.Debug.html</span>
-    <span class="doccomment">/// [`EGraph`]: struct.EGraph.html</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">dump</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="self">self</span>) <span class="op">-&gt;</span> <span class="kw">impl</span> <span class="ident">Debug</span> <span class="op">+</span> <span class="lifetime">&#39;a</span> {
+    <span class="doccomment">/// [`Debug`]: std::fmt::Debug</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">dump</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">impl</span> <span class="ident">Debug</span> <span class="op">+</span> <span class="lifetime">&#39;_</span> {
         <span class="ident">EGraphDump</span>(<span class="self">self</span>)
     }
 }
 
 <span class="comment">// All the rebuilding stuff</span>
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span>, <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;&gt;</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span>, <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span> {
     <span class="attribute">#[<span class="ident">inline</span>(<span class="ident">never</span>)]</span>
-    <span class="kw">fn</span> <span class="ident">rebuild_classes</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">usize</span> {
+    <span class="kw">fn</span> <span class="ident">rebuild_classes</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">classes_by_op</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">take</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">classes_by_op</span>);
         <span class="ident">classes_by_op</span>.<span class="ident">values_mut</span>().<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">ids</span><span class="op">|</span> <span class="ident">ids</span>.<span class="ident">clear</span>());
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">trimmed</span> <span class="op">=</span> <span class="number">0</span>;
 
         <span class="kw">let</span> <span class="ident">uf</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">unionfind</span>;
-        <span class="kw">for</span> <span class="ident">class</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">iter_mut</span>().<span class="ident">filter_map</span>(<span class="prelude-ty">Option</span>::<span class="ident">as_mut</span>) {
+        <span class="kw">for</span> <span class="ident">class</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">values_mut</span>() {
             <span class="kw">let</span> <span class="ident">old_len</span> <span class="op">=</span> <span class="ident">class</span>.<span class="ident">len</span>();
             <span class="ident">class</span>
                 .<span class="ident">nodes</span>
@@ -1142,7 +1077,7 @@ and
             <span class="ident">class</span>.<span class="ident">nodes</span>.<span class="ident">sort_unstable</span>();
             <span class="ident">class</span>.<span class="ident">nodes</span>.<span class="ident">dedup</span>();
 
-            <span class="ident">trimmed</span> <span class="op">+=</span> <span class="ident">old_len</span> <span class="op">-</span> <span class="ident">class</span>.<span class="ident">nodes</span>.<span class="ident">len</span>();
+            <span class="ident">trimmed</span> <span class="op">+</span><span class="op">=</span> <span class="ident">old_len</span> <span class="op">-</span> <span class="ident">class</span>.<span class="ident">nodes</span>.<span class="ident">len</span>();
 
             <span class="comment">// TODO this is the slow version, could take advantage of sortedness</span>
             <span class="comment">// maybe</span>
@@ -1170,7 +1105,7 @@ and
 
         <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">debug_assertions</span>)]</span>
         <span class="kw">for</span> <span class="ident">ids</span> <span class="kw">in</span> <span class="ident">classes_by_op</span>.<span class="ident">values_mut</span>() {
-            <span class="kw">let</span> <span class="ident">unique</span>: <span class="ident">indexmap</span>::<span class="ident">IndexSet</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">ids</span>.<span class="ident">iter</span>().<span class="ident">copied</span>().<span class="ident">collect</span>();
+            <span class="kw">let</span> <span class="ident">unique</span>: <span class="ident">HashSet</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">ids</span>.<span class="ident">iter</span>().<span class="ident">copied</span>().<span class="ident">collect</span>();
             <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">ids</span>.<span class="ident">len</span>(), <span class="ident">unique</span>.<span class="ident">len</span>());
         }
 
@@ -1179,15 +1114,10 @@ and
     }
 
     <span class="attribute">#[<span class="ident">inline</span>(<span class="ident">never</span>)]</span>
-    <span class="kw">fn</span> <span class="ident">check_memo</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">bool</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">test_memo</span> <span class="op">=</span> <span class="ident">IndexMap</span>::<span class="ident">new</span>();
+    <span class="kw">fn</span> <span class="ident">check_memo</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">test_memo</span> <span class="op">=</span> <span class="ident">HashMap</span>::<span class="ident">default</span>();
 
-        <span class="kw">for</span> (<span class="ident">id</span>, <span class="ident">class</span>) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">iter</span>().<span class="ident">enumerate</span>() {
-            <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="ident">Id</span>::<span class="ident">from</span>(<span class="ident">id</span>);
-            <span class="kw">let</span> <span class="ident">class</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">class</span>.<span class="ident">as_ref</span>() {
-                <span class="prelude-val">Some</span>(<span class="ident">class</span>) <span class="op">=&gt;</span> <span class="ident">class</span>,
-                <span class="prelude-val">None</span> <span class="op">=&gt;</span> <span class="kw">continue</span>,
-            };
+        <span class="kw">for</span> (<span class="kw-2">&amp;</span><span class="ident">id</span>, <span class="ident">class</span>) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">iter</span>() {
             <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">class</span>.<span class="ident">id</span>, <span class="ident">id</span>);
             <span class="kw">for</span> <span class="ident">node</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">class</span>.<span class="ident">nodes</span> {
                 <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">old</span>) <span class="op">=</span> <span class="ident">test_memo</span>.<span class="ident">insert</span>(<span class="ident">node</span>, <span class="ident">id</span>) {
@@ -1233,7 +1163,7 @@ and
             <span class="macro">assert</span><span class="macro">!</span>(<span class="op">!</span><span class="ident">todo</span>.<span class="ident">is_empty</span>());
 
             <span class="kw">for</span> <span class="ident">id</span> <span class="kw">in</span> <span class="ident">todo</span> {
-                <span class="self">self</span>.<span class="ident">repairs_since_rebuild</span> <span class="op">+=</span> <span class="number">1</span>;
+                <span class="self">self</span>.<span class="ident">repairs_since_rebuild</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
                 <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">parents</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">take</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>[<span class="ident">id</span>].<span class="ident">parents</span>);
 
                 <span class="kw">for</span> (<span class="ident">n</span>, <span class="ident">_e</span>) <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">parents</span> {
@@ -1246,7 +1176,7 @@ and
                 });
                 <span class="ident">parents</span>.<span class="ident">sort_unstable</span>();
                 <span class="ident">parents</span>.<span class="ident">dedup_by</span>(<span class="op">|</span>(<span class="ident">n1</span>, <span class="ident">e1</span>), (<span class="ident">n2</span>, <span class="ident">e2</span>)<span class="op">|</span> {
-                    <span class="ident">n1</span> <span class="op">==</span> <span class="ident">n2</span> <span class="op">&amp;&amp;</span> {
+                    <span class="ident">n1</span> <span class="op">=</span><span class="op">=</span> <span class="ident">n2</span> <span class="op">&amp;&amp;</span> {
                         <span class="ident">to_union</span>.<span class="ident">push</span>((<span class="kw-2">*</span><span class="ident">e1</span>, <span class="kw-2">*</span><span class="ident">e2</span>));
                         <span class="bool-val">true</span>
                     }
@@ -1278,7 +1208,7 @@ and
 
     <span class="doccomment">/// Restores the egraph invariants of congruence and enode uniqueness.</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// As mentioned [above](struct.EGraph.html#invariants-and-rebuilding),</span>
+    <span class="doccomment">/// As mentioned [above](EGraph#invariants-and-rebuilding),</span>
     <span class="doccomment">/// `egg` takes a lazy approach to maintaining the egraph invariants.</span>
     <span class="doccomment">/// The `rebuild` method allows the user to manually restore those</span>
     <span class="doccomment">/// invariants at a time of their choosing. It&#39;s a reasonably</span>
@@ -1308,7 +1238,7 @@ and
     <span class="doccomment">/// assert_eq!(egraph.number_of_classes(), 3);</span>
     <span class="doccomment">/// assert_eq!(egraph.find(ax), egraph.find(ay));</span>
     <span class="doccomment">/// ```</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">rebuild</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">usize</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">rebuild</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
         <span class="kw">let</span> <span class="ident">old_hc_size</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">memo</span>.<span class="ident">len</span>();
         <span class="kw">let</span> <span class="ident">old_n_eclasses</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">number_of_classes</span>();
 
@@ -1345,7 +1275,7 @@ and
         <span class="kw">for</span> (<span class="ident">n</span>, <span class="ident">e</span>) <span class="kw">in</span> <span class="ident">parents</span> {
             <span class="kw">let</span> <span class="ident">e</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">find</span>(<span class="kw-2">*</span><span class="ident">e</span>);
             <span class="kw">let</span> <span class="ident">node_data</span> <span class="op">=</span> <span class="ident">N</span>::<span class="ident">make</span>(<span class="self">self</span>, <span class="ident">n</span>);
-            <span class="kw">let</span> <span class="ident">class</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">classes</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">e</span>)].<span class="ident">as_mut</span>().<span class="ident">unwrap</span>();
+            <span class="kw">let</span> <span class="ident">class</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">get_mut</span>(<span class="kw-2">&amp;</span><span class="ident">e</span>).<span class="ident">unwrap</span>();
             <span class="kw">if</span> <span class="self">self</span>.<span class="ident">analysis</span>.<span class="ident">merge</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">class</span>.<span class="ident">data</span>, <span class="ident">node_data</span>) {
                 <span class="comment">// self.dirty_unions.push(e); // NOTE: i dont think this is necessary</span>
                 <span class="kw">let</span> <span class="ident">e_parents</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">take</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">class</span>.<span class="ident">parents</span>);
@@ -1357,10 +1287,10 @@ and
     }
 }
 
-<span class="kw">struct</span> <span class="ident">EGraphDump</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">L</span>: <span class="ident">Language</span>, <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;&gt;</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>);
+<span class="kw">struct</span> <span class="ident">EGraphDump</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">L</span>: <span class="ident">Language</span>, <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>);
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">L</span>: <span class="ident">Language</span>, <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;&gt;</span> <span class="ident">Debug</span> <span class="kw">for</span> <span class="ident">EGraphDump</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt</span>::<span class="ident">Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">L</span>: <span class="ident">Language</span>, <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">Debug</span> <span class="kw">for</span> <span class="ident">EGraphDump</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt</span>::<span class="ident">Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ids</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> <span class="op">=</span> <span class="self">self</span>.<span class="number">0</span>.<span class="ident">classes</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">c</span><span class="op">|</span> <span class="ident">c</span>.<span class="ident">id</span>).<span class="ident">collect</span>();
         <span class="ident">ids</span>.<span class="ident">sort</span>();
         <span class="kw">for</span> <span class="ident">id</span> <span class="kw">in</span> <span class="ident">ids</span> {
@@ -1394,8 +1324,6 @@ and
         <span class="ident">egraph</span>.<span class="ident">rebuild</span>();
 
         <span class="ident">egraph</span>.<span class="ident">dot</span>().<span class="ident">to_dot</span>(<span class="string">&quot;target/foo.dot&quot;</span>).<span class="ident">unwrap</span>();
-
-        <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="number">2</span> <span class="op">+</span> <span class="number">2</span>, <span class="number">4</span>);
     }
 }
 </pre></div>

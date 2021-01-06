@@ -1,4 +1,6 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `src/pattern.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>pattern.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled ><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../egg/index.html'><div class='logo-container rust-logo'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><span class="help-button">?</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `src/pattern.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>pattern.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled ><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="icon" type="image/svg+xml" href="../../favicon.svg">
+<link rel="alternate icon" type="image/png" href="../../favicon-16x16.png">
+<link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../egg/index.html'><div class='logo-container rust-logo'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><span class="help-button">?</span>
                 <a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
 <span id="2">  2</span>
 <span id="3">  3</span>
@@ -345,23 +347,12 @@
 <span id="344">344</span>
 <span id="345">345</span>
 <span id="346">346</span>
-<span id="347">347</span>
-<span id="348">348</span>
-<span id="349">349</span>
-<span id="350">350</span>
-<span id="351">351</span>
-<span id="352">352</span>
-<span id="353">353</span>
-<span id="354">354</span>
-<span id="355">355</span>
-<span id="356">356</span>
-<span id="357">357</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">log</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">convert</span>::<span class="ident">TryFrom</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fmt</span>;
 
-<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">machine</span>, <span class="ident">Analysis</span>, <span class="ident">Applier</span>, <span class="ident">EGraph</span>, <span class="ident">Id</span>, <span class="ident">Language</span>, <span class="ident">RecExpr</span>, <span class="ident">Searcher</span>, <span class="ident">Subst</span>, <span class="ident">Var</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="kw-2">*</span>;
 
 <span class="doccomment">/// A pattern that can function as either a [`Searcher`] or [`Applier`].</span>
 <span class="doccomment">///</span>
@@ -415,29 +406,21 @@
 <span class="doccomment">/// assert_eq!(matched_eclasses, vec![a11, a22]);</span>
 <span class="doccomment">/// ```</span>
 <span class="doccomment">///</span>
-<span class="doccomment">/// [`Pattern`]: struct.Pattern.html</span>
-<span class="doccomment">/// [`Rewrite`]: struct.Rewrite.html</span>
-<span class="doccomment">/// [`EGraph`]: struct.EGraph.html</span>
-<span class="doccomment">/// [`Subst`]: struct.Subst.html</span>
-<span class="doccomment">/// [`FromStr`]: https://doc.rust-lang.org/std/str/trait.FromStr.html</span>
-<span class="doccomment">/// [`Var`]: struct.Var.html</span>
-<span class="doccomment">/// [`Searcher`]: trait.Searcher.html</span>
-<span class="doccomment">/// [`Applier`]: trait.Applier.html</span>
-<span class="doccomment">/// [`Language`]: trait.Language.html</span>
+<span class="doccomment">/// [`FromStr`]: std::str::FromStr</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">PartialEq</span>, <span class="ident">Clone</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Pattern</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
-    <span class="doccomment">/// The actual pattern as a [`RecExpr`](struct.RecExpr.html)</span>
+    <span class="doccomment">/// The actual pattern as a [`RecExpr`]</span>
     <span class="kw">pub</span> <span class="ident">ast</span>: <span class="ident">PatternAst</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
     <span class="ident">program</span>: <span class="ident">machine</span>::<span class="ident">Program</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
 }
 
-<span class="doccomment">/// A [`RecExpr`](struct.RecExpr.html) that represents a</span>
-<span class="doccomment">/// [`Pattern`](struct.Pattern.html).</span>
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">PatternAst</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">ENodeOrVar</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;&gt;</span>;
+<span class="doccomment">/// A [`RecExpr`] that represents a</span>
+<span class="doccomment">/// [`Pattern`].</span>
+<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">PatternAst</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">ENodeOrVar</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span>;
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span> <span class="ident">Pattern</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
-    <span class="doccomment">/// Returns a list of the [`Var`](struct.Var.html)s in this pattern.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">vars</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Var</span><span class="op">&gt;</span> {
+    <span class="doccomment">/// Returns a list of the [`Var`]s in this pattern.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">vars</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Var</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">vars</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[];
         <span class="kw">for</span> <span class="ident">n</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">ast</span>.<span class="ident">as_ref</span>() {
             <span class="kw">if</span> <span class="kw">let</span> <span class="ident">ENodeOrVar</span>::<span class="ident">Var</span>(<span class="ident">v</span>) <span class="op">=</span> <span class="ident">n</span> {
@@ -450,42 +433,41 @@
     }
 
     <span class="doccomment">/// Pretty print this pattern as a sexp with the given width</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">pretty</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">width</span>: <span class="ident">usize</span>) <span class="op">-&gt;</span> <span class="ident">String</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">pretty</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">width</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">String</span> {
         <span class="self">self</span>.<span class="ident">ast</span>.<span class="ident">pretty</span>(<span class="ident">width</span>)
     }
 }
 
 <span class="doccomment">/// The language of [`Pattern`]s.</span>
 <span class="doccomment">///</span>
-<span class="doccomment">/// [`Pattern`]: struct.Pattern.html</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Hash</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>, <span class="ident">Clone</span>, <span class="ident">PartialOrd</span>, <span class="ident">Ord</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">ENodeOrVar</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
-    <span class="doccomment">/// An enode from the underlying [`Language`](trait.Language.html)</span>
+    <span class="doccomment">/// An enode from the underlying [`Language`]</span>
     <span class="ident">ENode</span>(<span class="ident">L</span>),
     <span class="doccomment">/// A pattern variable</span>
     <span class="ident">Var</span>(<span class="ident">Var</span>),
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span> <span class="ident">Language</span> <span class="kw">for</span> <span class="ident">ENodeOrVar</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">matches</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) <span class="op">-&gt;</span> <span class="ident">bool</span> {
+    <span class="kw">fn</span> <span class="ident">matches</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
         <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;Should never call this&quot;</span>)
     }
 
-    <span class="kw">fn</span> <span class="ident">children</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="kw-2">&amp;</span>[<span class="ident">Id</span>] {
+    <span class="kw">fn</span> <span class="ident">for_each</span><span class="op">&lt;</span><span class="ident">F</span>: <span class="ident">FnMut</span>(<span class="ident">Id</span>)<span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="ident">F</span>) {
         <span class="kw">match</span> <span class="self">self</span> {
-            <span class="ident">ENodeOrVar</span>::<span class="ident">ENode</span>(<span class="ident">e</span>) <span class="op">=&gt;</span> <span class="ident">e</span>.<span class="ident">children</span>(),
-            <span class="ident">ENodeOrVar</span>::<span class="ident">Var</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="kw-2">&amp;</span>[],
+            <span class="ident">ENodeOrVar</span>::<span class="ident">ENode</span>(<span class="ident">n</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">n</span>.<span class="ident">for_each</span>(<span class="ident">f</span>),
+            <span class="ident">ENodeOrVar</span>::<span class="ident">Var</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> (),
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">children_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">Id</span>] {
+    <span class="kw">fn</span> <span class="ident">for_each_mut</span><span class="op">&lt;</span><span class="ident">F</span>: <span class="ident">FnMut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Id</span>)<span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">f</span>: <span class="ident">F</span>) {
         <span class="kw">match</span> <span class="self">self</span> {
-            <span class="ident">ENodeOrVar</span>::<span class="ident">ENode</span>(<span class="ident">e</span>) <span class="op">=&gt;</span> <span class="ident">e</span>.<span class="ident">children_mut</span>(),
-            <span class="ident">ENodeOrVar</span>::<span class="ident">Var</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [],
+            <span class="ident">ENodeOrVar</span>::<span class="ident">ENode</span>(<span class="ident">n</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">n</span>.<span class="ident">for_each_mut</span>(<span class="ident">f</span>),
+            <span class="ident">ENodeOrVar</span>::<span class="ident">Var</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> (),
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">from_op_str</span>(<span class="ident">op_str</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>, <span class="ident">children</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">String</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">from_op_str</span>(<span class="ident">op_str</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>, <span class="ident">children</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">String</span><span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="ident">op_str</span>.<span class="ident">starts_with</span>(<span class="string">&#39;?&#39;</span>) <span class="op">&amp;&amp;</span> <span class="ident">op_str</span>.<span class="ident">len</span>() <span class="op">&gt;</span> <span class="number">1</span> {
             <span class="kw">if</span> <span class="ident">children</span>.<span class="ident">is_empty</span>() {
                 <span class="ident">op_str</span>
@@ -503,44 +485,44 @@
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">display_op</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="kw-2">&amp;</span><span class="kw">dyn</span> <span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Display</span> {
+    <span class="kw">fn</span> <span class="ident">display_op</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">dyn</span> <span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Display</span> {
         <span class="kw">match</span> <span class="self">self</span> {
-            <span class="ident">ENodeOrVar</span>::<span class="ident">ENode</span>(<span class="ident">e</span>) <span class="op">=&gt;</span> <span class="ident">e</span>.<span class="ident">display_op</span>(),
-            <span class="ident">ENodeOrVar</span>::<span class="ident">Var</span>(<span class="ident">v</span>) <span class="op">=&gt;</span> <span class="ident">v</span>,
+            <span class="ident">ENodeOrVar</span>::<span class="ident">ENode</span>(<span class="ident">e</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">e</span>.<span class="ident">display_op</span>(),
+            <span class="ident">ENodeOrVar</span>::<span class="ident">Var</span>(<span class="ident">v</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">v</span>,
         }
     }
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span> <span class="ident">std</span>::<span class="ident">str</span>::<span class="ident">FromStr</span> <span class="kw">for</span> <span class="ident">Pattern</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
     <span class="kw">type</span> <span class="prelude-val">Err</span> <span class="op">=</span> <span class="ident">String</span>;
-    <span class="kw">fn</span> <span class="ident">from_str</span>(<span class="ident">s</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="self">Self</span>::<span class="prelude-val">Err</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">from_str</span>(<span class="ident">s</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="self">Self</span>::<span class="prelude-val">Err</span><span class="op">&gt;</span> {
         <span class="ident">PatternAst</span>::<span class="ident">from_str</span>(<span class="ident">s</span>).<span class="ident">map</span>(<span class="self">Self</span>::<span class="ident">from</span>)
     }
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span> <span class="ident">From</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> [<span class="ident">L</span>]<span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Pattern</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">expr</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> [<span class="ident">L</span>]) <span class="op">-&gt;</span> <span class="self">Self</span> {
+    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">expr</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> [<span class="ident">L</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="kw">let</span> <span class="ident">nodes</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">expr</span>.<span class="ident">iter</span>().<span class="ident">cloned</span>().<span class="ident">map</span>(<span class="ident">ENodeOrVar</span>::<span class="ident">ENode</span>).<span class="ident">collect</span>();
         <span class="kw">let</span> <span class="ident">ast</span> <span class="op">=</span> <span class="ident">RecExpr</span>::<span class="ident">from</span>(<span class="ident">nodes</span>);
         <span class="self">Self</span>::<span class="ident">from</span>(<span class="ident">ast</span>)
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">PatternAst</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;&gt;</span> <span class="kw">for</span> <span class="ident">Pattern</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">ast</span>: <span class="ident">PatternAst</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="self">Self</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">PatternAst</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Pattern</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">ast</span>: <span class="ident">PatternAst</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="kw">let</span> <span class="ident">program</span> <span class="op">=</span> <span class="ident">machine</span>::<span class="ident">Program</span>::<span class="ident">compile_from_pat</span>(<span class="kw-2">&amp;</span><span class="ident">ast</span>);
         <span class="ident">Pattern</span> { <span class="ident">ast</span>, <span class="ident">program</span> }
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span> <span class="ident">TryFrom</span><span class="op">&lt;</span><span class="ident">Pattern</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;&gt;</span> <span class="kw">for</span> <span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span> <span class="ident">TryFrom</span><span class="op">&lt;</span><span class="ident">Pattern</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
     <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Var</span>;
-    <span class="kw">fn</span> <span class="ident">try_from</span>(<span class="ident">pat</span>: <span class="ident">Pattern</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">try_from</span>(<span class="ident">pat</span>: <span class="ident">Pattern</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">nodes</span> <span class="op">=</span> <span class="ident">pat</span>.<span class="ident">ast</span>.<span class="ident">as_ref</span>().<span class="ident">iter</span>().<span class="ident">cloned</span>();
         <span class="kw">let</span> <span class="ident">ns</span>: <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span>, <span class="kw">_</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">nodes</span>
             .<span class="ident">map</span>(<span class="op">|</span><span class="ident">n</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">n</span> {
-                <span class="ident">ENodeOrVar</span>::<span class="ident">ENode</span>(<span class="ident">n</span>) <span class="op">=&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">n</span>),
-                <span class="ident">ENodeOrVar</span>::<span class="ident">Var</span>(<span class="ident">v</span>) <span class="op">=&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">v</span>),
+                <span class="ident">ENodeOrVar</span>::<span class="ident">ENode</span>(<span class="ident">n</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">n</span>),
+                <span class="ident">ENodeOrVar</span>::<span class="ident">Var</span>(<span class="ident">v</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">v</span>),
             })
             .<span class="ident">collect</span>();
         <span class="ident">ns</span>.<span class="ident">map</span>(<span class="ident">RecExpr</span>::<span class="ident">from</span>)
@@ -548,7 +530,7 @@
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="ident">Display</span> <span class="kw">for</span> <span class="ident">Pattern</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt</span>::<span class="ident">Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt</span>::<span class="ident">Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
         <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="self">self</span>.<span class="ident">ast</span>)
     }
 }
@@ -560,8 +542,6 @@
 <span class="doccomment">/// tells you how many eclasses something was matched in, _not_ how</span>
 <span class="doccomment">/// many matches were found total.</span>
 <span class="doccomment">///</span>
-<span class="doccomment">/// [`SearchMatches`]: struct.SearchMatches.html</span>
-<span class="doccomment">/// [`Searcher`]: trait.Searcher.html</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">SearchMatches</span> {
     <span class="doccomment">/// The eclass id that these matches were found in.</span>
@@ -570,28 +550,28 @@
     <span class="kw">pub</span> <span class="ident">substs</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Subst</span><span class="op">&gt;</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span>, <span class="ident">A</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;&gt;</span> <span class="ident">Searcher</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">A</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Pattern</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">search</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">A</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">SearchMatches</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span>, <span class="ident">A</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">Searcher</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">A</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Pattern</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">search</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">A</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">SearchMatches</span><span class="op">&gt;</span> {
         <span class="kw">match</span> <span class="self">self</span>.<span class="ident">ast</span>.<span class="ident">as_ref</span>().<span class="ident">last</span>().<span class="ident">unwrap</span>() {
-            <span class="ident">ENodeOrVar</span>::<span class="ident">ENode</span>(<span class="ident">e</span>) <span class="op">=&gt;</span> {
+            <span class="ident">ENodeOrVar</span>::<span class="ident">ENode</span>(<span class="ident">e</span>) <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy</span>::<span class="ident">mem_discriminant_non_enum</span>)]</span>
                 <span class="kw">let</span> <span class="ident">key</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">discriminant</span>(<span class="ident">e</span>);
                 <span class="kw">match</span> <span class="ident">egraph</span>.<span class="ident">classes_by_op</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">key</span>) {
-                    <span class="prelude-val">None</span> <span class="op">=&gt;</span> <span class="macro">vec</span><span class="macro">!</span>[],
-                    <span class="prelude-val">Some</span>(<span class="ident">ids</span>) <span class="op">=&gt;</span> <span class="ident">ids</span>
+                    <span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">vec</span><span class="macro">!</span>[],
+                    <span class="prelude-val">Some</span>(<span class="ident">ids</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">ids</span>
                         .<span class="ident">iter</span>()
                         .<span class="ident">filter_map</span>(<span class="op">|</span><span class="kw-2">&amp;</span><span class="ident">id</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">search_eclass</span>(<span class="ident">egraph</span>, <span class="ident">id</span>))
                         .<span class="ident">collect</span>(),
                 }
             }
-            <span class="ident">ENodeOrVar</span>::<span class="ident">Var</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="ident">egraph</span>
+            <span class="ident">ENodeOrVar</span>::<span class="ident">Var</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">egraph</span>
                 .<span class="ident">classes</span>()
                 .<span class="ident">filter_map</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">search_eclass</span>(<span class="ident">egraph</span>, <span class="ident">e</span>.<span class="ident">id</span>))
                 .<span class="ident">collect</span>(),
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">search_eclass</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">A</span><span class="op">&gt;</span>, <span class="ident">eclass</span>: <span class="ident">Id</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">SearchMatches</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">search_eclass</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">A</span><span class="op">&gt;</span>, <span class="ident">eclass</span>: <span class="ident">Id</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">SearchMatches</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">substs</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">program</span>.<span class="ident">run</span>(<span class="ident">egraph</span>, <span class="ident">eclass</span>);
         <span class="kw">if</span> <span class="ident">substs</span>.<span class="ident">is_empty</span>() {
             <span class="prelude-val">None</span>
@@ -600,7 +580,7 @@
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">vars</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Var</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">vars</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Var</span><span class="op">&gt;</span> {
         <span class="ident">Pattern</span>::<span class="ident">vars</span>(<span class="self">self</span>)
     }
 }
@@ -610,18 +590,18 @@
     <span class="ident">L</span>: <span class="ident">Language</span>,
     <span class="ident">A</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
 {
-    <span class="kw">fn</span> <span class="ident">apply_one</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">A</span><span class="op">&gt;</span>, <span class="kw">_</span>: <span class="ident">Id</span>, <span class="ident">subst</span>: <span class="kw-2">&amp;</span><span class="ident">Subst</span>) <span class="op">-&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">apply_one</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">A</span><span class="op">&gt;</span>, <span class="kw">_</span>: <span class="ident">Id</span>, <span class="ident">subst</span>: <span class="kw-2">&amp;</span><span class="ident">Subst</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">ast</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">ast</span>.<span class="ident">as_ref</span>();
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">id_buf</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[<span class="number">0</span>.<span class="ident">into</span>(); <span class="ident">ast</span>.<span class="ident">len</span>()];
         <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="ident">apply_pat</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">id_buf</span>, <span class="ident">ast</span>, <span class="ident">egraph</span>, <span class="ident">subst</span>);
         <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">id</span>]
     }
 
-    <span class="kw">fn</span> <span class="ident">vars</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Var</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">vars</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Var</span><span class="op">&gt;</span> {
         <span class="ident">Pattern</span>::<span class="ident">vars</span>(<span class="self">self</span>)
     }
 
-    <span class="kw">fn</span> <span class="ident">apply_matches</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">A</span><span class="op">&gt;</span>, <span class="ident">matches</span>: <span class="kw-2">&amp;</span>[<span class="ident">SearchMatches</span>]) <span class="op">-&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">apply_matches</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">A</span><span class="op">&gt;</span>, <span class="ident">matches</span>: <span class="kw-2">&amp;</span>[<span class="ident">SearchMatches</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">added</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[];
         <span class="kw">let</span> <span class="ident">ast</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">ast</span>.<span class="ident">as_ref</span>();
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">id_buf</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[<span class="number">0</span>.<span class="ident">into</span>(); <span class="ident">ast</span>.<span class="ident">len</span>()];
@@ -638,19 +618,19 @@
     }
 }
 
-<span class="kw">fn</span> <span class="ident">apply_pat</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span>, <span class="ident">A</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;&gt;</span>(
+<span class="kw">fn</span> <span class="ident">apply_pat</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span>, <span class="ident">A</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span>(
     <span class="ident">ids</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">Id</span>],
     <span class="ident">pat</span>: <span class="kw-2">&amp;</span>[<span class="ident">ENodeOrVar</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>],
     <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">A</span><span class="op">&gt;</span>,
     <span class="ident">subst</span>: <span class="kw-2">&amp;</span><span class="ident">Subst</span>,
-) <span class="op">-&gt;</span> <span class="ident">Id</span> {
+) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Id</span> {
     <span class="macro">debug_assert_eq</span><span class="macro">!</span>(<span class="ident">pat</span>.<span class="ident">len</span>(), <span class="ident">ids</span>.<span class="ident">len</span>());
     <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;apply_rec {:2?} {:?}&quot;</span>, <span class="ident">pat</span>, <span class="ident">subst</span>);
 
     <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">pat_node</span>) <span class="kw">in</span> <span class="ident">pat</span>.<span class="ident">iter</span>().<span class="ident">enumerate</span>() {
         <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">pat_node</span> {
-            <span class="ident">ENodeOrVar</span>::<span class="ident">Var</span>(<span class="ident">w</span>) <span class="op">=&gt;</span> <span class="ident">subst</span>[<span class="kw-2">*</span><span class="ident">w</span>],
-            <span class="ident">ENodeOrVar</span>::<span class="ident">ENode</span>(<span class="ident">e</span>) <span class="op">=&gt;</span> {
+            <span class="ident">ENodeOrVar</span>::<span class="ident">Var</span>(<span class="ident">w</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">subst</span>[<span class="kw-2">*</span><span class="ident">w</span>],
+            <span class="ident">ENodeOrVar</span>::<span class="ident">ENode</span>(<span class="ident">e</span>) <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="kw">let</span> <span class="ident">n</span> <span class="op">=</span> <span class="ident">e</span>.<span class="ident">clone</span>().<span class="ident">map_children</span>(<span class="op">|</span><span class="ident">child</span><span class="op">|</span> <span class="ident">ids</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">child</span>)]);
                 <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;adding: {:?}&quot;</span>, <span class="ident">n</span>);
                 <span class="ident">egraph</span>.<span class="ident">add</span>(<span class="ident">n</span>)
@@ -687,7 +667,7 @@
 
         <span class="kw">let</span> <span class="ident">commute_plus</span> <span class="op">=</span> <span class="macro">rewrite</span><span class="macro">!</span>(
             <span class="string">&quot;commute_plus&quot;</span>;
-            <span class="string">&quot;(+ ?a ?b)&quot;</span> <span class="op">=&gt;</span> <span class="string">&quot;(+ ?b ?a)&quot;</span>
+            <span class="string">&quot;(+ ?a ?b)&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="string">&quot;(+ ?b ?a)&quot;</span>
         );
 
         <span class="kw">let</span> <span class="ident">matches</span> <span class="op">=</span> <span class="ident">commute_plus</span>.<span class="ident">search</span>(<span class="kw-2">&amp;</span><span class="ident">egraph</span>);

@@ -1,4 +1,6 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `src/tutorials/_02_getting_started.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>_02_getting_started.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../../ayu.css" disabled ><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../../egg/index.html'><div class='logo-container rust-logo'><img src='../../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><span class="help-button">?</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `src/tutorials/_02_getting_started.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>_02_getting_started.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../../ayu.css" disabled ><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="icon" type="image/svg+xml" href="../../../favicon.svg">
+<link rel="alternate icon" type="image/png" href="../../../favicon-16x16.png">
+<link rel="alternate icon" type="image/png" href="../../../favicon-32x32.png"><style type="text/css">#crate-search{background-image:url("../../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../../egg/index.html'><div class='logo-container rust-logo'><img src='../../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><span class="help-button">?</span>
                 <a id="settings-menu" href="../../../settings.html"><img src="../../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
 <span id="2">  2</span>
 <span id="3">  3</span>
@@ -197,7 +199,7 @@
 This tutorial is aimed at getting you up and running with `egg`,
   even if you have little Rust experience.
 If you haven&#39;t heard about e-graphs, you may want to read the
-[background tutorial](../_01_background/index.html).
+[background tutorial](super::_01_background).
 If you do have prior Rust experience, you may want to skim around in this section.
 
 ## Getting started with Rust
@@ -362,20 +364,20 @@ assert_eq!(best_expr, &quot;a&quot;.parse().unwrap());
 assert_eq!(best_cost, 1);
 ```
 
-[`EGraph`]: ../../struct.EGraph.html
-[`Id`]: ../../struct.Id.html
-[`Language`]: ../../trait.Language.html
-[`Searcher`]: ../../trait.Searcher.html
-[`Pattern`]: ../../struct.Pattern.html
-[`RecExpr`]: ../../struct.RecExpr.html
-[`SymbolLang`]: ../../struct.SymbolLang.html
-[`define_language!`]: ../../macro.define_language.html
-[`rewrite!`]: ../../macro.rewrite.html
-[`FromStr`]: https://doc.rust-lang.org/std/str/trait.FromStr.html
-[`Display`]: https://doc.rust-lang.org/stable/std/fmt/trait.Display.html
-[`Rewrite`]: ../../struct.Rewrite.html
-[`Runner`]: ../../struct.Runner.html
-[`Extractor`]: ../../struct.Extractor.html
+[`EGraph`]: super::super::EGraph
+[`Id`]: super::super::Id
+[`Language`]: super::super::Language
+[`Searcher`]: super::super::Searcher
+[`Pattern`]: super::super::Pattern
+[`RecExpr`]: super::super::RecExpr
+[`SymbolLang`]: super::super::SymbolLang
+[`define_language!`]: super::super::define_language!
+[`rewrite!`]: super::super::rewrite!
+[`FromStr`]: std::str::FromStr
+[`Display`]: std::fmt::Display
+[`Rewrite`]: super::super::Rewrite
+[`Runner`]: super::super::Runner
+[`Extractor`]: super::super::Extractor
 
 */</span>
 </pre></div>

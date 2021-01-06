@@ -1,4 +1,6 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `src/machine.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>machine.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled ><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../egg/index.html'><div class='logo-container rust-logo'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><span class="help-button">?</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `src/machine.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>machine.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled ><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="icon" type="image/svg+xml" href="../../favicon.svg">
+<link rel="alternate icon" type="image/png" href="../../favicon-16x16.png">
+<link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../egg/index.html'><div class='logo-container rust-logo'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><span class="help-button">?</span>
                 <a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
 <span id="2">  2</span>
 <span id="3">  3</span>
@@ -238,7 +240,11 @@
 <span id="237">237</span>
 <span id="238">238</span>
 <span id="239">239</span>
+<span id="240">240</span>
+<span id="241">241</span>
+<span id="242">242</span>
 </pre><div class="example-wrap"><pre class="rust ">
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">util</span>::<span class="ident">HashSet</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">Analysis</span>, <span class="ident">EClass</span>, <span class="ident">EGraph</span>, <span class="ident">ENodeOrVar</span>, <span class="ident">Id</span>, <span class="ident">Language</span>, <span class="ident">PatternAst</span>, <span class="ident">Subst</span>, <span class="ident">Var</span>};
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">cmp</span>::<span class="ident">Ordering</span>;
 
@@ -247,7 +253,7 @@
 }
 
 <span class="kw">impl</span> <span class="ident">Default</span> <span class="kw">for</span> <span class="ident">Machine</span> {
-    <span class="kw">fn</span> <span class="ident">default</span>() <span class="op">-&gt;</span> <span class="self">Self</span> {
+    <span class="kw">fn</span> <span class="ident">default</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="self">Self</span> { <span class="ident">reg</span>: <span class="macro">vec</span><span class="macro">!</span>[] }
     }
 }
@@ -257,7 +263,7 @@
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Program</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
-    <span class="ident">instructions</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Instruction</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;&gt;</span>,
+    <span class="ident">instructions</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Instruction</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">subst</span>: <span class="ident">Subst</span>,
 }
 
@@ -276,20 +282,20 @@
     <span class="kw">if</span> <span class="ident">eclass</span>.<span class="ident">nodes</span>.<span class="ident">len</span>() <span class="op">&lt;</span> <span class="number">50</span> {
         <span class="ident">eclass</span>.<span class="ident">nodes</span>.<span class="ident">iter</span>().<span class="ident">filter</span>(<span class="op">|</span><span class="ident">n</span><span class="op">|</span> <span class="ident">node</span>.<span class="ident">matches</span>(<span class="ident">n</span>)).<span class="ident">for_each</span>(<span class="ident">f</span>)
     } <span class="kw">else</span> {
-        <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="ident">node</span>.<span class="ident">children</span>().<span class="ident">iter</span>().<span class="ident">all</span>(<span class="op">|</span><span class="kw-2">&amp;</span><span class="ident">id</span><span class="op">|</span> <span class="ident">id</span> <span class="op">==</span> <span class="ident">Id</span>::<span class="ident">from</span>(<span class="number">0</span>)));
+        <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="ident">node</span>.<span class="ident">all</span>(<span class="op">|</span><span class="ident">id</span><span class="op">|</span> <span class="ident">id</span> <span class="op">=</span><span class="op">=</span> <span class="ident">Id</span>::<span class="ident">from</span>(<span class="number">0</span>)));
         <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="ident">eclass</span>.<span class="ident">nodes</span>.<span class="ident">windows</span>(<span class="number">2</span>).<span class="ident">all</span>(<span class="op">|</span><span class="ident">w</span><span class="op">|</span> <span class="ident">w</span>[<span class="number">0</span>] <span class="op">&lt;</span> <span class="ident">w</span>[<span class="number">1</span>]));
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">start</span> <span class="op">=</span> <span class="ident">eclass</span>.<span class="ident">nodes</span>.<span class="ident">binary_search</span>(<span class="ident">node</span>).<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="ident">i</span>);
         <span class="kw">let</span> <span class="ident">discrim</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">discriminant</span>(<span class="ident">node</span>);
         <span class="kw">while</span> <span class="ident">start</span> <span class="op">&gt;</span> <span class="number">0</span> {
-            <span class="kw">if</span> <span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">discriminant</span>(<span class="kw-2">&amp;</span><span class="ident">eclass</span>.<span class="ident">nodes</span>[<span class="ident">start</span> <span class="op">-</span> <span class="number">1</span>]) <span class="op">==</span> <span class="ident">discrim</span> {
-                <span class="ident">start</span> <span class="op">-=</span> <span class="number">1</span>;
+            <span class="kw">if</span> <span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">discriminant</span>(<span class="kw-2">&amp;</span><span class="ident">eclass</span>.<span class="ident">nodes</span>[<span class="ident">start</span> <span class="op">-</span> <span class="number">1</span>]) <span class="op">=</span><span class="op">=</span> <span class="ident">discrim</span> {
+                <span class="ident">start</span> <span class="op">-</span><span class="op">=</span> <span class="number">1</span>;
             } <span class="kw">else</span> {
                 <span class="kw">break</span>;
             }
         }
         <span class="kw">let</span> <span class="ident">matching</span> <span class="op">=</span> <span class="ident">eclass</span>.<span class="ident">nodes</span>[<span class="ident">start</span>..]
             .<span class="ident">iter</span>()
-            .<span class="ident">take_while</span>(<span class="op">|</span><span class="kw-2">&amp;</span><span class="ident">n</span><span class="op">|</span> <span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">discriminant</span>(<span class="ident">n</span>) <span class="op">==</span> <span class="ident">discrim</span>)
+            .<span class="ident">take_while</span>(<span class="op">|</span><span class="kw-2">&amp;</span><span class="ident">n</span><span class="op">|</span> <span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">discriminant</span>(<span class="ident">n</span>) <span class="op">=</span><span class="op">=</span> <span class="ident">discrim</span>)
             .<span class="ident">filter</span>(<span class="op">|</span><span class="ident">n</span><span class="op">|</span> <span class="ident">node</span>.<span class="ident">matches</span>(<span class="ident">n</span>));
         <span class="macro">debug_assert_eq</span><span class="macro">!</span>(
             <span class="ident">matching</span>.<span class="ident">clone</span>().<span class="ident">count</span>(),
@@ -297,12 +303,12 @@
             <span class="string">&quot;matching node {:?}\nstart={}\n{:?} != {:?}\nnodes: {:?}&quot;</span>,
             <span class="ident">node</span>,
             <span class="ident">start</span>,
-            <span class="ident">matching</span>.<span class="ident">clone</span>().<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">indexmap</span>::<span class="ident">IndexSet</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;&gt;</span>(),
+            <span class="ident">matching</span>.<span class="ident">clone</span>().<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">HashSet</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>(),
             <span class="ident">eclass</span>
                 .<span class="ident">nodes</span>
                 .<span class="ident">iter</span>()
                 .<span class="ident">filter</span>(<span class="op">|</span><span class="ident">n</span><span class="op">|</span> <span class="ident">node</span>.<span class="ident">matches</span>(<span class="ident">n</span>))
-                .<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">indexmap</span>::<span class="ident">IndexSet</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;&gt;</span>(),
+                .<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">HashSet</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>(),
             <span class="ident">eclass</span>.<span class="ident">nodes</span>
         );
         <span class="ident">matching</span>.<span class="ident">for_each</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">f</span>);
@@ -311,7 +317,7 @@
 
 <span class="kw">impl</span> <span class="ident">Machine</span> {
     <span class="attribute">#[<span class="ident">inline</span>(<span class="ident">always</span>)]</span>
-    <span class="kw">fn</span> <span class="ident">reg</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">reg</span>: <span class="ident">Reg</span>) <span class="op">-&gt;</span> <span class="ident">Id</span> {
+    <span class="kw">fn</span> <span class="ident">reg</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">reg</span>: <span class="ident">Reg</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Id</span> {
         <span class="self">self</span>.<span class="ident">reg</span>[<span class="ident">reg</span>.<span class="number">0</span> <span class="kw">as</span> <span class="ident">usize</span>]
     }
 
@@ -328,16 +334,16 @@
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">instructions</span> <span class="op">=</span> <span class="ident">instructions</span>.<span class="ident">iter</span>();
         <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">instruction</span>) <span class="op">=</span> <span class="ident">instructions</span>.<span class="ident">next</span>() {
             <span class="kw">match</span> <span class="ident">instruction</span> {
-                <span class="ident">Instruction</span>::<span class="ident">Bind</span> { <span class="ident">i</span>, <span class="ident">out</span>, <span class="ident">node</span> } <span class="op">=&gt;</span> {
+                <span class="ident">Instruction</span>::<span class="ident">Bind</span> { <span class="ident">i</span>, <span class="ident">out</span>, <span class="ident">node</span> } <span class="op">=</span><span class="op">&gt;</span> {
                     <span class="kw">let</span> <span class="ident">remaining_instructions</span> <span class="op">=</span> <span class="ident">instructions</span>.<span class="ident">as_slice</span>();
                     <span class="kw">return</span> <span class="ident">for_each_matching_node</span>(<span class="kw-2">&amp;</span><span class="ident">egraph</span>[<span class="self">self</span>.<span class="ident">reg</span>(<span class="kw-2">*</span><span class="ident">i</span>)], <span class="ident">node</span>, <span class="op">|</span><span class="ident">matched</span><span class="op">|</span> {
                         <span class="self">self</span>.<span class="ident">reg</span>.<span class="ident">truncate</span>(<span class="ident">out</span>.<span class="number">0</span> <span class="kw">as</span> <span class="ident">usize</span>);
-                        <span class="self">self</span>.<span class="ident">reg</span>.<span class="ident">extend_from_slice</span>(<span class="ident">matched</span>.<span class="ident">children</span>());
+                        <span class="ident">matched</span>.<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">id</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">reg</span>.<span class="ident">push</span>(<span class="ident">id</span>));
                         <span class="self">self</span>.<span class="ident">run</span>(<span class="ident">egraph</span>, <span class="ident">remaining_instructions</span>, <span class="ident">subst</span>, <span class="ident">yield_fn</span>)
                     });
                 }
-                <span class="ident">Instruction</span>::<span class="ident">Compare</span> { <span class="ident">i</span>, <span class="ident">j</span> } <span class="op">=&gt;</span> {
-                    <span class="kw">if</span> <span class="ident">egraph</span>.<span class="ident">find</span>(<span class="self">self</span>.<span class="ident">reg</span>(<span class="kw-2">*</span><span class="ident">i</span>)) <span class="op">!=</span> <span class="ident">egraph</span>.<span class="ident">find</span>(<span class="self">self</span>.<span class="ident">reg</span>(<span class="kw-2">*</span><span class="ident">j</span>)) {
+                <span class="ident">Instruction</span>::<span class="ident">Compare</span> { <span class="ident">i</span>, <span class="ident">j</span> } <span class="op">=</span><span class="op">&gt;</span> {
+                    <span class="kw">if</span> <span class="ident">egraph</span>.<span class="ident">find</span>(<span class="self">self</span>.<span class="ident">reg</span>(<span class="kw-2">*</span><span class="ident">i</span>)) <span class="op">!</span><span class="op">=</span> <span class="ident">egraph</span>.<span class="ident">find</span>(<span class="self">self</span>.<span class="ident">reg</span>(<span class="kw-2">*</span><span class="ident">j</span>)) {
                         <span class="kw">return</span>;
                     }
                 }
@@ -348,8 +354,8 @@
     }
 }
 
-<span class="kw">type</span> <span class="ident">VarToReg</span> <span class="op">=</span> <span class="ident">indexmap</span>::<span class="ident">IndexMap</span><span class="op">&lt;</span><span class="ident">Var</span>, <span class="ident">Reg</span><span class="op">&gt;</span>;
-<span class="kw">type</span> <span class="ident">TodoList</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">BinaryHeap</span><span class="op">&lt;</span><span class="ident">Todo</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;&gt;</span>;
+<span class="kw">type</span> <span class="ident">VarToReg</span> <span class="op">=</span> <span class="kw">crate</span>::<span class="ident">util</span>::<span class="ident">IndexMap</span><span class="op">&lt;</span><span class="ident">Var</span>, <span class="ident">Reg</span><span class="op">&gt;</span>;
+<span class="kw">type</span> <span class="ident">TodoList</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">BinaryHeap</span><span class="op">&lt;</span><span class="ident">Todo</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span>;
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">PartialEq</span>, <span class="ident">Eq</span>)]</span>
 <span class="kw">struct</span> <span class="ident">Todo</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
@@ -358,22 +364,22 @@
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span> <span class="ident">PartialOrd</span> <span class="kw">for</span> <span class="ident">Todo</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">partial_cmp</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Ordering</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">partial_cmp</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Ordering</span><span class="op">&gt;</span> {
         <span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">cmp</span>(<span class="ident">other</span>))
     }
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span> <span class="ident">Ord</span> <span class="kw">for</span> <span class="ident">Todo</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
     <span class="comment">// TodoList is a max-heap, so we greater is higher priority</span>
-    <span class="kw">fn</span> <span class="ident">cmp</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) <span class="op">-&gt;</span> <span class="ident">Ordering</span> {
+    <span class="kw">fn</span> <span class="ident">cmp</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Ordering</span> {
         <span class="kw">use</span> <span class="ident">ENodeOrVar</span>::<span class="kw-2">*</span>;
         <span class="kw">match</span> (<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">pat</span>, <span class="kw-2">&amp;</span><span class="ident">other</span>.<span class="ident">pat</span>) {
             <span class="comment">// fewer children means higher priority</span>
-            (<span class="ident">ENode</span>(<span class="ident">e1</span>), <span class="ident">ENode</span>(<span class="ident">e2</span>)) <span class="op">=&gt;</span> <span class="ident">e2</span>.<span class="ident">len</span>().<span class="ident">cmp</span>(<span class="kw-2">&amp;</span><span class="ident">e1</span>.<span class="ident">len</span>()),
+            (<span class="ident">ENode</span>(<span class="ident">e1</span>), <span class="ident">ENode</span>(<span class="ident">e2</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">e2</span>.<span class="ident">len</span>().<span class="ident">cmp</span>(<span class="kw-2">&amp;</span><span class="ident">e1</span>.<span class="ident">len</span>()),
             <span class="comment">// Var is higher prio than enode</span>
-            (<span class="ident">ENode</span>(<span class="kw">_</span>), <span class="ident">Var</span>(<span class="kw">_</span>)) <span class="op">=&gt;</span> <span class="ident">Ordering</span>::<span class="ident">Less</span>,
-            (<span class="ident">Var</span>(<span class="kw">_</span>), <span class="ident">ENode</span>(<span class="kw">_</span>)) <span class="op">=&gt;</span> <span class="ident">Ordering</span>::<span class="ident">Greater</span>,
-            (<span class="ident">Var</span>(<span class="kw">_</span>), <span class="ident">Var</span>(<span class="kw">_</span>)) <span class="op">=&gt;</span> <span class="ident">Ordering</span>::<span class="ident">Equal</span>,
+            (<span class="ident">ENode</span>(<span class="kw">_</span>), <span class="ident">Var</span>(<span class="kw">_</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Ordering</span>::<span class="ident">Less</span>,
+            (<span class="ident">Var</span>(<span class="kw">_</span>), <span class="ident">ENode</span>(<span class="kw">_</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Ordering</span>::<span class="ident">Greater</span>,
+            (<span class="ident">Var</span>(<span class="kw">_</span>), <span class="ident">Var</span>(<span class="kw">_</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Ordering</span>::<span class="ident">Equal</span>,
         }
     }
 }
@@ -386,7 +392,7 @@
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span> <span class="ident">Compiler</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">L</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">compile</span>(<span class="ident">pattern</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> [<span class="ident">ENodeOrVar</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>]) <span class="op">-&gt;</span> <span class="ident">Program</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">compile</span>(<span class="ident">pattern</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> [<span class="ident">ENodeOrVar</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Program</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">last</span> <span class="op">=</span> <span class="ident">pattern</span>.<span class="ident">last</span>().<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">compiler</span> <span class="op">=</span> <span class="self">Self</span> {
             <span class="ident">pattern</span>,
@@ -401,28 +407,30 @@
         <span class="ident">compiler</span>.<span class="ident">go</span>()
     }
 
-    <span class="kw">fn</span> <span class="ident">go</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">Program</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">go</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Program</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">instructions</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[];
         <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">Todo</span> { <span class="ident">reg</span>: <span class="ident">i</span>, <span class="ident">pat</span> }) <span class="op">=</span> <span class="self">self</span>.<span class="ident">todo</span>.<span class="ident">pop</span>() {
             <span class="kw">match</span> <span class="ident">pat</span> {
-                <span class="ident">ENodeOrVar</span>::<span class="ident">Var</span>(<span class="ident">v</span>) <span class="op">=&gt;</span> {
+                <span class="ident">ENodeOrVar</span>::<span class="ident">Var</span>(<span class="ident">v</span>) <span class="op">=</span><span class="op">&gt;</span> {
                     <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="ident">j</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">v2r</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">v</span>) {
                         <span class="ident">instructions</span>.<span class="ident">push</span>(<span class="ident">Instruction</span>::<span class="ident">Compare</span> { <span class="ident">i</span>, <span class="ident">j</span> })
                     } <span class="kw">else</span> {
                         <span class="self">self</span>.<span class="ident">v2r</span>.<span class="ident">insert</span>(<span class="ident">v</span>, <span class="ident">i</span>);
                     }
                 }
-                <span class="ident">ENodeOrVar</span>::<span class="ident">ENode</span>(<span class="ident">node</span>) <span class="op">=&gt;</span> {
+                <span class="ident">ENodeOrVar</span>::<span class="ident">ENode</span>(<span class="ident">node</span>) <span class="op">=</span><span class="op">&gt;</span> {
                     <span class="kw">let</span> <span class="ident">out</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">out</span>;
-                    <span class="self">self</span>.<span class="ident">out</span>.<span class="number">0</span> <span class="op">+=</span> <span class="ident">node</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u32</span>;
+                    <span class="self">self</span>.<span class="ident">out</span>.<span class="number">0</span> <span class="op">+</span><span class="op">=</span> <span class="ident">node</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u32</span>;
 
-                    <span class="kw">for</span> (<span class="ident">id</span>, <span class="kw-2">&amp;</span><span class="ident">child</span>) <span class="kw">in</span> <span class="ident">node</span>.<span class="ident">children</span>().<span class="ident">iter</span>().<span class="ident">enumerate</span>() {
+                    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">id</span> <span class="op">=</span> <span class="number">0</span>;
+                    <span class="ident">node</span>.<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">child</span><span class="op">|</span> {
                         <span class="kw">let</span> <span class="ident">r</span> <span class="op">=</span> <span class="ident">Reg</span>(<span class="ident">out</span>.<span class="number">0</span> <span class="op">+</span> <span class="ident">id</span> <span class="kw">as</span> <span class="ident">u32</span>);
                         <span class="self">self</span>.<span class="ident">todo</span>.<span class="ident">push</span>(<span class="ident">Todo</span> {
                             <span class="ident">reg</span>: <span class="ident">r</span>,
                             <span class="ident">pat</span>: <span class="self">self</span>.<span class="ident">pattern</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">child</span>)].<span class="ident">clone</span>(),
                         });
-                    }
+                        <span class="ident">id</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
+                    });
 
                     <span class="comment">// zero out the children so Bind can use it to sort</span>
                     <span class="kw">let</span> <span class="ident">node</span> <span class="op">=</span> <span class="ident">node</span>.<span class="ident">map_children</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">Id</span>::<span class="ident">from</span>(<span class="number">0</span>));
@@ -443,13 +451,13 @@
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span> <span class="ident">Program</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">compile_from_pat</span>(<span class="ident">pattern</span>: <span class="kw-2">&amp;</span><span class="ident">PatternAst</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="self">Self</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">compile_from_pat</span>(<span class="ident">pattern</span>: <span class="kw-2">&amp;</span><span class="ident">PatternAst</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="kw">let</span> <span class="ident">program</span> <span class="op">=</span> <span class="ident">Compiler</span>::<span class="ident">compile</span>(<span class="ident">pattern</span>.<span class="ident">as_ref</span>());
         <span class="ident">log</span>::<span class="macro">debug</span><span class="macro">!</span>(<span class="string">&quot;Compiled {:?} to {:?}&quot;</span>, <span class="ident">pattern</span>.<span class="ident">as_ref</span>(), <span class="ident">program</span>);
         <span class="ident">program</span>
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">run</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">A</span><span class="op">&gt;</span>, <span class="ident">eclass</span>: <span class="ident">Id</span>) <span class="op">-&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Subst</span><span class="op">&gt;</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">run</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">A</span><span class="op">&gt;</span>, <span class="ident">eclass</span>: <span class="ident">Id</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Subst</span><span class="op">&gt;</span>
     <span class="kw">where</span>
         <span class="ident">A</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
     {

@@ -1,4 +1,6 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `src/language.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>language.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled ><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../egg/index.html'><div class='logo-container rust-logo'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><span class="help-button">?</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `src/language.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>language.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled ><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="icon" type="image/svg+xml" href="../../favicon.svg">
+<link rel="alternate icon" type="image/png" href="../../favicon-16x16.png">
+<link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../egg/index.html'><div class='logo-container rust-logo'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><span class="help-button">?</span>
                 <a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
 <span id="2">  2</span>
 <span id="3">  3</span>
@@ -593,15 +595,13 @@
 <span id="592">592</span>
 <span id="593">593</span>
 <span id="594">594</span>
-<span id="595">595</span>
-<span id="596">596</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">convert</span>::<span class="ident">TryFrom</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fmt</span>::{<span class="self">self</span>, <span class="ident">Debug</span>, <span class="ident">Display</span>};
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">hash</span>::<span class="ident">Hash</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">ops</span>::{<span class="ident">Index</span>, <span class="ident">IndexMut</span>};
 
-<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">EGraph</span>, <span class="ident">Id</span>, <span class="ident">Symbol</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="kw-2">*</span>;
 
 <span class="kw">use</span> <span class="ident">symbolic_expressions</span>::<span class="ident">Sexp</span>;
 
@@ -611,47 +611,44 @@
 <span class="doccomment">/// a [`Language`].</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// Note that the default implementations of</span>
-<span class="doccomment">/// [`from_op_str`](trait.Language.html#method.from_op_str) and</span>
-<span class="doccomment">/// [`display_op`](trait.Language.html#method.display_op) panic. You</span>
+<span class="doccomment">/// [`from_op_str`](Language::from_op_str()) and</span>
+<span class="doccomment">/// [`display_op`](Language::display_op()) panic. You</span>
 <span class="doccomment">/// should override them if you want to parse or pretty-print expressions.</span>
 <span class="doccomment">/// [`define_language!`] implements these for you.</span>
 <span class="doccomment">///</span>
-<span class="doccomment">/// See [`SymbolLang`](struct.SymbolLang.html) for quick-and-dirty use cases.</span>
+<span class="doccomment">/// See [`SymbolLang`] for quick-and-dirty use cases.</span>
 <span class="doccomment">///</span>
-<span class="doccomment">/// [`define_language!`]: macro.define_language.html</span>
-<span class="doccomment">/// [`Language`]: trait.Language.html</span>
-<span class="doccomment">/// [`EGraph`]: struct.EGraph.html</span>
-<span class="doccomment">/// [`FromStr`]: https://doc.rust-lang.org/std/str/trait.FromStr.html</span>
-<span class="doccomment">/// [`Display`]: https://doc.rust-lang.org/std/fmt/trait.Display.html</span>
+<span class="doccomment">/// [`FromStr`]: std::str::FromStr</span>
+<span class="doccomment">/// [`Display`]: std::fmt::Display</span>
 <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy</span>::<span class="ident">len_without_is_empty</span>)]</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Language</span>: <span class="ident">Debug</span> <span class="op">+</span> <span class="ident">Clone</span> <span class="op">+</span> <span class="ident">Eq</span> <span class="op">+</span> <span class="ident">Ord</span> <span class="op">+</span> <span class="ident">Hash</span> {
     <span class="doccomment">/// Returns true if this enode matches another enode.</span>
     <span class="doccomment">/// This should only consider the operator, not the children `Id`s.</span>
-    <span class="kw">fn</span> <span class="ident">matches</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) <span class="op">-&gt;</span> <span class="ident">bool</span>;
-
-    <span class="doccomment">/// Return a slice of the children `Id`s.</span>
-    <span class="kw">fn</span> <span class="ident">children</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="kw-2">&amp;</span>[<span class="ident">Id</span>];
-
-    <span class="doccomment">/// Return a mutable slice of the children `Id`s.</span>
-    <span class="kw">fn</span> <span class="ident">children_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">Id</span>];
+    <span class="kw">fn</span> <span class="ident">matches</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span>;
 
     <span class="doccomment">/// Runs a given function on each child `Id`.</span>
-    <span class="kw">fn</span> <span class="ident">for_each</span><span class="op">&lt;</span><span class="ident">F</span>: <span class="ident">FnMut</span>(<span class="ident">Id</span>)<span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="ident">F</span>) {
-        <span class="self">self</span>.<span class="ident">children</span>().<span class="ident">iter</span>().<span class="ident">copied</span>().<span class="ident">for_each</span>(<span class="ident">f</span>)
-    }
+    <span class="kw">fn</span> <span class="ident">for_each</span><span class="op">&lt;</span><span class="ident">F</span>: <span class="ident">FnMut</span>(<span class="ident">Id</span>)<span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="ident">F</span>);
 
     <span class="doccomment">/// Runs a given function on each child `Id`, allowing mutation of that `Id`.</span>
-    <span class="kw">fn</span> <span class="ident">for_each_mut</span><span class="op">&lt;</span><span class="ident">F</span>: <span class="ident">FnMut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Id</span>)<span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">f</span>: <span class="ident">F</span>) {
-        <span class="self">self</span>.<span class="ident">children_mut</span>().<span class="ident">iter_mut</span>().<span class="ident">for_each</span>(<span class="ident">f</span>)
+    <span class="kw">fn</span> <span class="ident">for_each_mut</span><span class="op">&lt;</span><span class="ident">F</span>: <span class="ident">FnMut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Id</span>)<span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">f</span>: <span class="ident">F</span>);
+
+    <span class="doccomment">/// Runs a falliable function on each child, stopping if the function returns</span>
+    <span class="doccomment">/// an error.</span>
+    <span class="kw">fn</span> <span class="ident">try_for_each</span><span class="op">&lt;</span><span class="ident">E</span>, <span class="ident">F</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">f</span>: <span class="ident">F</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">E</span><span class="op">&gt;</span>
+    <span class="kw">where</span>
+        <span class="ident">F</span>: <span class="ident">FnMut</span>(<span class="ident">Id</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">E</span><span class="op">&gt;</span>,
+        <span class="ident">E</span>: <span class="ident">Clone</span>,
+    {
+        <span class="self">self</span>.<span class="ident">fold</span>(<span class="prelude-val">Ok</span>(()), <span class="op">|</span><span class="ident">res</span>, <span class="ident">id</span><span class="op">|</span> <span class="ident">res</span>.<span class="ident">and_then</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">f</span>(<span class="ident">id</span>)))
     }
 
     <span class="doccomment">/// Returns something that will print the operator.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// Default implementation panics, so make sure to implement this if you</span>
     <span class="doccomment">/// want to print `Language` elements.</span>
-    <span class="doccomment">/// The [`define_language!`](macro.define_language.html) macro will</span>
+    <span class="doccomment">/// The [`define_language!`] macro will</span>
     <span class="doccomment">/// implement this for you.</span>
-    <span class="kw">fn</span> <span class="ident">display_op</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="kw-2">&amp;</span><span class="kw">dyn</span> <span class="ident">Display</span> {
+    <span class="kw">fn</span> <span class="ident">display_op</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">dyn</span> <span class="ident">Display</span> {
         <span class="macro">unimplemented</span><span class="macro">!</span>(<span class="string">&quot;display_op not implemented&quot;</span>)
     }
 
@@ -660,10 +657,10 @@
     <span class="doccomment">///</span>
     <span class="doccomment">/// Default implementation panics, so make sure to implement this if you</span>
     <span class="doccomment">/// want to parse `Language` elements.</span>
-    <span class="doccomment">/// The [`define_language!`](macro.define_language.html) macro will</span>
+    <span class="doccomment">/// The [`define_language!`] macro will</span>
     <span class="doccomment">/// implement this for you.</span>
     <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">unused_variables</span>)]</span>
-    <span class="kw">fn</span> <span class="ident">from_op_str</span>(<span class="ident">op_str</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>, <span class="ident">children</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">String</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">from_op_str</span>(<span class="ident">op_str</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>, <span class="ident">children</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">String</span><span class="op">&gt;</span> {
         <span class="macro">unimplemented</span><span class="macro">!</span>(<span class="string">&quot;from_op_str not implemented&quot;</span>)
     }
 
@@ -671,35 +668,47 @@
     <span class="doccomment">///</span>
     <span class="doccomment">/// The default implementation uses `fold` to accumulate the number of</span>
     <span class="doccomment">/// children.</span>
-    <span class="kw">fn</span> <span class="ident">len</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">usize</span> {
-        <span class="self">self</span>.<span class="ident">children</span>().<span class="ident">len</span>()
+    <span class="kw">fn</span> <span class="ident">len</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
+        <span class="self">self</span>.<span class="ident">fold</span>(<span class="number">0</span>, <span class="op">|</span><span class="ident">len</span>, <span class="kw">_</span><span class="op">|</span> <span class="ident">len</span> <span class="op">+</span> <span class="number">1</span>)
     }
 
     <span class="doccomment">/// Returns true if this enode has no children.</span>
-    <span class="kw">fn</span> <span class="ident">is_leaf</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">bool</span> {
-        <span class="self">self</span>.<span class="ident">children</span>().<span class="ident">is_empty</span>()
+    <span class="kw">fn</span> <span class="ident">is_leaf</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+        <span class="self">self</span>.<span class="ident">all</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="bool-val">false</span>)
     }
 
     <span class="doccomment">/// Runs a given function to replace the children.</span>
-    <span class="kw">fn</span> <span class="ident">update_children</span><span class="op">&lt;</span><span class="ident">F</span>: <span class="ident">FnMut</span>(<span class="ident">Id</span>) <span class="op">-&gt;</span> <span class="ident">Id</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">f</span>: <span class="ident">F</span>) {
+    <span class="kw">fn</span> <span class="ident">update_children</span><span class="op">&lt;</span><span class="ident">F</span>: <span class="ident">FnMut</span>(<span class="ident">Id</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Id</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">f</span>: <span class="ident">F</span>) {
         <span class="self">self</span>.<span class="ident">for_each_mut</span>(<span class="op">|</span><span class="ident">id</span><span class="op">|</span> <span class="kw-2">*</span><span class="ident">id</span> <span class="op">=</span> <span class="ident">f</span>(<span class="kw-2">*</span><span class="ident">id</span>))
     }
 
     <span class="doccomment">/// Creates a new enode with children determined by the given function.</span>
-    <span class="kw">fn</span> <span class="ident">map_children</span><span class="op">&lt;</span><span class="ident">F</span>: <span class="ident">FnMut</span>(<span class="ident">Id</span>) <span class="op">-&gt;</span> <span class="ident">Id</span><span class="op">&gt;</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">f</span>: <span class="ident">F</span>) <span class="op">-&gt;</span> <span class="self">Self</span> {
+    <span class="kw">fn</span> <span class="ident">map_children</span><span class="op">&lt;</span><span class="ident">F</span>: <span class="ident">FnMut</span>(<span class="ident">Id</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Id</span><span class="op">&gt;</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">f</span>: <span class="ident">F</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="self">self</span>.<span class="ident">update_children</span>(<span class="ident">f</span>);
         <span class="self">self</span>
     }
 
     <span class="doccomment">/// Folds over the children, given an initial accumulator.</span>
-    <span class="kw">fn</span> <span class="ident">fold</span><span class="op">&lt;</span><span class="ident">F</span>, <span class="ident">T</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">init</span>: <span class="ident">T</span>, <span class="kw-2">mut</span> <span class="ident">f</span>: <span class="ident">F</span>) <span class="op">-&gt;</span> <span class="ident">T</span>
+    <span class="kw">fn</span> <span class="ident">fold</span><span class="op">&lt;</span><span class="ident">F</span>, <span class="ident">T</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">init</span>: <span class="ident">T</span>, <span class="kw-2">mut</span> <span class="ident">f</span>: <span class="ident">F</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">T</span>
     <span class="kw">where</span>
-        <span class="ident">F</span>: <span class="ident">FnMut</span>(<span class="ident">T</span>, <span class="ident">Id</span>) <span class="op">-&gt;</span> <span class="ident">T</span>,
+        <span class="ident">F</span>: <span class="ident">FnMut</span>(<span class="ident">T</span>, <span class="ident">Id</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">T</span>,
         <span class="ident">T</span>: <span class="ident">Clone</span>,
     {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">acc</span> <span class="op">=</span> <span class="ident">init</span>;
         <span class="self">self</span>.<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">id</span><span class="op">|</span> <span class="ident">acc</span> <span class="op">=</span> <span class="ident">f</span>(<span class="ident">acc</span>.<span class="ident">clone</span>(), <span class="ident">id</span>));
         <span class="ident">acc</span>
+    }
+
+    <span class="doccomment">/// Returns true if the predicate is true on all children.</span>
+    <span class="doccomment">/// Does not short circuit.</span>
+    <span class="kw">fn</span> <span class="ident">all</span><span class="op">&lt;</span><span class="ident">F</span>: <span class="ident">FnMut</span>(<span class="ident">Id</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">f</span>: <span class="ident">F</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+        <span class="self">self</span>.<span class="ident">fold</span>(<span class="bool-val">true</span>, <span class="op">|</span><span class="ident">acc</span>, <span class="ident">id</span><span class="op">|</span> <span class="ident">acc</span> <span class="op">&amp;&amp;</span> <span class="ident">f</span>(<span class="ident">id</span>))
+    }
+
+    <span class="doccomment">/// Returns true if the predicate is true on any children.</span>
+    <span class="doccomment">/// Does not short circuit.</span>
+    <span class="kw">fn</span> <span class="ident">any</span><span class="op">&lt;</span><span class="ident">F</span>: <span class="ident">FnMut</span>(<span class="ident">Id</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">f</span>: <span class="ident">F</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+        <span class="self">self</span>.<span class="ident">fold</span>(<span class="bool-val">false</span>, <span class="op">|</span><span class="ident">acc</span>, <span class="ident">id</span><span class="op">|</span> <span class="ident">acc</span> <span class="op">|</span><span class="op">|</span> <span class="ident">f</span>(<span class="ident">id</span>))
     }
 
     <span class="doccomment">/// Make a `RecExpr` converting this enodes children to `RecExpr`s</span>
@@ -714,12 +723,12 @@
     <span class="doccomment">/// let recexpr = enode.to_recexpr(|_id| a_plus_2.as_ref());</span>
     <span class="doccomment">/// assert_eq!(recexpr, &quot;(* (+ a 2) (+ a 2))&quot;.parse().unwrap())</span>
     <span class="doccomment">/// ```</span>
-    <span class="kw">fn</span> <span class="ident">to_recexpr</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">F</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">child_recexpr</span>: <span class="ident">F</span>) <span class="op">-&gt;</span> <span class="ident">RecExpr</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>
+    <span class="kw">fn</span> <span class="ident">to_recexpr</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">F</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">child_recexpr</span>: <span class="ident">F</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">RecExpr</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>
     <span class="kw">where</span>
         <span class="self">Self</span>: <span class="lifetime">&#39;a</span>,
-        <span class="ident">F</span>: <span class="ident">FnMut</span>(<span class="ident">Id</span>) <span class="op">-&gt;</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> [<span class="self">Self</span>],
+        <span class="ident">F</span>: <span class="ident">FnMut</span>(<span class="ident">Id</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> [<span class="self">Self</span>],
     {
-        <span class="kw">fn</span> <span class="ident">build</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span>(<span class="ident">to</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>, <span class="ident">from</span>: <span class="kw-2">&amp;</span>[<span class="ident">L</span>]) <span class="op">-&gt;</span> <span class="ident">Id</span> {
+        <span class="kw">fn</span> <span class="ident">build</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span>(<span class="ident">to</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>, <span class="ident">from</span>: <span class="kw-2">&amp;</span>[<span class="ident">L</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Id</span> {
             <span class="kw">let</span> <span class="ident">last</span> <span class="op">=</span> <span class="ident">from</span>.<span class="ident">last</span>().<span class="ident">unwrap</span>().<span class="ident">clone</span>();
             <span class="kw">let</span> <span class="ident">new_node</span> <span class="op">=</span> <span class="ident">last</span>.<span class="ident">map_children</span>(<span class="op">|</span><span class="ident">id</span><span class="op">|</span> {
                 <span class="kw">let</span> <span class="ident">i</span> <span class="op">=</span> <span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">id</span>) <span class="op">+</span> <span class="number">1</span>;
@@ -742,34 +751,33 @@
 <span class="doccomment">/// See [`define_language!`] for more details.</span>
 <span class="doccomment">/// You should not have to implement this trait.</span>
 <span class="doccomment">///</span>
-<span class="doccomment">/// [`define_language!`]: macro.define_language.html</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">LanguageChildren</span> {
     <span class="doccomment">/// Checks if there are no children.</span>
-    <span class="kw">fn</span> <span class="ident">is_empty</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">bool</span> {
-        <span class="self">self</span>.<span class="ident">len</span>() <span class="op">==</span> <span class="number">0</span>
+    <span class="kw">fn</span> <span class="ident">is_empty</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+        <span class="self">self</span>.<span class="ident">len</span>() <span class="op">=</span><span class="op">=</span> <span class="number">0</span>
     }
     <span class="doccomment">/// Returns the number of children.</span>
-    <span class="kw">fn</span> <span class="ident">len</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">usize</span>;
+    <span class="kw">fn</span> <span class="ident">len</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span>;
     <span class="doccomment">/// Checks if n is an acceptable number of children for this type.</span>
-    <span class="kw">fn</span> <span class="ident">can_be_length</span>(<span class="ident">n</span>: <span class="ident">usize</span>) <span class="op">-&gt;</span> <span class="ident">bool</span>;
+    <span class="kw">fn</span> <span class="ident">can_be_length</span>(<span class="ident">n</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span>;
     <span class="doccomment">/// Create an instance of this type from a `Vec&lt;Id&gt;`,</span>
     <span class="doccomment">/// with the guarantee that can_be_length is already true on the `Vec`.</span>
-    <span class="kw">fn</span> <span class="ident">from_vec</span>(<span class="ident">v</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="self">Self</span>;
+    <span class="kw">fn</span> <span class="ident">from_vec</span>(<span class="ident">v</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span>;
     <span class="doccomment">/// Returns a slice of the children `Id`s.</span>
-    <span class="kw">fn</span> <span class="ident">as_slice</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="kw-2">&amp;</span>[<span class="ident">Id</span>];
+    <span class="kw">fn</span> <span class="ident">as_slice</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span>[<span class="ident">Id</span>];
     <span class="doccomment">/// Returns a mutable slice of the children `Id`s.</span>
-    <span class="kw">fn</span> <span class="ident">as_mut_slice</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">Id</span>];
+    <span class="kw">fn</span> <span class="ident">as_mut_slice</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">Id</span>];
 }
 
 <span class="macro">macro_rules</span><span class="macro">!</span> <span class="ident">impl_array</span> {
-    () <span class="op">=&gt;</span> {};
-    (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">n</span>:<span class="ident">literal</span>, $(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">rest</span>:<span class="ident">tt</span>)<span class="kw-2">*</span>) <span class="op">=&gt;</span> {
+    () <span class="op">=</span><span class="op">&gt;</span> {};
+    (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">n</span>:<span class="ident">literal</span>, $(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">rest</span>:<span class="ident">tt</span>)<span class="kw-2">*</span>) <span class="op">=</span><span class="op">&gt;</span> {
         <span class="kw">impl</span> <span class="ident">LanguageChildren</span> <span class="kw">for</span> [<span class="ident">Id</span>; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">n</span>] {
-            <span class="kw">fn</span> <span class="ident">len</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">usize</span>                   { <span class="op">&lt;</span>[<span class="ident">Id</span>]<span class="op">&gt;</span>::<span class="ident">len</span>(<span class="self">self</span>) }
-            <span class="kw">fn</span> <span class="ident">can_be_length</span>(<span class="ident">n</span>: <span class="ident">usize</span>) <span class="op">-&gt;</span> <span class="ident">bool</span>       { <span class="ident">n</span> <span class="op">==</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">n</span> }
-            <span class="kw">fn</span> <span class="ident">from_vec</span>(<span class="ident">v</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="self">Self</span>          { <span class="self">Self</span>::<span class="ident">try_from</span>(<span class="ident">v</span>.<span class="ident">as_slice</span>()).<span class="ident">unwrap</span>() }
-            <span class="kw">fn</span> <span class="ident">as_slice</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="kw-2">&amp;</span>[<span class="ident">Id</span>]              { <span class="self">self</span> }
-            <span class="kw">fn</span> <span class="ident">as_mut_slice</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">Id</span>]  { <span class="self">self</span> }
+            <span class="kw">fn</span> <span class="ident">len</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span>                   { <span class="op">&lt;</span>[<span class="ident">Id</span>]<span class="op">&gt;</span>::<span class="ident">len</span>(<span class="self">self</span>) }
+            <span class="kw">fn</span> <span class="ident">can_be_length</span>(<span class="ident">n</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span>       { <span class="ident">n</span> <span class="op">=</span><span class="op">=</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">n</span> }
+            <span class="kw">fn</span> <span class="ident">from_vec</span>(<span class="ident">v</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span>          { <span class="self">Self</span>::<span class="ident">try_from</span>(<span class="ident">v</span>.<span class="ident">as_slice</span>()).<span class="ident">unwrap</span>() }
+            <span class="kw">fn</span> <span class="ident">as_slice</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span>[<span class="ident">Id</span>]              { <span class="self">self</span> }
+            <span class="kw">fn</span> <span class="ident">as_mut_slice</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">Id</span>]  { <span class="self">self</span> }
         }
         <span class="macro">impl_array</span><span class="macro">!</span>($(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">rest</span>)<span class="kw-2">*</span>);
     };
@@ -779,29 +787,29 @@
 
 <span class="attribute">#[<span class="ident">rustfmt</span>::<span class="ident">skip</span>]</span>
 <span class="kw">impl</span> <span class="ident">LanguageChildren</span> <span class="kw">for</span> <span class="ident">Box</span><span class="op">&lt;</span>[<span class="ident">Id</span>]<span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">len</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">usize</span>                   { <span class="op">&lt;</span>[<span class="ident">Id</span>]<span class="op">&gt;</span>::<span class="ident">len</span>(<span class="self">self</span>) }
-    <span class="kw">fn</span> <span class="ident">can_be_length</span>(<span class="kw">_</span>: <span class="ident">usize</span>) <span class="op">-&gt;</span> <span class="ident">bool</span>       { <span class="bool-val">true</span> }
-    <span class="kw">fn</span> <span class="ident">from_vec</span>(<span class="ident">v</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="self">Self</span>          { <span class="ident">v</span>.<span class="ident">into</span>() }
-    <span class="kw">fn</span> <span class="ident">as_slice</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="kw-2">&amp;</span>[<span class="ident">Id</span>]              { <span class="self">self</span> }
-    <span class="kw">fn</span> <span class="ident">as_mut_slice</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">Id</span>]  { <span class="self">self</span> }
+    <span class="kw">fn</span> <span class="ident">len</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span>                   { <span class="op">&lt;</span>[<span class="ident">Id</span>]<span class="op">&gt;</span>::<span class="ident">len</span>(<span class="self">self</span>) }
+    <span class="kw">fn</span> <span class="ident">can_be_length</span>(<span class="kw">_</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span>       { <span class="bool-val">true</span> }
+    <span class="kw">fn</span> <span class="ident">from_vec</span>(<span class="ident">v</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span>          { <span class="ident">v</span>.<span class="ident">into</span>() }
+    <span class="kw">fn</span> <span class="ident">as_slice</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span>[<span class="ident">Id</span>]              { <span class="self">self</span> }
+    <span class="kw">fn</span> <span class="ident">as_mut_slice</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">Id</span>]  { <span class="self">self</span> }
 }
 
 <span class="attribute">#[<span class="ident">rustfmt</span>::<span class="ident">skip</span>]</span>
 <span class="kw">impl</span> <span class="ident">LanguageChildren</span> <span class="kw">for</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">len</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">usize</span>                   { <span class="op">&lt;</span>[<span class="ident">Id</span>]<span class="op">&gt;</span>::<span class="ident">len</span>(<span class="self">self</span>) }
-    <span class="kw">fn</span> <span class="ident">can_be_length</span>(<span class="kw">_</span>: <span class="ident">usize</span>) <span class="op">-&gt;</span> <span class="ident">bool</span>       { <span class="bool-val">true</span> }
-    <span class="kw">fn</span> <span class="ident">from_vec</span>(<span class="ident">v</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="self">Self</span>          { <span class="ident">v</span> }
-    <span class="kw">fn</span> <span class="ident">as_slice</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="kw-2">&amp;</span>[<span class="ident">Id</span>]              { <span class="self">self</span> }
-    <span class="kw">fn</span> <span class="ident">as_mut_slice</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">Id</span>]  { <span class="self">self</span> }
+    <span class="kw">fn</span> <span class="ident">len</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span>                   { <span class="op">&lt;</span>[<span class="ident">Id</span>]<span class="op">&gt;</span>::<span class="ident">len</span>(<span class="self">self</span>) }
+    <span class="kw">fn</span> <span class="ident">can_be_length</span>(<span class="kw">_</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span>       { <span class="bool-val">true</span> }
+    <span class="kw">fn</span> <span class="ident">from_vec</span>(<span class="ident">v</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span>          { <span class="ident">v</span> }
+    <span class="kw">fn</span> <span class="ident">as_slice</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span>[<span class="ident">Id</span>]              { <span class="self">self</span> }
+    <span class="kw">fn</span> <span class="ident">as_mut_slice</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">Id</span>]  { <span class="self">self</span> }
 }
 
 <span class="attribute">#[<span class="ident">rustfmt</span>::<span class="ident">skip</span>]</span>
 <span class="kw">impl</span> <span class="ident">LanguageChildren</span> <span class="kw">for</span> <span class="ident">Id</span> {
-    <span class="kw">fn</span> <span class="ident">len</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">usize</span>                   { <span class="number">1</span> }
-    <span class="kw">fn</span> <span class="ident">can_be_length</span>(<span class="ident">n</span>: <span class="ident">usize</span>) <span class="op">-&gt;</span> <span class="ident">bool</span>       { <span class="ident">n</span> <span class="op">==</span> <span class="number">1</span> }
-    <span class="kw">fn</span> <span class="ident">from_vec</span>(<span class="ident">v</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="self">Self</span>          { <span class="ident">v</span>[<span class="number">0</span>] }
-    <span class="kw">fn</span> <span class="ident">as_slice</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="kw-2">&amp;</span>[<span class="ident">Id</span>]              { <span class="ident">std</span>::<span class="ident">slice</span>::<span class="ident">from_ref</span>(<span class="self">self</span>) }
-    <span class="kw">fn</span> <span class="ident">as_mut_slice</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">Id</span>]  { <span class="ident">std</span>::<span class="ident">slice</span>::<span class="ident">from_mut</span>(<span class="self">self</span>) }
+    <span class="kw">fn</span> <span class="ident">len</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span>                   { <span class="number">1</span> }
+    <span class="kw">fn</span> <span class="ident">can_be_length</span>(<span class="ident">n</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span>       { <span class="ident">n</span> <span class="op">=</span><span class="op">=</span> <span class="number">1</span> }
+    <span class="kw">fn</span> <span class="ident">from_vec</span>(<span class="ident">v</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span>          { <span class="ident">v</span>[<span class="number">0</span>] }
+    <span class="kw">fn</span> <span class="ident">as_slice</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span>[<span class="ident">Id</span>]              { <span class="ident">std</span>::<span class="ident">slice</span>::<span class="ident">from_ref</span>(<span class="self">self</span>) }
+    <span class="kw">fn</span> <span class="ident">as_mut_slice</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">Id</span>]  { <span class="ident">std</span>::<span class="ident">slice</span>::<span class="ident">from_mut</span>(<span class="self">self</span>) }
 }
 
 <span class="doccomment">/// A recursive expression from a user-defined [`Language`].</span>
@@ -813,12 +821,9 @@
 <span class="doccomment">/// elements that come before it in the list.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// If the `serde-1` feature is enabled, this implements</span>
-<span class="doccomment">/// [`serde::Serialize`][ser].</span>
+<span class="doccomment">/// [`serde::Serialize`][https://docs.rs/serde/latest/serde/trait.Serialize.html].</span>
 <span class="doccomment">///</span>
-<span class="doccomment">/// [`RecExpr`]: struct.RecExpr.html</span>
-<span class="doccomment">/// [`Language`]: trait.Language.html</span>
-<span class="doccomment">/// [ser]: https://docs.rs/serde/latest/serde/trait.Serialize.html</span>
-<span class="doccomment">/// [pretty]: struct.RecExpr.html#method.pretty</span>
+<span class="doccomment">/// [pretty]: RecExpr::pretty()</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>, <span class="ident">PartialOrd</span>, <span class="ident">Ord</span>, <span class="ident">Hash</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
     <span class="ident">nodes</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
@@ -826,7 +831,7 @@
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde-1&quot;</span>)]</span>
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span> <span class="ident">serde</span>::<span class="ident">Serialize</span> <span class="kw">for</span> <span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">serialize</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">serializer</span>: <span class="ident">S</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">S</span>::<span class="prelude-val">Ok</span>, <span class="ident">S</span>::<span class="ident">Error</span><span class="op">&gt;</span>
+    <span class="kw">fn</span> <span class="ident">serialize</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">serializer</span>: <span class="ident">S</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">S</span>::<span class="prelude-val">Ok</span>, <span class="ident">S</span>::<span class="ident">Error</span><span class="op">&gt;</span>
     <span class="kw">where</span>
         <span class="ident">S</span>: <span class="ident">serde</span>::<span class="ident">Serializer</span>,
     {
@@ -836,19 +841,19 @@
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> <span class="ident">Default</span> <span class="kw">for</span> <span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">default</span>() <span class="op">-&gt;</span> <span class="self">Self</span> {
+    <span class="kw">fn</span> <span class="ident">default</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="self">Self</span>::<span class="ident">from</span>(<span class="macro">vec</span><span class="macro">!</span>[])
     }
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> <span class="ident">AsRef</span><span class="op">&lt;</span>[<span class="ident">L</span>]<span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">as_ref</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="kw-2">&amp;</span>[<span class="ident">L</span>] {
+    <span class="kw">fn</span> <span class="ident">as_ref</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span>[<span class="ident">L</span>] {
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">nodes</span>
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;&gt;</span> <span class="kw">for</span> <span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">nodes</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="self">Self</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">nodes</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="self">Self</span> { <span class="ident">nodes</span> }
     }
 }
@@ -856,11 +861,9 @@
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span> <span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
     <span class="doccomment">/// Adds a given enode to this `RecExpr`.</span>
     <span class="doccomment">/// The enode&#39;s children `Id`s must refer to elements already in this list.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">node</span>: <span class="ident">L</span>) <span class="op">-&gt;</span> <span class="ident">Id</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">node</span>: <span class="ident">L</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Id</span> {
         <span class="macro">debug_assert</span><span class="macro">!</span>(
-            <span class="ident">node</span>.<span class="ident">children</span>()
-                .<span class="ident">iter</span>()
-                .<span class="ident">all</span>(<span class="op">|</span><span class="kw-2">&amp;</span><span class="ident">id</span><span class="op">|</span> <span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">id</span>) <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">nodes</span>.<span class="ident">len</span>()),
+            <span class="ident">node</span>.<span class="ident">all</span>(<span class="op">|</span><span class="ident">id</span><span class="op">|</span> <span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">id</span>) <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">nodes</span>.<span class="ident">len</span>()),
             <span class="string">&quot;node {:?} has children not in this expr: {:?}&quot;</span>,
             <span class="ident">node</span>,
             <span class="self">self</span>
@@ -872,19 +875,19 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span> <span class="ident">Index</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
     <span class="kw">type</span> <span class="ident">Output</span> <span class="op">=</span> <span class="ident">L</span>;
-    <span class="kw">fn</span> <span class="ident">index</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">id</span>: <span class="ident">Id</span>) <span class="op">-&gt;</span> <span class="kw-2">&amp;</span><span class="ident">L</span> {
+    <span class="kw">fn</span> <span class="ident">index</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">id</span>: <span class="ident">Id</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">L</span> {
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">nodes</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">id</span>)]
     }
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span> <span class="ident">IndexMut</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">index_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">id</span>: <span class="ident">Id</span>) <span class="op">-&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">L</span> {
+    <span class="kw">fn</span> <span class="ident">index_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">id</span>: <span class="ident">Id</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">L</span> {
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">nodes</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">id</span>)]
     }
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span> <span class="ident">Display</span> <span class="kw">for</span> <span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt</span>::<span class="ident">Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt</span>::<span class="ident">Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">nodes</span>.<span class="ident">is_empty</span>() {
             <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;()&quot;</span>)
         } <span class="kw">else</span> {
@@ -895,7 +898,7 @@
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span> <span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">to_sexp</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">i</span>: <span class="ident">usize</span>) <span class="op">-&gt;</span> <span class="ident">Sexp</span> {
+    <span class="kw">fn</span> <span class="ident">to_sexp</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">i</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Sexp</span> {
         <span class="kw">let</span> <span class="ident">node</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">nodes</span>[<span class="ident">i</span>];
         <span class="kw">let</span> <span class="ident">op</span> <span class="op">=</span> <span class="ident">Sexp</span>::<span class="ident">String</span>(<span class="ident">node</span>.<span class="ident">display_op</span>().<span class="ident">to_string</span>());
         <span class="kw">if</span> <span class="ident">node</span>.<span class="ident">is_leaf</span>() {
@@ -921,11 +924,11 @@
     <span class="doccomment">///   (+ x y))</span>
     <span class="doccomment">/// &quot;.trim());</span>
     <span class="doccomment">/// ```</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">pretty</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">width</span>: <span class="ident">usize</span>) <span class="op">-&gt;</span> <span class="ident">String</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">pretty</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">width</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">String</span> {
         <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fmt</span>::{<span class="prelude-ty">Result</span>, <span class="ident">Write</span>};
         <span class="kw">let</span> <span class="ident">sexp</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">to_sexp</span>(<span class="self">self</span>.<span class="ident">nodes</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="number">1</span>);
 
-        <span class="kw">fn</span> <span class="ident">pp</span>(<span class="ident">buf</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">String</span>, <span class="ident">sexp</span>: <span class="kw-2">&amp;</span><span class="ident">Sexp</span>, <span class="ident">width</span>: <span class="ident">usize</span>, <span class="ident">level</span>: <span class="ident">usize</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span> {
+        <span class="kw">fn</span> <span class="ident">pp</span>(<span class="ident">buf</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">String</span>, <span class="ident">sexp</span>: <span class="kw-2">&amp;</span><span class="ident">Sexp</span>, <span class="ident">width</span>: <span class="ident">usize</span>, <span class="ident">level</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span> {
             <span class="kw">if</span> <span class="kw">let</span> <span class="ident">Sexp</span>::<span class="ident">List</span>(<span class="ident">list</span>) <span class="op">=</span> <span class="ident">sexp</span> {
                 <span class="kw">let</span> <span class="ident">indent</span> <span class="op">=</span> <span class="ident">sexp</span>.<span class="ident">to_string</span>().<span class="ident">len</span>() <span class="op">&gt;</span> <span class="ident">width</span>;
                 <span class="macro">write</span><span class="macro">!</span>(<span class="ident">buf</span>, <span class="string">&quot;(&quot;</span>)<span class="question-mark">?</span>;
@@ -958,29 +961,29 @@
 }
 
 <span class="macro">macro_rules</span><span class="macro">!</span> <span class="ident">bail</span> {
-    (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">s</span>:<span class="ident">literal</span> $(,)<span class="question-mark">?</span>) <span class="op">=&gt;</span> {
+    (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">s</span>:<span class="ident">literal</span> $(,)<span class="question-mark">?</span>) <span class="op">=</span><span class="op">&gt;</span> {
         <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">s</span>.<span class="ident">into</span>())
     };
-    (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">s</span>:<span class="ident">literal</span>, $(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">args</span>:<span class="ident">expr</span>),<span class="op">+</span>) <span class="op">=&gt;</span> {
+    (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">s</span>:<span class="ident">literal</span>, $(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">args</span>:<span class="ident">expr</span>),<span class="op">+</span>) <span class="op">=</span><span class="op">&gt;</span> {
         <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">s</span>, $(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">args</span>),<span class="op">+</span>).<span class="ident">into</span>())
     };
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span> <span class="ident">std</span>::<span class="ident">str</span>::<span class="ident">FromStr</span> <span class="kw">for</span> <span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
     <span class="kw">type</span> <span class="prelude-val">Err</span> <span class="op">=</span> <span class="ident">String</span>;
-    <span class="kw">fn</span> <span class="ident">from_str</span>(<span class="ident">s</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="self">Self</span>::<span class="prelude-val">Err</span><span class="op">&gt;</span> {
-        <span class="kw">fn</span> <span class="ident">parse_sexp_into</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span>(<span class="ident">sexp</span>: <span class="kw-2">&amp;</span><span class="ident">Sexp</span>, <span class="ident">expr</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Id</span>, <span class="ident">String</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">from_str</span>(<span class="ident">s</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="self">Self</span>::<span class="prelude-val">Err</span><span class="op">&gt;</span> {
+        <span class="kw">fn</span> <span class="ident">parse_sexp_into</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span>(<span class="ident">sexp</span>: <span class="kw-2">&amp;</span><span class="ident">Sexp</span>, <span class="ident">expr</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Id</span>, <span class="ident">String</span><span class="op">&gt;</span> {
             <span class="kw">match</span> <span class="ident">sexp</span> {
-                <span class="ident">Sexp</span>::<span class="ident">Empty</span> <span class="op">=&gt;</span> <span class="prelude-val">Err</span>(<span class="string">&quot;Found empty s-expression&quot;</span>.<span class="ident">into</span>()),
-                <span class="ident">Sexp</span>::<span class="ident">String</span>(<span class="ident">s</span>) <span class="op">=&gt;</span> {
+                <span class="ident">Sexp</span>::<span class="ident">Empty</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="string">&quot;Found empty s-expression&quot;</span>.<span class="ident">into</span>()),
+                <span class="ident">Sexp</span>::<span class="ident">String</span>(<span class="ident">s</span>) <span class="op">=</span><span class="op">&gt;</span> {
                     <span class="kw">let</span> <span class="ident">node</span> <span class="op">=</span> <span class="ident">L</span>::<span class="ident">from_op_str</span>(<span class="ident">s</span>, <span class="macro">vec</span><span class="macro">!</span>[])<span class="question-mark">?</span>;
                     <span class="prelude-val">Ok</span>(<span class="ident">expr</span>.<span class="ident">add</span>(<span class="ident">node</span>))
                 }
-                <span class="ident">Sexp</span>::<span class="ident">List</span>(<span class="ident">list</span>) <span class="kw">if</span> <span class="ident">list</span>.<span class="ident">is_empty</span>() <span class="op">=&gt;</span> <span class="prelude-val">Err</span>(<span class="string">&quot;Found empty s-expression&quot;</span>.<span class="ident">into</span>()),
-                <span class="ident">Sexp</span>::<span class="ident">List</span>(<span class="ident">list</span>) <span class="op">=&gt;</span> <span class="kw">match</span> <span class="kw-2">&amp;</span><span class="ident">list</span>[<span class="number">0</span>] {
-                    <span class="ident">Sexp</span>::<span class="ident">Empty</span> <span class="op">=&gt;</span> <span class="macro">unreachable</span><span class="macro">!</span>(<span class="string">&quot;Cannot be in head position&quot;</span>),
-                    <span class="ident">Sexp</span>::<span class="ident">List</span>(<span class="ident">l</span>) <span class="op">=&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="string">&quot;Found a list in the head position: {:?}&quot;</span>, <span class="ident">l</span>),
-                    <span class="ident">Sexp</span>::<span class="ident">String</span>(<span class="ident">op</span>) <span class="op">=&gt;</span> {
+                <span class="ident">Sexp</span>::<span class="ident">List</span>(<span class="ident">list</span>) <span class="kw">if</span> <span class="ident">list</span>.<span class="ident">is_empty</span>() <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="string">&quot;Found empty s-expression&quot;</span>.<span class="ident">into</span>()),
+                <span class="ident">Sexp</span>::<span class="ident">List</span>(<span class="ident">list</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">match</span> <span class="kw-2">&amp;</span><span class="ident">list</span>[<span class="number">0</span>] {
+                    <span class="ident">Sexp</span>::<span class="ident">Empty</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">unreachable</span><span class="macro">!</span>(<span class="string">&quot;Cannot be in head position&quot;</span>),
+                    <span class="ident">Sexp</span>::<span class="ident">List</span>(<span class="ident">l</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="string">&quot;Found a list in the head position: {:?}&quot;</span>, <span class="ident">l</span>),
+                    <span class="ident">Sexp</span>::<span class="ident">String</span>(<span class="ident">op</span>) <span class="op">=</span><span class="op">&gt;</span> {
                         <span class="kw">let</span> <span class="ident">arg_ids</span>: <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span>, <span class="kw">_</span><span class="op">&gt;</span> <span class="op">=</span>
                             <span class="ident">list</span>[<span class="number">1</span>..].<span class="ident">iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">parse_sexp_into</span>(<span class="ident">s</span>, <span class="ident">expr</span>)).<span class="ident">collect</span>();
 
@@ -1074,22 +1077,18 @@ let just_foo = runner.egraph.add_expr(&amp;&quot;foo&quot;.parse().unwrap());
 assert_eq!(runner.egraph.find(runner.roots[0]), runner.egraph.find(just_foo));
 ```
 
-[`Analysis`]: trait.Analysis.html
-[`EClass`]: struct.EClass.html
-[`ENode`]: struct.ENode.html
 [`math.rs`]: https://github.com/mwillsey/egg/blob/master/tests/math.rs
 [`prop.rs`]: https://github.com/mwillsey/egg/blob/master/tests/prop.rs
 */</span>
 
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span>: <span class="ident">Sized</span> {
-    <span class="doccomment">/// The per-[`EClass`](struct.EClass.html) data for this analysis.</span>
+    <span class="doccomment">/// The per-[`EClass`] data for this analysis.</span>
     <span class="kw">type</span> <span class="ident">Data</span>: <span class="ident">Debug</span>;
 
     <span class="doccomment">/// Makes a new [`Analysis`] for a given enode</span>
     <span class="doccomment">/// [`Analysis`].</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// [`Analysis`]: trait.Analysis.html</span>
-    <span class="kw">fn</span> <span class="ident">make</span>(<span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">enode</span>: <span class="kw-2">&amp;</span><span class="ident">L</span>) <span class="op">-&gt;</span> <span class="self">Self</span>::<span class="ident">Data</span>;
+    <span class="kw">fn</span> <span class="ident">make</span>(<span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">enode</span>: <span class="kw-2">&amp;</span><span class="ident">L</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span>::<span class="ident">Data</span>;
 
     <span class="doccomment">/// An optional hook that allows inspection before a [`union`] occurs.</span>
     <span class="doccomment">///</span>
@@ -1098,18 +1097,17 @@ assert_eq!(runner.egraph.find(runner.roots[0]), runner.egraph.find(just_foo));
     <span class="doccomment">/// `pre_union` is called _a lot_, so doing anything significant</span>
     <span class="doccomment">/// (like printing) will cause things to slow down.</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// [`union`]: struct.EGraph.html#method.union</span>
+    <span class="doccomment">/// [`union`]: EGraph::union()</span>
     <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">unused_variables</span>)]</span>
     <span class="kw">fn</span> <span class="ident">pre_union</span>(<span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">id1</span>: <span class="ident">Id</span>, <span class="ident">id2</span>: <span class="ident">Id</span>) {}
 
     <span class="doccomment">/// Defines how to merge two `Data`s when their containing</span>
     <span class="doccomment">/// [`EClass`]es merge. Returns whether `to` is changed.</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// [`EClass`]: struct.EClass.html</span>
-    <span class="kw">fn</span> <span class="ident">merge</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">to</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span>::<span class="ident">Data</span>, <span class="ident">from</span>: <span class="self">Self</span>::<span class="ident">Data</span>) <span class="op">-&gt;</span> <span class="ident">bool</span>;
+    <span class="kw">fn</span> <span class="ident">merge</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">to</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span>::<span class="ident">Data</span>, <span class="ident">from</span>: <span class="self">Self</span>::<span class="ident">Data</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span>;
 
     <span class="doccomment">/// A hook that allows the modification of the</span>
-    <span class="doccomment">/// [`EGraph`](struct.EGraph.html)</span>
+    <span class="doccomment">/// [`EGraph`]</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// By default this does nothing.</span>
     <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">unused_variables</span>)]</span>
@@ -1120,7 +1118,7 @@ assert_eq!(runner.egraph.find(runner.roots[0]), runner.egraph.find(just_foo));
 <span class="doccomment">/// or not something was done.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// Useful for implementing</span>
-<span class="doccomment">/// [`Analysis::merge`](trait.Analysis.html#tymethod.merge).</span>
+<span class="doccomment">/// [`Analysis::merge`].</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// ```</span>
 <span class="doccomment">/// # use egg::*;</span>
@@ -1129,8 +1127,8 @@ assert_eq!(runner.egraph.find(runner.roots[0]), runner.egraph.find(just_foo));
 <span class="doccomment">/// assert!(merge_if_different(&amp;mut x, 7));</span>
 <span class="doccomment">/// assert_eq!(x, 7);</span>
 <span class="doccomment">/// ```</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">merge_if_different</span><span class="op">&lt;</span><span class="ident">D</span>: <span class="ident">PartialEq</span><span class="op">&gt;</span>(<span class="ident">to</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">D</span>, <span class="ident">new</span>: <span class="ident">D</span>) <span class="op">-&gt;</span> <span class="ident">bool</span> {
-    <span class="kw">if</span> <span class="kw-2">*</span><span class="ident">to</span> <span class="op">==</span> <span class="ident">new</span> {
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">merge_if_different</span><span class="op">&lt;</span><span class="ident">D</span>: <span class="ident">PartialEq</span><span class="op">&gt;</span>(<span class="ident">to</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">D</span>, <span class="ident">new</span>: <span class="ident">D</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+    <span class="kw">if</span> <span class="kw-2">*</span><span class="ident">to</span> <span class="op">=</span><span class="op">=</span> <span class="ident">new</span> {
         <span class="bool-val">false</span>
     } <span class="kw">else</span> {
         <span class="kw-2">*</span><span class="ident">to</span> <span class="op">=</span> <span class="ident">new</span>;
@@ -1140,8 +1138,8 @@ assert_eq!(runner.egraph.find(runner.roots[0]), runner.egraph.find(just_foo));
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span> <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> <span class="kw">for</span> () {
     <span class="kw">type</span> <span class="ident">Data</span> <span class="op">=</span> ();
-    <span class="kw">fn</span> <span class="ident">make</span>(<span class="ident">_egraph</span>: <span class="kw-2">&amp;</span><span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">_enode</span>: <span class="kw-2">&amp;</span><span class="ident">L</span>) <span class="op">-&gt;</span> <span class="self">Self</span>::<span class="ident">Data</span> {}
-    <span class="kw">fn</span> <span class="ident">merge</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_to</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span>::<span class="ident">Data</span>, <span class="ident">_from</span>: <span class="self">Self</span>::<span class="ident">Data</span>) <span class="op">-&gt;</span> <span class="ident">bool</span> {
+    <span class="kw">fn</span> <span class="ident">make</span>(<span class="ident">_egraph</span>: <span class="kw-2">&amp;</span><span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">_enode</span>: <span class="kw-2">&amp;</span><span class="ident">L</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span>::<span class="ident">Data</span> {}
+    <span class="kw">fn</span> <span class="ident">merge</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_to</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span>::<span class="ident">Data</span>, <span class="ident">_from</span>: <span class="self">Self</span>::<span class="ident">Data</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
         <span class="bool-val">false</span>
     }
 }
@@ -1157,39 +1155,39 @@ assert_eq!(runner.egraph.find(runner.roots[0]), runner.egraph.find(just_foo));
 
 <span class="kw">impl</span> <span class="ident">SymbolLang</span> {
     <span class="doccomment">/// Create an enode with the given string and children</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">op</span>: <span class="kw">impl</span> <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">Symbol</span><span class="op">&gt;</span>, <span class="ident">children</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="self">Self</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">op</span>: <span class="kw">impl</span> <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">Symbol</span><span class="op">&gt;</span>, <span class="ident">children</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="kw">let</span> <span class="ident">op</span> <span class="op">=</span> <span class="ident">op</span>.<span class="ident">into</span>();
         <span class="self">Self</span> { <span class="ident">op</span>, <span class="ident">children</span> }
     }
 
     <span class="doccomment">/// Create childless enode with the given string</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">leaf</span>(<span class="ident">op</span>: <span class="kw">impl</span> <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">Symbol</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="self">Self</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">leaf</span>(<span class="ident">op</span>: <span class="kw">impl</span> <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">Symbol</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="self">Self</span>::<span class="ident">new</span>(<span class="ident">op</span>, <span class="macro">vec</span><span class="macro">!</span>[])
     }
 }
 
 <span class="kw">impl</span> <span class="ident">Language</span> <span class="kw">for</span> <span class="ident">SymbolLang</span> {
-    <span class="kw">fn</span> <span class="ident">matches</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) <span class="op">-&gt;</span> <span class="ident">bool</span> {
-        <span class="self">self</span>.<span class="ident">op</span> <span class="op">==</span> <span class="ident">other</span>.<span class="ident">op</span> <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">len</span>() <span class="op">==</span> <span class="ident">other</span>.<span class="ident">len</span>()
+    <span class="kw">fn</span> <span class="ident">matches</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+        <span class="self">self</span>.<span class="ident">op</span> <span class="op">=</span><span class="op">=</span> <span class="ident">other</span>.<span class="ident">op</span> <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">len</span>() <span class="op">=</span><span class="op">=</span> <span class="ident">other</span>.<span class="ident">len</span>()
     }
 
-    <span class="kw">fn</span> <span class="ident">children</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="kw-2">&amp;</span>[<span class="ident">Id</span>] {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">children</span>
-    }
-
-    <span class="kw">fn</span> <span class="ident">children_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">Id</span>] {
-        <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">children</span>
-    }
-
-    <span class="kw">fn</span> <span class="ident">display_op</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="kw-2">&amp;</span><span class="kw">dyn</span> <span class="ident">Display</span> {
+    <span class="kw">fn</span> <span class="ident">display_op</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">dyn</span> <span class="ident">Display</span> {
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">op</span>
     }
 
-    <span class="kw">fn</span> <span class="ident">from_op_str</span>(<span class="ident">op_str</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>, <span class="ident">children</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">String</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">from_op_str</span>(<span class="ident">op_str</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>, <span class="ident">children</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">String</span><span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="self">Self</span> {
             <span class="ident">op</span>: <span class="ident">op_str</span>.<span class="ident">into</span>(),
             <span class="ident">children</span>,
         })
+    }
+
+    <span class="kw">fn</span> <span class="ident">for_each</span><span class="op">&lt;</span><span class="ident">F</span>: <span class="ident">FnMut</span>(<span class="ident">Id</span>)<span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="ident">F</span>) {
+        <span class="self">self</span>.<span class="ident">children</span>.<span class="ident">iter</span>().<span class="ident">copied</span>().<span class="ident">for_each</span>(<span class="ident">f</span>)
+    }
+
+    <span class="kw">fn</span> <span class="ident">for_each_mut</span><span class="op">&lt;</span><span class="ident">F</span>: <span class="ident">FnMut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Id</span>)<span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">f</span>: <span class="ident">F</span>) {
+        <span class="self">self</span>.<span class="ident">children</span>.<span class="ident">iter_mut</span>().<span class="ident">for_each</span>(<span class="ident">f</span>)
     }
 }
 </pre></div>
