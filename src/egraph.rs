@@ -542,7 +542,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
     /// Restores the egraph invariants of congruence and enode uniqueness.
     ///
-    /// As mentioned [above](EGraph#invariants-and-rebuilding),
+    /// As mentioned
+    /// [in the tutorial](tutorials/_01_background/index.html#invariants-and-rebuilding),
     /// `egg` takes a lazy approach to maintaining the egraph invariants.
     /// The `rebuild` method allows the user to manually restore those
     /// invariants at a time of their choosing. It's a reasonably
