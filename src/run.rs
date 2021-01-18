@@ -336,29 +336,18 @@ where
         let rules: Vec<&Rewrite<L, N>> = rules.into_iter().collect();
         check_rules(&rules);
         self.egraph.rebuild();
-        // TODO check that we haven't
         loop {
-            if let Err(stop_reason) = self.run_one(&rules) {
+            let iter = self.run_one(&rules);
+            self.iterations.push(iter);
+            if let Some(stop_reason) = &self.iterations.last().unwrap().stop_reason {
                 info!("Stopping: {:?}", stop_reason);
-                self.stop_reason = Some(stop_reason);
-                // push on a final iteration to mark the end state
-                self.iterations.push(Iteration {
-                    stop_reason: self.stop_reason.clone(),
-                    egraph_nodes: self.egraph.total_number_of_nodes(),
-                    egraph_classes: self.egraph.number_of_classes(),
-                    data: IterData::make(&self),
-                    applied: Default::default(),
-                    search_time: Default::default(),
-                    hook_time: Default::default(),
-                    apply_time: Default::default(),
-                    rebuild_time: Default::default(),
-                    total_time: Default::default(),
-                    n_rebuilds: Default::default(),
-                });
+                self.stop_reason = Some(stop_reason.clone());
                 break;
             }
         }
 
+        assert!(!self.iterations.is_empty());
+        assert!(self.stop_reason.is_some());
         self
     }
 
@@ -386,22 +375,24 @@ where
         println!("    Rebuild: ({:.2}) {}", rebuild_time / total_time, rebuild_time);
     }
 
-    fn run_one(&mut self, rules: &[&Rewrite<L, N>]) -> RunnerResult<()> {
+    fn run_one(&mut self, rules: &[&Rewrite<L, N>]) -> Iteration<IterData> {
         assert!(self.stop_reason.is_none());
 
         info!("\nIteration {}", self.iterations.len());
 
         self.try_start();
-        self.check_limits()?;
+        let mut result = self.check_limits();
 
         let egraph_nodes = self.egraph.total_size();
         let egraph_classes = self.egraph.number_of_classes();
 
         let hook_time = Instant::now();
         let mut hooks = std::mem::take(&mut self.hooks);
-        for hook in &mut hooks {
-            hook(self).map_err(StopReason::Other)?
-        }
+        result = result.and_then(|_| {
+            hooks
+                .iter_mut()
+                .try_for_each(|hook| hook(self).map_err(StopReason::Other))
+        });
         self.hooks = hooks;
         let hook_time = hook_time.elapsed().as_secs_f64();
 
@@ -414,15 +405,13 @@ where
         let start_time = Instant::now();
 
         let mut matches = Vec::new();
-        for rule in rules {
-            let ms = self.scheduler.search_rewrite(i, &self.egraph, rule);
-            matches.push(ms);
-            if self.check_limits().is_err() {
-                // bail on searching, make sure applying doesn't do anything
-                matches.clear();
-                break;
-            }
-        }
+        result = result.and_then(|_| {
+            rules.iter().try_for_each(|rule| {
+                let ms = self.scheduler.search_rewrite(i, &self.egraph, rule);
+                matches.push(ms);
+                self.check_limits()
+            })
+        });
 
         let search_time = start_time.elapsed().as_secs_f64();
         info!("Search time: {}", search_time);
@@ -430,28 +419,23 @@ where
         let apply_time = Instant::now();
 
         let mut applied = IndexMap::new();
-        for (rw, ms) in rules.iter().zip(matches) {
-            let total_matches: usize = ms.iter().map(|m| m.substs.len()).sum();
-            if total_matches == 0 {
-                continue;
-            }
+        result = result.and_then(|_| {
+            rules.iter().zip(matches).try_for_each(|(rw, ms)| {
+                let total_matches: usize = ms.iter().map(|m| m.substs.len()).sum();
+                debug!("Applying {} {} times", rw.name(), total_matches);
 
-            debug!("Applying {} {} times", rw.name(), total_matches);
-
-            let actually_matched = self.scheduler.apply_rewrite(i, &mut self.egraph, rw, ms);
-            if actually_matched > 0 {
-                if let Some(count) = applied.get_mut(rw.name()) {
-                    *count += actually_matched;
-                } else {
-                    applied.insert(rw.name().to_owned(), actually_matched);
+                let actually_matched = self.scheduler.apply_rewrite(i, &mut self.egraph, rw, ms);
+                if actually_matched > 0 {
+                    if let Some(count) = applied.get_mut(rw.name()) {
+                        *count += actually_matched;
+                    } else {
+                        applied.insert(rw.name().to_owned(), actually_matched);
+                    }
+                    debug!("Applied {} {} times", rw.name(), actually_matched);
                 }
-                debug!("Applied {} {} times", rw.name(), actually_matched);
-            }
-
-            if self.check_limits().is_err() {
-                break;
-            }
-        }
+                self.check_limits()
+            })
+        });
 
         let apply_time = apply_time.elapsed().as_secs_f64();
         info!("Apply time: {}", apply_time);
@@ -467,12 +451,16 @@ where
             self.egraph.number_of_classes()
         );
 
-        let saturated = applied.is_empty()
+        let can_be_saturated = applied.is_empty()
             && self.scheduler.can_stop(i)
             && (egraph_nodes == egraph_nodes_after_hooks)
             && (egraph_classes == egraph_classes_after_hooks);
 
-        self.iterations.push(Iteration {
+        if can_be_saturated {
+            result = result.and(Err(StopReason::Saturated))
+        }
+
+        Iteration {
             applied,
             egraph_nodes,
             egraph_classes,
@@ -483,13 +471,7 @@ where
             n_rebuilds,
             data: IterData::make(&self),
             total_time: start_time.elapsed().as_secs_f64(),
-            stop_reason: None,
-        });
-
-        if saturated {
-            Err(StopReason::Saturated)
-        } else {
-            Ok(())
+            stop_reason: result.err(),
         }
     }
 
