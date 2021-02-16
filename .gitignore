@@ -1,6 +1,5 @@
 target
 **/*.rs.bk
-Cargo.lock
 
 dots/
 egg/data/
@@ -11,3 +10,5 @@ default.nix
 
 # other stuff
 TODO.md
+
+scripts/data/current.csv

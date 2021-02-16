@@ -1,4 +1,3 @@
-use indexmap::IndexMap;
 use instant::{Duration, Instant};
 use log::*;
 
@@ -418,7 +417,7 @@ where
 
         let apply_time = Instant::now();
 
-        let mut applied = IndexMap::new();
+        let mut applied = IndexMap::default();
         result = result.and_then(|_| {
             rules.iter().zip(matches).try_for_each(|(rw, ms)| {
                 let total_matches: usize = ms.iter().map(|m| m.substs.len()).sum();
@@ -499,7 +498,7 @@ where
 }
 
 fn check_rules<L, N>(rules: &[&Rewrite<L, N>]) {
-    let mut name_counts = IndexMap::new();
+    let mut name_counts = IndexMap::default();
     for rw in rules {
         *name_counts.entry(rw.name()).or_default() += 1
     }

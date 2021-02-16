@@ -3,6 +3,8 @@
 These are not considered part of the public api.
 */
 
+use crate::*;
+
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
@@ -149,30 +151,73 @@ pub fn run<T>(name: impl Into<String>, mut f: impl FnMut() -> T) -> Reporter<T> 
     }
 }
 
+#[allow(clippy::type_complexity)]
+pub fn test_runner<L, A>(
+    name: &str,
+    runner: Option<fn() -> Runner<L, A, ()>>,
+    rules: &[Rewrite<L, A>],
+    start: RecExpr<L>,
+    goals: &[Pattern<L>],
+    check_fn: Option<fn(Runner<L, A, ()>)>,
+) where
+    L: Language + 'static,
+    A: Analysis<L> + Default,
+{
+    let runner: Runner<_, _, ()> = run(name, move || {
+        let mut runner = match runner.as_ref() {
+            Some(mk) => mk(),
+            None => Default::default(),
+        }
+        .with_expr(&start);
+        if let Some(lim) = env_var("EGG_NODE_LIMIT") {
+            runner = runner.with_node_limit(lim)
+        }
+        if let Some(lim) = env_var("EGG_ITER_LIMIT") {
+            runner = runner.with_iter_limit(lim)
+        }
+        if let Some(lim) = env_var("EGG_TIME_LIMIT") {
+            runner = runner.with_time_limit(std::time::Duration::from_secs(lim))
+        }
+
+        if check_fn.is_none() {
+            let id = runner.egraph.find(*runner.roots.last().unwrap());
+            let goals = goals.to_vec();
+            runner = runner.with_hook(move |r| {
+                if goals
+                    .iter()
+                    .all(|g: &Pattern<_>| g.search_eclass(&r.egraph, id).is_some())
+                {
+                    Err("Done".into())
+                } else {
+                    Ok(())
+                }
+            });
+        }
+
+        runner.run(rules)
+    })
+    .report(|r| &r.iterations);
+    runner.print_report();
+
+    // NOTE this is a bit of hack, we rely on the fact that the
+    // initial root is the last expr added by the runner. We can't
+    // use egraph.find_expr(start) because it may have been pruned
+    // away
+    let id = runner.egraph.find(*runner.roots.last().unwrap());
+    runner.egraph.check_goals(id, &goals);
+
+    if let Some(check_fn) = check_fn {
+        check_fn(runner)
+    }
+}
+
 /// Make a test function
 #[macro_export]
 macro_rules! test_fn {
     (
         $(#[$meta:meta])*
         $name:ident, $rules:expr,
-        $start:literal
-        =>
-        $($goal:literal),+ $(,)?
-        $(@check $check_fn:expr)?
-    ) => {
-        $crate::test_fn! {
-            $(#[$meta])*
-            $name, $rules,
-            runner = $crate::Runner::<_, _, ()>::default(),
-            $start => $( $goal ),+
-            $(@check $check_fn)?
-        }
-    };
-
-    (
-        $(#[$meta:meta])*
-        $name:ident, $rules:expr,
-        runner = $runner:expr,
+        $(runner = $runner:expr,)?
         $start:literal
         =>
         $($goal:literal),+ $(,)?
@@ -180,39 +225,17 @@ macro_rules! test_fn {
     ) => {
         $(#[$meta])*
         #[test]
-        fn $name() {
+        pub fn $name() {
             let _ = env_logger::builder().is_test(true).try_init();
-            let name = stringify!($name);
-            let start: $crate::RecExpr<_> = $start.parse().unwrap();
-            let rules = $rules;
 
-            let runner: $crate::Runner<_, _, ()> = $crate::test::run(name, || {
-                let mut runner = $runner.with_expr(&start);
-                if let Some(lim) = $crate::test::env_var("EGG_NODE_LIMIT") {
-                    runner = runner.with_node_limit(lim)
-                }
-                if let Some(lim) = $crate::test::env_var("EGG_ITER_LIMIT") {
-                    runner = runner.with_iter_limit(lim)
-                }
-                if let Some(lim) = $crate::test::env_var("EGG_TIME_LIMIT") {
-                    runner = runner.with_time_limit(std::time::Duration::from_secs(lim))
-                }
-                runner.run(&rules)
-            }).report(|r| &r.iterations);
-            runner.print_report();
-
-            let goals = &[$(
-                $goal.parse().unwrap()
-            ),+];
-
-            // NOTE this is a bit of hack, we rely on the fact that the
-            // initial root is the last expr added by the runner. We can't
-            // use egraph.find_expr(start) because it may have been pruned
-            // away
-            let id = runner.egraph.find(*runner.roots.last().unwrap());
-            runner.egraph.check_goals(id, goals);
-
-            $( ($check_fn)(runner) )?
+            $crate::test::test_runner(
+                stringify!($name),
+                None $(.or(Some(|| $runner)))?,
+                &$rules,
+                $start.parse().unwrap(),
+                &[$( $goal.parse().unwrap() ),+],
+                None $(.or(Some($check_fn)))?,
+            )
         }
     };
 }
