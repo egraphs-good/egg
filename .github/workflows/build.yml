@@ -26,22 +26,28 @@ jobs:
         cargo deadlinks --version
     - name: Nits
       run: make nits
-  bench:
-    runs-on: ubuntu-20.04
-    steps:
-    - uses: actions/checkout@v2
-    - name: Cache cargo bin
-      uses: actions/cache@v2
-      with:
-        path: ~/.cargo/bin
-        key: ${{ runner.os }}-cargo-bin
-    - name: Install valgrind
-      run: sudo apt-get install valgrind
-    - name: Bench
-      run: make bench-run
-    - uses: actions/upload-artifact@v2
-      with:
-        name: test-binaries
-        path: target/
-    - name: Compare
-      run: make bench-compare
+  # bench:
+  #   runs-on: ubuntu-20.04
+  #   steps:
+  #   - uses: actions/checkout@v2
+  #   - name: Cache cargo bin
+  #     uses: actions/cache@v2
+  #     with:
+  #       path: ~/.cargo/bin
+  #       key: ${{ runner.os }}-cargo-bin
+  #   - name: Install valgrind
+  #     run: sudo apt-get install valgrind
+  #   - name: Bench
+  #     run: make bench-run
+  #   - name: Upload bench binaries
+  #     uses: actions/upload-artifact@v2
+  #     with:
+  #       name: bench-binaries
+  #       path: target/
+  #   - name: Upload bench results
+  #     uses: actions/upload-artifact@v2
+  #     with:
+  #       name: bench-results
+  #       path: scripts/data/
+  #   - name: Compare
+  #     run: make bench-compare

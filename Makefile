@@ -8,8 +8,6 @@ test:
 
 .PHONY: nits
 nits:
-	rustup component add rustfmt --toolchain `cat rust-toolchain`
-	rustup component add clippy --toolchain `cat rust-toolchain`
 	cargo fmt -- --check
 	cargo clean --doc
 	cargo doc --no-deps
@@ -25,12 +23,11 @@ bench: bench-run bench-compare
 
 .PHONY: bench-run
 bench-run:
-	rustup target add x86_64-unknown-linux-musl
 	./scripts/benchmark.py scripts/data/current.csv
 
 .PHONY: bench-compare
 bench-compare:
-	./scripts/compare.py scripts/data/baseline.csv scripts/data/current.csv
+	./scripts/compare.py scripts/data/baseline.csv scripts/data/current.csv | tee scripts/data/compare.out
 
 .PHONY: bench-accept
 bench-accept:

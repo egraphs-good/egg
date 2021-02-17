@@ -12,3 +12,4 @@ default.nix
 TODO.md
 
 scripts/data/current.csv
+scripts/data/compare.out

@@ -59,8 +59,7 @@ def bench(args):
     os.environ['EGG_TIME_LIMIT'] = str(60 * 5)
 
     for suite in args.suites:
-        cargolist = run('cargo test --target=x86_64-unknown-linux-musl'
-                        f' --test {suite} --release -- --list')
+        cargolist = run(f'cargo test --test {suite} --release -- --list')
         binary = re.search(r'Running (target/.*)', cargolist)[1]
         tests = re.findall(r'(.*): .*', cargolist)
         for test in tests:
