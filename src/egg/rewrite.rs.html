@@ -621,7 +621,7 @@
     <span class="doccomment">/// from the `egg::run` module</span>
     <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">run</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">start</span> <span class="op">=</span> <span class="ident">instant</span>::<span class="ident">Instant</span>::<span class="ident">now</span>();
+        <span class="kw">let</span> <span class="ident">start</span> <span class="op">=</span> <span class="kw">crate</span>::<span class="ident">util</span>::<span class="ident">Instant</span>::<span class="ident">now</span>();
 
         <span class="kw">let</span> <span class="ident">matches</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">search</span>(<span class="ident">egraph</span>);
         <span class="ident">log</span>::<span class="macro">debug</span><span class="macro">!</span>(<span class="string">&quot;Found rewrite {} {} times&quot;</span>, <span class="self">self</span>.<span class="ident">name</span>, <span class="ident">matches</span>.<span class="ident">len</span>());

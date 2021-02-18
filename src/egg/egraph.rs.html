@@ -660,22 +660,14 @@
 <span id="657">657</span>
 <span id="658">658</span>
 <span id="659">659</span>
-<span id="660">660</span>
-<span id="661">661</span>
-<span id="662">662</span>
-<span id="663">663</span>
 </pre><div class="example-wrap"><pre class="rust ">
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">util</span>::{<span class="ident">HashMap</span>, <span class="ident">HashSet</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident">std</span>::{
     <span class="ident">borrow</span>::<span class="ident">BorrowMut</span>,
     <span class="ident">fmt</span>::{<span class="self">self</span>, <span class="ident">Debug</span>},
 };
 
 <span class="kw">use</span> <span class="ident">log</span>::<span class="kw-2">*</span>;
-
-<span class="kw">use</span> <span class="kw">crate</span>::{
-    <span class="ident">Analysis</span>, <span class="ident">AstSize</span>, <span class="ident">Dot</span>, <span class="ident">EClass</span>, <span class="ident">Extractor</span>, <span class="ident">Id</span>, <span class="ident">Language</span>, <span class="ident">Pattern</span>, <span class="ident">RecExpr</span>, <span class="ident">Searcher</span>, <span class="ident">UnionFind</span>,
-};
 
 <span class="doccomment">/** A data structure to keep track of equalities between expressions.
 
@@ -1244,7 +1236,7 @@ and
         <span class="kw">let</span> <span class="ident">old_hc_size</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">memo</span>.<span class="ident">len</span>();
         <span class="kw">let</span> <span class="ident">old_n_eclasses</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">number_of_classes</span>();
 
-        <span class="kw">let</span> <span class="ident">start</span> <span class="op">=</span> <span class="ident">instant</span>::<span class="ident">Instant</span>::<span class="ident">now</span>();
+        <span class="kw">let</span> <span class="ident">start</span> <span class="op">=</span> <span class="ident">Instant</span>::<span class="ident">now</span>();
 
         <span class="self">self</span>.<span class="ident">process_unions</span>();
         <span class="kw">let</span> <span class="ident">n_unions</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">take</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">repairs_since_rebuild</span>);
