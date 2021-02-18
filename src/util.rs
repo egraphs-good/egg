@@ -16,6 +16,9 @@ pub(crate) type HashSet<K> = std::collections::HashSet<K, std::hash::BuildHasher
 pub(crate) type IndexMap<K, V> = indexmap::IndexMap<K, V, std::hash::BuildHasherDefault<Hasher>>;
 pub(crate) type IndexSet<K> = indexmap::IndexSet<K, std::hash::BuildHasherDefault<Hasher>>;
 
+pub(crate) type Instant = instant::Instant;
+pub(crate) type Duration = instant::Duration;
+
 static STRINGS: Lazy<Mutex<IndexSet<&'static str>>> = Lazy::new(Default::default);
 
 /// An interned string.

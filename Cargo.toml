@@ -23,9 +23,14 @@ serde = { version = "1", features = ["derive"], optional = true }
 serde_json = { version = "1", optional = true }
 fxhash = "*"
 
+[[bench]]
+name = "bench_tests"
+harness = false
+
 [dev-dependencies]
 env_logger = {version = "0.7", default-features = false}
 ordered-float = "1"
+iai = "0.1"
 
 [features]
 upward-merging = []

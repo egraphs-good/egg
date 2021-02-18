@@ -100,7 +100,7 @@ impl<L: Language, N: Analysis<L>> Rewrite<L, N> {
     /// from the `egg::run` module
     #[cfg(test)]
     pub(crate) fn run(&self, egraph: &mut EGraph<L, N>) -> Vec<Id> {
-        let start = instant::Instant::now();
+        let start = crate::util::Instant::now();
 
         let matches = self.search(egraph);
         log::debug!("Found rewrite {} {} times", self.name, matches.len());

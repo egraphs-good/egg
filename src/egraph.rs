@@ -1,14 +1,10 @@
-use crate::util::{HashMap, HashSet};
+use crate::*;
 use std::{
     borrow::BorrowMut,
     fmt::{self, Debug},
 };
 
 use log::*;
-
-use crate::{
-    Analysis, AstSize, Dot, EClass, Extractor, Id, Language, Pattern, RecExpr, Searcher, UnionFind,
-};
 
 /** A data structure to keep track of equalities between expressions.
 
@@ -577,7 +573,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         let old_hc_size = self.memo.len();
         let old_n_eclasses = self.number_of_classes();
 
-        let start = instant::Instant::now();
+        let start = Instant::now();
 
         self.process_unions();
         let n_unions = std::mem::take(&mut self.repairs_since_rebuild);
