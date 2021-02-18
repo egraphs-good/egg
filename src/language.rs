@@ -479,8 +479,8 @@ let just_foo = runner.egraph.add_expr(&"foo".parse().unwrap());
 assert_eq!(runner.egraph.find(runner.roots[0]), runner.egraph.find(just_foo));
 ```
 
-[`math.rs`]: https://github.com/mwillsey/egg/blob/master/tests/math.rs
-[`prop.rs`]: https://github.com/mwillsey/egg/blob/master/tests/prop.rs
+[`math.rs`]: https://github.com/egraphs-good/egg/blob/main/tests/math.rs
+[`prop.rs`]: https://github.com/egraphs-good/egg/blob/main/tests/prop.rs
 */
 
 pub trait Analysis<L: Language>: Sized {

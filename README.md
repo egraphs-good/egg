@@ -1,9 +1,9 @@
 # <img src="doc/egg.svg" alt="egg logo" height="40" align="left"> egg: egraphs good
 
-[![Build Status](https://github.com/mwillsey/egg/workflows/Build%20and%20Test/badge.svg?branch=master)](https://github.com/mwillsey/egg/actions)
+[![Build Status](https://github.com/egraphs-good/egg/workflows/Build%20and%20Test/badge.svg?branch=main)](https://github.com/egraphs-good/egg/actions)
 [![Crates.io](https://img.shields.io/crates/v/egg.svg)](https://crates.io/crates/egg)
 [![Released Docs.rs](https://docs.rs/egg/badge.svg)](https://docs.rs/egg/)
-[![Master docs](https://img.shields.io/badge/docs-master-blue)](https://egraphs-good.github.io/egg/egg/)
+[![Main branch docs](https://img.shields.io/badge/docs-main-blue)](https://egraphs-good.github.io/egg/egg/)
 
 Check out the [web demo](https://egraphs-good.github.io/egg-web-demo) for some quick e-graph action!
 

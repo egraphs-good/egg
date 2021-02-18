@@ -35,7 +35,7 @@
 - Rewrite creation will now fail if the searcher doesn't bind the right variables.
 - The `rewrite!` macro supports bidirectional rewrites now.
 - `define_language!` now supports variable numbers of children with `Box<[Id]>`.
-  
+
 ### Fixed
 - The `rewrite!` macro builds conditional rewrites in the correct order now.
 
@@ -59,14 +59,14 @@
   as per-eclass data.
 - **Fix:**
   An eclass's metadata will now get updated by
-  congruence. 
-  ([commit](https://github.com/mwillsey/egg/commit/0de75c9c9b0a80adb67fb78cc98cce3da383621a))
+  congruence.
+  ([commit](https://github.com/egraphs-good/egg/commit/0de75c9c9b0a80adb67fb78cc98cce3da383621a))
 - The `BackoffScheduler` will now fast-forward if all rules are banned.
-  ([commit](https://github.com/mwillsey/egg/commit/dd172ef77279e28448d0bf8147e0171a8175228d))
+  ([commit](https://github.com/egraphs-good/egg/commit/dd172ef77279e28448d0bf8147e0171a8175228d))
 - Improve benchmark reporting
-  ([commit](https://github.com/mwillsey/egg/commit/ca2ea5e239feda7eb6971942e119075f55f869ab))
-- The egraph now skips irrelevant eclasses while searching for a ~40% search speed up.  
-  ([PR](https://github.com/mwillsey/egg/pull/21))
+  ([commit](https://github.com/egraphs-good/egg/commit/ca2ea5e239feda7eb6971942e119075f55f869ab))
+- The egraph now skips irrelevant eclasses while searching for a ~40% search speed up.
+  ([PR](https://github.com/egraphs-good/egg/pull/21))
 
 ## [0.3.0] - 2020-02-27
 
@@ -130,13 +130,13 @@ But hopefully things will be a little more stable from here on out
 since the API is a lot nicer.
 
 <!-- next-url -->
-[Unreleased]: https://github.com/mwillsey/egg/compare/v0.6.0...HEAD
-[0.6.0]: https://github.com/mwillsey/egg/compare/v0.5.0...v0.6.0
-[0.5.0]: https://github.com/mwillsey/egg/compare/v0.4.1...v0.5.0
-[0.4.1]: https://github.com/mwillsey/egg/compare/v0.4.0...v0.4.1
-[0.4.0]: https://github.com/mwillsey/egg/compare/v0.3.0...v0.4.0
-[0.3.0]: https://github.com/mwillsey/egg/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/mwillsey/egg/compare/v0.1.2...v0.2.0
-[0.1.2]: https://github.com/mwillsey/egg/compare/v0.1.1...v0.1.2
-[0.1.1]: https://github.com/mwillsey/egg/compare/v0.1.0...v0.1.1
-[0.1.0]: https://github.com/mwillsey/egg/tree/v0.1.0
+[Unreleased]: https://github.com/egraphs-good/egg/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/egraphs-good/egg/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/egraphs-good/egg/compare/v0.4.1...v0.5.0
+[0.4.1]: https://github.com/egraphs-good/egg/compare/v0.4.0...v0.4.1
+[0.4.0]: https://github.com/egraphs-good/egg/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/egraphs-good/egg/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/egraphs-good/egg/compare/v0.1.2...v0.2.0
+[0.1.2]: https://github.com/egraphs-good/egg/compare/v0.1.1...v0.1.2
+[0.1.1]: https://github.com/egraphs-good/egg/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/egraphs-good/egg/tree/v0.1.0

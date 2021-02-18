@@ -35,5 +35,5 @@ exactly = 1
 [[pre-release-replacements]]
 file = "CHANGELOG.md"
 search = "<!-- next-url -->"
-replace = "<!-- next-url -->\n[Unreleased]: https://github.com/mwillsey/egg/compare/{{tag_name}}...HEAD"
+replace = "<!-- next-url -->\n[Unreleased]: https://github.com/egraphs-good/egg/compare/{{tag_name}}...HEAD"
 exactly = 1

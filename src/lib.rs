@@ -8,7 +8,7 @@ This is the API documentation.
 The [tutorial](tutorials) is a good starting point if you're new to
 e-graphs, equality saturation, or Rust.
 
-The [tests](https://github.com/mwillsey/egg/tree/master/tests)
+The [tests](https://github.com/egraphs-good/egg/tree/main/tests)
 on Github provide some more elaborate examples.
 
 There is also a [paper](https://arxiv.org/abs/2004.03082)
