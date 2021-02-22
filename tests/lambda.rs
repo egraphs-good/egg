@@ -264,7 +264,7 @@ egg::test_fn! {
     lambda_function_repeat, rules(),
     runner = Runner::default()
         .with_time_limit(std::time::Duration::from_secs(20))
-        .with_node_limit(100_000)
+        .with_node_limit(300_000)
         .with_iter_limit(60),
     "(let compose (lam f (lam g (lam x (app (var f)
                                        (app (var g) (var x))))))

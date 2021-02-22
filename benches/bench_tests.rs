@@ -28,7 +28,7 @@ iai::main!(
     math_simplify_root,
     lambda_compose,
     lambda_compose_many,
-    // lambda_fib,
+    lambda_fib,
     // lambda_function_repeat,
     lambda_if,
     lambda_if_elim,
