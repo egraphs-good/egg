@@ -1,5 +1,5 @@
 use egg::{rewrite as rw, *};
-use std::collections::HashSet;
+use fxhash::FxHashSet as HashSet;
 
 define_language! {
     enum Lambda {
