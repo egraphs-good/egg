@@ -31,10 +31,14 @@ harness = false
 fxhash = "0.2"
 env_logger = {version = "0.7", default-features = false}
 ordered-float = "1"
-iai = "0.1"
+
+[dev-dependencies.iai]
+# version = "*"
+git = "https://github.com/mwillsey/iai"
+rev = "c0b7cb47181e9577a6847caae53a2f0f881f45b2"
+features = ["threadpool"]
 
 [features]
-upward-merging = []
 wasm-bindgen = [ "instant/wasm-bindgen" ]
 serde-1 = [ "serde", "indexmap/serde-1" ]
 reports = [ "serde-1", "serde_json" ]

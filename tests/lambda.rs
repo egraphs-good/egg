@@ -1,5 +1,6 @@
 use egg::{rewrite as rw, *};
 use fxhash::FxHashSet as HashSet;
+use std::cmp::Ordering;
 
 define_language! {
     enum Lambda {
@@ -54,16 +55,18 @@ fn eval(egraph: &EGraph, enode: &Lambda) -> Option<Lambda> {
 
 impl Analysis<Lambda> for LambdaAnalysis {
     type Data = Data;
-    fn merge(&self, to: &mut Data, from: Data) -> bool {
+    fn merge(&self, to: &mut Data, from: Data) -> Option<Ordering> {
         let before_len = to.free.len();
         // to.free.extend(from.free);
         to.free.retain(|i| from.free.contains(i));
         let did_change = before_len != to.free.len();
         if to.constant.is_none() && from.constant.is_some() {
             to.constant = from.constant;
-            true
+            None
+        } else if did_change {
+            None
         } else {
-            did_change
+            Some(Ordering::Greater)
         }
     }
 
@@ -260,11 +263,10 @@ egg::test_fn! {
 }
 
 egg::test_fn! {
-    #[cfg_attr(feature = "upward-merging", ignore)]
     lambda_function_repeat, rules(),
     runner = Runner::default()
         .with_time_limit(std::time::Duration::from_secs(20))
-        .with_node_limit(100_000)
+        .with_node_limit(150_000)
         .with_iter_limit(60),
     "(let compose (lam f (lam g (lam x (app (var f)
                                        (app (var g) (var x))))))
@@ -298,7 +300,6 @@ egg::test_fn! {
 }
 
 egg::test_fn! {
-    #[cfg_attr(feature = "upward-merging", ignore)]
     lambda_fib, rules(),
     runner = Runner::default()
         .with_iter_limit(60)

@@ -1,7 +1,7 @@
-use std::convert::TryFrom;
 use std::fmt::{self, Debug, Display};
 use std::hash::Hash;
 use std::ops::{Index, IndexMut};
+use std::{cmp::Ordering, convert::TryFrom};
 
 use crate::*;
 
@@ -442,8 +442,8 @@ struct ConstantFolding;
 impl Analysis<SimpleMath> for ConstantFolding {
     type Data = Option<i32>;
 
-    fn merge(&self, to: &mut Self::Data, from: Self::Data) -> bool {
-        egg::merge_if_different(to, to.or(from))
+    fn merge(&self, to: &mut Self::Data, from: Self::Data) -> Option<std::cmp::Ordering> {
+        Some(egg::merge_max(to, from))
     }
 
     fn make(egraph: &EGraph<SimpleMath, Self>, enode: &SimpleMath) -> Self::Data {
@@ -504,9 +504,16 @@ pub trait Analysis<L: Language>: Sized {
     fn pre_union(egraph: &EGraph<L, Self>, id1: Id, id2: Id) {}
 
     /// Defines how to merge two `Data`s when their containing
-    /// [`EClass`]es merge. Returns whether `to` is changed.
+    /// [`EClass`]es merge.
     ///
-    fn merge(&self, to: &mut Self::Data, from: Self::Data) -> bool;
+    /// Only called when the two datas are unordered in the lattice.
+    ///
+    /// This must respect the partial ordering of `a` with respect to `b`:
+    /// - if `a < b`, then `a` should be assigned to `b`.
+    /// - if `a > b`, then `a` should be unmodified.
+    /// - if `a == b`, then `a` should be unmodified.
+    /// - if they cannot be compared, then `a` should be modifed.
+    fn merge(&self, a: &mut Self::Data, b: Self::Data) -> Option<Ordering>;
 
     /// A hook that allows the modification of the
     /// [`EGraph`]
@@ -516,34 +523,34 @@ pub trait Analysis<L: Language>: Sized {
     fn modify(egraph: &mut EGraph<L, Self>, id: Id) {}
 }
 
-/// Replace the first with second value if they are different returning whether
-/// or not something was done.
-///
-/// Useful for implementing
-/// [`Analysis::merge`].
-///
-/// ```
-/// # use egg::*;
-/// let mut x = 6;
-/// assert!(!merge_if_different(&mut x, 6));
-/// assert!(merge_if_different(&mut x, 7));
-/// assert_eq!(x, 7);
-/// ```
-pub fn merge_if_different<D: PartialEq>(to: &mut D, new: D) -> bool {
-    if *to == new {
-        false
-    } else {
-        *to = new;
-        true
-    }
-}
-
 impl<L: Language> Analysis<L> for () {
     type Data = ();
     fn make(_egraph: &EGraph<L, Self>, _enode: &L) -> Self::Data {}
-    fn merge(&self, _to: &mut Self::Data, _from: Self::Data) -> bool {
-        false
+    fn merge(&self, _: &mut Self::Data, _: Self::Data) -> Option<Ordering> {
+        Some(Ordering::Equal)
     }
+}
+
+/// A utility for implementing [`Analysis::merge`]
+/// when the `Data` type has a total ordering.
+/// This will take the maximum of the two values.
+pub fn merge_max<T: Ord>(to: &mut T, from: T) -> Ordering {
+    let cmp = (*to).cmp(&from);
+    if cmp == Ordering::Less {
+        *to = from;
+    }
+    cmp
+}
+
+/// A utility for implementing [`Analysis::merge`]
+/// when the `Data` type has a total ordering.
+/// This will take the minimum of the two values.
+pub fn merge_min<T: Ord>(to: &mut T, from: T) -> Ordering {
+    let cmp = (*to).cmp(&from).reverse();
+    if cmp == Ordering::Less {
+        *to = from;
+    }
+    cmp
 }
 
 /// A simple language used for testing.
