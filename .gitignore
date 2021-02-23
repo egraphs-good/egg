@@ -11,3 +11,5 @@ default.nix
 
 # other stuff
 TODO.md
+flamegraph.svg
+perf.data*
