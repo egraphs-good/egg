@@ -4,7 +4,6 @@ all: test nits bench
 test:
 	cargo build --release
 	cargo test --release
-	cargo test --release --features "upward-merging"
 
 .PHONY: nits
 nits:

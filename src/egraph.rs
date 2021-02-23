@@ -574,9 +574,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// // should be equivalent by congruence since x = y.
     /// egraph.union(x, y);
     /// // Classes: [x y] [ax] [ay] [a]
-    /// # #[cfg(not(feature = "upward-merging"))]
     /// assert_eq!(egraph.number_of_classes(), 4);
-    /// # #[cfg(not(feature = "upward-merging"))]
     /// assert_ne!(egraph.find(ax), egraph.find(ay));
     ///
     /// // Rebuilding restores the invariants, finding the "missing" equivalence
@@ -612,7 +610,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             trimmed_nodes,
         );
 
-        // debug_assert!(self.check_memo());
+        debug_assert!(self.check_memo());
         n_unions
     }
 }
