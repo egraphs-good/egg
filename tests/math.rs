@@ -71,12 +71,8 @@ impl Analysis<Math> for ConstantFold {
                 *a = b;
                 Some(Ordering::Less)
             }
-            (Some(_), None) => {
-                Some(Ordering::Greater)
-            }
-            (Some(_), Some(_)) => {
-                Some(Ordering::Equal)
-            }
+            (Some(_), None) => Some(Ordering::Greater),
+            (Some(_), Some(_)) => Some(Ordering::Equal),
         }
         // if a.is_none() && b.is_some() {
         //     *a = b
@@ -101,7 +97,6 @@ impl Analysis<Math> for ConstantFold {
             egraph[id].assert_unique_leaves();
         }
     }
-
 }
 
 fn is_const_or_distinct_var(v: &str, w: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {

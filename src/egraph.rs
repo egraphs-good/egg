@@ -1,5 +1,9 @@
 use crate::*;
-use std::{borrow::BorrowMut, cmp::Ordering, fmt::{self, Debug}};
+use std::{
+    borrow::BorrowMut,
+    cmp::Ordering,
+    fmt::{self, Debug},
+};
 
 use log::*;
 
@@ -44,7 +48,7 @@ pub struct EGraph<L: Language, N: Analysis<L>> {
     /// The `Analysis` given when creating this `EGraph`.
     pub analysis: N,
     pending: Vec<(L, Id)>,
-    analysis_pending: HashSet<(L, Id)>,
+    analysis_pending: IndexSet<(L, Id)>,
     memo: HashMap<L, Id>,
     unionfind: UnionFind,
     classes: HashMap<Id, EClass<L, N::Data>>,
@@ -355,6 +359,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             std::mem::swap(&mut id1, &mut id2);
         }
 
+        N::pre_union(self, id1, id2);
+
         // make id1 the new root
         self.unionfind.union(id1, id2);
 
@@ -489,61 +495,27 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     fn process_unions(&mut self) -> usize {
         let mut n_unions = 0;
 
-        while let Some((mut node, class)) = self.pending.pop() {
-            node.update_children(|id| self.find_mut(id));
-            if let Some(memo_class) = self.memo.insert(node, class) {
-                let (_, did_something) = self.union(memo_class, class);
-                n_unions += did_something as usize;
+        while !self.pending.is_empty() {
+            while let Some((mut node, class)) = self.pending.pop() {
+                node.update_children(|id| self.find_mut(id));
+                if let Some(memo_class) = self.memo.insert(node, class) {
+                    let (_, did_something) = self.union(memo_class, class);
+                    n_unions += did_something as usize;
+                }
             }
-        }
 
-        while !self.analysis_pending.is_empty() {
-            // self.analysis_pending.sort();
-            // self.analysis_pending.dedup();
-            let mut a = std::mem::take(&mut self.analysis_pending);
-
-            for (mut node, class_id) in a {
-            // while let Some((mut node, class_id)) = a.pop() {
-                // while let Some((mut node, class_id)) = self.analysis_pending.pop() {
+            while let Some((node, class_id)) = self.analysis_pending.pop() {
                 let class_id = self.find_mut(class_id);
-                // node.update_children(|id| self.find_mut(id));
                 let node_data = N::make(self, &node);
                 let class = self.classes.get_mut(&class_id).unwrap();
                 match self.analysis.merge(&mut class.data, node_data) {
                     Some(Ordering::Equal) | Some(Ordering::Greater) => {}
                     Some(Ordering::Less) | None => {
                         self.analysis_pending.extend(class.parents.iter().cloned());
+                        N::modify(self, class_id)
                     }
                 }
-                N::modify(self, class_id)
-                // let (ord, new_data) self.analysis.merge(class.data, node_data)
-                // match
-                //     // self.analysis_pending.extend(class.parents.iter().cloned());
-                //     // N::modify(self, class_id)
-                // }
-                // self.propagate_metadata_one(&node, class);
-                // if let Some(memo_class) = self.memo.insert(node, class) {
-                //     let (_, did_something) = self.union(memo_class, class);
-                //     n_unions += did_something as usize;
-                // }
             }
-        }
-
-        // let node_data = N::make(self, n);
-        // let class = self.classes.get_mut(&e).unwrap();
-        // if self.analysis.merge(&mut class.data, node_data) {
-        //     // self.dirty_unions.push(e); // NOTE: i dont think this is necessary
-        //     let e_parents = std::mem::take(&mut class.parents);
-        //     for (n, e) in &e_parents {
-        //         self.propagate_metadata_one(n, *e)
-        //     }
-        //     self[e].parents = e_parents;
-        //     N::modify(self, e)
-        // }
-
-
-        if !self.pending.is_empty() {
-            n_unions += self.process_unions();
         }
 
         assert!(self.pending.is_empty());

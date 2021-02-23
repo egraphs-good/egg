@@ -1,7 +1,7 @@
-use std::{cmp::Ordering, convert::TryFrom};
 use std::fmt::{self, Debug, Display};
 use std::hash::Hash;
 use std::ops::{Index, IndexMut};
+use std::{cmp::Ordering, convert::TryFrom};
 
 use crate::*;
 
@@ -506,10 +506,13 @@ pub trait Analysis<L: Language>: Sized {
     /// Defines how to merge two `Data`s when their containing
     /// [`EClass`]es merge.
     ///
-    /// Only called when the two data's are unordered in the lattice.
+    /// Only called when the two datas are unordered in the lattice.
     ///
-    /// Default implementation assumes the lattice is totally ordered,
-    /// i.e., it always panics.
+    /// This must respect the partial ordering of `a` with respect to `b`:
+    /// - if `a < b`, then `a` should be assigned to `b`.
+    /// - if `a > b`, then `a` should be unmodified.
+    /// - if `a == b`, then `a` should be unmodified.
+    /// - if they cannot be compared, then `a` should be modifed.
     fn merge(&self, a: &mut Self::Data, b: Self::Data) -> Option<Ordering>;
 
     /// A hook that allows the modification of the
@@ -528,6 +531,9 @@ impl<L: Language> Analysis<L> for () {
     }
 }
 
+/// A utility for implementing [`Analysis::merge`]
+/// when the `Data` type has a total ordering.
+/// This will take the maximum of the two values.
 pub fn merge_max<T: Ord>(to: &mut T, from: T) -> Ordering {
     let cmp = (*to).cmp(&from);
     if cmp == Ordering::Less {
@@ -536,6 +542,9 @@ pub fn merge_max<T: Ord>(to: &mut T, from: T) -> Ordering {
     cmp
 }
 
+/// A utility for implementing [`Analysis::merge`]
+/// when the `Data` type has a total ordering.
+/// This will take the minimum of the two values.
 pub fn merge_min<T: Ord>(to: &mut T, from: T) -> Ordering {
     let cmp = (*to).cmp(&from).reverse();
     if cmp == Ordering::Less {
