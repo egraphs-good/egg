@@ -12,7 +12,8 @@
 - `EGraph::add_expr` now proceeds linearly through the given `RecExpr`, which
   should be faster and include _all_ e-nodes from the expression.
 - `Rewrite` now has public `searcher` and `applier` fields and no `long_name`.
-- (#61) Rebuilding is much improved!
+- ([#61](https://github.com/egraphs-good/egg/pull/61))
+  Rebuilding is much improved!
   The new algorithm's congruence closure part is closer to
   [Downey, Sethi, Tarjan](https://dl.acm.org/doi/pdf/10.1145/322217.322228),
   and the analysis data propagation is more precise with respect to merging.
