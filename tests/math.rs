@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use egg::{rewrite as rw, *};
 use ordered_float::NotNan;
 
@@ -50,13 +52,6 @@ pub struct ConstantFold;
 impl Analysis<Math> for ConstantFold {
     type Data = Option<Constant>;
 
-    fn merge(&self, to: &mut Self::Data, from: Self::Data) -> bool {
-        if let (Some(c1), Some(c2)) = (to.as_ref(), from.as_ref()) {
-            assert_eq!(c1, c2);
-        }
-        merge_if_different(to, to.or(from))
-    }
-
     fn make(egraph: &EGraph, enode: &Math) -> Self::Data {
         let x = |i: &Id| egraph[*i].data;
         Some(match enode {
@@ -67,6 +62,26 @@ impl Analysis<Math> for ConstantFold {
             Math::Div([a, b]) if x(b) != Some(0.0.into()) => x(a)? / x(b)?,
             _ => return None,
         })
+    }
+
+    fn merge(&self, a: &mut Self::Data, b: Self::Data) -> Option<Ordering> {
+        match (a.as_mut(), b) {
+            (None, None) => Some(Ordering::Equal),
+            (None, Some(_)) => {
+                *a = b;
+                Some(Ordering::Less)
+            }
+            (Some(_), None) => {
+                Some(Ordering::Greater)
+            }
+            (Some(_), Some(_)) => {
+                Some(Ordering::Equal)
+            }
+        }
+        // if a.is_none() && b.is_some() {
+        //     *a = b
+        // }
+        // cmp
     }
 
     fn modify(egraph: &mut EGraph, id: Id) {
@@ -86,6 +101,7 @@ impl Analysis<Math> for ConstantFold {
             egraph[id].assert_unique_leaves();
         }
     }
+
 }
 
 fn is_const_or_distinct_var(v: &str, w: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {

@@ -1,8 +1,5 @@
 use crate::*;
-use std::{
-    borrow::BorrowMut,
-    fmt::{self, Debug},
-};
+use std::{borrow::BorrowMut, cmp::Ordering, fmt::{self, Debug}};
 
 use log::*;
 
@@ -47,10 +44,10 @@ pub struct EGraph<L: Language, N: Analysis<L>> {
     /// The `Analysis` given when creating this `EGraph`.
     pub analysis: N,
     pending: Vec<(L, Id)>,
+    analysis_pending: HashSet<(L, Id)>,
     memo: HashMap<L, Id>,
     unionfind: UnionFind,
     classes: HashMap<Id, EClass<L, N::Data>>,
-    repairs_since_rebuild: usize,
     pub(crate) classes_by_op: HashMap<std::mem::Discriminant<L>, HashSet<Id>>,
 }
 
@@ -79,8 +76,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             classes: Default::default(),
             unionfind: Default::default(),
             pending: Default::default(),
+            analysis_pending: Default::default(),
             classes_by_op: Default::default(),
-            repairs_since_rebuild: 0,
         }
     }
 
@@ -337,15 +334,13 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         }
     }
 
-    #[inline]
-    fn union_impl(&mut self, mut id1: Id, mut id2: Id) -> (Id, bool) {
-        fn concat<T>(to: &mut Vec<T>, mut from: Vec<T>) {
-            if to.len() < from.len() {
-                std::mem::swap(to, &mut from)
-            }
-            to.extend(from);
-        }
-
+    /// Unions two eclasses given their ids.
+    ///
+    /// The given ids need not be canonical.
+    /// The returned `bool` indicates whether a union was done,
+    /// so it's `false` if they were already equivalent.
+    /// Both results are canonical.
+    pub fn union(&mut self, mut id1: Id, mut id2: Id) -> (Id, bool) {
         id1 = self.find_mut(id1);
         id2 = self.find_mut(id2);
 
@@ -368,31 +363,26 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         let class1 = self.classes.get_mut(&id1).unwrap();
         assert_eq!(id1, class1.id);
 
-        self.analysis.merge(&mut class1.data, class2.data);
         self.pending.extend(class2.parents.iter().cloned());
-        concat(&mut class1.nodes, class2.nodes);
-        concat(&mut class1.parents, class2.parents);
+        match self.analysis.merge(&mut class1.data, class2.data) {
+            Some(Ordering::Equal) => {}
+            Some(Ordering::Greater) => {
+                self.analysis_pending.extend(class2.parents.iter().cloned());
+            }
+            Some(Ordering::Less) => {
+                self.analysis_pending.extend(class1.parents.iter().cloned());
+            }
+            None => {
+                let both = class1.parents.iter().chain(&class2.parents).cloned();
+                self.analysis_pending.extend(both);
+            }
+        }
 
-        // let parents = std::mem::take(&mut class1.parents);
-        // self.propagate_metadata(&parents);
-        // self[id1].parents = parents;
+        concat_vecs(&mut class1.nodes, class2.nodes);
+        concat_vecs(&mut class1.parents, class2.parents);
 
         N::modify(self, id1);
         (id1, id1 != id2)
-    }
-
-    /// Unions two eclasses given their ids.
-    ///
-    /// The given ids need not be canonical.
-    /// The returned `bool` indicates whether a union was done,
-    /// so it's `false` if they were already equivalent.
-    /// Both results are canonical.
-    pub fn union(&mut self, id1: Id, id2: Id) -> (Id, bool) {
-        self.union_impl(id1, id2)
-        // if union.1 && cfg!(feature = "upward-merging") {
-        //     self.process_unions();
-        // }
-        // union
     }
 
     /// Returns a more debug-able representation of the egraph.
@@ -496,79 +486,70 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     }
 
     #[inline(never)]
-    fn process_unions(&mut self) {
-        let mut combine = vec![];
-        while !self.pending.is_empty() {
-            let pending: Vec<_> = std::mem::take(&mut self.pending);
-            self.propagate_metadata(&pending);
-            for (mut node, class) in pending {
-                node.update_children(|id| self.find_mut(id));
-                if let Some(memo_class) = self.memo.insert(node, class) {
-                    combine.push((memo_class, class));
-                }
-                // else {
-                //     panic!()
-                // }
-            }
-            // assert!(self.pending.is_empty());
-            for (a, b) in combine.drain(..) {
-                self.union(a, b);
+    fn process_unions(&mut self) -> usize {
+        let mut n_unions = 0;
+
+        while let Some((mut node, class)) = self.pending.pop() {
+            node.update_children(|id| self.find_mut(id));
+            if let Some(memo_class) = self.memo.insert(node, class) {
+                let (_, did_something) = self.union(memo_class, class);
+                n_unions += did_something as usize;
             }
         }
 
-        // while !self.to_union.is_empty() {
-        //     // take the worklist, we'll get the stuff that's added the next time around
-        //     // deduplicate the dirty list to avoid extra work
-        //     let mut todo = std::mem::take(&mut self.to_union);
-        //     todo.iter_mut().for_each(|id| *id = self.find(*id));
-        //     if cfg!(not(feature = "upward-merging")) {
-        //         todo.sort_unstable();
-        //         todo.dedup();
+        while !self.analysis_pending.is_empty() {
+            // self.analysis_pending.sort();
+            // self.analysis_pending.dedup();
+            let mut a = std::mem::take(&mut self.analysis_pending);
+
+            for (mut node, class_id) in a {
+            // while let Some((mut node, class_id)) = a.pop() {
+                // while let Some((mut node, class_id)) = self.analysis_pending.pop() {
+                let class_id = self.find_mut(class_id);
+                // node.update_children(|id| self.find_mut(id));
+                let node_data = N::make(self, &node);
+                let class = self.classes.get_mut(&class_id).unwrap();
+                match self.analysis.merge(&mut class.data, node_data) {
+                    Some(Ordering::Equal) | Some(Ordering::Greater) => {}
+                    Some(Ordering::Less) | None => {
+                        self.analysis_pending.extend(class.parents.iter().cloned());
+                    }
+                }
+                N::modify(self, class_id)
+                // let (ord, new_data) self.analysis.merge(class.data, node_data)
+                // match
+                //     // self.analysis_pending.extend(class.parents.iter().cloned());
+                //     // N::modify(self, class_id)
+                // }
+                // self.propagate_metadata_one(&node, class);
+                // if let Some(memo_class) = self.memo.insert(node, class) {
+                //     let (_, did_something) = self.union(memo_class, class);
+                //     n_unions += did_something as usize;
+                // }
+            }
+        }
+
+        // let node_data = N::make(self, n);
+        // let class = self.classes.get_mut(&e).unwrap();
+        // if self.analysis.merge(&mut class.data, node_data) {
+        //     // self.dirty_unions.push(e); // NOTE: i dont think this is necessary
+        //     let e_parents = std::mem::take(&mut class.parents);
+        //     for (n, e) in &e_parents {
+        //         self.propagate_metadata_one(n, *e)
         //     }
-        //     assert!(!todo.is_empty());
-
-        //     for id in todo {
-        //         self.repairs_since_rebuild += 1;
-        //         let mut parents = std::mem::take(&mut self[id].parents);
-
-        //         for (n, _e) in &parents {
-        //             self.memo.remove(n);
-        //         }
-
-        //         parents.iter_mut().for_each(|(n, id)| {
-        //             n.update_children(|child| self.find(child));
-        //             *id = self.find(*id);
-        //         });
-        //         parents.sort_unstable();
-        //         parents.dedup_by(|(n1, e1), (n2, e2)| {
-        //             n1 == n2 && {
-        //                 to_union.push((*e1, *e2));
-        //                 true
-        //             }
-        //         });
-
-        //         for (n, e) in &parents {
-        //             if let Some(old) = self.memo.insert(n.clone(), *e) {
-        //                 to_union.push((old, *e));
-        //             }
-        //         }
-
-        //         self.propagate_metadata(&parents);
-
-        //         self[id].parents = parents;
-        //         N::modify(self, id);
-        //     }
-
-        //     for (id1, id2) in to_union.drain(..) {
-        //         let (to, did_something) = self.union_impl(id1, id2);
-        //         if did_something {
-        //             self.to_union.push(to);
-        //         }
-        //     }
+        //     self[e].parents = e_parents;
+        //     N::modify(self, e)
         // }
 
-        // assert!(self.to_union.is_empty());
-        // assert!(to_union.is_empty());
+
+        if !self.pending.is_empty() {
+            n_unions += self.process_unions();
+        }
+
+        assert!(self.pending.is_empty());
+        assert!(self.analysis_pending.is_empty());
+
+        n_unions
     }
 
     /// Restores the egraph invariants of congruence and enode uniqueness.
@@ -610,8 +591,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
         let start = Instant::now();
 
-        self.process_unions();
-        let n_unions = std::mem::take(&mut self.repairs_since_rebuild);
+        let n_unions = self.process_unions();
         let trimmed_nodes = self.rebuild_classes();
 
         let elapsed = start.elapsed();
@@ -632,24 +612,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             trimmed_nodes,
         );
 
-        debug_assert!(self.check_memo());
+        // debug_assert!(self.check_memo());
         n_unions
-    }
-
-    #[inline(never)]
-    fn propagate_metadata(&mut self, parents: &[(L, Id)]) {
-        for (n, e) in parents {
-            let e = self.find_mut(*e);
-            let node_data = N::make(self, n);
-            let class = self.classes.get_mut(&e).unwrap();
-            if self.analysis.merge(&mut class.data, node_data) {
-                // self.dirty_unions.push(e); // NOTE: i dont think this is necessary
-                let e_parents = std::mem::take(&mut class.parents);
-                self.propagate_metadata(&e_parents);
-                self[e].parents = e_parents;
-                N::modify(self, e)
-            }
-        }
     }
 }
 

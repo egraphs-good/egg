@@ -19,6 +19,13 @@ pub(crate) type IndexSet<K> = indexmap::IndexSet<K, std::hash::BuildHasherDefaul
 pub(crate) type Instant = instant::Instant;
 pub(crate) type Duration = instant::Duration;
 
+pub(crate) fn concat_vecs<T>(to: &mut Vec<T>, mut from: Vec<T>) {
+    if to.len() < from.len() {
+        std::mem::swap(to, &mut from)
+    }
+    to.extend(from);
+}
+
 static STRINGS: Lazy<Mutex<IndexSet<&'static str>>> = Lazy::new(Default::default);
 
 /// An interned string.
