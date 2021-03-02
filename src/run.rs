@@ -547,7 +547,7 @@ where
         egraph: &EGraph<L, N>,
         rewrite: &Rewrite<L, N>,
     ) -> Vec<SearchMatches> {
-        rewrite.search(egraph)
+        rewrite.searcher.search(egraph)
     }
 
     /// A hook allowing you to customize rewrite application behavior.
@@ -563,7 +563,7 @@ where
         rewrite: &Rewrite<L, N>,
         matches: Vec<SearchMatches>,
     ) -> usize {
-        rewrite.apply(egraph, &matches).len()
+        rewrite.applier.apply_matches(egraph, &matches).len()
     }
 }
 
@@ -737,7 +737,7 @@ where
             return vec![];
         }
 
-        let matches = rewrite.search(egraph);
+        let matches = rewrite.searcher.search(egraph);
         let total_len: usize = matches.iter().map(|m| m.substs.len()).sum();
         let threshold = stats.match_limit << stats.times_banned;
         if total_len > threshold {

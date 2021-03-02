@@ -57,12 +57,21 @@ use crate::*;
 /// ```
 ///
 /// [`FromStr`]: std::str::FromStr
-#[derive(Debug, PartialEq, Clone)]
-pub struct Pattern<L> {
+#[derive(Debug, Clone)]
+pub struct Pattern<L: Language> {
     /// The actual pattern as a [`RecExpr`]
     pub ast: PatternAst<L>,
     program: machine::Program<L>,
+    expr: Option<(Query<L>, qry::DynExpression<LangDB<L>>)>,
 }
+
+impl<L: Language> PartialEq for Pattern<L> {
+    fn eq(&self, other: &Self) -> bool {
+        self.ast == other.ast
+    }
+}
+
+pub type LangDB<L> = qry::SimpleDatabase<<L as Language>::Operator, Id>;
 
 /// A [`RecExpr`] that represents a
 /// [`Pattern`].
@@ -98,7 +107,53 @@ pub enum ENodeOrVar<L> {
     Var(Var),
 }
 
+#[derive(Debug, Hash, PartialEq, Eq, Clone, PartialOrd, Ord)]
+pub enum OpOrVar<L: Language> {
+    Op(L::Operator),
+    Var(Var),
+}
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
+pub enum VarOrId {
+    Var(Var),
+    Id(Id),
+}
+
+type Query<L> = qry::Query<VarOrId, <L as Language>::Operator, Id>;
+
+fn compile_to_query<L: Language>(ast: &PatternAst<L>) -> Query<L> {
+    use qry::*;
+    let mut atoms = vec![];
+
+    for (i, node) in ast.as_ref().iter().enumerate() {
+        if let ENodeOrVar::ENode(n) = node {
+            let mut terms: Vec<Term<_, _>> = vec![Term::Variable(VarOrId::Id(i.into()))];
+            n.for_each(|child| {
+                terms.push(match ast[child] {
+                    ENodeOrVar::ENode(_) => Term::Variable(VarOrId::Id(child)),
+                    ENodeOrVar::Var(v) => Term::Variable(VarOrId::Var(v)),
+                })
+            });
+            atoms.push(Atom::new(n.operator(), terms));
+        }
+    }
+
+    assert!(!atoms.is_empty());
+    let q = Query::new(atoms);
+    // println!("Compiled {}\n      to {:?}\n      vars: {:?}", ast, q.atoms, q.vars);
+    q
+}
+
 impl<L: Language> Language for ENodeOrVar<L> {
+    type Operator = OpOrVar<L>;
+
+    fn operator(&self) -> Self::Operator {
+        match self {
+            ENodeOrVar::ENode(op) => OpOrVar::Op(op.operator()),
+            ENodeOrVar::Var(v) => OpOrVar::Var(*v),
+        }
+    }
+
     fn matches(&self, _other: &Self) -> bool {
         panic!("Should never call this")
     }
@@ -161,7 +216,22 @@ impl<'a, L: Language> From<&'a [L]> for Pattern<L> {
 impl<'a, L: Language> From<PatternAst<L>> for Pattern<L> {
     fn from(ast: PatternAst<L>) -> Self {
         let program = machine::Program::compile_from_pat(&ast);
-        Pattern { ast, program }
+        let nodes = ast.as_ref();
+        let is_var = nodes.len() == 1 && matches!(nodes[0], ENodeOrVar::Var(_));
+        if is_var {
+            Pattern {
+                expr: None,
+                ast,
+                program,
+            }
+        } else {
+            let q = compile_to_query(&ast);
+            Pattern {
+                expr: Some((q.clone(), q.compile())),
+                ast,
+                program,
+            }
+        }
     }
 }
 
@@ -202,31 +272,58 @@ pub struct SearchMatches {
 
 impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
     fn search(&self, egraph: &EGraph<L, A>) -> Vec<SearchMatches> {
-        match self.ast.as_ref().last().unwrap() {
-            ENodeOrVar::ENode(e) => {
-                #[allow(clippy::mem_discriminant_non_enum)]
-                let key = std::mem::discriminant(e);
-                match egraph.classes_by_op.get(&key) {
-                    None => vec![],
-                    Some(ids) => ids
-                        .iter()
-                        .filter_map(|&id| self.search_eclass(egraph, id))
-                        .collect(),
-                }
-            }
-            ENodeOrVar::Var(_) => egraph
+        use qry::*;
+        match self.expr.as_ref() {
+            None => egraph
                 .classes()
                 .filter_map(|e| self.search_eclass(egraph, e.id))
                 .collect(),
+            Some((q, expr)) => {
+                let mut map: HashMap<Id, Vec<Subst>> = Default::default();
+                let vars: Vec<(usize, Var)> = q
+                    .vars
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(i, v)| match v {
+                        VarOrId::Var(v) => Some((i, *v)),
+                        VarOrId::Id(_) => None,
+                    })
+                    .collect();
+
+                let root = self.ast.as_ref().len() - 1;
+                let root_index = q.index_of(&VarOrId::Id(root.into())).unwrap();
+
+                expr.eval_ref(&egraph.db, |tuple| {
+                    let vec = vars.iter().map(|(i, v)| (*v, tuple[*i])).collect();
+                    let subst = Subst { vec };
+                    let root = egraph.find(tuple[root_index]);
+                    map.entry(root).or_default().push(subst);
+                });
+
+                map.into_iter()
+                    .map(|(eclass, substs)| SearchMatches { eclass, substs })
+                    .collect()
+            }
         }
     }
 
     fn search_eclass(&self, egraph: &EGraph<L, A>, eclass: Id) -> Option<SearchMatches> {
-        let substs = self.program.run(egraph, eclass);
-        if substs.is_empty() {
-            None
+        if self.expr.is_some() {
+            let id = egraph.find(eclass);
+            self.search(egraph).into_iter().find(|m| m.eclass == id)
         } else {
-            Some(SearchMatches { eclass, substs })
+            let nodes = self.ast.as_ref();
+            assert_eq!(nodes.len(), 1);
+            let var = match &nodes[0] {
+                ENodeOrVar::ENode(_) => panic!("Bad pattern {:?}", self.ast),
+                ENodeOrVar::Var(v) => *v,
+            };
+            let mut subst = Subst::default();
+            subst.insert(var, eclass);
+            Some(SearchMatches {
+                eclass,
+                substs: vec![subst],
+            })
         }
     }
 
@@ -320,11 +417,11 @@ mod tests {
             "(+ ?a ?b)" => "(+ ?b ?a)"
         );
 
-        let matches = commute_plus.search(&egraph);
+        let matches = commute_plus.searcher.search(&egraph);
         let n_matches: usize = matches.iter().map(|m| m.substs.len()).sum();
         assert_eq!(n_matches, 2, "matches is wrong: {:#?}", matches);
 
-        let applications = commute_plus.apply(&mut egraph, &matches);
+        let applications = commute_plus.applier.apply_matches(&mut egraph, &matches);
         egraph.rebuild();
         assert_eq!(applications.len(), 2);
 

@@ -82,30 +82,16 @@ impl<L: Language, N: Analysis<L>> Rewrite<L, N> {
         })
     }
 
-    /// Call [`search`] on the [`Searcher`].
-    ///
-    /// [`search`]: Searcher::search()
-    pub fn search(&self, egraph: &EGraph<L, N>) -> Vec<SearchMatches> {
-        self.searcher.search(egraph)
-    }
-
-    /// Call [`apply_matches`] on the [`Applier`].
-    ///
-    /// [`apply_matches`]: Applier::apply_matches()
-    pub fn apply(&self, egraph: &mut EGraph<L, N>, matches: &[SearchMatches]) -> Vec<Id> {
-        self.applier.apply_matches(egraph, matches)
-    }
-
     /// This `run` is for testing use only. You should use things
     /// from the `egg::run` module
     #[cfg(test)]
     pub(crate) fn run(&self, egraph: &mut EGraph<L, N>) -> Vec<Id> {
         let start = crate::util::Instant::now();
 
-        let matches = self.search(egraph);
+        let matches = self.searcher.search(egraph);
         log::debug!("Found rewrite {} {} times", self.name, matches.len());
 
-        let ids = self.apply(egraph, &matches);
+        let ids = self.applier.apply_matches(egraph, &matches);
         let elapsed = start.elapsed();
         log::debug!(
             "Applied rewrite {} {} times in {}.{:03}",
@@ -511,6 +497,7 @@ mod tests {
         );
 
         egraph.rebuild();
+        println!("{:?}", egraph.db);
         fold_add.run(&mut egraph);
         assert_eq!(egraph.equivs(&start, &goal), vec![egraph.find(root)]);
     }

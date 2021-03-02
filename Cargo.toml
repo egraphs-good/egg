@@ -23,6 +23,9 @@ serde = { version = "1", features = ["derive"], optional = true }
 serde_json = { version = "1", optional = true }
 fxhash = "0.2"
 
+[dependencies.qry]
+path = "../qry"
+
 [[bench]]
 name = "bench_tests"
 harness = false

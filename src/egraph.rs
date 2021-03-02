@@ -52,6 +52,7 @@ pub struct EGraph<L: Language, N: Analysis<L>> {
     memo: HashMap<L, Id>,
     unionfind: UnionFind,
     classes: HashMap<Id, EClass<L, N::Data>>,
+    pub(crate) db: LangDB<L>,
     pub(crate) classes_by_op: HashMap<std::mem::Discriminant<L>, HashSet<Id>>,
 }
 
@@ -80,6 +81,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             classes: Default::default(),
             unionfind: Default::default(),
             pending: Default::default(),
+            db: Default::default(),
             analysis_pending: Default::default(),
             classes_by_op: Default::default(),
         }
@@ -402,6 +404,23 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     pub fn dump(&self) -> impl Debug + '_ {
         EGraphDump(self)
     }
+
+    fn build_db(&mut self) {
+        let mut db = std::mem::take(&mut self.db);
+        db.map.values_mut().for_each(|v| v.1.clear());
+        for class in self.classes() {
+            for node in class.iter() {
+                let ids = &mut db
+                    .map
+                    .entry(node.operator())
+                    .or_insert_with(|| (1 + node.len(), vec![]))
+                    .1;
+                ids.push(class.id);
+                node.for_each(|id| ids.push(id));
+            }
+        }
+        self.db = db;
+    }
 }
 
 // All the rebuilding stuff
@@ -563,6 +582,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
         let n_unions = self.process_unions();
         let trimmed_nodes = self.rebuild_classes();
+
+        self.build_db();
 
         let elapsed = start.elapsed();
         info!(

@@ -23,7 +23,11 @@ use symbolic_expressions::Sexp;
 /// [`FromStr`]: std::str::FromStr
 /// [`Display`]: std::fmt::Display
 #[allow(clippy::len_without_is_empty)]
-pub trait Language: Debug + Clone + Eq + Ord + Hash {
+pub trait Language: Debug + Clone + Eq + Ord + Hash + 'static {
+    type Operator: Debug + Clone + Eq + Ord + Hash + 'static;
+
+    fn operator(&self) -> Self::Operator;
+
     /// Returns true if this enode matches another enode.
     /// This should only consider the operator, not the children `Id`s.
     fn matches(&self, other: &Self) -> bool;
@@ -576,6 +580,8 @@ impl SymbolLang {
 }
 
 impl Language for SymbolLang {
+    type Operator = Symbol;
+
     fn matches(&self, other: &Self) -> bool {
         self.op == other.op && self.len() == other.len()
     }
@@ -597,5 +603,9 @@ impl Language for SymbolLang {
 
     fn for_each_mut<F: FnMut(&mut Id)>(&mut self, f: F) {
         self.children.iter_mut().for_each(f)
+    }
+
+    fn operator(&self) -> Self::Operator {
+        self.op.clone()
     }
 }

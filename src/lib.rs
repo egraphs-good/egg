@@ -70,7 +70,7 @@ pub use {
     egraph::EGraph,
     extract::*,
     language::*,
-    pattern::{ENodeOrVar, Pattern, PatternAst, SearchMatches},
+    pattern::*,
     rewrite::{Applier, Condition, ConditionEqual, ConditionalApplier, Rewrite, Searcher},
     run::*,
     subst::{Subst, Var},
