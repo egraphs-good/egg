@@ -53,6 +53,7 @@ pub struct EGraph<L: Language, N: Analysis<L>> {
     unionfind: UnionFind,
     classes: HashMap<Id, EClass<L, N::Data>>,
     pub(crate) db: LangDB<L>,
+    pub(crate) eval_ctx: std::cell::RefCell<qry::EvalContext<L::Operator, Id>>,
     pub(crate) classes_by_op: HashMap<std::mem::Discriminant<L>, HashSet<Id>>,
 }
 
@@ -84,6 +85,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             db: Default::default(),
             analysis_pending: Default::default(),
             classes_by_op: Default::default(),
+            eval_ctx: Default::default(),
         }
     }
 
@@ -406,15 +408,16 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     }
 
     fn build_db(&mut self) {
+        self.eval_ctx.borrow_mut().clear();
         let mut db = std::mem::take(&mut self.db);
-        db.map.values_mut().for_each(|v| v.1.clear());
+        db.relations.values_mut().for_each(|v| v.clear());
         for class in self.classes() {
             for node in class.iter() {
+                let arity = 1 + node.len();
                 let ids = &mut db
-                    .map
-                    .entry(node.operator())
-                    .or_insert_with(|| (1 + node.len(), vec![]))
-                    .1;
+                    .relations
+                    .entry((node.operator(), arity))
+                    .or_default();
                 ids.push(class.id);
                 node.for_each(|id| ids.push(id));
             }

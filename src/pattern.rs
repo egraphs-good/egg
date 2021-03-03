@@ -62,7 +62,7 @@ pub struct Pattern<L: Language> {
     /// The actual pattern as a [`RecExpr`]
     pub ast: PatternAst<L>,
     program: machine::Program<L>,
-    expr: Option<(Query<L>, qry::DynExpression<LangDB<L>>)>,
+    expr: Option<(Query<L>, qry::Expr<L::Operator, Id>)>,
 }
 
 impl<L: Language> PartialEq for Pattern<L> {
@@ -71,7 +71,7 @@ impl<L: Language> PartialEq for Pattern<L> {
     }
 }
 
-pub type LangDB<L> = qry::SimpleDatabase<<L as Language>::Operator, Id>;
+pub type LangDB<L> = qry::Database<<L as Language>::Operator, Id>;
 
 /// A [`RecExpr`] that represents a
 /// [`Pattern`].
@@ -272,7 +272,6 @@ pub struct SearchMatches {
 
 impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
     fn search(&self, egraph: &EGraph<L, A>) -> Vec<SearchMatches> {
-        use qry::*;
         match self.expr.as_ref() {
             None => egraph
                 .classes()
@@ -293,7 +292,7 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
                 let root = self.ast.as_ref().len() - 1;
                 let root_index = q.index_of(&VarOrId::Id(root.into())).unwrap();
 
-                expr.eval_ref(&egraph.db, |tuple| {
+                expr.for_each(&egraph.db, &mut egraph.eval_ctx.borrow_mut(), |tuple| {
                     let vec = vars.iter().map(|(i, v)| (*v, tuple[*i])).collect();
                     let subst = Subst { vec };
                     let root = egraph.find(tuple[root_index]);
