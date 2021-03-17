@@ -164,6 +164,8 @@ where
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         writeln!(f, "digraph egraph {{")?;
 
+        // Increase space between ranks to improve readability
+        writeln!(f, "  ranksep=2")?;
         // set compound=true to enable edges to clusters
         writeln!(f, "  compound=true")?;
         writeln!(f, "  clusterrank=local")?;
