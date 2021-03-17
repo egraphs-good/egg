@@ -435,7 +435,7 @@ define_language! {
     }
 }
 
-// in this case, our analysis itself doens't require any data, so we can just
+// in this case, our analysis itself doesn't require any data, so we can just
 // use a unit struct and derive Default
 #[derive(Default)]
 struct ConstantFolding;
