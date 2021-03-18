@@ -170,6 +170,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         Dot {
             egraph: self,
             config: vec![],
+            use_anchors: true,
         }
     }
 }

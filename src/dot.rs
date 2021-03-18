@@ -54,6 +54,9 @@ pub struct Dot<'a, L: Language, N: Analysis<L>> {
     pub(crate) egraph: &'a EGraph<L, N>,
     /// A list of strings to be output top part of the dot file.
     pub config: Vec<String>,
+    /// Whether or not to anchor the edges in the output.
+    /// True by default.
+    pub use_anchors: bool,
 }
 
 impl<'a, L, N> Dot<'a, L, N>
@@ -73,6 +76,12 @@ where
     /// Indentation and a newline will be added automatically.
     pub fn with_config_line(mut self, line: impl Into<String>) -> Self {
         self.config.push(line.into());
+        self
+    }
+
+    /// Set whether or not to anchor the edges in the output.
+    pub fn with_anchors(mut self, use_anchors: bool) -> Self {
+        self.use_anchors = use_anchors;
         self
     }
 
@@ -142,26 +151,29 @@ where
             )),
         }
     }
+
+    // gives back the appropriate label and anchor
+    fn edge(&self, i: usize, len: usize) -> (String, String) {
+        assert!(i < len);
+        let s = |s: &str| s.to_string();
+        if !self.use_anchors {
+            return (s(""), format!("label={}", i));
+        }
+        match (len, i) {
+            (1, 0) => (s(""), s("")),
+            (2, 0) => (s(":sw"), s("")),
+            (2, 1) => (s(":se"), s("")),
+            (3, 0) => (s(":sw"), s("")),
+            (3, 1) => (s(":s"), s("")),
+            (3, 2) => (s(":se"), s("")),
+            (_, _) => (s(""), format!("label={}", i)),
+        }
+    }
 }
 
 impl<'a, L: Language, N: Analysis<L>> Debug for Dot<'a, L, N> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "Dot({:?})", self.egraph)
-    }
-}
-
-// gives back the appropriate label and anchor
-fn edge(i: usize, len: usize) -> (String, String) {
-    assert!(i < len);
-    let s = |s: &str| s.to_string();
-    match (len, i) {
-        (1, 0) => (s(""), s("")),
-        (2, 0) => (s(":sw"), s("")),
-        (2, 1) => (s(":se"), s("")),
-        (3, 0) => (s(":sw"), s("")),
-        (3, 1) => (s(":s"), s("")),
-        (3, 2) => (s(":se"), s("")),
-        (_, _) => (s(""), format!("label={}", i)),
     }
 }
 
@@ -202,7 +214,7 @@ where
                 let mut arg_i = 0;
                 node.try_for_each(|child| {
                     // write the edge to the child, but clip it to the eclass with lhead
-                    let (anchor, label) = edge(arg_i, node.len());
+                    let (anchor, label) = self.edge(arg_i, node.len());
                     let child_leader = self.egraph.find(child);
 
                     if child_leader == class.id {
