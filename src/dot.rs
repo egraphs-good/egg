@@ -52,6 +52,8 @@ instead of to its own eclass.
 **/
 pub struct Dot<'a, L: Language, N: Analysis<L>> {
     pub(crate) egraph: &'a EGraph<L, N>,
+    /// A list of strings to be output top part of the dot file.
+    pub config: Vec<String>,
 }
 
 impl<'a, L, N> Dot<'a, L, N>
@@ -65,6 +67,13 @@ where
         let mut file = std::fs::File::create(filename)?;
         write!(file, "{}", self)?;
         Ok(())
+    }
+
+    /// Adds a line to the dot output.
+    /// Indentation and a newline will be added automatically.
+    pub fn with_config_line(mut self, line: impl Into<String>) -> Self {
+        self.config.push(line.into());
+        self
     }
 
     /// Renders the `Dot` to a .png file with the given filename.
@@ -167,6 +176,10 @@ where
         // set compound=true to enable edges to clusters
         writeln!(f, "  compound=true")?;
         writeln!(f, "  clusterrank=local")?;
+
+        for line in &self.config {
+            writeln!(f, "  {}", line)?;
+        }
 
         // define all the nodes, clustered by eclass
         for class in self.egraph.classes() {

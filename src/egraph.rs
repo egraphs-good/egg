@@ -167,7 +167,10 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// Creates a [`Dot`] to visualize this egraph. See [`Dot`].
     ///
     pub fn dot(&self) -> Dot<L, N> {
-        Dot { egraph: self }
+        Dot {
+            egraph: self,
+            config: vec![],
+        }
     }
 }
 
