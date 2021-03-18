@@ -18,4 +18,4 @@ nits:
 
 .PHONY: bench
 bench:
-	cargo bench | ./scripts/filter-iai-output.py
+	EGG_TIME_LIMIT=60 cargo bench | ./scripts/filter-iai-output.py

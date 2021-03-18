@@ -405,7 +405,9 @@ where
         let mut matches = Vec::new();
         result = result.and_then(|_| {
             rules.iter().try_for_each(|rule| {
+                let start = Instant::now();
                 let ms = self.scheduler.search_rewrite(i, &self.egraph, rule);
+                println!("{:20} {:10}", rule.name(), start.elapsed().as_micros());
                 matches.push(ms);
                 self.check_limits()
             })

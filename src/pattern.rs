@@ -62,7 +62,7 @@ pub struct Pattern<L: Language> {
     /// The actual pattern as a [`RecExpr`]
     pub ast: PatternAst<L>,
     program: machine::Program<L>,
-    expr: Option<(Query<L>, qry::Expr<L::Operator, Id>)>,
+    expr: Option<(Query<L>, qry::VarMap<VarOrId>, qry::Expr<L::Operator, Id>)>,
 }
 
 impl<L: Language> PartialEq for Pattern<L> {
@@ -226,8 +226,9 @@ impl<'a, L: Language> From<PatternAst<L>> for Pattern<L> {
             }
         } else {
             let q = compile_to_query(&ast);
+            let (var_map, expr) = q.compile();
             Pattern {
-                expr: Some((q.clone(), q.compile())),
+                expr: Some((q.clone(), var_map, expr)),
                 ast,
                 program,
             }
@@ -277,23 +278,32 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
                 .classes()
                 .filter_map(|e| self.search_eclass(egraph, e.id))
                 .collect(),
-            Some((q, expr)) => {
+            Some((q, var_map, expr)) => {
+
+                let var_map = q.vars(&egraph.db);
+
                 let mut map: HashMap<Id, Vec<Subst>> = Default::default();
-                let vars: Vec<(usize, Var)> = q
-                    .vars
+                let vars: Vec<(Var, usize)> =
+                    var_map
                     .iter()
-                    .enumerate()
-                    .filter_map(|(i, v)| match v {
-                        VarOrId::Var(v) => Some((i, *v)),
+                    .filter_map(|(vori, i)| match vori {
+                        VarOrId::Var(v) => Some((*v, *i)),
                         VarOrId::Id(_) => None,
                     })
                     .collect();
 
                 let root = self.ast.as_ref().len() - 1;
-                let root_index = q.index_of(&VarOrId::Id(root.into())).unwrap();
+                let root_index = var_map[&VarOrId::Id(root.into())];
 
-                expr.for_each(&egraph.db, &mut egraph.eval_ctx.borrow_mut(), |tuple| {
-                    let vec = vars.iter().map(|(i, v)| (*v, tuple[*i])).collect();
+                // expr.for_each(&egraph.db, &mut egraph.eval_ctx.borrow_mut(), |tuple| {
+                //     let vec = vars.iter().map(|(v, i)| (*v, tuple[*i])).collect();
+                //     let subst = Subst { vec };
+                //     let root = egraph.find(tuple[root_index]);
+                //     map.entry(root).or_default().push(subst);
+                // });
+
+                q.join(&var_map, &egraph.db, &mut egraph.eval_ctx.borrow_mut(), |tuple| {
+                    let vec = vars.iter().map(|(v, i)| (*v, tuple[*i])).collect();
                     let subst = Subst { vec };
                     let root = egraph.find(tuple[root_index]);
                     map.entry(root).or_default().push(subst);

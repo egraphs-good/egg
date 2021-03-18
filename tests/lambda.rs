@@ -181,7 +181,7 @@ egg::test_fn! {
     =>
     // "(lam x (+ 4 (let y 4 (var y))))",
     // "(lam x (+ 4 4))",
-    "(lam x 8))",
+    "(lam x 8)",
 }
 
 egg::test_fn! {
