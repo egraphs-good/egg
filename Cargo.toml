@@ -22,6 +22,7 @@ serde = { version = "1", features = ["derive"], optional = true }
 # for the reports feature
 serde_json = { version = "1", optional = true }
 fxhash = "0.2"
+hashbrown = "0.11"
 
 [[bench]]
 name = "bench_tests"

@@ -7,14 +7,14 @@ use once_cell::sync::Lazy;
 #[allow(unused_imports)]
 use crate::*;
 
-pub(crate) type Hasher = fxhash::FxHasher;
+pub(crate) type BuildHasher = fxhash::FxBuildHasher;
 
 pub(crate) type HashMap<K, V> =
-    std::collections::HashMap<K, V, std::hash::BuildHasherDefault<Hasher>>;
-pub(crate) type HashSet<K> = std::collections::HashSet<K, std::hash::BuildHasherDefault<Hasher>>;
+    hashbrown::HashMap<K, V, BuildHasher>;
+pub(crate) type HashSet<K> = hashbrown::HashSet<K, BuildHasher>;
 
-pub(crate) type IndexMap<K, V> = indexmap::IndexMap<K, V, std::hash::BuildHasherDefault<Hasher>>;
-pub(crate) type IndexSet<K> = indexmap::IndexSet<K, std::hash::BuildHasherDefault<Hasher>>;
+pub(crate) type IndexMap<K, V> = indexmap::IndexMap<K, V, BuildHasher>;
+pub(crate) type IndexSet<K> = indexmap::IndexSet<K, BuildHasher>;
 
 pub(crate) type Instant = instant::Instant;
 pub(crate) type Duration = instant::Duration;
