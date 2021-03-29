@@ -119,7 +119,7 @@ let matches = pat.search(&egraph);
 assert!(matches.is_empty());
 
 egraph.union(a, b);
-// recall that rebuild must be called to "see" the effects of unions
+// recall that rebuild must be called to "see" the effects of adds or unions
 egraph.rebuild();
 
 // now we can find a match since a = b

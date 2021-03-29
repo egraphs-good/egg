@@ -265,7 +265,9 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// Hashconsing ensures that only one copy of that enode is in the egraph.
     /// If a copy is in the egraph, then [`add`] simply returns the id of the
     /// eclass in which the enode was found.
-    /// Otherwise
+    ///
+    /// Like [`union`](EGraph::union), this modifies the e-graph,
+    /// so you must call [`rebuild`](EGraph::rebuild) any query operations.
     ///
     /// [`add`]: EGraph::add()
     pub fn add(&mut self, mut enode: L) -> Id {
@@ -348,6 +350,9 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// The returned `bool` indicates whether a union was done,
     /// so it's `false` if they were already equivalent.
     /// Both results are canonical.
+    ///
+    /// Like [`add`](EGraph::add), this modifies the e-graph,
+    /// so you must call [`rebuild`](EGraph::rebuild) any query operations.
     pub fn union(&mut self, mut id1: Id, mut id2: Id) -> (Id, bool) {
         id1 = self.find_mut(id1);
         id2 = self.find_mut(id2);
@@ -536,6 +541,11 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// The `rebuild` method allows the user to manually restore those
     /// invariants at a time of their choosing. It's a reasonably
     /// fast, linear-ish traversal through the egraph.
+    ///
+    /// After modifying an e-graph with [`add`](EGraph::add) or
+    /// [`union`](EGraph::union), you must call [`rebuild`] to restore
+    /// invariants before any query operations, otherwise the results
+    /// may be stale or incorrect.
     ///
     /// # Example
     /// ```
