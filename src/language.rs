@@ -171,21 +171,27 @@ pub trait LanguageChildren {
     fn as_mut_slice(&mut self) -> &mut [Id];
 }
 
-macro_rules! impl_array {
-    () => {};
-    ($n:literal, $($rest:tt)*) => {
-        impl LanguageChildren for [Id; $n] {
-            fn len(&self) -> usize                   { <[Id]>::len(self) }
-            fn can_be_length(n: usize) -> bool       { n == $n }
-            fn from_vec(v: Vec<Id>) -> Self          { Self::try_from(v.as_slice()).unwrap() }
-            fn as_slice(&self) -> &[Id]              { self }
-            fn as_mut_slice(&mut self) -> &mut [Id]  { self }
-        }
-        impl_array!($($rest)*);
-    };
-}
+impl<const N: usize> LanguageChildren for [Id; N] {
+    fn len(&self) -> usize {
+        N
+    }
 
-impl_array!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,);
+    fn can_be_length(n: usize) -> bool {
+        n == N
+    }
+
+    fn from_vec(v: Vec<Id>) -> Self {
+        Self::try_from(v.as_slice()).unwrap()
+    }
+
+    fn as_slice(&self) -> &[Id] {
+        self
+    }
+
+    fn as_mut_slice(&mut self) -> &mut [Id] {
+        self
+    }
+}
 
 #[rustfmt::skip]
 impl LanguageChildren for Box<[Id]> {
