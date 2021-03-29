@@ -263,6 +263,7 @@ egg::test_fn! {
 }
 
 egg::test_fn! {
+    #[cfg(not(debug_assertions))]
     lambda_function_repeat, rules(),
     runner = Runner::default()
         .with_time_limit(std::time::Duration::from_secs(20))
@@ -300,6 +301,7 @@ egg::test_fn! {
 }
 
 egg::test_fn! {
+    #[cfg(not(debug_assertions))]
     lambda_fib, rules(),
     runner = Runner::default()
         .with_iter_limit(60)
