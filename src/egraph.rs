@@ -543,7 +543,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// fast, linear-ish traversal through the egraph.
     ///
     /// After modifying an e-graph with [`add`](EGraph::add) or
-    /// [`union`](EGraph::union), you must call [`rebuild`] to restore
+    /// [`union`](EGraph::union), you must call `rebuild` to restore
     /// invariants before any query operations, otherwise the results
     /// may be stale or incorrect.
     ///
