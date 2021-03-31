@@ -126,7 +126,7 @@ impl<L: Language, N: Analysis<L>> Rewrite<L, N> {
 /// matching substititions.
 /// Right now the only significant [`Searcher`] is [`Pattern`].
 ///
-pub trait Searcher<L, N>
+pub trait Searcher<L, N>: Send + Sync
 where
     L: Language,
     N: Analysis<L>,
@@ -249,7 +249,7 @@ where
 /// let start = "(+ x (* y z))".parse().unwrap();
 /// Runner::default().with_expr(&start).run(rules);
 /// ```
-pub trait Applier<L, N>
+pub trait Applier<L, N>: Send + Sync
 where
     L: Language,
     N: Analysis<L>,
@@ -365,7 +365,7 @@ where
 ///
 /// [`check`]: Condition::check()
 /// [`Fn`]: std::ops::Fn
-pub trait Condition<L, N>
+pub trait Condition<L, N>: Send + Sync
 where
     L: Language,
     N: Analysis<L>,
@@ -392,7 +392,7 @@ impl<L, F, N> Condition<L, N> for F
 where
     L: Language,
     N: Analysis<L>,
-    F: Fn(&mut EGraph<L, N>, Id, &Subst) -> bool,
+    F: Fn(&mut EGraph<L, N>, Id, &Subst) -> bool + Send + Sync,
 {
     fn check(&self, egraph: &mut EGraph<L, N>, eclass: Id, subst: &Subst) -> bool {
         self(egraph, eclass, subst)

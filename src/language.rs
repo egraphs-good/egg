@@ -23,7 +23,7 @@ use symbolic_expressions::Sexp;
 /// [`FromStr`]: std::str::FromStr
 /// [`Display`]: std::fmt::Display
 #[allow(clippy::len_without_is_empty)]
-pub trait Language: Debug + Clone + Eq + Ord + Hash {
+pub trait Language: Debug + Clone + Eq + Ord + Hash + Send + Sync {
     /// Returns true if this enode matches another enode.
     /// This should only consider the operator, not the children `Id`s.
     fn matches(&self, other: &Self) -> bool;
