@@ -610,7 +610,7 @@ impl<'a, L: Language, N: Analysis<L>> Debug for EGraphDump<'a, L, N> {
         for id in ids {
             let mut nodes = self.0[id].nodes.clone();
             nodes.sort();
-            writeln!(f, "{}: {:?}", id, nodes)?
+            writeln!(f, "{} ({:?}): {:?}", id, self.0[id].data, nodes)?
         }
         Ok(())
     }
