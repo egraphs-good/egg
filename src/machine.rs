@@ -26,7 +26,6 @@ enum Instruction<L> {
     Bind { node: L, i: Reg, out: Reg },
     Compare { i: Reg, j: Reg },
     Load { node: L, out: Reg },
-    // Check { node: L, i: Reg },
 }
 
 #[inline(always)]
@@ -208,11 +207,11 @@ impl<'a, L: Language> Compiler<'a, L> {
                     }
                 }
                 ENodeOrVar::ENode(node) => {
-                    // if node.all(|c| is_const[usize::from(c)]) {
-                    //     self.load_term(node, &mut instructions, self.out);
-                    //     instructions.push(Instruction::Compare { i, j: self.out });
-                    //     continue;
-                    // }
+                    if node.all(|c| is_const[usize::from(c)]) {
+                        self.load_term(node, &mut instructions, self.out);
+                        instructions.push(Instruction::Compare { i, j: self.out });
+                        continue;
+                    }
 
                     let out = self.out;
                     self.out.0 += node.len() as u32;
