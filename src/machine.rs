@@ -105,15 +105,13 @@ impl Machine {
                 Instruction::Load { node, out } => {
                     let mut iter = self.reg[out.0 as usize..].iter();
                     let mut node = node.clone();
-                    node.update_children(|_| {
-                        *iter.next().unwrap()
-                    });
+                    node.update_children(|_| *iter.next().unwrap());
                     match egraph.lookup(&mut node) {
-                        Some(id) => {        
+                        Some(id) => {
                             self.reg.truncate(out.0 as usize);
                             self.reg.push(id);
                         }
-                        None => return
+                        None => return,
                     }
                 }
             }
@@ -192,7 +190,7 @@ impl<'a, L: Language> Compiler<'a, L> {
         for i in 0..self.pattern.len() {
             is_const[i] = match &self.pattern[i] {
                 ENodeOrVar::Var(_v) => false,
-                ENodeOrVar::ENode(node) => node.all(|c| is_const[usize::from(c)])
+                ENodeOrVar::ENode(node) => node.all(|c| is_const[usize::from(c)]),
             };
         }
 
