@@ -24,6 +24,7 @@ pub struct Program<L> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum Instruction<L> {
     Bind { node: L, i: Reg, out: Reg },
+    Check { node: L, i: Reg },
     Compare { i: Reg, j: Reg },
 }
 
@@ -101,6 +102,15 @@ impl Machine {
                         return;
                     }
                 }
+                Instruction::Check { node, i } => {
+                    let should_continue = match egraph.lookup(node.clone()) {
+                        Some(id) => egraph.find(self.reg(*i)) == id,
+                        None => false
+                    };
+                    if !should_continue {
+                        return;
+                    }
+                }
             }
         }
 
@@ -173,6 +183,10 @@ impl<'a, L: Language> Compiler<'a, L> {
                     }
                 }
                 ENodeOrVar::ENode(node) => {
+                    if node.len() == 0 {
+                        instructions.push(Instruction::Check { node, i });
+                        continue;
+                    }
                     let out = self.out;
                     self.out.0 += node.len() as u32;
 
