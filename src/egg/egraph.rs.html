@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/egraph.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>egraph.rs - source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled ><script id="default-settings"></script><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="icon" type="image/svg+xml" href="../../favicon.svg">
 <link rel="alternate icon" type="image/png" href="../../favicon-16x16.png">
-<link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../egg/index.html'><div class='logo-container rust-logo'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu"><img src="../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices" role="menu"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><span class="help-button">?</span>
+<link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../egg/index.html'><div class='logo-container rust-logo'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu"><img src="../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices" role="menu"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" class="help-button">?</button>
                 <a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
 <span id="2">  2</span>
 <span id="3">  3</span>
@@ -643,27 +643,11 @@
 <span id="640">640</span>
 <span id="641">641</span>
 <span id="642">642</span>
-<span id="643">643</span>
-<span id="644">644</span>
-<span id="645">645</span>
-<span id="646">646</span>
-<span id="647">647</span>
-<span id="648">648</span>
-<span id="649">649</span>
-<span id="650">650</span>
-<span id="651">651</span>
-<span id="652">652</span>
-<span id="653">653</span>
-<span id="654">654</span>
-<span id="655">655</span>
-<span id="656">656</span>
-<span id="657">657</span>
-<span id="658">658</span>
-<span id="659">659</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident">std</span>::{
     <span class="ident">borrow</span>::<span class="ident">BorrowMut</span>,
+    <span class="ident">cmp</span>::<span class="ident">Ordering</span>,
     <span class="ident">fmt</span>::{<span class="self">self</span>, <span class="ident">Debug</span>},
 };
 
@@ -709,11 +693,11 @@ and
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span>, <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> {
     <span class="doccomment">/// The `Analysis` given when creating this `EGraph`.</span>
     <span class="kw">pub</span> <span class="ident">analysis</span>: <span class="ident">N</span>,
+    <span class="ident">pending</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">L</span>, <span class="ident">Id</span>)<span class="op">&gt;</span>,
+    <span class="ident">analysis_pending</span>: <span class="ident">IndexSet</span><span class="op">&lt;</span>(<span class="ident">L</span>, <span class="ident">Id</span>)<span class="op">&gt;</span>,
     <span class="ident">memo</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">Id</span><span class="op">&gt;</span>,
     <span class="ident">unionfind</span>: <span class="ident">UnionFind</span>,
     <span class="ident">classes</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">Id</span>, <span class="ident">EClass</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span>::<span class="ident">Data</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">dirty_unions</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span>,
-    <span class="ident">repairs_since_rebuild</span>: <span class="ident">usize</span>,
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">classes_by_op</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">Discriminant</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>, <span class="ident">HashSet</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 }
 
@@ -741,9 +725,9 @@ and
             <span class="ident">memo</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
             <span class="ident">classes</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
             <span class="ident">unionfind</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
-            <span class="ident">dirty_unions</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
+            <span class="ident">pending</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
+            <span class="ident">analysis_pending</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
             <span class="ident">classes_by_op</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
-            <span class="ident">repairs_since_rebuild</span>: <span class="number">0</span>,
         }
     }
 
@@ -820,10 +804,20 @@ and
         <span class="self">self</span>.<span class="ident">unionfind</span>.<span class="ident">find</span>(<span class="ident">id</span>)
     }
 
+    <span class="doccomment">/// This is private, but internals should use this whenever</span>
+    <span class="doccomment">/// possible because it does path compression.</span>
+    <span class="kw">fn</span> <span class="ident">find_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">id</span>: <span class="ident">Id</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Id</span> {
+        <span class="self">self</span>.<span class="ident">unionfind</span>.<span class="ident">find_mut</span>(<span class="ident">id</span>)
+    }
+
     <span class="doccomment">/// Creates a [`Dot`] to visualize this egraph. See [`Dot`].</span>
     <span class="doccomment">///</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">dot</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Dot</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span> {
-        <span class="ident">Dot</span> { <span class="ident">egraph</span>: <span class="self">self</span> }
+        <span class="ident">Dot</span> {
+            <span class="ident">egraph</span>: <span class="self">self</span>,
+            <span class="ident">config</span>: <span class="macro">vec</span><span class="macro">!</span>[],
+            <span class="ident">use_anchors</span>: <span class="bool-val">true</span>,
+        }
     }
 }
 
@@ -842,7 +836,7 @@ and
 <span class="doccomment">/// reference to the e-class.</span>
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span>, <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">std</span>::<span class="ident">ops</span>::<span class="ident">IndexMut</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span> {
     <span class="kw">fn</span> <span class="ident">index_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">id</span>: <span class="ident">Id</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span>::<span class="ident">Output</span> {
-        <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">find</span>(<span class="ident">id</span>);
+        <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">find_mut</span>(<span class="ident">id</span>);
         <span class="self">self</span>.<span class="ident">classes</span>
             .<span class="ident">get_mut</span>(<span class="kw-2">&amp;</span><span class="ident">id</span>)
             .<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;Invalid id {}&quot;</span>, <span class="ident">id</span>))
@@ -885,20 +879,19 @@ and
     <span class="doccomment">/// let mut egraph: EGraph&lt;SymbolLang, ()&gt; = Default::default();</span>
     <span class="doccomment">/// let a = egraph.add(SymbolLang::leaf(&quot;a&quot;));</span>
     <span class="doccomment">/// let b = egraph.add(SymbolLang::leaf(&quot;b&quot;));</span>
-    <span class="doccomment">/// let c = egraph.add(SymbolLang::leaf(&quot;c&quot;));</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// // lookup will find this node if its in the egraph</span>
-    <span class="doccomment">/// let mut node_f_ac = SymbolLang::new(&quot;f&quot;, vec![a, c]);</span>
-    <span class="doccomment">/// assert_eq!(egraph.lookup(node_f_ac.clone()), None);</span>
-    <span class="doccomment">/// let id = egraph.add(node_f_ac.clone());</span>
-    <span class="doccomment">/// assert_eq!(egraph.lookup(node_f_ac.clone()), Some(id));</span>
+    <span class="doccomment">/// let mut node_f_ab = SymbolLang::new(&quot;f&quot;, vec![a, b]);</span>
+    <span class="doccomment">/// assert_eq!(egraph.lookup(node_f_ab.clone()), None);</span>
+    <span class="doccomment">/// let id = egraph.add(node_f_ab.clone());</span>
+    <span class="doccomment">/// assert_eq!(egraph.lookup(node_f_ab.clone()), Some(id));</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// // if the query node isn&#39;t canonical, and its passed in by &amp;mut instead of owned,</span>
     <span class="doccomment">/// // its children will be canonicalized</span>
-    <span class="doccomment">/// egraph.union(b, c);</span>
+    <span class="doccomment">/// egraph.union(a, b);</span>
     <span class="doccomment">/// egraph.rebuild();</span>
-    <span class="doccomment">/// assert_eq!(egraph.lookup(&amp;mut node_f_ac), Some(id));</span>
-    <span class="doccomment">/// assert_eq!(node_f_ac, SymbolLang::new(&quot;f&quot;, vec![a, b]));</span>
+    <span class="doccomment">/// assert_eq!(egraph.lookup(&amp;mut node_f_ab), Some(id));</span>
+    <span class="doccomment">/// assert_eq!(node_f_ab, SymbolLang::new(&quot;f&quot;, vec![a, a]));</span>
     <span class="doccomment">/// ```</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">lookup</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">enode</span>: <span class="ident">B</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span>
     <span class="kw">where</span>
@@ -918,7 +911,9 @@ and
     <span class="doccomment">/// Hashconsing ensures that only one copy of that enode is in the egraph.</span>
     <span class="doccomment">/// If a copy is in the egraph, then [`add`] simply returns the id of the</span>
     <span class="doccomment">/// eclass in which the enode was found.</span>
-    <span class="doccomment">/// Otherwise</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Like [`union`](EGraph::union), this modifies the e-graph,</span>
+    <span class="doccomment">/// so you must call [`rebuild`](EGraph::rebuild) any query operations.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// [`add`]: EGraph::add()</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">enode</span>: <span class="ident">L</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Id</span> {
@@ -937,6 +932,9 @@ and
                 <span class="kw">let</span> <span class="ident">tup</span> <span class="op">=</span> (<span class="ident">enode</span>.<span class="ident">clone</span>(), <span class="ident">id</span>);
                 <span class="self">self</span>[<span class="ident">child</span>].<span class="ident">parents</span>.<span class="ident">push</span>(<span class="ident">tup</span>);
             });
+
+            <span class="comment">// TODO is this needed?</span>
+            <span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">push</span>((<span class="ident">enode</span>.<span class="ident">clone</span>(), <span class="ident">id</span>));
 
             <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">insert</span>(<span class="ident">id</span>, <span class="ident">class</span>);
             <span class="macro">assert</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">memo</span>.<span class="ident">insert</span>(<span class="ident">enode</span>, <span class="ident">id</span>).<span class="ident">is_none</span>());
@@ -992,50 +990,60 @@ and
         }
     }
 
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">fn</span> <span class="ident">union_impl</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">id1</span>: <span class="ident">Id</span>, <span class="ident">id2</span>: <span class="ident">Id</span>) <span class="op">-</span><span class="op">&gt;</span> (<span class="ident">Id</span>, <span class="ident">bool</span>) {
-        <span class="kw">fn</span> <span class="ident">concat</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(<span class="ident">to</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="kw-2">mut</span> <span class="ident">from</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) {
-            <span class="kw">if</span> <span class="ident">to</span>.<span class="ident">len</span>() <span class="op">&lt;</span> <span class="ident">from</span>.<span class="ident">len</span>() {
-                <span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">swap</span>(<span class="ident">to</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">from</span>)
-            }
-            <span class="ident">to</span>.<span class="ident">extend</span>(<span class="ident">from</span>);
-        }
-
-        <span class="kw">if</span> <span class="ident">id1</span> <span class="op">!</span><span class="op">=</span> <span class="ident">id2</span> {
-            <span class="ident">N</span>::<span class="ident">pre_union</span>(<span class="self">self</span>, <span class="ident">id1</span>, <span class="ident">id2</span>);
-        }
-
-        <span class="kw">let</span> (<span class="ident">to</span>, <span class="ident">from</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">unionfind</span>.<span class="ident">union</span>(<span class="ident">id1</span>, <span class="ident">id2</span>);
-        <span class="macro">debug_assert_eq</span><span class="macro">!</span>(<span class="ident">to</span>, <span class="self">self</span>.<span class="ident">find</span>(<span class="ident">id1</span>));
-        <span class="macro">debug_assert_eq</span><span class="macro">!</span>(<span class="ident">to</span>, <span class="self">self</span>.<span class="ident">find</span>(<span class="ident">id2</span>));
-        <span class="kw">if</span> <span class="ident">to</span> <span class="op">!</span><span class="op">=</span> <span class="ident">from</span> {
-            <span class="self">self</span>.<span class="ident">dirty_unions</span>.<span class="ident">push</span>(<span class="ident">to</span>);
-
-            <span class="comment">// update the classes data structure</span>
-            <span class="kw">let</span> <span class="ident">from_class</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">remove</span>(<span class="kw-2">&amp;</span><span class="ident">from</span>).<span class="ident">unwrap</span>();
-            <span class="kw">let</span> <span class="ident">to_class</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">get_mut</span>(<span class="kw-2">&amp;</span><span class="ident">to</span>).<span class="ident">unwrap</span>();
-
-            <span class="self">self</span>.<span class="ident">analysis</span>.<span class="ident">merge</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">to_class</span>.<span class="ident">data</span>, <span class="ident">from_class</span>.<span class="ident">data</span>);
-            <span class="ident">concat</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">to_class</span>.<span class="ident">nodes</span>, <span class="ident">from_class</span>.<span class="ident">nodes</span>);
-            <span class="ident">concat</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">to_class</span>.<span class="ident">parents</span>, <span class="ident">from_class</span>.<span class="ident">parents</span>);
-
-            <span class="ident">N</span>::<span class="ident">modify</span>(<span class="self">self</span>, <span class="ident">to</span>);
-        }
-        (<span class="ident">to</span>, <span class="ident">to</span> <span class="op">!</span><span class="op">=</span> <span class="ident">from</span>)
-    }
-
     <span class="doccomment">/// Unions two eclasses given their ids.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// The given ids need not be canonical.</span>
     <span class="doccomment">/// The returned `bool` indicates whether a union was done,</span>
     <span class="doccomment">/// so it&#39;s `false` if they were already equivalent.</span>
     <span class="doccomment">/// Both results are canonical.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">union</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">id1</span>: <span class="ident">Id</span>, <span class="ident">id2</span>: <span class="ident">Id</span>) <span class="op">-</span><span class="op">&gt;</span> (<span class="ident">Id</span>, <span class="ident">bool</span>) {
-        <span class="kw">let</span> <span class="ident">union</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">union_impl</span>(<span class="ident">id1</span>, <span class="ident">id2</span>);
-        <span class="kw">if</span> <span class="ident">union</span>.<span class="number">1</span> <span class="op">&amp;&amp;</span> <span class="macro">cfg</span><span class="macro">!</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;upward-merging&quot;</span>) {
-            <span class="self">self</span>.<span class="ident">process_unions</span>();
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Like [`add`](EGraph::add), this modifies the e-graph,</span>
+    <span class="doccomment">/// so you must call [`rebuild`](EGraph::rebuild) any query operations.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">union</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">id1</span>: <span class="ident">Id</span>, <span class="kw-2">mut</span> <span class="ident">id2</span>: <span class="ident">Id</span>) <span class="op">-</span><span class="op">&gt;</span> (<span class="ident">Id</span>, <span class="ident">bool</span>) {
+        <span class="ident">id1</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">find_mut</span>(<span class="ident">id1</span>);
+        <span class="ident">id2</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">find_mut</span>(<span class="ident">id2</span>);
+
+        <span class="kw">if</span> <span class="ident">id1</span> <span class="op">=</span><span class="op">=</span> <span class="ident">id2</span> {
+            <span class="kw">return</span> (<span class="ident">id1</span>, <span class="bool-val">false</span>);
         }
-        <span class="ident">union</span>
+
+        <span class="comment">// make sure class2 has fewer parents</span>
+        <span class="kw">let</span> <span class="ident">class1_parents</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">classes</span>[<span class="kw-2">&amp;</span><span class="ident">id1</span>].<span class="ident">parents</span>.<span class="ident">len</span>();
+        <span class="kw">let</span> <span class="ident">class2_parents</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">classes</span>[<span class="kw-2">&amp;</span><span class="ident">id2</span>].<span class="ident">parents</span>.<span class="ident">len</span>();
+        <span class="kw">if</span> <span class="ident">class1_parents</span> <span class="op">&lt;</span> <span class="ident">class2_parents</span> {
+            <span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">swap</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">id1</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">id2</span>);
+        }
+
+        <span class="ident">N</span>::<span class="ident">pre_union</span>(<span class="self">self</span>, <span class="ident">id1</span>, <span class="ident">id2</span>);
+
+        <span class="comment">// make id1 the new root</span>
+        <span class="self">self</span>.<span class="ident">unionfind</span>.<span class="ident">union</span>(<span class="ident">id1</span>, <span class="ident">id2</span>);
+
+        <span class="macro">assert_ne</span><span class="macro">!</span>(<span class="ident">id1</span>, <span class="ident">id2</span>);
+        <span class="kw">let</span> <span class="ident">class2</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">remove</span>(<span class="kw-2">&amp;</span><span class="ident">id2</span>).<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">class1</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">get_mut</span>(<span class="kw-2">&amp;</span><span class="ident">id1</span>).<span class="ident">unwrap</span>();
+        <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">id1</span>, <span class="ident">class1</span>.<span class="ident">id</span>);
+
+        <span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">extend</span>(<span class="ident">class2</span>.<span class="ident">parents</span>.<span class="ident">iter</span>().<span class="ident">cloned</span>());
+        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">analysis</span>.<span class="ident">merge</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">class1</span>.<span class="ident">data</span>, <span class="ident">class2</span>.<span class="ident">data</span>) {
+            <span class="prelude-val">Some</span>(<span class="ident">Ordering</span>::<span class="ident">Equal</span>) <span class="op">=</span><span class="op">&gt;</span> {}
+            <span class="prelude-val">Some</span>(<span class="ident">Ordering</span>::<span class="ident">Greater</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="self">self</span>.<span class="ident">analysis_pending</span>.<span class="ident">extend</span>(<span class="ident">class2</span>.<span class="ident">parents</span>.<span class="ident">iter</span>().<span class="ident">cloned</span>());
+            }
+            <span class="prelude-val">Some</span>(<span class="ident">Ordering</span>::<span class="ident">Less</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="self">self</span>.<span class="ident">analysis_pending</span>.<span class="ident">extend</span>(<span class="ident">class1</span>.<span class="ident">parents</span>.<span class="ident">iter</span>().<span class="ident">cloned</span>());
+            }
+            <span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="kw">let</span> <span class="ident">both</span> <span class="op">=</span> <span class="ident">class1</span>.<span class="ident">parents</span>.<span class="ident">iter</span>().<span class="ident">chain</span>(<span class="kw-2">&amp;</span><span class="ident">class2</span>.<span class="ident">parents</span>).<span class="ident">cloned</span>();
+                <span class="self">self</span>.<span class="ident">analysis_pending</span>.<span class="ident">extend</span>(<span class="ident">both</span>);
+            }
+        }
+
+        <span class="ident">concat_vecs</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">class1</span>.<span class="ident">nodes</span>, <span class="ident">class2</span>.<span class="ident">nodes</span>);
+        <span class="ident">concat_vecs</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">class1</span>.<span class="ident">parents</span>, <span class="ident">class2</span>.<span class="ident">parents</span>);
+
+        <span class="ident">N</span>::<span class="ident">modify</span>(<span class="self">self</span>, <span class="ident">id1</span>);
+        (<span class="ident">id1</span>, <span class="ident">id1</span> <span class="op">!</span><span class="op">=</span> <span class="ident">id2</span>)
     }
 
     <span class="doccomment">/// Returns a more debug-able representation of the egraph.</span>
@@ -1060,20 +1068,18 @@ and
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">trimmed</span> <span class="op">=</span> <span class="number">0</span>;
 
-        <span class="kw">let</span> <span class="ident">uf</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">unionfind</span>;
+        <span class="kw">let</span> <span class="ident">uf</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">unionfind</span>;
         <span class="kw">for</span> <span class="ident">class</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">values_mut</span>() {
             <span class="kw">let</span> <span class="ident">old_len</span> <span class="op">=</span> <span class="ident">class</span>.<span class="ident">len</span>();
             <span class="ident">class</span>
                 .<span class="ident">nodes</span>
                 .<span class="ident">iter_mut</span>()
-                .<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">n</span><span class="op">|</span> <span class="ident">n</span>.<span class="ident">update_children</span>(<span class="op">|</span><span class="ident">id</span><span class="op">|</span> <span class="ident">uf</span>.<span class="ident">find</span>(<span class="ident">id</span>)));
+                .<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">n</span><span class="op">|</span> <span class="ident">n</span>.<span class="ident">update_children</span>(<span class="op">|</span><span class="ident">id</span><span class="op">|</span> <span class="ident">uf</span>.<span class="ident">find_mut</span>(<span class="ident">id</span>)));
             <span class="ident">class</span>.<span class="ident">nodes</span>.<span class="ident">sort_unstable</span>();
             <span class="ident">class</span>.<span class="ident">nodes</span>.<span class="ident">dedup</span>();
 
             <span class="ident">trimmed</span> <span class="op">+</span><span class="op">=</span> <span class="ident">old_len</span> <span class="op">-</span> <span class="ident">class</span>.<span class="ident">nodes</span>.<span class="ident">len</span>();
 
-            <span class="comment">// TODO this is the slow version, could take advantage of sortedness</span>
-            <span class="comment">// maybe</span>
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">add</span> <span class="op">=</span> <span class="op">|</span><span class="ident">n</span>: <span class="kw-2">&amp;</span><span class="ident">L</span><span class="op">|</span> {
                 <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy</span>::<span class="ident">mem_discriminant_non_enum</span>)]</span>
                 <span class="ident">classes_by_op</span>
@@ -1141,62 +1147,36 @@ and
     }
 
     <span class="attribute">#[<span class="ident">inline</span>(<span class="ident">never</span>)]</span>
-    <span class="kw">fn</span> <span class="ident">process_unions</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">to_union</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[];
+    <span class="kw">fn</span> <span class="ident">process_unions</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">n_unions</span> <span class="op">=</span> <span class="number">0</span>;
 
-        <span class="kw">while</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">dirty_unions</span>.<span class="ident">is_empty</span>() {
-            <span class="comment">// take the worklist, we&#39;ll get the stuff that&#39;s added the next time around</span>
-            <span class="comment">// deduplicate the dirty list to avoid extra work</span>
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">todo</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">take</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">dirty_unions</span>);
-            <span class="ident">todo</span>.<span class="ident">iter_mut</span>().<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">id</span><span class="op">|</span> <span class="kw-2">*</span><span class="ident">id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">find</span>(<span class="kw-2">*</span><span class="ident">id</span>));
-            <span class="kw">if</span> <span class="macro">cfg</span><span class="macro">!</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;upward-merging&quot;</span>)) {
-                <span class="ident">todo</span>.<span class="ident">sort_unstable</span>();
-                <span class="ident">todo</span>.<span class="ident">dedup</span>();
-            }
-            <span class="macro">assert</span><span class="macro">!</span>(<span class="op">!</span><span class="ident">todo</span>.<span class="ident">is_empty</span>());
-
-            <span class="kw">for</span> <span class="ident">id</span> <span class="kw">in</span> <span class="ident">todo</span> {
-                <span class="self">self</span>.<span class="ident">repairs_since_rebuild</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">parents</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">take</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>[<span class="ident">id</span>].<span class="ident">parents</span>);
-
-                <span class="kw">for</span> (<span class="ident">n</span>, <span class="ident">_e</span>) <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">parents</span> {
-                    <span class="self">self</span>.<span class="ident">memo</span>.<span class="ident">remove</span>(<span class="ident">n</span>);
+        <span class="kw">while</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">is_empty</span>() {
+            <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="kw-2">mut</span> <span class="ident">node</span>, <span class="ident">class</span>)) <span class="op">=</span> <span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">pop</span>() {
+                <span class="ident">node</span>.<span class="ident">update_children</span>(<span class="op">|</span><span class="ident">id</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">find_mut</span>(<span class="ident">id</span>));
+                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">memo_class</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">memo</span>.<span class="ident">insert</span>(<span class="ident">node</span>, <span class="ident">class</span>) {
+                    <span class="kw">let</span> (<span class="kw">_</span>, <span class="ident">did_something</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">union</span>(<span class="ident">memo_class</span>, <span class="ident">class</span>);
+                    <span class="ident">n_unions</span> <span class="op">+</span><span class="op">=</span> <span class="ident">did_something</span> <span class="kw">as</span> <span class="ident">usize</span>;
                 }
-
-                <span class="ident">parents</span>.<span class="ident">iter_mut</span>().<span class="ident">for_each</span>(<span class="op">|</span>(<span class="ident">n</span>, <span class="ident">id</span>)<span class="op">|</span> {
-                    <span class="ident">n</span>.<span class="ident">update_children</span>(<span class="op">|</span><span class="ident">child</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">find</span>(<span class="ident">child</span>));
-                    <span class="kw-2">*</span><span class="ident">id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">find</span>(<span class="kw-2">*</span><span class="ident">id</span>);
-                });
-                <span class="ident">parents</span>.<span class="ident">sort_unstable</span>();
-                <span class="ident">parents</span>.<span class="ident">dedup_by</span>(<span class="op">|</span>(<span class="ident">n1</span>, <span class="ident">e1</span>), (<span class="ident">n2</span>, <span class="ident">e2</span>)<span class="op">|</span> {
-                    <span class="ident">n1</span> <span class="op">=</span><span class="op">=</span> <span class="ident">n2</span> <span class="op">&amp;&amp;</span> {
-                        <span class="ident">to_union</span>.<span class="ident">push</span>((<span class="kw-2">*</span><span class="ident">e1</span>, <span class="kw-2">*</span><span class="ident">e2</span>));
-                        <span class="bool-val">true</span>
-                    }
-                });
-
-                <span class="kw">for</span> (<span class="ident">n</span>, <span class="ident">e</span>) <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">parents</span> {
-                    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">old</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">memo</span>.<span class="ident">insert</span>(<span class="ident">n</span>.<span class="ident">clone</span>(), <span class="kw-2">*</span><span class="ident">e</span>) {
-                        <span class="ident">to_union</span>.<span class="ident">push</span>((<span class="ident">old</span>, <span class="kw-2">*</span><span class="ident">e</span>));
-                    }
-                }
-
-                <span class="self">self</span>.<span class="ident">propagate_metadata</span>(<span class="kw-2">&amp;</span><span class="ident">parents</span>);
-
-                <span class="self">self</span>[<span class="ident">id</span>].<span class="ident">parents</span> <span class="op">=</span> <span class="ident">parents</span>;
-                <span class="ident">N</span>::<span class="ident">modify</span>(<span class="self">self</span>, <span class="ident">id</span>);
             }
 
-            <span class="kw">for</span> (<span class="ident">id1</span>, <span class="ident">id2</span>) <span class="kw">in</span> <span class="ident">to_union</span>.<span class="ident">drain</span>(..) {
-                <span class="kw">let</span> (<span class="ident">to</span>, <span class="ident">did_something</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">union_impl</span>(<span class="ident">id1</span>, <span class="ident">id2</span>);
-                <span class="kw">if</span> <span class="ident">did_something</span> {
-                    <span class="self">self</span>.<span class="ident">dirty_unions</span>.<span class="ident">push</span>(<span class="ident">to</span>);
+            <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">node</span>, <span class="ident">class_id</span>)) <span class="op">=</span> <span class="self">self</span>.<span class="ident">analysis_pending</span>.<span class="ident">pop</span>() {
+                <span class="kw">let</span> <span class="ident">class_id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">find_mut</span>(<span class="ident">class_id</span>);
+                <span class="kw">let</span> <span class="ident">node_data</span> <span class="op">=</span> <span class="ident">N</span>::<span class="ident">make</span>(<span class="self">self</span>, <span class="kw-2">&amp;</span><span class="ident">node</span>);
+                <span class="kw">let</span> <span class="ident">class</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">get_mut</span>(<span class="kw-2">&amp;</span><span class="ident">class_id</span>).<span class="ident">unwrap</span>();
+                <span class="kw">match</span> <span class="self">self</span>.<span class="ident">analysis</span>.<span class="ident">merge</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">class</span>.<span class="ident">data</span>, <span class="ident">node_data</span>) {
+                    <span class="prelude-val">Some</span>(<span class="ident">Ordering</span>::<span class="ident">Equal</span>) <span class="op">|</span> <span class="prelude-val">Some</span>(<span class="ident">Ordering</span>::<span class="ident">Greater</span>) <span class="op">=</span><span class="op">&gt;</span> {}
+                    <span class="prelude-val">Some</span>(<span class="ident">Ordering</span>::<span class="ident">Less</span>) <span class="op">|</span> <span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> {
+                        <span class="self">self</span>.<span class="ident">analysis_pending</span>.<span class="ident">extend</span>(<span class="ident">class</span>.<span class="ident">parents</span>.<span class="ident">iter</span>().<span class="ident">cloned</span>());
+                        <span class="ident">N</span>::<span class="ident">modify</span>(<span class="self">self</span>, <span class="ident">class_id</span>)
+                    }
                 }
             }
         }
 
-        <span class="macro">assert</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">dirty_unions</span>.<span class="ident">is_empty</span>());
-        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">to_union</span>.<span class="ident">is_empty</span>());
+        <span class="macro">assert</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">is_empty</span>());
+        <span class="macro">assert</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">analysis_pending</span>.<span class="ident">is_empty</span>());
+
+        <span class="ident">n_unions</span>
     }
 
     <span class="doccomment">/// Restores the egraph invariants of congruence and enode uniqueness.</span>
@@ -1207,6 +1187,11 @@ and
     <span class="doccomment">/// The `rebuild` method allows the user to manually restore those</span>
     <span class="doccomment">/// invariants at a time of their choosing. It&#39;s a reasonably</span>
     <span class="doccomment">/// fast, linear-ish traversal through the egraph.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// After modifying an e-graph with [`add`](EGraph::add) or</span>
+    <span class="doccomment">/// [`union`](EGraph::union), you must call [`rebuild`] to restore</span>
+    <span class="doccomment">/// invariants before any query operations, otherwise the results</span>
+    <span class="doccomment">/// may be stale or incorrect.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// # Example</span>
     <span class="doccomment">/// ```</span>
@@ -1221,9 +1206,7 @@ and
     <span class="doccomment">/// // should be equivalent by congruence since x = y.</span>
     <span class="doccomment">/// egraph.union(x, y);</span>
     <span class="doccomment">/// // Classes: [x y] [ax] [ay] [a]</span>
-    <span class="doccomment">/// # #[cfg(not(feature = &quot;upward-merging&quot;))]</span>
     <span class="doccomment">/// assert_eq!(egraph.number_of_classes(), 4);</span>
-    <span class="doccomment">/// # #[cfg(not(feature = &quot;upward-merging&quot;))]</span>
     <span class="doccomment">/// assert_ne!(egraph.find(ax), egraph.find(ay));</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// // Rebuilding restores the invariants, finding the &quot;missing&quot; equivalence</span>
@@ -1238,8 +1221,7 @@ and
 
         <span class="kw">let</span> <span class="ident">start</span> <span class="op">=</span> <span class="ident">Instant</span>::<span class="ident">now</span>();
 
-        <span class="self">self</span>.<span class="ident">process_unions</span>();
-        <span class="kw">let</span> <span class="ident">n_unions</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">take</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">repairs_since_rebuild</span>);
+        <span class="kw">let</span> <span class="ident">n_unions</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">process_unions</span>();
         <span class="kw">let</span> <span class="ident">trimmed_nodes</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">rebuild_classes</span>();
 
         <span class="kw">let</span> <span class="ident">elapsed</span> <span class="op">=</span> <span class="ident">start</span>.<span class="ident">elapsed</span>();
@@ -1263,22 +1245,6 @@ and
         <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">check_memo</span>());
         <span class="ident">n_unions</span>
     }
-
-    <span class="attribute">#[<span class="ident">inline</span>(<span class="ident">never</span>)]</span>
-    <span class="kw">fn</span> <span class="ident">propagate_metadata</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">parents</span>: <span class="kw-2">&amp;</span>[(<span class="ident">L</span>, <span class="ident">Id</span>)]) {
-        <span class="kw">for</span> (<span class="ident">n</span>, <span class="ident">e</span>) <span class="kw">in</span> <span class="ident">parents</span> {
-            <span class="kw">let</span> <span class="ident">e</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">find</span>(<span class="kw-2">*</span><span class="ident">e</span>);
-            <span class="kw">let</span> <span class="ident">node_data</span> <span class="op">=</span> <span class="ident">N</span>::<span class="ident">make</span>(<span class="self">self</span>, <span class="ident">n</span>);
-            <span class="kw">let</span> <span class="ident">class</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">get_mut</span>(<span class="kw-2">&amp;</span><span class="ident">e</span>).<span class="ident">unwrap</span>();
-            <span class="kw">if</span> <span class="self">self</span>.<span class="ident">analysis</span>.<span class="ident">merge</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">class</span>.<span class="ident">data</span>, <span class="ident">node_data</span>) {
-                <span class="comment">// self.dirty_unions.push(e); // NOTE: i dont think this is necessary</span>
-                <span class="kw">let</span> <span class="ident">e_parents</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">take</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">class</span>.<span class="ident">parents</span>);
-                <span class="self">self</span>.<span class="ident">propagate_metadata</span>(<span class="kw-2">&amp;</span><span class="ident">e_parents</span>);
-                <span class="self">self</span>[<span class="ident">e</span>].<span class="ident">parents</span> <span class="op">=</span> <span class="ident">e_parents</span>;
-                <span class="ident">N</span>::<span class="ident">modify</span>(<span class="self">self</span>, <span class="ident">e</span>)
-            }
-        }
-    }
 }
 
 <span class="kw">struct</span> <span class="ident">EGraphDump</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">L</span>: <span class="ident">Language</span>, <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>);
@@ -1290,7 +1256,7 @@ and
         <span class="kw">for</span> <span class="ident">id</span> <span class="kw">in</span> <span class="ident">ids</span> {
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">nodes</span> <span class="op">=</span> <span class="self">self</span>.<span class="number">0</span>[<span class="ident">id</span>].<span class="ident">nodes</span>.<span class="ident">clone</span>();
             <span class="ident">nodes</span>.<span class="ident">sort</span>();
-            <span class="macro">writeln</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;{}: {:?}&quot;</span>, <span class="ident">id</span>, <span class="ident">nodes</span>)<span class="question-mark">?</span>
+            <span class="macro">writeln</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;{} ({:?}): {:?}&quot;</span>, <span class="ident">id</span>, <span class="self">self</span>.<span class="number">0</span>[<span class="ident">id</span>].<span class="ident">data</span>, <span class="ident">nodes</span>)<span class="question-mark">?</span>
         }
         <span class="prelude-val">Ok</span>(())
     }
@@ -1321,4 +1287,5 @@ and
     }
 }
 </pre></div>
-</section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../../";window.currentCrate = "egg";</script><script src="../../main.js"></script><script src="../../source-script.js"></script><script src="../../source-files.js"></script><script defer src="../../search-index.js"></script></body></html>
+</section><section id="search" class="content hidden"></section><section class="footer"></section><div id="rustdoc-vars" data-root-path="../../" data-current-crate="egg"></div>
+    <script src="../../main.js"></script><script src="../../source-script.js"></script><script src="../../source-files.js"></script><script defer src="../../search-index.js"></script></body></html>

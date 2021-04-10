@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/language.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>language.rs - source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled ><script id="default-settings"></script><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="icon" type="image/svg+xml" href="../../favicon.svg">
 <link rel="alternate icon" type="image/png" href="../../favicon-16x16.png">
-<link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../egg/index.html'><div class='logo-container rust-logo'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu"><img src="../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices" role="menu"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><span class="help-button">?</span>
+<link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../egg/index.html'><div class='logo-container rust-logo'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu"><img src="../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices" role="menu"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" class="help-button">?</button>
                 <a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
 <span id="2">  2</span>
 <span id="3">  3</span>
@@ -595,11 +595,24 @@
 <span id="592">592</span>
 <span id="593">593</span>
 <span id="594">594</span>
+<span id="595">595</span>
+<span id="596">596</span>
+<span id="597">597</span>
+<span id="598">598</span>
+<span id="599">599</span>
+<span id="600">600</span>
+<span id="601">601</span>
+<span id="602">602</span>
+<span id="603">603</span>
+<span id="604">604</span>
+<span id="605">605</span>
+<span id="606">606</span>
+<span id="607">607</span>
 </pre><div class="example-wrap"><pre class="rust ">
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">convert</span>::<span class="ident">TryFrom</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fmt</span>::{<span class="self">self</span>, <span class="ident">Debug</span>, <span class="ident">Display</span>};
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">hash</span>::<span class="ident">Hash</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">ops</span>::{<span class="ident">Index</span>, <span class="ident">IndexMut</span>};
+<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">cmp</span>::<span class="ident">Ordering</span>, <span class="ident">convert</span>::<span class="ident">TryFrom</span>};
 
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="kw-2">*</span>;
 
@@ -648,7 +661,7 @@
     <span class="doccomment">/// want to print `Language` elements.</span>
     <span class="doccomment">/// The [`define_language!`] macro will</span>
     <span class="doccomment">/// implement this for you.</span>
-    <span class="kw">fn</span> <span class="ident">display_op</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">dyn</span> <span class="ident">Display</span> {
+    <span class="kw">fn</span> <span class="ident">display_op</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw">dyn</span> <span class="ident">Display</span> {
         <span class="macro">unimplemented</span><span class="macro">!</span>(<span class="string">&quot;display_op not implemented&quot;</span>)
     }
 
@@ -769,21 +782,27 @@
     <span class="kw">fn</span> <span class="ident">as_mut_slice</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">Id</span>];
 }
 
-<span class="macro">macro_rules</span><span class="macro">!</span> <span class="ident">impl_array</span> {
-    () <span class="op">=</span><span class="op">&gt;</span> {};
-    (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">n</span>:<span class="ident">literal</span>, $(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">rest</span>:<span class="ident">tt</span>)<span class="kw-2">*</span>) <span class="op">=</span><span class="op">&gt;</span> {
-        <span class="kw">impl</span> <span class="ident">LanguageChildren</span> <span class="kw">for</span> [<span class="ident">Id</span>; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">n</span>] {
-            <span class="kw">fn</span> <span class="ident">len</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span>                   { <span class="op">&lt;</span>[<span class="ident">Id</span>]<span class="op">&gt;</span>::<span class="ident">len</span>(<span class="self">self</span>) }
-            <span class="kw">fn</span> <span class="ident">can_be_length</span>(<span class="ident">n</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span>       { <span class="ident">n</span> <span class="op">=</span><span class="op">=</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">n</span> }
-            <span class="kw">fn</span> <span class="ident">from_vec</span>(<span class="ident">v</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span>          { <span class="self">Self</span>::<span class="ident">try_from</span>(<span class="ident">v</span>.<span class="ident">as_slice</span>()).<span class="ident">unwrap</span>() }
-            <span class="kw">fn</span> <span class="ident">as_slice</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span>[<span class="ident">Id</span>]              { <span class="self">self</span> }
-            <span class="kw">fn</span> <span class="ident">as_mut_slice</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">Id</span>]  { <span class="self">self</span> }
-        }
-        <span class="macro">impl_array</span><span class="macro">!</span>($(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">rest</span>)<span class="kw-2">*</span>);
-    };
-}
+<span class="kw">impl</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">N</span>: <span class="ident">usize</span><span class="op">&gt;</span> <span class="ident">LanguageChildren</span> <span class="kw">for</span> [<span class="ident">Id</span>; <span class="ident">N</span>] {
+    <span class="kw">fn</span> <span class="ident">len</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
+        <span class="ident">N</span>
+    }
 
-<span class="macro">impl_array</span><span class="macro">!</span>(<span class="number">0</span>, <span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>, <span class="number">5</span>, <span class="number">6</span>, <span class="number">7</span>, <span class="number">8</span>, <span class="number">9</span>, <span class="number">10</span>, <span class="number">11</span>, <span class="number">12</span>, <span class="number">13</span>, <span class="number">14</span>, <span class="number">15</span>,);
+    <span class="kw">fn</span> <span class="ident">can_be_length</span>(<span class="ident">n</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+        <span class="ident">n</span> <span class="op">=</span><span class="op">=</span> <span class="ident">N</span>
+    }
+
+    <span class="kw">fn</span> <span class="ident">from_vec</span>(<span class="ident">v</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+        <span class="self">Self</span>::<span class="ident">try_from</span>(<span class="ident">v</span>.<span class="ident">as_slice</span>()).<span class="ident">unwrap</span>()
+    }
+
+    <span class="kw">fn</span> <span class="ident">as_slice</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span>[<span class="ident">Id</span>] {
+        <span class="self">self</span>
+    }
+
+    <span class="kw">fn</span> <span class="ident">as_mut_slice</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">Id</span>] {
+        <span class="self">self</span>
+    }
+}
 
 <span class="attribute">#[<span class="ident">rustfmt</span>::<span class="ident">skip</span>]</span>
 <span class="kw">impl</span> <span class="ident">LanguageChildren</span> <span class="kw">for</span> <span class="ident">Box</span><span class="op">&lt;</span>[<span class="ident">Id</span>]<span class="op">&gt;</span> {
@@ -1033,15 +1052,15 @@ define_language! {
     }
 }
 
-// in this case, our analysis itself doens&#39;t require any data, so we can just
+// in this case, our analysis itself doesn&#39;t require any data, so we can just
 // use a unit struct and derive Default
 #[derive(Default)]
 struct ConstantFolding;
 impl Analysis&lt;SimpleMath&gt; for ConstantFolding {
     type Data = Option&lt;i32&gt;;
 
-    fn merge(&amp;self, to: &amp;mut Self::Data, from: Self::Data) -&gt; bool {
-        egg::merge_if_different(to, to.or(from))
+    fn merge(&amp;self, to: &amp;mut Self::Data, from: Self::Data) -&gt; Option&lt;std::cmp::Ordering&gt; {
+        Some(egg::merge_max(to, from))
     }
 
     fn make(egraph: &amp;EGraph&lt;SimpleMath, Self&gt;, enode: &amp;SimpleMath) -&gt; Self::Data {
@@ -1077,8 +1096,8 @@ let just_foo = runner.egraph.add_expr(&amp;&quot;foo&quot;.parse().unwrap());
 assert_eq!(runner.egraph.find(runner.roots[0]), runner.egraph.find(just_foo));
 ```
 
-[`math.rs`]: https://github.com/mwillsey/egg/blob/master/tests/math.rs
-[`prop.rs`]: https://github.com/mwillsey/egg/blob/master/tests/prop.rs
+[`math.rs`]: https://github.com/egraphs-good/egg/blob/main/tests/math.rs
+[`prop.rs`]: https://github.com/egraphs-good/egg/blob/main/tests/prop.rs
 */</span>
 
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span>: <span class="ident">Sized</span> {
@@ -1102,9 +1121,16 @@ assert_eq!(runner.egraph.find(runner.roots[0]), runner.egraph.find(just_foo));
     <span class="kw">fn</span> <span class="ident">pre_union</span>(<span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">id1</span>: <span class="ident">Id</span>, <span class="ident">id2</span>: <span class="ident">Id</span>) {}
 
     <span class="doccomment">/// Defines how to merge two `Data`s when their containing</span>
-    <span class="doccomment">/// [`EClass`]es merge. Returns whether `to` is changed.</span>
+    <span class="doccomment">/// [`EClass`]es merge.</span>
     <span class="doccomment">///</span>
-    <span class="kw">fn</span> <span class="ident">merge</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">to</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span>::<span class="ident">Data</span>, <span class="ident">from</span>: <span class="self">Self</span>::<span class="ident">Data</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span>;
+    <span class="doccomment">/// Only called when the two datas are unordered in the lattice.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// This must respect the partial ordering of `a` with respect to `b`:</span>
+    <span class="doccomment">/// - if `a &lt; b`, then `a` should be assigned to `b`.</span>
+    <span class="doccomment">/// - if `a &gt; b`, then `a` should be unmodified.</span>
+    <span class="doccomment">/// - if `a == b`, then `a` should be unmodified.</span>
+    <span class="doccomment">/// - if they cannot be compared, then `a` should be modifed.</span>
+    <span class="kw">fn</span> <span class="ident">merge</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">a</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span>::<span class="ident">Data</span>, <span class="ident">b</span>: <span class="self">Self</span>::<span class="ident">Data</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Ordering</span><span class="op">&gt;</span>;
 
     <span class="doccomment">/// A hook that allows the modification of the</span>
     <span class="doccomment">/// [`EGraph`]</span>
@@ -1114,34 +1140,34 @@ assert_eq!(runner.egraph.find(runner.roots[0]), runner.egraph.find(just_foo));
     <span class="kw">fn</span> <span class="ident">modify</span>(<span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">id</span>: <span class="ident">Id</span>) {}
 }
 
-<span class="doccomment">/// Replace the first with second value if they are different returning whether</span>
-<span class="doccomment">/// or not something was done.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// Useful for implementing</span>
-<span class="doccomment">/// [`Analysis::merge`].</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// ```</span>
-<span class="doccomment">/// # use egg::*;</span>
-<span class="doccomment">/// let mut x = 6;</span>
-<span class="doccomment">/// assert!(!merge_if_different(&amp;mut x, 6));</span>
-<span class="doccomment">/// assert!(merge_if_different(&amp;mut x, 7));</span>
-<span class="doccomment">/// assert_eq!(x, 7);</span>
-<span class="doccomment">/// ```</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">merge_if_different</span><span class="op">&lt;</span><span class="ident">D</span>: <span class="ident">PartialEq</span><span class="op">&gt;</span>(<span class="ident">to</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">D</span>, <span class="ident">new</span>: <span class="ident">D</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
-    <span class="kw">if</span> <span class="kw-2">*</span><span class="ident">to</span> <span class="op">=</span><span class="op">=</span> <span class="ident">new</span> {
-        <span class="bool-val">false</span>
-    } <span class="kw">else</span> {
-        <span class="kw-2">*</span><span class="ident">to</span> <span class="op">=</span> <span class="ident">new</span>;
-        <span class="bool-val">true</span>
-    }
-}
-
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span> <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> <span class="kw">for</span> () {
     <span class="kw">type</span> <span class="ident">Data</span> <span class="op">=</span> ();
     <span class="kw">fn</span> <span class="ident">make</span>(<span class="ident">_egraph</span>: <span class="kw-2">&amp;</span><span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">_enode</span>: <span class="kw-2">&amp;</span><span class="ident">L</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span>::<span class="ident">Data</span> {}
-    <span class="kw">fn</span> <span class="ident">merge</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_to</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span>::<span class="ident">Data</span>, <span class="ident">_from</span>: <span class="self">Self</span>::<span class="ident">Data</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
-        <span class="bool-val">false</span>
+    <span class="kw">fn</span> <span class="ident">merge</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span>::<span class="ident">Data</span>, <span class="kw">_</span>: <span class="self">Self</span>::<span class="ident">Data</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Ordering</span><span class="op">&gt;</span> {
+        <span class="prelude-val">Some</span>(<span class="ident">Ordering</span>::<span class="ident">Equal</span>)
     }
+}
+
+<span class="doccomment">/// A utility for implementing [`Analysis::merge`]</span>
+<span class="doccomment">/// when the `Data` type has a total ordering.</span>
+<span class="doccomment">/// This will take the maximum of the two values.</span>
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">merge_max</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Ord</span><span class="op">&gt;</span>(<span class="ident">to</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">T</span>, <span class="ident">from</span>: <span class="ident">T</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Ordering</span> {
+    <span class="kw">let</span> <span class="ident">cmp</span> <span class="op">=</span> (<span class="kw-2">*</span><span class="ident">to</span>).<span class="ident">cmp</span>(<span class="kw-2">&amp;</span><span class="ident">from</span>);
+    <span class="kw">if</span> <span class="ident">cmp</span> <span class="op">=</span><span class="op">=</span> <span class="ident">Ordering</span>::<span class="ident">Less</span> {
+        <span class="kw-2">*</span><span class="ident">to</span> <span class="op">=</span> <span class="ident">from</span>;
+    }
+    <span class="ident">cmp</span>
+}
+
+<span class="doccomment">/// A utility for implementing [`Analysis::merge`]</span>
+<span class="doccomment">/// when the `Data` type has a total ordering.</span>
+<span class="doccomment">/// This will take the minimum of the two values.</span>
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">merge_min</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Ord</span><span class="op">&gt;</span>(<span class="ident">to</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">T</span>, <span class="ident">from</span>: <span class="ident">T</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Ordering</span> {
+    <span class="kw">let</span> <span class="ident">cmp</span> <span class="op">=</span> (<span class="kw-2">*</span><span class="ident">to</span>).<span class="ident">cmp</span>(<span class="kw-2">&amp;</span><span class="ident">from</span>).<span class="ident">reverse</span>();
+    <span class="kw">if</span> <span class="ident">cmp</span> <span class="op">=</span><span class="op">=</span> <span class="ident">Ordering</span>::<span class="ident">Less</span> {
+        <span class="kw-2">*</span><span class="ident">to</span> <span class="op">=</span> <span class="ident">from</span>;
+    }
+    <span class="ident">cmp</span>
 }
 
 <span class="doccomment">/// A simple language used for testing.</span>
@@ -1171,7 +1197,7 @@ assert_eq!(runner.egraph.find(runner.roots[0]), runner.egraph.find(just_foo));
         <span class="self">self</span>.<span class="ident">op</span> <span class="op">=</span><span class="op">=</span> <span class="ident">other</span>.<span class="ident">op</span> <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">len</span>() <span class="op">=</span><span class="op">=</span> <span class="ident">other</span>.<span class="ident">len</span>()
     }
 
-    <span class="kw">fn</span> <span class="ident">display_op</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">dyn</span> <span class="ident">Display</span> {
+    <span class="kw">fn</span> <span class="ident">display_op</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw">dyn</span> <span class="ident">Display</span> {
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">op</span>
     }
 
@@ -1191,4 +1217,5 @@ assert_eq!(runner.egraph.find(runner.roots[0]), runner.egraph.find(just_foo));
     }
 }
 </pre></div>
-</section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../../";window.currentCrate = "egg";</script><script src="../../main.js"></script><script src="../../source-script.js"></script><script src="../../source-files.js"></script><script defer src="../../search-index.js"></script></body></html>
+</section><section id="search" class="content hidden"></section><section class="footer"></section><div id="rustdoc-vars" data-root-path="../../" data-current-crate="egg"></div>
+    <script src="../../main.js"></script><script src="../../source-script.js"></script><script src="../../source-files.js"></script><script defer src="../../search-index.js"></script></body></html>
