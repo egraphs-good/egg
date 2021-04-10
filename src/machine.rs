@@ -24,8 +24,9 @@ pub struct Program<L> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum Instruction<L> {
     Bind { node: L, i: Reg, out: Reg },
-    Check { node: L, i: Reg },
     Compare { i: Reg, j: Reg },
+    Load { node: L, out: Reg },
+    // Check { node: L, i: Reg },
 }
 
 #[inline(always)]
@@ -102,13 +103,18 @@ impl Machine {
                         return;
                     }
                 }
-                Instruction::Check { node, i } => {
-                    let should_continue = match egraph.lookup(node.clone()) {
-                        Some(id) => egraph.find(self.reg(*i)) == id,
-                        None => false
-                    };
-                    if !should_continue {
-                        return;
+                Instruction::Load { node, out } => {
+                    let mut iter = self.reg[out.0 as usize..].iter();
+                    let mut node = node.clone();
+                    node.update_children(|_| {
+                        *iter.next().unwrap()
+                    });
+                    match egraph.lookup(&mut node) {
+                        Some(id) => {        
+                            self.reg.truncate(out.0 as usize);
+                            self.reg.push(id);
+                        }
+                        None => return
                     }
                 }
             }
@@ -171,7 +177,26 @@ impl<'a, L: Language> Compiler<'a, L> {
         compiler.go()
     }
 
+    fn load_term(&self, node: L, instructions: &mut Vec<Instruction<L>>, out: Reg) {
+        let mut i = out;
+        node.for_each(|c| {
+            if let ENodeOrVar::ENode(c) = &self.pattern[usize::from(c)] {
+                self.load_term(c.clone(), instructions, i);
+                i.0 += 1
+            }
+        });
+        instructions.push(Instruction::Load { node, out });
+    }
+
     fn go(&mut self) -> Program<L> {
+        let mut is_const: Vec<bool> = vec![false; self.pattern.len()];
+        for i in 0..self.pattern.len() {
+            is_const[i] = match &self.pattern[i] {
+                ENodeOrVar::Var(_v) => false,
+                ENodeOrVar::ENode(node) => node.all(|c| is_const[usize::from(c)])
+            };
+        }
+
         let mut instructions = vec![];
         while let Some(Todo { reg: i, pat }) = self.todo.pop() {
             match pat {
@@ -183,10 +208,12 @@ impl<'a, L: Language> Compiler<'a, L> {
                     }
                 }
                 ENodeOrVar::ENode(node) => {
-                    if node.len() == 0 {
-                        instructions.push(Instruction::Check { node, i });
-                        continue;
-                    }
+                    // if node.all(|c| is_const[usize::from(c)]) {
+                    //     self.load_term(node, &mut instructions, self.out);
+                    //     instructions.push(Instruction::Compare { i, j: self.out });
+                    //     continue;
+                    // }
+
                     let out = self.out;
                     self.out.0 += node.len() as u32;
 
