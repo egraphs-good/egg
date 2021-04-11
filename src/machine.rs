@@ -127,6 +127,8 @@ type TodoList<L> = std::collections::BinaryHeap<Todo<L>>;
 #[derive(PartialEq, Eq)]
 struct Todo<L> {
     reg: Reg,
+    is_ground: bool,
+    loc: usize,
     pat: ENodeOrVar<L>,
 }
 
@@ -140,6 +142,11 @@ impl<L: Language> Ord for Todo<L> {
     // TodoList is a max-heap, so we greater is higher priority
     fn cmp(&self, other: &Self) -> Ordering {
         use ENodeOrVar::*;
+        match (&self.is_ground, &other.is_ground) {
+            (true, false) => return Ordering::Greater,
+            (false, true) => return Ordering::Less,
+            _ => (),
+        };
         match (&self.pat, &other.pat) {
             // fewer children means higher priority
             (ENode(e1), ENode(e2)) => e2.len().cmp(&e1.len()),
@@ -153,6 +160,7 @@ impl<L: Language> Ord for Todo<L> {
 
 struct Compiler<'a, L> {
     pattern: &'a [ENodeOrVar<L>],
+    is_ground: Vec<bool>,
     v2r: VarToReg,
     todo: TodoList<L>,
     out: Reg,
@@ -160,15 +168,26 @@ struct Compiler<'a, L> {
 
 impl<'a, L: Language> Compiler<'a, L> {
     fn compile(pattern: &'a [ENodeOrVar<L>]) -> Program<L> {
+        let mut is_ground: Vec<bool> = vec![false; pattern.len()];
+        for i in 0..pattern.len() {
+            if let ENodeOrVar::ENode(node) = &pattern[i] {
+                is_ground[i] = node.all(|c| is_ground[usize::from(c)]);
+            }
+        }
+        let is_last_ground = is_ground[pattern.len() - 1];
+
         let last = pattern.last().unwrap();
         let mut compiler = Self {
             pattern,
+            is_ground,
             v2r: Default::default(),
             todo: Default::default(),
             out: Reg(1),
         };
         compiler.todo.push(Todo {
             reg: Reg(0),
+            is_ground: is_last_ground,
+            loc: pattern.len() - 1,
             pat: last.clone(),
         });
         compiler.go()
@@ -185,17 +204,49 @@ impl<'a, L: Language> Compiler<'a, L> {
         instructions.push(Instruction::Load { node, out });
     }
 
-    fn go(&mut self) -> Program<L> {
-        let mut is_const: Vec<bool> = vec![false; self.pattern.len()];
+    fn load_ground_locs(&mut self, instructions: &mut Vec<Instruction<L>>) -> Vec<Option<Reg>> {
+        let mut ground_locs: Vec<Option<Reg>> = vec![None; self.pattern.len()];
         for i in 0..self.pattern.len() {
-            is_const[i] = match &self.pattern[i] {
-                ENodeOrVar::Var(_v) => false,
-                ENodeOrVar::ENode(node) => node.all(|c| is_const[usize::from(c)]),
-            };
+            if let ENodeOrVar::ENode(node) = &self.pattern[i] {
+                if !self.is_ground[i] {
+                    node.for_each(|c| {
+                        let c = usize::from(c);
+                        // If a ground pattern is a child of a non-ground pattern,
+                        // we load the ground pattern
+                        if self.is_ground[c] && ground_locs[c].is_none() {
+                            if let ENodeOrVar::ENode(node) = &self.pattern[c] {
+                                self.load_term(node.clone(), instructions, self.out);
+                                ground_locs[c] = Some(self.out);
+                                self.out.0 += 1;
+                            } else {
+                                unreachable!("ground locs");
+                            }
+                        }
+                    })
+                }
+            }
         }
+        if *self.is_ground.last().unwrap() {
+            if let Some(ENodeOrVar::ENode(node)) = self.pattern.last() {
+                self.load_term(node.clone(), instructions, self.out);
+                *ground_locs.last_mut().unwrap() = Some(self.out);
+                self.out.0 += 1;
+            } else {
+                unreachable!("ground locs");
+            }
+        }
+        ground_locs
+    }
 
+    fn go(&mut self) -> Program<L> {
         let mut instructions = vec![];
-        while let Some(Todo { reg: i, pat }) = self.todo.pop() {
+
+        let ground_locs = self.load_ground_locs(&mut instructions);
+
+        while let Some(Todo {
+            reg: i, pat, loc, ..
+        }) = self.todo.pop()
+        {
             match pat {
                 ENodeOrVar::Var(v) => {
                     if let Some(&j) = self.v2r.get(&v) {
@@ -205,9 +256,8 @@ impl<'a, L: Language> Compiler<'a, L> {
                     }
                 }
                 ENodeOrVar::ENode(node) => {
-                    if node.all(|c| is_const[usize::from(c)]) {
-                        self.load_term(node, &mut instructions, self.out);
-                        instructions.push(Instruction::Compare { i, j: self.out });
+                    if let Some(j) = ground_locs[loc] {
+                        instructions.push(Instruction::Compare { i, j });
                         continue;
                     }
 
@@ -219,6 +269,8 @@ impl<'a, L: Language> Compiler<'a, L> {
                         let r = Reg(out.0 + id as u32);
                         self.todo.push(Todo {
                             reg: r,
+                            is_ground: self.is_ground[usize::from(child)],
+                            loc: usize::from(child),
                             pat: self.pattern[usize::from(child)].clone(),
                         });
                         id += 1;
