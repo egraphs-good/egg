@@ -104,18 +104,17 @@ fn is_const_or_distinct_var(v: &str, w: &str) -> impl Fn(&mut EGraph, Id, &Subst
     let w = w.parse().unwrap();
     move |egraph, _, subst| {
         egraph.find(subst[v]) != egraph.find(subst[w])
-            && (egraph[subst[v]].data.is_some() || egraph[subst[v]]
-                .nodes
-                .iter()
-                .any(|n| matches!(n, Math::Symbol(..))))
+            && (egraph[subst[v]].data.is_some()
+                || egraph[subst[v]]
+                    .nodes
+                    .iter()
+                    .any(|n| matches!(n, Math::Symbol(..))))
     }
 }
 
 fn is_const(var: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let var = var.parse().unwrap();
-    move |egraph, _, subst| {
-        egraph[subst[var]].data.is_some()
-    }
+    move |egraph, _, subst| egraph[subst[var]].data.is_some()
 }
 
 fn is_sym(var: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
@@ -132,7 +131,7 @@ fn is_not_zero(var: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let var = var.parse().unwrap();
     move |egraph, _, subst| {
         if let Some(n) = egraph[subst[var]].data {
-           *n != 0.0
+            *n != 0.0
         } else {
             true
         }
@@ -307,7 +306,10 @@ egg::test_fn! {
 fn assoc_mul_saturates() {
     let expr: RecExpr<Math> = "(* x 1)".parse().unwrap();
 
-    let runner: Runner<Math, ConstantFold> = Runner::default().with_iter_limit(3).with_expr(&expr).run(&rules());
+    let runner: Runner<Math, ConstantFold> = Runner::default()
+        .with_iter_limit(3)
+        .with_expr(&expr)
+        .run(&rules());
 
     assert!(matches!(runner.stop_reason, Some(StopReason::Saturated)));
 }
