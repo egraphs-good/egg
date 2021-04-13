@@ -229,7 +229,7 @@ impl<'a, L: Language> Compiler<'a, L> {
             .collect();
         self.todo.push(Todo {
             reg: Reg(self.out.0),
-            is_ground: *is_ground.last().unwrap(),
+            is_ground: is_ground[self.pattern.len() - 1],
             loc: self.pattern.len() - 1,
             pat: self.pattern.last().unwrap().clone(),
         });
