@@ -312,7 +312,6 @@ impl<L: Language> Program<L> {
             }
         }
         machine.reg.push(eclass);
-        println!("{:?}", machine.reg);
 
         let mut substs = Vec::new();
         machine.run(
