@@ -185,11 +185,25 @@ where
     /// Find the cheapest (lowest cost) represented `RecExpr` in the
     /// given eclass.
     pub fn find_best(&mut self, eclass: Id) -> (CF::Cost, RecExpr<L>) {
+        let (cost, expr, _ids) = self.find_best_with_ids(eclass);
+        (cost, expr)
+    }
+
+    /// Find the cheapest (lowest cost) represented `RecExpr` in the
+    /// given eclass, also returning the e-classes that the best e-nodes came from.
+    /// The e-node with index `i` in the RecExpr is from e-class `i` in the returned `Vec<Id>`.
+    pub fn find_best_with_ids(&mut self, eclass: Id) -> (CF::Cost, RecExpr<L>, Vec<Id>) {
         let mut expr = RecExpr::default();
+        let mut ids: Vec<Id> = vec![];
         // added_memo maps eclass id to id in expr
         let mut added_memo: HashMap<Id, Id> = Default::default();
-        let (_, cost) = self.find_best_rec(&mut expr, eclass, &mut added_memo);
-        (cost, expr)
+        let (_, cost) = self.find_best_rec(&mut ids, &mut expr, eclass, &mut added_memo);
+        (cost, expr, ids)
+    }
+
+    /// Find the cheapest e-node in the given e-class.
+    pub fn find_best_node(&mut self, eclass: Id) -> &L {
+        &self.costs[&self.egraph.find(eclass)].1
     }
 
     /// Find the cost of the term that would be extracted from this e-class.
@@ -200,6 +214,7 @@ where
 
     fn find_best_rec(
         &mut self,
+        ids: &mut Vec<Id>,
         expr: &mut RecExpr<L>,
         eclass: Id,
         added_memo: &mut HashMap<Id, Id>,
@@ -213,9 +228,12 @@ where
         match added_memo.get(&id) {
             Some(id_expr) => (*id_expr, best_cost),
             None => {
-                let node =
-                    best_node.map_children(|child| self.find_best_rec(expr, child, added_memo).0);
+                let node = best_node
+                    .map_children(|child| self.find_best_rec(ids, expr, child, added_memo).0);
                 let id_expr = expr.add(node);
+                if id_expr == Id::from(expr.as_ref().len() - 1) {
+                    ids.push(id);
+                }
                 assert!(added_memo.insert(id, id_expr).is_none());
                 (id_expr, best_cost)
             }
