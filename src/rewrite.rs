@@ -18,9 +18,9 @@ pub struct Rewrite<L, N> {
     /// The name of the rewrite.
     pub name: String,
     /// The searcher (left-hand side) of the rewrite.
-    pub searcher: Arc<dyn Searcher<L, N>>,
+    pub searcher: Arc<dyn Searcher<L, N> + Sync + Send>,
     /// The applier (right-hand side) of the rewrite.
-    pub applier: Arc<dyn Applier<L, N>>,
+    pub applier: Arc<dyn Applier<L, N> + Sync + Send>,
 }
 
 impl<L, N> fmt::Debug for Rewrite<L, N>
@@ -61,8 +61,8 @@ impl<L: Language, N: Analysis<L>> Rewrite<L, N> {
     ///
     pub fn new(
         name: impl Into<String>,
-        searcher: impl Searcher<L, N> + 'static,
-        applier: impl Applier<L, N> + 'static,
+        searcher: impl Searcher<L, N> + Send + Sync + 'static,
+        applier: impl Applier<L, N> + Send + Sync + 'static,
     ) -> Result<Self, String> {
         let name = name.into();
         let searcher = Arc::new(searcher);
