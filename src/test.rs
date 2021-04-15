@@ -22,65 +22,58 @@ where
     }
 }
 
-pub struct Test<L: Language, A: Analysis<L>> {
-    name: String,
-    runner: Option<fn() -> Runner<L, A, ()>>,
-    rules: Vec<Rewrite<L, A>>,
+#[allow(clippy::type_complexity)]
+pub fn test_runner<L, A>(
+    _name: &str,
+    runner: Option<Runner<L, A, ()>>,
+    rules: &[Rewrite<L, A>],
     start: RecExpr<L>,
-    goals: Vec<Pattern<L>>,
+    goals: &[Pattern<L>],
     check_fn: Option<fn(Runner<L, A, ()>)>,
     should_check: bool,
-}
-
-impl<L, A> Test<L, A>
-where
+) where
     L: Language + 'static,
     A: Analysis<L> + Default,
 {
-    pub fn run(&self) {
-        let mk_runner = self.runner.unwrap_or(Default::default);
-        let mut runner = mk_runner().with_expr(&self.start);
+    let mut runner = runner.unwrap_or_default().with_expr(&start);
 
-        // NOTE this is a bit of hack, we rely on the fact that the
-        // initial root is the last expr added by the runner. We can't
-        // use egraph.find_expr(start) because it may have been pruned
-        // away
-        let id = runner.egraph.find(*runner.roots.last().unwrap());
+    // NOTE this is a bit of hack, we rely on the fact that the
+    // initial root is the last expr added by the runner. We can't
+    // use egraph.find_expr(start) because it may have been pruned
+    // away
+    let id = runner.egraph.find(*runner.roots.last().unwrap());
 
-        if let Some(lim) = env_var("EGG_NODE_LIMIT") {
-            runner = runner.with_node_limit(lim)
-        }
-        if let Some(lim) = env_var("EGG_ITER_LIMIT") {
-            runner = runner.with_iter_limit(lim)
-        }
-        if let Some(lim) = env_var("EGG_TIME_LIMIT") {
-            runner = runner.with_time_limit(std::time::Duration::from_secs(lim))
-        }
+    if let Some(lim) = env_var("EGG_NODE_LIMIT") {
+        runner = runner.with_node_limit(lim)
+    }
+    if let Some(lim) = env_var("EGG_ITER_LIMIT") {
+        runner = runner.with_iter_limit(lim)
+    }
+    if let Some(lim) = env_var("EGG_TIME_LIMIT") {
+        runner = runner.with_time_limit(std::time::Duration::from_secs(lim))
+    }
 
-        println!("Running {}...", self.name);
-
-        // if check_fn.is_none() {
-        //     let goals = goals.to_vec();
-        //     runner = runner.with_hook(move |r| {
-        //         if goals
-        //             .iter()
-        //             .all(|g: &Pattern<_>| g.search_eclass(&r.egraph, id).is_some())
-        //         {
-        //             Err("Done".into())
-        //         } else {
-        //             Ok(())
-        //         }
-        //     });
-        // }
-        let runner = runner.run(&self.rules);
-
-        if self.should_check {
-            runner.print_report();
-            runner.egraph.check_goals(id, &self.goals);
-
-            if let Some(check_fn) = self.check_fn.as_ref() {
-                check_fn(runner)
+    if check_fn.is_none() {
+        let goals = goals.to_vec();
+        runner = runner.with_hook(move |r| {
+            if goals
+                .iter()
+                .all(|g: &Pattern<_>| g.search_eclass(&r.egraph, id).is_some())
+            {
+                Err("Done".into())
+            } else {
+                Ok(())
             }
+        });
+    }
+    let runner = runner.run(rules);
+
+    if should_check {
+        // runner.print_report();
+        runner.egraph.check_goals(id, &goals);
+
+        if let Some(check_fn) = check_fn {
+            check_fn(runner)
         }
     }
 }
@@ -99,18 +92,18 @@ macro_rules! test_fn {
     ) => {
         mod $name {
             use super::*;
-            pub fn run(should_check: bool) {
+            pub fn run(check: bool) {
                 let _ = env_logger::builder().is_test(true).try_init();
 
-                $crate::test::Test {
-                    name: stringify!($name).into(),
-                    runner: None $(.or(Some($runner)))?,
-                    rules: $rules,
-                    start: $start.parse().unwrap(),
-                    goals: vec![$( $goal.parse().unwrap() ),+],
-                    check_fn: None $(.or(Some($check_fn)))?,
-                    should_check,
-                }.run();
+                $crate::test::test_runner(
+                    stringify!($name),
+                    None $(.or(Some($runner)))?,
+                    &$rules,
+                    $start.parse().unwrap(),
+                    &[$( $goal.parse().unwrap() ),+],
+                    None $(.or(Some($check_fn)))?,
+                    check,
+                )
             }
 
             $(#[$meta])* #[test] fn test() { run(true) }

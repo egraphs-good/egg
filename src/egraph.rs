@@ -52,9 +52,15 @@ pub struct EGraph<L: Language, N: Analysis<L>> {
     memo: HashMap<L, Id>,
     unionfind: UnionFind,
     classes: HashMap<Id, EClass<L, N::Data>>,
+    pub(crate) strategy: Strategy,
     pub(crate) db: LangDB<L>,
     pub(crate) eval_ctx: std::cell::RefCell<qry::EvalContext<L::Operator, Id>>,
     pub(crate) classes_by_op: HashMap<std::mem::Discriminant<L>, HashSet<Id>>,
+}
+
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum Strategy {
+    EMatch, GenericJoin, Auto
 }
 
 impl<L: Language, N: Analysis<L> + Default> Default for EGraph<L, N> {
@@ -86,6 +92,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             analysis_pending: Default::default(),
             classes_by_op: Default::default(),
             eval_ctx: Default::default(),
+            strategy: Strategy::GenericJoin,
         }
     }
 

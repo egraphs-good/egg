@@ -407,7 +407,7 @@ where
             rules.iter().try_for_each(|rule| {
                 let start = Instant::now();
                 let ms = self.scheduler.search_rewrite(i, &self.egraph, rule);
-                println!("{:20} {:10}", rule.name(), start.elapsed().as_micros());
+                println!("{:20} {:10}", rule.name(), ms.iter().map(|m| m.substs.len()).sum::<usize>());
                 matches.push(ms);
                 self.check_limits()
             })

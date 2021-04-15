@@ -34,6 +34,9 @@ harness = false
 fxhash = "0.2"
 env_logger = {version = "0.7", default-features = false}
 ordered-float = "1"
+criterion = "0.3.4"
+itertools = "0.10"
+rustc-hash = "1"
 
 [dev-dependencies.iai]
 # version = "*"
