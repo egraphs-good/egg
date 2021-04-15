@@ -297,7 +297,6 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
                     })
                     .collect();
 
-                println!("{:?}", self.expr.as_ref().unwrap().0);
                 let root = self.ast.as_ref().len() - 1;
                 let root_index = var_map[&VarOrId::Id(root.into())];
 
@@ -316,7 +315,6 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
                         let vec = vars.iter().map(|(v, i)| (*v, tuple[*i])).collect();
                         let subst = Subst { vec };
                         let root = egraph.find(tuple[root_index]);
-                        println!("root: {:?}, subst: {:?}", root, subst);
                         map.entry(root).or_default().push(subst);
                     },
                 );
