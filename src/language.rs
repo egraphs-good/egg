@@ -491,7 +491,7 @@ assert_eq!(runner.egraph.find(runner.roots[0]), runner.egraph.find(just_foo));
 
 pub trait Analysis<L: Language>: Sized {
     /// The per-[`EClass`] data for this analysis.
-    type Data: Debug;
+    type Data: Debug + Default;
 
     /// Makes a new [`Analysis`] for a given enode
     /// [`Analysis`].
@@ -509,17 +509,50 @@ pub trait Analysis<L: Language>: Sized {
     #[allow(unused_variables)]
     fn pre_union(egraph: &EGraph<L, Self>, id1: Id, id2: Id) {}
 
+    /// Defines the partial order between points in the data lattice.
+    ///
+    /// Should return `None` of `a` and `b` are unordered.
+    ///
+    /// We'll write `a < b` if `cmp_data(a, b) = Some(Ordering::Less)`.
+    /// Similarly, for `a <= b`, etc.
+    fn cmp_data(a: &Self::Data, b: &Self::Data) -> Option<Ordering>;
+
+    /// Merge two points in the data lattice.
+    ///
+    /// The results should satisfy the following rules:
+    /// - `a <= merge_data(a, b)`
+    /// - `b <= merge_data(a, b)`
+    fn merge_data(a: Self::Data, b: Self::Data) -> Self::Data;
+
     /// Defines how to merge two `Data`s when their containing
     /// [`EClass`]es merge.
     ///
-    /// Only called when the two datas are unordered in the lattice.
+    /// The result of this should respect the partial ordering defined by `cmp_data`.
     ///
-    /// This must respect the partial ordering of `a` with respect to `b`:
-    /// - if `a < b`, then `a` should be assigned to `b`.
-    /// - if `a > b`, then `a` should be unmodified.
-    /// - if `a == b`, then `a` should be unmodified.
-    /// - if they cannot be compared, then `a` should be modifed.
-    fn merge(&self, a: &mut Self::Data, b: Self::Data) -> Option<Ordering>;
+    /// Specifically, this should satisfy the following rules:
+    /// - `cmp_merge_data(a, b).0 == cmp_data(a, b)`
+    /// - `a <= cmp_merge_data(a, b).1`
+    /// - `b <= cmp_merge_data(a, b).1`
+    ///
+    /// Additionally, this may satisfy the rule `cmp_merge_data(a, b).1 == merge_data(a, b)`,
+    /// but it may choose to provide a different merged result as long as it is consistent with
+    /// the lattice order.
+    ///
+    /// The default implementation is defined in terms of `cmp_data` and `merge_data`.
+    /// Override this if it is more efficient to implement the comparison and merge operation
+    /// simultaneously.
+    fn cmp_merge_data(a: Self::Data, b: Self::Data) -> (Option<Ordering>, Self::Data) {
+        let ord = Self::cmp_data(&a, &b);
+        println!("Compare {:?} {:?} {:?}", a, ord, b);
+        let result = match ord {
+            None => Self::merge_data(a, b),
+            Some(Ordering::Less) => b,
+            Some(Ordering::Equal) => b,
+            Some(Ordering::Greater) => a,
+        };
+        println!("  Result {:?}", result);
+        (ord, result)
+    }
 
     /// A hook that allows the modification of the
     /// [`EGraph`]
@@ -532,31 +565,13 @@ pub trait Analysis<L: Language>: Sized {
 impl<L: Language> Analysis<L> for () {
     type Data = ();
     fn make(_egraph: &EGraph<L, Self>, _enode: &L) -> Self::Data {}
-    fn merge(&self, _: &mut Self::Data, _: Self::Data) -> Option<Ordering> {
+
+    fn cmp_data(_a: &Self::Data, _b: &Self::Data) -> Option<Ordering> {
         Some(Ordering::Equal)
     }
-}
 
-/// A utility for implementing [`Analysis::merge`]
-/// when the `Data` type has a total ordering.
-/// This will take the maximum of the two values.
-pub fn merge_max<T: Ord>(to: &mut T, from: T) -> Ordering {
-    let cmp = (*to).cmp(&from);
-    if cmp == Ordering::Less {
-        *to = from;
+    fn merge_data(_a: Self::Data, _b: Self::Data) -> Self::Data {
     }
-    cmp
-}
-
-/// A utility for implementing [`Analysis::merge`]
-/// when the `Data` type has a total ordering.
-/// This will take the minimum of the two values.
-pub fn merge_min<T: Ord>(to: &mut T, from: T) -> Ordering {
-    let cmp = (*to).cmp(&from).reverse();
-    if cmp == Ordering::Less {
-        *to = from;
-    }
-    cmp
 }
 
 /// A simple language used for testing.

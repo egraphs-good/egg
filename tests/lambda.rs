@@ -37,7 +37,7 @@ type EGraph = egg::EGraph<Lambda, LambdaAnalysis>;
 #[derive(Default)]
 struct LambdaAnalysis;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct Data {
     free: HashSet<Id>,
     constant: Option<Lambda>,
@@ -55,18 +55,59 @@ fn eval(egraph: &EGraph, enode: &Lambda) -> Option<Lambda> {
 
 impl Analysis<Lambda> for LambdaAnalysis {
     type Data = Data;
-    fn merge(&self, to: &mut Data, from: Data) -> Option<Ordering> {
-        let before_len = to.free.len();
-        // to.free.extend(from.free);
-        to.free.retain(|i| from.free.contains(i));
-        let did_change = before_len != to.free.len();
-        if to.constant.is_none() && from.constant.is_some() {
-            to.constant = from.constant;
-            None
-        } else if did_change {
-            None
+
+    // The data consists of the free variables and constant value.
+    // The nodes are unrelated if they have different free variables.
+    fn cmp_data(a: &Self::Data, b: &Self::Data) -> Option<Ordering> {
+        // constant ordering: Constant(X) = true > NonConstant = false
+        let constant_order = a.constant.is_some().cmp(&b.constant.is_some());
+
+        // free ordering: a > b iff b contains a
+        let free_order = if b.free.is_superset(&a.free) {
+            if a.free.len() == b.free.len() {
+                Some(Ordering::Equal)
+            } else {
+                Some(Ordering::Greater)
+            }
+        } else if a.free.is_superset(&b.free) {
+            Some(Ordering::Less)
         } else {
-            Some(Ordering::Greater)
+            None
+        };
+
+        match (free_order, constant_order) {
+            (Some(Ordering::Equal), y) => Some(y),
+            (Some(x), Ordering::Equal) => Some(x),
+            (Some(Ordering::Less), Ordering::Less) => Some(Ordering::Less),
+            (Some(Ordering::Greater), Ordering::Greater) => Some(Ordering::Greater),
+            _ => None
+        }
+    }
+
+    fn merge_data(a: Self::Data, b: Self::Data) -> Self::Data {
+        let Self::Data { constant, mut free } = a;
+        free.retain(|i| b.free.contains(i));
+        let constant = if constant.is_none() && b.constant.is_some() {
+            b.constant
+        } else {
+            constant
+        };
+
+        Self::Data { constant, free }
+    }
+
+    fn cmp_merge_data(mut a: Self::Data, b: Self::Data) -> (Option<Ordering>, Self::Data) {
+        let before_len = a.free.len();
+        // to.free.extend(from.free);
+        a.free.retain(|i| b.free.contains(i));
+        let did_change = before_len != a.free.len();
+        if a.constant.is_none() && b.constant.is_some() {
+            a.constant = b.constant;
+            (None, a)
+        } else if did_change {
+            (None, a)
+        } else {
+            (Some(Ordering::Greater), a)
         }
     }
 

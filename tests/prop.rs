@@ -18,11 +18,10 @@ type Rewrite = egg::Rewrite<Prop, ConstantFold>;
 
 #[derive(Default)]
 struct ConstantFold;
+
 impl Analysis<Prop> for ConstantFold {
     type Data = Option<bool>;
-    fn merge(&self, to: &mut Self::Data, from: Self::Data) -> Option<Ordering> {
-        Some(merge_max(to, from))
-    }
+
     fn make(egraph: &EGraph, enode: &Prop) -> Self::Data {
         let x = |i: &Id| egraph[*i].data;
         let result = match enode {
@@ -36,6 +35,15 @@ impl Analysis<Prop> for ConstantFold {
         println!("Make: {:?} -> {:?}", enode, result);
         result
     }
+
+    fn cmp_data(a: &Self::Data, b: &Self::Data) -> Option<Ordering> {
+        Some(a.cmp(b))
+    }
+
+    fn merge_data(a: Self::Data, b: Self::Data) -> Self::Data {
+        a.max(b)
+    }
+
     fn modify(egraph: &mut EGraph, id: Id) {
         println!("Modifying {}", id);
         if let Some(c) = egraph[id].data {

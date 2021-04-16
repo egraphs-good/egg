@@ -54,6 +54,7 @@ impl Analysis<Math> for ConstantFold {
 
     fn make(egraph: &EGraph, enode: &Math) -> Self::Data {
         let x = |i: &Id| egraph[*i].data;
+
         Some(match enode {
             Math::Constant(c) => *c,
             Math::Add([a, b]) => x(a)? + x(b)?,
@@ -64,20 +65,18 @@ impl Analysis<Math> for ConstantFold {
         })
     }
 
-    fn merge(&self, a: &mut Self::Data, b: Self::Data) -> Option<Ordering> {
-        match (a.as_mut(), b) {
+    fn cmp_data(a: &Self::Data, b: &Self::Data) -> Option<Ordering> {
+        let result = match (a, b) {
             (None, None) => Some(Ordering::Equal),
-            (None, Some(_)) => {
-                *a = b;
-                Some(Ordering::Less)
-            }
+            (None, Some(_)) => Some(Ordering::Less),
             (Some(_), None) => Some(Ordering::Greater),
             (Some(_), Some(_)) => Some(Ordering::Equal),
-        }
-        // if a.is_none() && b.is_some() {
-        //     *a = b
-        // }
-        // cmp
+        };
+        result
+    }
+
+    fn merge_data(a: Self::Data, b: Self::Data) -> Self::Data {
+        panic!("Unable to merge {:?} and {:?}", a, b)
     }
 
     fn modify(egraph: &mut EGraph, id: Id) {
@@ -85,6 +84,7 @@ impl Analysis<Math> for ConstantFold {
         if let Some(c) = class.data {
             let added = egraph.add(Math::Constant(c));
             let (id, _did_something) = egraph.union(id, added);
+
             // to not prune, comment this out
             egraph[id].nodes.retain(|n| n.is_leaf());
 

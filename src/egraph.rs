@@ -379,7 +379,12 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         assert_eq!(id1, class1.id);
 
         self.pending.extend(class2.parents.iter().cloned());
-        match self.analysis.merge(&mut class1.data, class2.data) {
+
+        let class1_data = std::mem::take(&mut class1.data);
+        let (ord, data) = N::cmp_merge_data(class1_data, class2.data);
+        class1.data = data;
+
+        match ord {
             Some(Ordering::Equal) => {}
             Some(Ordering::Greater) => {
                 self.analysis_pending.extend(class2.parents.iter().cloned());
@@ -516,12 +521,17 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             while let Some((node, class_id)) = self.analysis_pending.pop() {
                 let class_id = self.find_mut(class_id);
                 let node_data = N::make(self, &node);
+
                 let class = self.classes.get_mut(&class_id).unwrap();
-                match self.analysis.merge(&mut class.data, node_data) {
-                    Some(Ordering::Equal) | Some(Ordering::Greater) => {}
+                let data = std::mem::take(&mut class.data);
+                let (ord, data) = N::cmp_merge_data(data, node_data);
+                class.data = data;
+
+                match ord {
+                    Some(Ordering::Equal) | Some(Ordering::Greater) => {},
                     Some(Ordering::Less) | None => {
                         self.analysis_pending.extend(class.parents.iter().cloned());
-                        N::modify(self, class_id)
+                        N::modify(self, class_id);
                     }
                 }
             }
