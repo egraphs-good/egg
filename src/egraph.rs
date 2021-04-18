@@ -60,7 +60,7 @@ pub struct EGraph<L: Language, N: Analysis<L>> {
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Strategy {
-    EMatch, GenericJoin, Auto
+    EMatch, GenericJoin
 }
 
 impl<L: Language, N: Analysis<L> + Default> Default for EGraph<L, N> {

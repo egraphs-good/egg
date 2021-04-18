@@ -218,17 +218,8 @@ impl<'a, L: Language> From<PatternAst<L>> for Pattern<L> {
         let program = machine::Program::compile_from_pat(&ast);
         let nodes = ast.as_ref();
         let is_var = nodes.len() == 1 && matches!(nodes[0], ENodeOrVar::Var(_));
-        // TODO: this should be deleted
-        // Currently, our GJ does not handle variable constraints
-        // Also, conditions like is_const should be used to prune
-        // the search space.
-        // Meanwhile, should consider adding support for multi-pattern soon
-        // let contains_only_vars = nodes.iter().all(|n| match n {
-        //     ENodeOrVar::Var(_) => true,
-        //     _ => false
-        // });
         let contains_only_vars = true;
-        if is_var || !contains_only_vars {
+        if is_var {
             Pattern {
                 expr: None,
                 ast,
@@ -299,13 +290,6 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
 
                 let root = self.ast.as_ref().len() - 1;
                 let root_index = var_map[&VarOrId::Id(root.into())];
-
-                // expr.for_each(&egraph.db, &mut egraph.eval_ctx.borrow_mut(), |tuple| {
-                //     let vec = vars.iter().map(|(v, i)| (*v, tuple[*i])).collect();
-                //     let subst = Subst { vec };
-                //     let root = egraph.find(tuple[root_index]);
-                //     map.entry(root).or_default().push(subst);
-                // });
 
                 q.join(
                     &var_map,
@@ -731,12 +715,7 @@ mod qry_bench {
             }
             let mut acc = vec![];
             let mut result = vec![];
-            let mut count = 0;
-            // TODO:
-            // my feeling is that if you are doing complex things for each match,
-            // which is as expensive as a vector copying. Then the interpretative
-            // overhead may not be that large.
-            // And resource de-allocation takes a large amount of time...
+
             intersect(&mul_idx, &mul_idx, |(x, mul1, mul2)| {
                 acc.push(*x);
                 intersect(&mul1, &add_idx, |(xy, mul1, add)| {
