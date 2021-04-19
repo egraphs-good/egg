@@ -586,13 +586,17 @@ pub trait Analysis<L: Language>: Sized {
     /// Defines how to merge two `Data`s when their containing
     /// [`EClass`]es merge.
     ///
-    /// Only called when the two datas are unordered in the lattice.
+    /// Since `merge` can modify `a`, let `a0`/`a1` be the value of
+    /// `a` before/after the call to `merge`, respectively.
     ///
-    /// This must respect the partial ordering of `a` with respect to `b`:
-    /// - if `a < b`, then `a` should be assigned to `b`.
-    /// - if `a > b`, then `a` should be unmodified.
-    /// - if `a == b`, then `a` should be unmodified.
-    /// - if they cannot be compared, then `a` should be modifed.
+    /// The return value of `merge` should be the partial ordering of `a0` and `b`.
+    /// After `merge` returns, `a1` must be the least upper bound of `a0` and `b`.
+    ///
+    /// In other words, `merge` must respect the following:
+    /// - if `a0 < b`, then `a1 = b`,
+    /// - if `a0 > b`, then `a0 = a1`,
+    /// - if `a0 == b`, then `a0 = a1`,
+    /// - if they cannot be compared, then `a1 > b` and `a1 > b`.
     fn merge(&self, a: &mut Self::Data, b: Self::Data) -> Option<Ordering>;
 
     /// A hook that allows the modification of the
