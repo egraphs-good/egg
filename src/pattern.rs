@@ -62,7 +62,7 @@ pub struct Pattern<L: Language> {
     /// The actual pattern as a [`RecExpr`]
     pub ast: PatternAst<L>,
     program: machine::Program<L>,
-    expr: Option<(Query<L>, qry::VarMap<VarOrId>, qry::Expr<L::Operator, Id>)>,
+    query: Option<Query<L>>,
 }
 
 impl<L: Language> PartialEq for Pattern<L> {
@@ -71,7 +71,7 @@ impl<L: Language> PartialEq for Pattern<L> {
     }
 }
 
-pub type LangDB<L> = qry::Database<<L as Language>::Operator, Id>;
+pub(crate) type LangDB<L> = qry::Database<<L as Language>::Operator, Id>;
 
 /// A [`RecExpr`] that represents a
 /// [`Pattern`].
@@ -218,18 +218,16 @@ impl<'a, L: Language> From<PatternAst<L>> for Pattern<L> {
         let program = machine::Program::compile_from_pat(&ast);
         let nodes = ast.as_ref();
         let is_var = nodes.len() == 1 && matches!(nodes[0], ENodeOrVar::Var(_));
-        let contains_only_vars = true;
         if is_var {
             Pattern {
-                expr: None,
+                query: None,
                 ast,
                 program,
             }
         } else {
             let q = compile_to_query(&ast);
-            let (var_map, expr) = q.compile();
             Pattern {
-                expr: Some((q.clone(), var_map, expr)),
+                query: Some(q),
                 ast,
                 program,
             }
@@ -275,22 +273,25 @@ pub struct SearchMatches {
 impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
     fn search(&self, egraph: &EGraph<L, A>) -> Vec<SearchMatches> {
         use crate::egraph::Strategy;
-        if let Some((q, var_map, expr)) = self.expr.as_ref() {
+        if let Some(q) = self.query.as_ref() {
             if egraph.strategy != Strategy::EMatch {
                 let var_map = q.vars(&egraph.db);
 
-                let mut map: HashMap<Id, Vec<Subst>> = Default::default();
                 let vars: Vec<(Var, usize)> = var_map
                     .iter()
-                    .filter_map(|(vori, i)| match vori {
-                        VarOrId::Var(v) => Some((*v, *i)),
+                    .enumerate()
+                    .filter_map(|(i, vori)| match vori {
+                        VarOrId::Var(v) => Some((*v, i)),
                         VarOrId::Id(_) => None,
                     })
                     .collect();
 
                 let root = self.ast.as_ref().len() - 1;
-                let root_index = var_map[&VarOrId::Id(root.into())];
+                let root_expr = VarOrId::Id(root.into());
+                let root_index = var_map.iter().position(|e| e == &root_expr).unwrap();
 
+                let mut map: HashMap<Id, Vec<Subst>> = Default::default();
+                // let mut result: Vec<SearchMatches> = Default::default();
                 q.join(
                     &var_map,
                     &egraph.db,
@@ -300,6 +301,7 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
                         let subst = Subst { vec };
                         let root = egraph.find(tuple[root_index]);
                         map.entry(root).or_default().push(subst);
+                        // result.push(SearchMatches { eclass: root, substs: vec![subst] });
                     },
                 );
 
@@ -307,6 +309,7 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
                     .into_iter()
                     .map(|(eclass, substs)| SearchMatches { eclass, substs })
                     .collect();
+                // return result;
             }
         }
 
@@ -332,7 +335,7 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
 
     fn search_eclass(&self, egraph: &EGraph<L, A>, eclass: Id) -> Option<SearchMatches> {
         use crate::egraph::Strategy;
-        if self.expr.is_some() && egraph.strategy != Strategy::EMatch {
+        if self.query.is_some() && egraph.strategy != Strategy::EMatch {
             // could be further optimized
             let id = egraph.find(eclass);
             self.search(egraph).into_iter().find(|m| m.eclass == id)
@@ -539,11 +542,7 @@ mod qry_bench {
             runner.egraph
         }
 
-        fn triangle_dist_query(
-            egraph: &EGraph,
-            q: &Query<Math>,
-            var_map: qry::VarMap<VarOrId>,
-        ) {
+        fn triangle_dist_query(egraph: &EGraph, q: &Query<Math>, var_map: qry::VarMap<VarOrId>) {
             let mut count = 0;
             q.join(
                 &var_map,
@@ -566,8 +565,8 @@ mod qry_bench {
             // println!("expr: {:?}", expr);
             // println!("var_map: {:?}", var_map);
             assert!(
-                var_map.keys().len() == 6
-                    && var_map.keys().all(|v| vec![
+                var_map.len() == 6
+                    && var_map.iter().all(|v| vec![
                         // variable with 2 occurrences
                         V("?x"),
                         I(5),
@@ -582,7 +581,7 @@ mod qry_bench {
             for group1 in (0..3).permutations(3) {
                 egraph.eval_ctx.borrow_mut().clear();
                 let start_time = std::time::Instant::now();
-                let var_map = vec![
+                let mut var_map = vec![
                     // variable with 2 occurrences
                     (V("?x"), group1[0]),
                     (I(5), group1[1]),
@@ -591,9 +590,9 @@ mod qry_bench {
                     (V("?y"), 3),
                     (I(6), 4),
                     (V("?z"), 5),
-                ]
-                .into_iter()
-                .collect();
+                ];
+                var_map.sort_by_key(|(v, p)| *p);
+                let var_map = var_map.into_iter().map(|(v, p)| v.clone()).collect();
                 triangle_dist_query(&mut egraph, &query, var_map);
                 println!("group: {:?}", group1);
                 println!("time: {:?}", std::time::Instant::now() - start_time);
@@ -636,11 +635,9 @@ mod qry_bench {
             let expr: RecExpr<ENodeOrVar<Math>> = "(+ (* ?x ?y) (* ?x ?z))".parse().unwrap();
             let query = compile_to_query(&expr);
             let var_map = query.vars(&egraph.db);
-            // println!("expr: {:?}", expr);
-            // println!("var_map: {:?}", var_map);
             assert!(
-                var_map.keys().len() == 6
-                    && var_map.keys().all(|v| vec![
+                var_map.len() == 6
+                    && var_map.iter().all(|v| vec![
                         // variable with 2 occurrences
                         V("?x"),
                         I(5),
@@ -654,7 +651,7 @@ mod qry_bench {
             );
             egraph.eval_ctx.borrow_mut().clear();
             let start_time = std::time::Instant::now();
-            let var_map = vec![
+            let mut var_map = vec![
                 // variable with 2 occurrences
                 (V("?x"), 0),
                 (I(5), 1),
@@ -663,9 +660,9 @@ mod qry_bench {
                 (V("?y"), 3),
                 (I(6), 4),
                 (V("?z"), 5),
-            ]
-            .into_iter()
-            .collect();
+            ];
+            var_map.sort_by_key(|(v, p)| *p);
+            let var_map = var_map.into_iter().map(|(v, p)| v).collect();
             let mut result: Vec<Vec<Id>> = vec![];
             query.join(
                 &var_map,
@@ -744,17 +741,13 @@ mod qry_bench {
     }
 
     mod lambda {
+        use super::*;
         use crate::egraph::Strategy;
         use crate::pattern::*;
-        use super::*;
-        use crate::{rewrite as rw};
+        use crate::rewrite as rw;
         use itertools::Itertools;
 
-        fn if_elim_query(
-            egraph: &EGraph,
-            q: &Query<Lambda>,
-            var_map: qry::VarMap<VarOrId>,
-        ) {
+        fn if_elim_query(egraph: &EGraph, q: &Query<Lambda>, var_map: qry::VarMap<VarOrId>) {
             let mut count = 0;
             q.join(
                 &var_map,
@@ -770,7 +763,8 @@ mod qry_bench {
         // #[test]
         fn if_elim_query_bench() {
             let mut egraph = saturate();
-            let expr: RecExpr<ENodeOrVar<Lambda>> = "(if (= (var ?x) ?e) ?then ?else)".parse().unwrap();
+            let expr: RecExpr<ENodeOrVar<Lambda>> =
+                "(if (= (var ?x) ?e) ?then ?else)".parse().unwrap();
             let query = compile_to_query(&expr);
             let var_map = query.vars(&egraph.db);
             println!("expr: {:?}", expr);
@@ -778,8 +772,8 @@ mod qry_bench {
             println!("var_map: {:?}", var_map);
             // println!("{:?}", egraph.db.relations.iter().map(|(k,v)| (k, v.len())).collect::<Vec<_>>());
             assert!(
-                var_map.keys().len() == 7
-                    && var_map.keys().all(|v| vec![
+                var_map.len() == 7
+                    && var_map.iter().all(|v| vec![
                         // variable with 2 occurrences
                         I(1),
                         I(3),
@@ -793,7 +787,7 @@ mod qry_bench {
                     .contains(v))
             );
             // TODO:
-            // the difference seems to be within 2x. 
+            // the difference seems to be within 2x.
             // {I(1): 0, I(3): 1} seems to be better than {I(3): 0, I(1): 1}
             // and I(1) is the "inner" join variable (the one that connects
             // eq and var)
@@ -804,7 +798,7 @@ mod qry_bench {
             // LESSON: has variables attached to smaller relations firsts (at least for
             // variables with one occurrence)
             //
-            // Maybe we should first develop the engine that allows customizable optimizers 
+            // Maybe we should first develop the engine that allows customizable optimizers
             // before experimenting with more optimizations!
             // Idea: root probably should be the first in the sequence of all variables with one
             // occurrence since this results in better locality
@@ -812,7 +806,7 @@ mod qry_bench {
                 for groups2 in (2..7).permutations(5) {
                     egraph.eval_ctx.borrow_mut().clear();
                     let start_time = std::time::Instant::now();
-                    let var_map = vec![
+                    let mut var_map = vec![
                         // variable with 2 occurrences
                         (I(1), group1[0]),
                         (I(3), group1[1]),
@@ -821,10 +815,10 @@ mod qry_bench {
                         (V("?else"), groups2[1]),
                         (V("?then"), groups2[2]),
                         (V("?x"), groups2[3]),
-                        (V("?e"),groups2[4])
-                    ]
-                    .into_iter()
-                    .collect();
+                        (V("?e"), groups2[4]),
+                    ];
+                    var_map.sort_by_key(|(v, p)| *p);
+                    let var_map = var_map.into_iter().map(|(v, p)| v).collect();
                     if_elim_query(&mut egraph, &query, var_map);
                     println!("group: {:?} {:?}", group1, groups2);
                     println!("time: {:?}", std::time::Instant::now() - start_time);
@@ -834,8 +828,7 @@ mod qry_bench {
 
         fn saturate() -> EGraph {
             let rules: Vec<_> = rules();
-            let expr1 = 
-            "(let compose (lam f (lam g (lam x (app (var f)
+            let expr1 = "(let compose (lam f (lam g (lam x (app (var f)
                             (app (var g) (var x))))))
             (let repeat (fix repeat (lam fun (lam n
                 (if (= (var n) 0)
@@ -847,7 +840,9 @@ mod qry_bench {
             (let add1 (lam y (+ (var y) 1))
                 (app (app (var repeat)
                     (var add1))
-                    2))))".parse().unwrap();
+                    2))))"
+                .parse()
+                .unwrap();
             // let expr1 = "(- ?x ?x)".parse().unwrap();
             let mut egraph: EGraph = Default::default();
             egraph.strategy = Strategy::EMatch;
