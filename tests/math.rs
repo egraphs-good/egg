@@ -65,18 +65,21 @@ impl Analysis<Math> for ConstantFold {
         })
     }
 
-    fn cmp_data(a: &Self::Data, b: &Self::Data) -> Option<Ordering> {
+    fn compare(&self, a: &Self::Data, b: &Self::Data) -> Option<Ordering> {
         let result = match (a, b) {
             (None, None) => Some(Ordering::Equal),
             (None, Some(_)) => Some(Ordering::Less),
             (Some(_), None) => Some(Ordering::Greater),
-            (Some(_), Some(_)) => Some(Ordering::Equal),
+            (Some(x), Some(y)) => {
+                assert_eq!(x, y);
+                Some(Ordering::Equal)
+            }
         };
         result
     }
 
-    fn merge_data(a: Self::Data, b: Self::Data) -> Self::Data {
-        panic!("Unable to merge {:?} and {:?}", a, b)
+    fn merge(&self, _: Self::Data, _: Self::Data) -> Self::Data {
+        unreachable!("Should never merge since comparison is total")
     }
 
     fn modify(egraph: &mut EGraph, id: Id) {

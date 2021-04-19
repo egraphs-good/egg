@@ -491,7 +491,7 @@ assert_eq!(runner.egraph.find(runner.roots[0]), runner.egraph.find(just_foo));
 
 pub trait Analysis<L: Language>: Sized {
     /// The per-[`EClass`] data for this analysis.
-    type Data: Debug + Default;
+    type Data: Debug;
 
     /// Makes a new [`Analysis`] for a given enode
     /// [`Analysis`].
@@ -515,14 +515,14 @@ pub trait Analysis<L: Language>: Sized {
     ///
     /// We'll write `a < b` if `cmp_data(a, b) = Some(Ordering::Less)`.
     /// Similarly, for `a <= b`, etc.
-    fn cmp_data(a: &Self::Data, b: &Self::Data) -> Option<Ordering>;
+    fn compare(&self, a: &Self::Data, b: &Self::Data) -> Option<Ordering>;
 
     /// Merge two points in the data lattice.
     ///
     /// The results should satisfy the following rules:
     /// - `a <= merge_data(a, b)`
     /// - `b <= merge_data(a, b)`
-    fn merge_data(a: Self::Data, b: Self::Data) -> Self::Data;
+    fn merge(&self, a: Self::Data, b: Self::Data) -> Self::Data;
 
     /// Defines how to merge two `Data`s when their containing
     /// [`EClass`]es merge.
@@ -541,11 +541,11 @@ pub trait Analysis<L: Language>: Sized {
     /// The default implementation is defined in terms of `cmp_data` and `merge_data`.
     /// Override this if it is more efficient to implement the comparison and merge operation
     /// simultaneously.
-    fn cmp_merge_data(a: Self::Data, b: Self::Data) -> (Option<Ordering>, Self::Data) {
-        let ord = Self::cmp_data(&a, &b);
+    fn compare_and_merge(&self, a: Self::Data, b: Self::Data) -> (Option<Ordering>, Self::Data) {
+        let ord = self.compare(&a, &b);
         println!("Compare {:?} {:?} {:?}", a, ord, b);
         let result = match ord {
-            None => Self::merge_data(a, b),
+            None => self.merge(a, b),
             Some(Ordering::Less) => b,
             Some(Ordering::Equal) => b,
             Some(Ordering::Greater) => a,
@@ -566,12 +566,11 @@ impl<L: Language> Analysis<L> for () {
     type Data = ();
     fn make(_egraph: &EGraph<L, Self>, _enode: &L) -> Self::Data {}
 
-    fn cmp_data(_a: &Self::Data, _b: &Self::Data) -> Option<Ordering> {
+    fn compare(&self, _a: &Self::Data, _b: &Self::Data) -> Option<Ordering> {
         Some(Ordering::Equal)
     }
 
-    fn merge_data(_a: Self::Data, _b: Self::Data) -> Self::Data {
-    }
+    fn merge(&self, _a: Self::Data, _b: Self::Data) -> Self::Data {}
 }
 
 /// A simple language used for testing.

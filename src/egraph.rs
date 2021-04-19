@@ -375,31 +375,37 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
         assert_ne!(id1, id2);
         let class2 = self.classes.remove(&id2).unwrap();
-        let class1 = self.classes.get_mut(&id1).unwrap();
-        assert_eq!(id1, class1.id);
+        let n = &self.analysis;
+        let ap = &mut self.analysis_pending;
+        let p = &mut self.pending;
+        self.classes
+            .entry(id1)
+            .and_replace_entry_with(|_id1, mut class1| {
+                assert_eq!(id1, class1.id);
 
-        self.pending.extend(class2.parents.iter().cloned());
+                p.extend(class2.parents.iter().cloned());
 
-        let class1_data = std::mem::take(&mut class1.data);
-        let (ord, data) = N::cmp_merge_data(class1_data, class2.data);
-        class1.data = data;
+                let (ord, data) = n.compare_and_merge(class1.data, class2.data);
+                class1.data = data;
 
-        match ord {
-            Some(Ordering::Equal) => {}
-            Some(Ordering::Greater) => {
-                self.analysis_pending.extend(class2.parents.iter().cloned());
-            }
-            Some(Ordering::Less) => {
-                self.analysis_pending.extend(class1.parents.iter().cloned());
-            }
-            None => {
-                let both = class1.parents.iter().chain(&class2.parents).cloned();
-                self.analysis_pending.extend(both);
-            }
-        }
+                match ord {
+                    Some(Ordering::Equal) => {}
+                    Some(Ordering::Greater) => {
+                        ap.extend(class2.parents.iter().cloned());
+                    }
+                    Some(Ordering::Less) => {
+                        ap.extend(class1.parents.iter().cloned());
+                    }
+                    None => {
+                        let both = class1.parents.iter().chain(&class2.parents).cloned();
+                        ap.extend(both);
+                    }
+                }
 
-        concat_vecs(&mut class1.nodes, class2.nodes);
-        concat_vecs(&mut class1.parents, class2.parents);
+                concat_vecs(&mut class1.nodes, class2.nodes);
+                concat_vecs(&mut class1.parents, class2.parents);
+                Some(class1)
+            });
 
         N::modify(self, id1);
         (id1, id1 != id2)
@@ -522,15 +528,22 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                 let class_id = self.find_mut(class_id);
                 let node_data = N::make(self, &node);
 
-                let class = self.classes.get_mut(&class_id).unwrap();
-                let data = std::mem::take(&mut class.data);
-                let (ord, data) = N::cmp_merge_data(data, node_data);
-                class.data = data;
+                let mut ord = None;
+                let n = &self.analysis;
+                self.classes
+                    .entry(class_id)
+                    .and_replace_entry_with(|_id, mut class| {
+                        let (o, data) = n.compare_and_merge(class.data, node_data);
+                        ord = o;
+                        class.data = data;
+                        Some(class)
+                    });
 
                 match ord {
-                    Some(Ordering::Equal) | Some(Ordering::Greater) => {},
+                    Some(Ordering::Equal) | Some(Ordering::Greater) => {}
                     Some(Ordering::Less) | None => {
-                        self.analysis_pending.extend(class.parents.iter().cloned());
+                        let parents = self.classes[&class_id].parents.iter().cloned();
+                        self.analysis_pending.extend(parents);
                         N::modify(self, class_id);
                     }
                 }

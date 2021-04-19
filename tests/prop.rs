@@ -36,12 +36,12 @@ impl Analysis<Prop> for ConstantFold {
         result
     }
 
-    fn cmp_data(a: &Self::Data, b: &Self::Data) -> Option<Ordering> {
+    fn compare(&self, a: &Self::Data, b: &Self::Data) -> Option<Ordering> {
         Some(a.cmp(b))
     }
 
-    fn merge_data(a: Self::Data, b: Self::Data) -> Self::Data {
-        a.max(b)
+    fn merge(&self, _: Self::Data, _: Self::Data) -> Self::Data {
+        unreachable!("comparison is total")
     }
 
     fn modify(egraph: &mut EGraph, id: Id) {
