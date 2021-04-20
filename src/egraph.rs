@@ -415,7 +415,9 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     }
 
     fn build_db(&mut self) {
-        self.eval_ctx.borrow_mut().clear();
+        let eval_ctx = std::mem::take(&mut self.eval_ctx);
+        std::mem::forget(eval_ctx);
+        // self.eval_ctx.borrow_mut().clear();
         let mut db = std::mem::take(&mut self.db);
         db.relations.values_mut().for_each(|v| v.clear());
         for class in self.classes() {

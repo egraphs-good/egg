@@ -318,3 +318,64 @@ egg::test_fn! {
         (app (var fib) 4))"
     => "3"
 }
+
+#[cfg(test)]
+mod hard_lambda {
+    use egg::{rewrite as rw, *};
+    use ordered_float::NotNan;
+    pub type EGraph = egg::EGraph<Math, ()>;
+    pub type Rewrite = egg::Rewrite<Math, ()>;
+    pub type Constant = NotNan<f64>;
+    define_language! {
+        pub enum Math {
+            "+" = Add([Id; 2]),
+            "-" = Sub([Id; 2]),
+            "*" = Mul([Id; 2]),
+            "/" = Div([Id; 2]),
+            Constant(Constant),
+            Symbol(Symbol),
+        }
+    }
+    #[rustfmt::skip]
+    pub fn rules() -> Vec<Rewrite> { vec![
+        rw!("comm-add";  "(+ ?a ?b)"        => "(+ ?b ?a)"),
+        rw!("comm-mul";  "(* ?a ?b)"        => "(* ?b ?a)"),
+        rw!("assoc-add"; "(+ ?a (+ ?b ?c))" => "(+ (+ ?a ?b) ?c)"),
+        rw!("assoc-mul"; "(* ?a (* ?b ?c))" => "(* (* ?a ?b) ?c)"),
+    
+        rw!("sub-canon"; "(- ?a ?b)" => "(+ ?a (* -1 ?b))"),
+    
+        rw!("zero-add"; "(+ ?a 0)" => "?a"),
+        rw!("zero-mul"; "(* ?a 0)" => "0"),
+        rw!("one-mul";  "(* ?a 1)" => "?a"),
+    
+        rw!("add-zero"; "?a" => "(+ ?a 0)"),
+        rw!("mul-one";  "?a" => "(* ?a 1)"),
+    
+        rw!("cancel-sub"; "(- ?a ?a)" => "0"),
+    
+        rw!("distribute"; "(* ?a (+ ?b ?c))"        => "(+ (* ?a ?b) (* ?a ?c))"),
+        rw!("factor"    ; "(+ (* ?a ?b) (* ?a ?c))" => "(* ?a (+ ?b ?c))"),
+    ]}
+
+    #[test]
+    pub fn saturate() {
+        let rules: Vec<_> = rules();
+        let expr1 = "(+ (* y (+ x y)) (- (+ x 2) (+ x x)))".parse().unwrap();
+        let runner: Runner<Math, ()> = Runner::default()
+            .with_expr(&expr1)
+            .with_node_limit(200_000)
+            // .with_node_limit(50_000)
+            .with_iter_limit(1000)
+            .with_time_limit(std::time::Duration::from_secs(4000))
+            .run(&rules);
+        runner.print_report();
+        println!("stop reason: {:?}", runner.stop_reason);
+        println!(
+            "egraph size: {} {}",
+            runner.egraph.total_number_of_nodes(),
+            runner.egraph.number_of_classes()
+        );
+        runner.egraph;
+    }
+}
