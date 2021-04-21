@@ -4,6 +4,8 @@ use std::fmt;
 
 use crate::*;
 
+static CHECK_INTERVAL: usize = 4096;
+
 /// A pattern that can function as either a [`Searcher`] or [`Applier`].
 ///
 /// A [`Pattern`] is essentially a for-all quantified expression with
@@ -270,8 +272,14 @@ pub struct SearchMatches {
     pub substs: Vec<Subst>,
 }
 
+pub static TOTAL_MATCHES: AtomicUsize = AtomicUsize::new(0);
+
 impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
-    fn search(&self, egraph: &EGraph<L, A>) -> Vec<SearchMatches> {
+    fn search_while(
+        &self,
+        egraph: &EGraph<L, A>,
+        mut should_cont: Box<dyn FnMut(usize) -> bool>,
+    ) -> Vec<SearchMatches> {
         use crate::egraph::Strategy;
         if let Some(q) = self.query.as_ref() {
             if egraph.strategy != Strategy::EMatch {
@@ -291,28 +299,35 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
                 let root_index = var_map.iter().position(|e| e == &root_expr).unwrap();
 
                 let mut map: HashMap<Id, Vec<Subst>> = Default::default();
-                // let mut result: Vec<SearchMatches> = Default::default();
+                let mut num_matches = 0;
                 q.join(
                     &var_map,
                     &egraph.db,
                     &mut egraph.eval_ctx.borrow_mut(),
                     |tuple| {
+                        use qry::Result;
+                        
+                        num_matches += 1;
+                        if num_matches % CHECK_INTERVAL == 0 && !should_cont(num_matches) {
+                            return Result::Err(());
+                        }
                         let vec = vars.iter().map(|(v, i)| (*v, tuple[*i])).collect();
                         let subst = Subst { vec };
                         let root = egraph.find(tuple[root_index]);
                         map.entry(root).or_default().push(subst);
-                        // result.push(SearchMatches { eclass: root, substs: vec![subst] });
+                        TOTAL_MATCHES.fetch_add(1, Ordering::SeqCst);
+                        Result::Ok(())
                     },
-                );
+                ).unwrap_or_default();
 
                 return map
                     .into_iter()
                     .map(|(eclass, substs)| SearchMatches { eclass, substs })
                     .collect();
-                // return result;
             }
         }
 
+        // TODO: e-matching should also support search with limits
         // performs e-matching
         match self.ast.as_ref().last().unwrap() {
             ENodeOrVar::ENode(e) => {
@@ -333,12 +348,19 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
         }
     }
 
-    fn search_eclass(&self, egraph: &EGraph<L, A>, eclass: Id) -> Option<SearchMatches> {
+    fn search_eclass_while(
+        &self,
+        egraph: &EGraph<L, A>,
+        eclass: Id,
+        should_cont: Box<dyn FnMut(usize) -> bool>,
+    ) -> Option<SearchMatches> {
         use crate::egraph::Strategy;
         if self.query.is_some() && egraph.strategy != Strategy::EMatch {
-            // could be further optimized
+            // TODO: could be further optimized
             let id = egraph.find(eclass);
-            self.search(egraph).into_iter().find(|m| m.eclass == id)
+            self.search_while(egraph, should_cont)
+                .into_iter()
+                .find(|m| m.eclass == id)
         } else {
             let substs = self.program.run(egraph, eclass);
             if substs.is_empty() {
@@ -349,10 +371,22 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
         }
     }
 
+    fn search(&self, egraph: &EGraph<L, A>) -> Vec<SearchMatches> {
+        self.search_while(egraph, Box::new(|_num| true))
+    }
+
+    fn search_eclass(&self, egraph: &EGraph<L, A>, eclass: Id) -> Option<SearchMatches> {
+        self.search_eclass_while(egraph, eclass, Box::new(|_num| true))
+    }
+
     fn vars(&self) -> Vec<Var> {
         Pattern::vars(self)
     }
 }
+
+use std::sync::atomic::{AtomicUsize, Ordering};
+pub static TOTAL_APPLY: AtomicUsize = AtomicUsize::new(0);
+pub static TOTAL_SUCCESS: AtomicUsize = AtomicUsize::new(0);
 
 impl<L, A> Applier<L, A> for Pattern<L>
 where
@@ -379,6 +413,7 @@ where
                 let id = apply_pat(&mut id_buf, ast, egraph, subst);
                 let (to, did_something) = egraph.union(id, mat.eclass);
                 if did_something {
+                    TOTAL_SUCCESS.fetch_add(1, Ordering::SeqCst);
                     added.push(to)
                 }
             }
@@ -407,6 +442,8 @@ fn apply_pat<L: Language, A: Analysis<L>>(
         };
         ids[i] = id;
     }
+
+    TOTAL_APPLY.fetch_add(1, Ordering::SeqCst);
 
     *ids.last().unwrap()
 }
@@ -550,6 +587,7 @@ mod qry_bench {
                 &mut egraph.eval_ctx.borrow_mut(),
                 |tuple| {
                     count += 1;
+                    Ok(())
                 },
             );
             eprintln!("size: {:?}", count);
@@ -671,6 +709,7 @@ mod qry_bench {
                 |tuple| {
                     // count += 1;
                     result.push(tuple.to_vec());
+                    Ok(())
                 },
             );
             eprintln!("size: {:?}", result.len());
@@ -755,6 +794,7 @@ mod qry_bench {
                 &mut egraph.eval_ctx.borrow_mut(),
                 |tuple| {
                     count += 1;
+                    Ok(())
                 },
             );
             eprintln!("size: {:?}", count);

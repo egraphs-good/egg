@@ -133,6 +133,19 @@ where
             .collect()
     }
 
+    fn search_while(
+        &self,
+        egraph: &EGraph<L, N>,
+        should_cont: Box<dyn FnMut(usize) -> bool>,
+    ) -> Vec<SearchMatches>;
+
+    fn search_eclass_while(
+        &self,
+        egraph: &EGraph<L, N>,
+        eclass: Id,
+        should_cont: Box<dyn FnMut(usize) -> bool>,
+    ) -> Option<SearchMatches>;
+
     /// Returns a list of the variables bound by this Searcher
     fn vars(&self) -> Vec<Var>;
 }
@@ -320,6 +333,9 @@ pub struct ConditionalApplier<C, A> {
     pub applier: A,
 }
 
+use std::sync::atomic::{AtomicUsize, Ordering};
+pub static TOTAL_COND_APPLY: AtomicUsize = AtomicUsize::new(0);
+
 impl<C, A, N, L> Applier<L, N> for ConditionalApplier<C, A>
 where
     L: Language,
@@ -328,6 +344,7 @@ where
     N: Analysis<L>,
 {
     fn apply_one(&self, egraph: &mut EGraph<L, N>, eclass: Id, subst: &Subst) -> Vec<Id> {
+        TOTAL_COND_APPLY.fetch_add(1, Ordering::SeqCst);
         if self.condition.check(egraph, eclass, subst) {
             self.applier.apply_one(egraph, eclass, subst)
         } else {

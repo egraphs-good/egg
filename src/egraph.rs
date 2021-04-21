@@ -60,7 +60,8 @@ pub struct EGraph<L: Language, N: Analysis<L>> {
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Strategy {
-    EMatch, GenericJoin
+    EMatch,
+    GenericJoin,
 }
 
 impl<L: Language, N: Analysis<L> + Default> Default for EGraph<L, N> {
@@ -423,10 +424,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         for class in self.classes() {
             for node in class.iter() {
                 let arity = 1 + node.len();
-                let ids = &mut db
-                    .relations
-                    .entry((node.operator(), arity))
-                    .or_default();
+                let ids = &mut db.relations.entry((node.operator(), arity)).or_default();
                 ids.push(class.id);
                 node.for_each(|id| ids.push(id));
             }

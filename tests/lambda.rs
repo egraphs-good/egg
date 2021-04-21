@@ -267,7 +267,7 @@ egg::test_fn! {
     lambda_function_repeat, rules(),
     runner = Runner::default()
         .with_time_limit(std::time::Duration::from_secs(20))
-        .with_node_limit(150_000)
+        .with_node_limit(300_000)
         .with_iter_limit(60),
     "(let compose (lam f (lam g (lam x (app (var f)
                                        (app (var g) (var x))))))
@@ -364,6 +364,7 @@ mod hard_lambda {
         let expr1 = "(+ (* y (+ x y)) (- (+ x 2) (+ x x)))".parse().unwrap();
         let runner: Runner<Math, ()> = Runner::default()
             .with_expr(&expr1)
+            // .with_node_limit(usize::MAX)
             .with_node_limit(200_000)
             // .with_node_limit(50_000)
             .with_iter_limit(1000)
