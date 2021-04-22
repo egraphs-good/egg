@@ -343,7 +343,6 @@ where
                 break;
             }
         }
-        self.print_report();
 
         assert!(!self.iterations.is_empty());
         assert!(self.stop_reason.is_some());
@@ -361,9 +360,6 @@ where
         let iters = self.iterations.len();
         let rebuilds: usize = self.iterations.iter().map(|i| i.n_rebuilds).sum();
 
-        use std::sync::atomic::Ordering;
-        use crate::pattern::*;
-        use crate::rewrite::TOTAL_COND_APPLY;
         let eg = &self.egraph;
         println!("Runner report");
         println!("=============");
@@ -375,9 +371,6 @@ where
         println!("    Search:  ({:.2}) {}", search_time / total_time, search_time);
         println!("    Apply:   ({:.2}) {}", apply_time / total_time, apply_time);
         println!("    Rebuild: ({:.2}) {}", rebuild_time / total_time, rebuild_time);
-        println!("    total applies: {}, successful applies: {}", TOTAL_APPLY.load(Ordering::SeqCst), TOTAL_SUCCESS.load(Ordering::SeqCst));
-        println!("    total matches: {}", TOTAL_MATCHES.load(Ordering::SeqCst));
-        println!("    total conditional applies: {}", TOTAL_COND_APPLY.load(Ordering::SeqCst));
     }
 
     fn run_one(&mut self, rules: &[&Rewrite<L, N>]) -> Iteration<IterData> {
@@ -410,33 +403,24 @@ where
         let start_time = Instant::now();
         let time_limit = self.time_limit;
         let mut node_limit = self.node_limit;
-        let mut node_nums = self.egraph.total_size();
         let mut matches = Vec::new();
         result = result.and_then(|_| {
             rules.iter().try_for_each(|rule| {
-                if node_nums >= node_limit {
-                    return Ok(());
-                }
                 let start = Instant::now();
                 let ms = self
                     .scheduler
-                    .search_rewrite_with_hint(i, &self.egraph, rule, Box::new(move |num| {
-                        node_nums + num <= node_limit
-                            && start_time.elapsed() <= time_limit
-                        // true
-                    }));
+                    .search_rewrite(i, &self.egraph, rule);
                 let num_of_rewrites = ms.iter().map(|m| m.substs.len()).sum::<usize>();
-                node_nums += num_of_rewrites;
                 println!(
-                    "{:20} {:10}",
+                    "{:20} {:10} {:?}",
                     rule.name(),
-                    num_of_rewrites
+                    num_of_rewrites,
+                    start.elapsed(),
                 );
                 matches.push(ms);
                 self.check_limits()
             })
         });
-        println!("{}", node_nums);
 
         let search_time = start_time.elapsed().as_secs_f64();
         info!("Search time: {}", search_time);
@@ -574,17 +558,6 @@ where
         egraph: &EGraph<L, N>,
         rewrite: &Rewrite<L, N>,
     ) -> Vec<SearchMatches> {
-        self.search_rewrite_with_hint(iteration, egraph, rewrite, Box::new(|_num| true))
-    }
-
-    fn search_rewrite_with_hint(
-        &mut self,
-        iteration: usize,
-        egraph: &EGraph<L, N>,
-        rewrite: &Rewrite<L, N>,
-        hint: Box<dyn FnMut(usize) -> bool>,
-    ) -> Vec<SearchMatches> {
-        drop(hint);
         rewrite.searcher.search(egraph)
     }
 
@@ -756,12 +729,11 @@ where
         }
     }
 
-    fn search_rewrite_with_hint(
+    fn search_rewrite(
         &mut self,
         iteration: usize,
         egraph: &EGraph<L, N>,
         rewrite: &Rewrite<L, N>,
-        hint: Box<dyn FnMut(usize) -> bool>,
     ) -> Vec<SearchMatches> {
         let stats = self.rule_stats(rewrite.name());
 
@@ -776,7 +748,7 @@ where
             return vec![];
         }
 
-        let matches = rewrite.searcher.search_while(egraph, hint);
+        let matches = rewrite.searcher.search(egraph);
         let total_len: usize = matches.iter().map(|m| m.substs.len()).sum();
         let threshold = stats.match_limit << stats.times_banned;
         if total_len > threshold {

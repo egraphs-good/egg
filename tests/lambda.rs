@@ -365,8 +365,9 @@ mod hard_lambda {
         let runner: Runner<Math, ()> = Runner::default()
             .with_expr(&expr1)
             // .with_node_limit(usize::MAX)
-            .with_node_limit(200_000)
+            .with_node_limit(2_000_000)
             // .with_node_limit(50_000)
+            .with_scheduler(SimpleScheduler)
             .with_iter_limit(1000)
             .with_time_limit(std::time::Duration::from_secs(4000))
             .run(&rules);

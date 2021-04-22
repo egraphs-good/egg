@@ -272,13 +272,10 @@ pub struct SearchMatches {
     pub substs: Vec<Subst>,
 }
 
-pub static TOTAL_MATCHES: AtomicUsize = AtomicUsize::new(0);
-
 impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
-    fn search_while(
+    fn search(
         &self,
         egraph: &EGraph<L, A>,
-        mut should_cont: Box<dyn FnMut(usize) -> bool>,
     ) -> Vec<SearchMatches> {
         use crate::egraph::Strategy;
         if let Some(q) = self.query.as_ref() {
@@ -305,20 +302,12 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
                     &egraph.db,
                     &mut egraph.eval_ctx.borrow_mut(),
                     |tuple| {
-                        use qry::Result;
-                        
-                        num_matches += 1;
-                        if num_matches % CHECK_INTERVAL == 0 && !should_cont(num_matches) {
-                            return Result::Err(());
-                        }
                         let vec = vars.iter().map(|(v, i)| (*v, tuple[*i])).collect();
                         let subst = Subst { vec };
                         let root = egraph.find(tuple[root_index]);
                         map.entry(root).or_default().push(subst);
-                        TOTAL_MATCHES.fetch_add(1, Ordering::SeqCst);
-                        Result::Ok(())
                     },
-                ).unwrap_or_default();
+                );
 
                 return map
                     .into_iter()
@@ -348,17 +337,16 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
         }
     }
 
-    fn search_eclass_while(
+    fn search_eclass(
         &self,
         egraph: &EGraph<L, A>,
         eclass: Id,
-        should_cont: Box<dyn FnMut(usize) -> bool>,
     ) -> Option<SearchMatches> {
         use crate::egraph::Strategy;
         if self.query.is_some() && egraph.strategy != Strategy::EMatch {
             // TODO: could be further optimized
             let id = egraph.find(eclass);
-            self.search_while(egraph, should_cont)
+            self.search(egraph)
                 .into_iter()
                 .find(|m| m.eclass == id)
         } else {
@@ -371,22 +359,10 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
         }
     }
 
-    fn search(&self, egraph: &EGraph<L, A>) -> Vec<SearchMatches> {
-        self.search_while(egraph, Box::new(|_num| true))
-    }
-
-    fn search_eclass(&self, egraph: &EGraph<L, A>, eclass: Id) -> Option<SearchMatches> {
-        self.search_eclass_while(egraph, eclass, Box::new(|_num| true))
-    }
-
     fn vars(&self) -> Vec<Var> {
         Pattern::vars(self)
     }
 }
-
-use std::sync::atomic::{AtomicUsize, Ordering};
-pub static TOTAL_APPLY: AtomicUsize = AtomicUsize::new(0);
-pub static TOTAL_SUCCESS: AtomicUsize = AtomicUsize::new(0);
 
 impl<L, A> Applier<L, A> for Pattern<L>
 where
@@ -413,7 +389,6 @@ where
                 let id = apply_pat(&mut id_buf, ast, egraph, subst);
                 let (to, did_something) = egraph.union(id, mat.eclass);
                 if did_something {
-                    TOTAL_SUCCESS.fetch_add(1, Ordering::SeqCst);
                     added.push(to)
                 }
             }
@@ -442,8 +417,6 @@ fn apply_pat<L: Language, A: Analysis<L>>(
         };
         ids[i] = id;
     }
-
-    TOTAL_APPLY.fetch_add(1, Ordering::SeqCst);
 
     *ids.last().unwrap()
 }
@@ -587,7 +560,6 @@ mod qry_bench {
                 &mut egraph.eval_ctx.borrow_mut(),
                 |tuple| {
                     count += 1;
-                    Ok(())
                 },
             );
             eprintln!("size: {:?}", count);
@@ -709,7 +681,6 @@ mod qry_bench {
                 |tuple| {
                     // count += 1;
                     result.push(tuple.to_vec());
-                    Ok(())
                 },
             );
             eprintln!("size: {:?}", result.len());
@@ -794,7 +765,6 @@ mod qry_bench {
                 &mut egraph.eval_ctx.borrow_mut(),
                 |tuple| {
                     count += 1;
-                    Ok(())
                 },
             );
             eprintln!("size: {:?}", count);
