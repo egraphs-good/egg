@@ -18,9 +18,9 @@ pub struct Rewrite<L, N> {
     /// The name of the rewrite.
     pub name: String,
     /// The searcher (left-hand side) of the rewrite.
-    pub searcher: Arc<dyn Searcher<L, N>>,
+    pub searcher: Arc<dyn Searcher<L, N> + Send + Sync>,
     /// The applier (right-hand side) of the rewrite.
-    pub applier: Arc<dyn Applier<L, N>>,
+    pub applier: Arc<dyn Applier<L, N> + Send + Sync>,
 }
 
 impl<L, N> fmt::Debug for Rewrite<L, N>
@@ -61,8 +61,8 @@ impl<L: Language, N: Analysis<L>> Rewrite<L, N> {
     ///
     pub fn new(
         name: impl Into<String>,
-        searcher: impl Searcher<L, N> + 'static,
-        applier: impl Applier<L, N> + 'static,
+        searcher: impl Searcher<L, N> + 'static + Send + Sync,
+        applier: impl Applier<L, N> + 'static + Send + Sync,
     ) -> Result<Self, String> {
         let name = name.into();
         let searcher = Arc::new(searcher);
@@ -252,6 +252,10 @@ where
     ///
     /// [`apply_one`]: Applier::apply_one()
     fn apply_matches(&self, egraph: &mut EGraph<L, N>, matches: &[SearchMatches]) -> Vec<Id> {
+        self.apply_matches_with_limit(egraph, matches, usize::MAX)
+    }
+
+    fn apply_matches_with_limit(&self, egraph: &mut EGraph<L, N>, matches: &[SearchMatches], limit: usize) -> Vec<Id> {
         let mut added = vec![];
         for mat in matches {
             for subst in &mat.substs {
@@ -266,7 +270,10 @@ where
                             None
                         }
                     });
-                added.extend(ids)
+                added.extend(ids);
+                if added.len() > limit {
+                    return added;
+                }
             }
         }
         added

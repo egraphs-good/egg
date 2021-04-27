@@ -67,7 +67,7 @@ pub(crate) use unionfind::UnionFind;
 pub use {
     dot::Dot,
     eclass::EClass,
-    egraph::EGraph,
+    egraph::{EGraph, Strategy},
     extract::*,
     language::*,
     pattern::*,

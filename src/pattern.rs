@@ -297,10 +297,11 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
 
                 let mut map: HashMap<Id, Vec<Subst>> = Default::default();
                 let mut num_matches = 0;
+                use std::borrow::BorrowMut;
                 q.join(
                     &var_map,
                     &egraph.db,
-                    &mut egraph.eval_ctx.borrow_mut(),
+                    egraph.eval_ctx.try_lock().unwrap().borrow_mut(),
                     |tuple| {
                         let vec = vars.iter().map(|(v, i)| (*v, tuple[*i])).collect();
                         let subst = Subst { vec };
@@ -381,6 +382,10 @@ where
     }
 
     fn apply_matches(&self, egraph: &mut EGraph<L, A>, matches: &[SearchMatches]) -> Vec<Id> {
+        self.apply_matches_with_limit(egraph, matches, usize::MAX)
+    }
+
+    fn apply_matches_with_limit(&self, egraph: &mut EGraph<L, A>, matches: &[SearchMatches], limit: usize) -> Vec<Id> {
         let mut added = vec![];
         let ast = self.ast.as_ref();
         let mut id_buf = vec![0.into(); ast.len()];
@@ -389,11 +394,15 @@ where
                 let id = apply_pat(&mut id_buf, ast, egraph, subst);
                 let (to, did_something) = egraph.union(id, mat.eclass);
                 if did_something {
-                    added.push(to)
+                    added.push(to);
+                    if added.len() >= limit {
+                        return added;
+                    }
                 }
             }
         }
         added
+
     }
 }
 

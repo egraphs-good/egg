@@ -52,9 +52,9 @@ pub struct EGraph<L: Language, N: Analysis<L>> {
     memo: HashMap<L, Id>,
     unionfind: UnionFind,
     classes: HashMap<Id, EClass<L, N::Data>>,
-    pub(crate) strategy: Strategy,
+    pub strategy: Strategy,
     pub(crate) db: LangDB<L>,
-    pub(crate) eval_ctx: std::cell::RefCell<qry::EvalContext<L::Operator, Id>>,
+    pub(crate) eval_ctx: std::sync::Arc<std::sync::Mutex<qry::EvalContext<L::Operator, Id>>>,
     pub(crate) classes_by_op: HashMap<std::mem::Discriminant<L>, HashSet<Id>>,
 }
 

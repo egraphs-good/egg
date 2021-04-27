@@ -433,7 +433,8 @@ where
                 let total_matches: usize = ms.iter().map(|m| m.substs.len()).sum();
                 debug!("Applying {} {} times", rw.name(), total_matches);
 
-                let actually_matched = self.scheduler.apply_rewrite(i, &mut self.egraph, rw, ms);
+                let limit = self.node_limit - self.egraph.total_size();
+                let actually_matched = self.scheduler.apply_rewrite_with_limit(i, &mut self.egraph, rw, ms, limit);
                 if actually_matched > 0 {
                     if let Some(count) = applied.get_mut(rw.name()) {
                         *count += actually_matched;
@@ -575,6 +576,17 @@ where
         matches: Vec<SearchMatches>,
     ) -> usize {
         rewrite.applier.apply_matches(egraph, &matches).len()
+    }
+
+    fn apply_rewrite_with_limit(
+        &mut self,
+        iteration: usize,
+        egraph: &mut EGraph<L, N>,
+        rewrite: &Rewrite<L, N>,
+        matches: Vec<SearchMatches>,
+        limit: usize
+    ) -> usize {
+        rewrite.applier.apply_matches_with_limit(egraph, &matches, limit).len()
     }
 }
 
