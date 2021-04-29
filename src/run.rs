@@ -760,9 +760,9 @@ where
             return vec![];
         }
 
-        let matches = rewrite.searcher.search(egraph);
-        let total_len: usize = matches.iter().map(|m| m.substs.len()).sum();
         let threshold = stats.match_limit << stats.times_banned;
+        let matches = rewrite.searcher.search_with_limit(egraph, threshold + 1);
+        let total_len: usize = matches.iter().map(|m| m.substs.len()).sum();
         if total_len > threshold {
             let ban_length = stats.ban_length << stats.times_banned;
             stats.times_banned += 1;
@@ -776,9 +776,7 @@ where
                 threshold,
                 total_len,
             );
-            // TODO
-            // vec![];
-            matches
+            vec![]
         } else {
             stats.times_applied += 1;
             matches

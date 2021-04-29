@@ -133,6 +133,9 @@ where
             .collect()
     }
 
+    fn search_eclass_with_limit(&self, egraph: &EGraph<L, N>, eclass: Id, limit: usize) -> Option<SearchMatches>;
+    fn search_with_limit(&self, egraph: &EGraph<L, N>, limit: usize) -> Vec<SearchMatches>;
+    
     /// Returns a list of the variables bound by this Searcher
     fn vars(&self) -> Vec<Var>;
 }

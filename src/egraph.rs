@@ -415,7 +415,19 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         EGraphDump(self)
     }
 
+    fn clear_eval_ctx(&mut self) {
+        let eval_ctx = std::mem::take(&mut self.eval_ctx);
+        if self.total_number_of_nodes() > 10000 {
+            std::thread::spawn(move || {
+                drop(eval_ctx);
+            });
+        } else {
+            drop(eval_ctx);
+        }
+    }
+
     fn build_db(&mut self) {
+        self.clear_eval_ctx();
         let eval_ctx = std::mem::take(&mut self.eval_ctx);
         std::mem::forget(eval_ctx);
         // self.eval_ctx.borrow_mut().clear();

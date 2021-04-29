@@ -23,7 +23,7 @@ use symbolic_expressions::Sexp;
 /// [`FromStr`]: std::str::FromStr
 /// [`Display`]: std::fmt::Display
 #[allow(clippy::len_without_is_empty)]
-pub trait Language: Debug + Clone + Eq + Ord + Hash + 'static + Send + Sync {
+pub trait Language: Debug + Clone + Eq + Ord + Hash + 'static {
     type Operator: Debug + Clone + Eq + Ord + Hash + 'static + Send + Sync;
 
     fn operator(&self) -> Self::Operator;
