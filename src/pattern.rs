@@ -121,7 +121,7 @@ pub enum VarOrId {
     Id(Id),
 }
 
-type Query<L> = qry::Query<VarOrId, <L as Language>::Operator, Id>;
+type Query<L> = qry::Query<VarOrId, <L as Language>::Operator>;
 
 fn compile_to_query<L: Language>(ast: &PatternAst<L>) -> Query<L> {
     use qry::*;
@@ -129,11 +129,11 @@ fn compile_to_query<L: Language>(ast: &PatternAst<L>) -> Query<L> {
 
     for (i, node) in ast.as_ref().iter().enumerate() {
         if let ENodeOrVar::ENode(n) = node {
-            let mut terms: Vec<Term<_, _>> = vec![Term::Variable(VarOrId::Id(i.into()))];
+            let mut terms: Vec<Term<_>> = vec![Term(VarOrId::Id(i.into()))];
             n.for_each(|child| {
                 terms.push(match ast[child] {
-                    ENodeOrVar::ENode(_) => Term::Variable(VarOrId::Id(child)),
-                    ENodeOrVar::Var(v) => Term::Variable(VarOrId::Var(v)),
+                    ENodeOrVar::ENode(_) => Term(VarOrId::Id(child)),
+                    ENodeOrVar::Var(v) => Term(VarOrId::Var(v)),
                 })
             });
             atoms.push(Atom::new(n.operator(), terms));
