@@ -2,6 +2,7 @@ use std::fmt;
 use std::str::FromStr;
 
 use crate::*;
+use thiserror::Error;
 
 /// A variable for use in [`Pattern`]s or [`Subst`]s.
 ///
@@ -12,14 +13,20 @@ use crate::*;
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Var(Symbol);
 
+#[derive(Debug, Error)]
+pub enum VarParseError {
+    #[error("'{0}' doesn't start with '?'")]
+    MissingQuestionMark(String),
+}
+
 impl FromStr for Var {
-    type Err = String;
+    type Err = VarParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.starts_with('?') && s.len() > 1 {
             Ok(Var(s.into()))
         } else {
-            Err(format!("{} doesn't start with '?'", s))
+            Err(VarParseError::MissingQuestionMark(s.to_owned()))
         }
     }
 }

@@ -11,7 +11,7 @@ use std::fmt::{self, Debug, Display, Formatter};
 use std::io::{Error, ErrorKind, Result, Write};
 use std::path::Path;
 
-use crate::{egraph::EGraph, Analysis, Language};
+use crate::{egraph::EGraph, Analysis, DisplayOp, Language, OpStr};
 
 /**
 A wrapper for an [`EGraph`] that can output [GraphViz] for
@@ -61,7 +61,7 @@ pub struct Dot<'a, L: Language, N: Analysis<L>> {
 
 impl<'a, L, N> Dot<'a, L, N>
 where
-    L: Language,
+    L: OpStr,
     N: Analysis<L>,
 {
     /// Writes the `Dot` to a .dot file with the given filename.
@@ -179,7 +179,7 @@ impl<'a, L: Language, N: Analysis<L>> Debug for Dot<'a, L, N> {
 
 impl<'a, L, N> Display for Dot<'a, L, N>
 where
-    L: Language,
+    L: OpStr,
     N: Analysis<L>,
 {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
@@ -198,13 +198,7 @@ where
             writeln!(f, "  subgraph cluster_{} {{", class.id)?;
             writeln!(f, "    style=dotted")?;
             for (i, node) in class.iter().enumerate() {
-                writeln!(
-                    f,
-                    "    {}.{}[label = \"{}\"]",
-                    class.id,
-                    i,
-                    node.display_op()
-                )?;
+                writeln!(f, "    {}.{}[label = \"{}\"]", class.id, i, DisplayOp(node))?;
             }
             writeln!(f, "  }}")?;
         }

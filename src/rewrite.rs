@@ -25,7 +25,7 @@ pub struct Rewrite<L, N> {
 
 impl<L, N> fmt::Debug for Rewrite<L, N>
 where
-    L: Language + 'static,
+    L: OpStr + 'static,
     N: 'static,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -406,7 +406,7 @@ where
 ///
 pub struct ConditionEqual<A1, A2>(pub A1, pub A2);
 
-impl<L: Language> ConditionEqual<Pattern<L>, Pattern<L>> {
+impl<L: OpStr> ConditionEqual<Pattern<L>, Pattern<L>> {
     /// Create a ConditionEqual by parsing two pattern strings.
     ///
     /// This panics if the parsing fails.
