@@ -19,6 +19,11 @@
   [Downey, Sethi, Tarjan](https://dl.acm.org/doi/pdf/10.1145/322217.322228),
   and the analysis data propagation is more precise with respect to merging.
   Overall, the algorithm is simpler, easier to reason about, and more than twice as fast!
+- ([#86](https://github.com/egraphs-good/egg/pull/86))
+  `Language::display_op` and `Language::from_op_str` have been replaced by a new
+  `OpStr` trait. Their rough equivalents are `OpStr::fmt` and `OpStr::from_str`.
+  `define_language!` has been updated to generate `OpStr` implementations, so
+  this change should be mostly transparent to users of the macro.
 
 ## [0.6.0] - 2020-07-16
 
