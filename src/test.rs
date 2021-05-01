@@ -67,9 +67,8 @@ pub fn test_runner<L, A>(
         });
     }
     let runner = runner.run(rules);
-
+    
     if should_check {
-        // runner.print_report();
         runner.egraph.check_goals(id, &goals);
 
         if let Some(check_fn) = check_fn {

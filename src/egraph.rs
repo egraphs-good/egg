@@ -93,7 +93,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             analysis_pending: Default::default(),
             classes_by_op: Default::default(),
             eval_ctx: Default::default(),
-            strategy: Strategy::EMatch,
+            strategy: Strategy::GenericJoin,
         }
     }
 

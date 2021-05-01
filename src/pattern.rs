@@ -4,8 +4,6 @@ use std::fmt;
 
 use crate::*;
 
-static CHECK_INTERVAL: usize = 4096;
-
 /// A pattern that can function as either a [`Searcher`] or [`Applier`].
 ///
 /// A [`Pattern`] is essentially a for-all quantified expression with
