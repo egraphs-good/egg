@@ -608,31 +608,117 @@
 <span id="605">605</span>
 <span id="606">606</span>
 <span id="607">607</span>
+<span id="608">608</span>
+<span id="609">609</span>
+<span id="610">610</span>
+<span id="611">611</span>
+<span id="612">612</span>
+<span id="613">613</span>
+<span id="614">614</span>
+<span id="615">615</span>
+<span id="616">616</span>
+<span id="617">617</span>
+<span id="618">618</span>
+<span id="619">619</span>
+<span id="620">620</span>
+<span id="621">621</span>
+<span id="622">622</span>
+<span id="623">623</span>
+<span id="624">624</span>
+<span id="625">625</span>
+<span id="626">626</span>
+<span id="627">627</span>
+<span id="628">628</span>
+<span id="629">629</span>
+<span id="630">630</span>
+<span id="631">631</span>
+<span id="632">632</span>
+<span id="633">633</span>
+<span id="634">634</span>
+<span id="635">635</span>
+<span id="636">636</span>
+<span id="637">637</span>
+<span id="638">638</span>
+<span id="639">639</span>
+<span id="640">640</span>
+<span id="641">641</span>
+<span id="642">642</span>
+<span id="643">643</span>
+<span id="644">644</span>
+<span id="645">645</span>
+<span id="646">646</span>
+<span id="647">647</span>
+<span id="648">648</span>
+<span id="649">649</span>
+<span id="650">650</span>
+<span id="651">651</span>
+<span id="652">652</span>
+<span id="653">653</span>
+<span id="654">654</span>
+<span id="655">655</span>
+<span id="656">656</span>
+<span id="657">657</span>
+<span id="658">658</span>
+<span id="659">659</span>
+<span id="660">660</span>
+<span id="661">661</span>
+<span id="662">662</span>
+<span id="663">663</span>
+<span id="664">664</span>
+<span id="665">665</span>
+<span id="666">666</span>
+<span id="667">667</span>
+<span id="668">668</span>
+<span id="669">669</span>
+<span id="670">670</span>
+<span id="671">671</span>
+<span id="672">672</span>
+<span id="673">673</span>
+<span id="674">674</span>
+<span id="675">675</span>
+<span id="676">676</span>
+<span id="677">677</span>
+<span id="678">678</span>
+<span id="679">679</span>
+<span id="680">680</span>
+<span id="681">681</span>
+<span id="682">682</span>
+<span id="683">683</span>
+<span id="684">684</span>
+<span id="685">685</span>
+<span id="686">686</span>
+<span id="687">687</span>
 </pre><div class="example-wrap"><pre class="rust ">
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fmt</span>::{<span class="self">self</span>, <span class="ident">Debug</span>, <span class="ident">Display</span>};
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">hash</span>::<span class="ident">Hash</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">ops</span>::{<span class="ident">Index</span>, <span class="ident">IndexMut</span>};
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">cmp</span>::<span class="ident">Ordering</span>, <span class="ident">convert</span>::<span class="ident">TryFrom</span>};
+<span class="kw">use</span> <span class="ident">std</span>::{
+    <span class="ident">convert</span>::<span class="ident">Infallible</span>,
+    <span class="ident">error</span>::<span class="ident">Error</span>,
+    <span class="ident">fmt</span>::{<span class="self">self</span>, <span class="ident">Debug</span>, <span class="ident">Display</span>},
+};
+<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">hash</span>::<span class="ident">Hash</span>, <span class="ident">str</span>::<span class="ident">FromStr</span>};
 
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="kw-2">*</span>;
 
-<span class="kw">use</span> <span class="ident">symbolic_expressions</span>::<span class="ident">Sexp</span>;
+<span class="kw">use</span> <span class="ident">fmt</span>::<span class="ident">Formatter</span>;
+<span class="kw">use</span> <span class="ident">symbolic_expressions</span>::{<span class="ident">Sexp</span>, <span class="ident">SexpError</span>};
+<span class="kw">use</span> <span class="ident">thiserror</span>::<span class="ident">Error</span>;
 
 <span class="doccomment">/// Trait that defines a Language whose terms will be in the [`EGraph`].</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// Check out the [`define_language!`] macro for an easy way to create</span>
 <span class="doccomment">/// a [`Language`].</span>
 <span class="doccomment">///</span>
-<span class="doccomment">/// Note that the default implementations of</span>
-<span class="doccomment">/// [`from_op_str`](Language::from_op_str()) and</span>
-<span class="doccomment">/// [`display_op`](Language::display_op()) panic. You</span>
-<span class="doccomment">/// should override them if you want to parse or pretty-print expressions.</span>
-<span class="doccomment">/// [`define_language!`] implements these for you.</span>
+<span class="doccomment">/// If you want to pretty-print expressions, you should implement [`Display`] to</span>
+<span class="doccomment">/// display the language node&#39;s operator. For example, a language node</span>
+<span class="doccomment">/// `Add([Id; 2])` might be displayed as &quot;+&quot;.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// To parse expressions from strings you should also implement [`FromOp`].</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// The [`define_language!`] macro automatically implements both [`Display`] and</span>
+<span class="doccomment">/// [`FromOp`].</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// See [`SymbolLang`] for quick-and-dirty use cases.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// [`FromStr`]: std::str::FromStr</span>
-<span class="doccomment">/// [`Display`]: std::fmt::Display</span>
 <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy</span>::<span class="ident">len_without_is_empty</span>)]</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Language</span>: <span class="ident">Debug</span> <span class="op">+</span> <span class="ident">Clone</span> <span class="op">+</span> <span class="ident">Eq</span> <span class="op">+</span> <span class="ident">Ord</span> <span class="op">+</span> <span class="ident">Hash</span> {
     <span class="doccomment">/// Returns true if this enode matches another enode.</span>
@@ -653,28 +739,6 @@
         <span class="ident">E</span>: <span class="ident">Clone</span>,
     {
         <span class="self">self</span>.<span class="ident">fold</span>(<span class="prelude-val">Ok</span>(()), <span class="op">|</span><span class="ident">res</span>, <span class="ident">id</span><span class="op">|</span> <span class="ident">res</span>.<span class="ident">and_then</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">f</span>(<span class="ident">id</span>)))
-    }
-
-    <span class="doccomment">/// Returns something that will print the operator.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Default implementation panics, so make sure to implement this if you</span>
-    <span class="doccomment">/// want to print `Language` elements.</span>
-    <span class="doccomment">/// The [`define_language!`] macro will</span>
-    <span class="doccomment">/// implement this for you.</span>
-    <span class="kw">fn</span> <span class="ident">display_op</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw">dyn</span> <span class="ident">Display</span> {
-        <span class="macro">unimplemented</span><span class="macro">!</span>(<span class="string">&quot;display_op not implemented&quot;</span>)
-    }
-
-    <span class="doccomment">/// Given a string for the operator and the children, tries to make an</span>
-    <span class="doccomment">/// enode.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Default implementation panics, so make sure to implement this if you</span>
-    <span class="doccomment">/// want to parse `Language` elements.</span>
-    <span class="doccomment">/// The [`define_language!`] macro will</span>
-    <span class="doccomment">/// implement this for you.</span>
-    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">unused_variables</span>)]</span>
-    <span class="kw">fn</span> <span class="ident">from_op_str</span>(<span class="ident">op_str</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>, <span class="ident">children</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">String</span><span class="op">&gt;</span> {
-        <span class="macro">unimplemented</span><span class="macro">!</span>(<span class="string">&quot;from_op_str not implemented&quot;</span>)
     }
 
     <span class="doccomment">/// Returns the number of the children this enode has.</span>
@@ -756,6 +820,78 @@
             .<span class="ident">map_children</span>(<span class="op">|</span><span class="ident">id</span><span class="op">|</span> <span class="ident">build</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">expr</span>, <span class="ident">child_recexpr</span>(<span class="ident">id</span>)));
         <span class="ident">expr</span>.<span class="ident">add</span>(<span class="ident">node</span>);
         <span class="ident">expr</span>
+    }
+}
+
+<span class="doccomment">/// A trait for parsing e-nodes. This is implemented automatically by</span>
+<span class="doccomment">/// [`define_language!`].</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// If a [`Language`] implements both [`Display`] and [`FromOp`], the</span>
+<span class="doccomment">/// [`Display`] implementation should produce a string suitable for parsing by</span>
+<span class="doccomment">/// [`from_op`]:</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// ```</span>
+<span class="doccomment">/// # use egg::*;</span>
+<span class="doccomment">/// # use std::fmt::Display;</span>
+<span class="doccomment">/// fn from_op_display_compatible&lt;T: FromOp + Display&gt;(node: T) {</span>
+<span class="doccomment">///     let op = node.to_string();</span>
+<span class="doccomment">///     let mut children = Vec::new();</span>
+<span class="doccomment">///     node.for_each(|id| children.push(id));</span>
+<span class="doccomment">///     let parsed = T::from_op(&amp;op, children).unwrap();</span>
+<span class="doccomment">///</span>
+<span class="doccomment">///     assert_eq!(node, parsed);</span>
+<span class="doccomment">/// }</span>
+<span class="doccomment">/// ```</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// # Examples</span>
+<span class="doccomment">/// `define_language!` implements [`FromOp`] and [`Display`] automatically:</span>
+<span class="doccomment">/// ```</span>
+<span class="doccomment">/// # use egg::*;</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// define_language! {</span>
+<span class="doccomment">///     enum Calc {</span>
+<span class="doccomment">///        &quot;+&quot; = Add([Id; 2]),</span>
+<span class="doccomment">///        Num(i32),</span>
+<span class="doccomment">///     }</span>
+<span class="doccomment">/// }</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// let add = Calc::Add([Id::from(0), Id::from(1)]);</span>
+<span class="doccomment">/// let parsed = Calc::from_op(&quot;+&quot;, vec![Id::from(0), Id::from(1)]).unwrap();</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// assert_eq!(add.to_string(), &quot;+&quot;);</span>
+<span class="doccomment">/// assert_eq!(parsed, add);</span>
+<span class="doccomment">/// ```</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// [`from_op`]: FromOp::from_op</span>
+<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">FromOp</span>: <span class="ident">Language</span> <span class="op">+</span> <span class="ident">Sized</span> {
+    <span class="doccomment">/// The error type returned by [`from_op`] if its arguments do not</span>
+    <span class="doccomment">/// represent a valid e-node.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// [`from_op`]: FromOp::from_op</span>
+    <span class="kw">type</span> <span class="ident">Error</span>: <span class="ident">Error</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>;
+
+    <span class="doccomment">/// Parse an e-node with operator `op` and children `children`.</span>
+    <span class="kw">fn</span> <span class="ident">from_op</span>(<span class="ident">op</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>, <span class="ident">children</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span>;
+}
+
+<span class="doccomment">/// A generic error for failing to parse an operator. This is the error type</span>
+<span class="doccomment">/// used by [`define_language!`] for [`FromOp::Error`], and is a sensible choice</span>
+<span class="doccomment">/// when implementing [`FromOp`] manually.</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Error</span>)]</span>
+<span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;could not parse an e-node with operator {op:?} and children {children:?}&quot;</span>)]</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">FromOpError</span> {
+    <span class="ident">op</span>: <span class="ident">String</span>,
+    <span class="ident">children</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span>,
+}
+
+<span class="kw">impl</span> <span class="ident">FromOpError</span> {
+    <span class="doccomment">/// Create a new `FromOpError` representing a failed call</span>
+    <span class="doccomment">/// `FromOp::from_op(op, children)`.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">op</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>, <span class="ident">children</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+        <span class="self">Self</span> {
+            <span class="ident">op</span>: <span class="ident">op</span>.<span class="ident">to_owned</span>(),
+            <span class="ident">children</span>,
+        }
     }
 }
 
@@ -841,15 +977,13 @@
 <span class="doccomment">///</span>
 <span class="doccomment">/// If the `serde-1` feature is enabled, this implements</span>
 <span class="doccomment">/// [`serde::Serialize`][https://docs.rs/serde/latest/serde/trait.Serialize.html].</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// [pretty]: RecExpr::pretty()</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>, <span class="ident">PartialOrd</span>, <span class="ident">Ord</span>, <span class="ident">Hash</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
     <span class="ident">nodes</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
 }
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde-1&quot;</span>)]</span>
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span> <span class="ident">serde</span>::<span class="ident">Serialize</span> <span class="kw">for</span> <span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span> <span class="op">+</span> <span class="ident">Display</span><span class="op">&gt;</span> <span class="ident">serde</span>::<span class="ident">Serialize</span> <span class="kw">for</span> <span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
     <span class="kw">fn</span> <span class="ident">serialize</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">serializer</span>: <span class="ident">S</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">S</span>::<span class="prelude-val">Ok</span>, <span class="ident">S</span>::<span class="ident">Error</span><span class="op">&gt;</span>
     <span class="kw">where</span>
         <span class="ident">S</span>: <span class="ident">serde</span>::<span class="ident">Serializer</span>,
@@ -905,7 +1039,7 @@
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span> <span class="ident">Display</span> <span class="kw">for</span> <span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span> <span class="op">+</span> <span class="ident">Display</span><span class="op">&gt;</span> <span class="ident">Display</span> <span class="kw">for</span> <span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
     <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt</span>::<span class="ident">Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">nodes</span>.<span class="ident">is_empty</span>() {
             <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;()&quot;</span>)
@@ -916,10 +1050,10 @@
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span> <span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span> <span class="op">+</span> <span class="ident">Display</span><span class="op">&gt;</span> <span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
     <span class="kw">fn</span> <span class="ident">to_sexp</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">i</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Sexp</span> {
         <span class="kw">let</span> <span class="ident">node</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">nodes</span>[<span class="ident">i</span>];
-        <span class="kw">let</span> <span class="ident">op</span> <span class="op">=</span> <span class="ident">Sexp</span>::<span class="ident">String</span>(<span class="ident">node</span>.<span class="ident">display_op</span>().<span class="ident">to_string</span>());
+        <span class="kw">let</span> <span class="ident">op</span> <span class="op">=</span> <span class="ident">Sexp</span>::<span class="ident">String</span>(<span class="ident">node</span>.<span class="ident">to_string</span>());
         <span class="kw">if</span> <span class="ident">node</span>.<span class="ident">is_leaf</span>() {
             <span class="ident">op</span>
         } <span class="kw">else</span> {
@@ -979,36 +1113,56 @@
     }
 }
 
-<span class="macro">macro_rules</span><span class="macro">!</span> <span class="ident">bail</span> {
-    (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">s</span>:<span class="ident">literal</span> $(,)<span class="question-mark">?</span>) <span class="op">=</span><span class="op">&gt;</span> {
-        <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">s</span>.<span class="ident">into</span>())
-    };
-    (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">s</span>:<span class="ident">literal</span>, $(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">args</span>:<span class="ident">expr</span>),<span class="op">+</span>) <span class="op">=</span><span class="op">&gt;</span> {
-        <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">s</span>, $(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">args</span>),<span class="op">+</span>).<span class="ident">into</span>())
-    };
+<span class="doccomment">/// An error type for failures when attempting to parse an s-expression as a</span>
+<span class="doccomment">/// [`RecExpr&lt;L&gt;`].</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Error</span>)]</span>
+<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">RecExprParseError</span><span class="op">&lt;</span><span class="ident">E</span>: <span class="ident">Error</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> {
+    <span class="doccomment">/// An empty s-expression was found. Usually this is caused by an</span>
+    <span class="doccomment">/// empty list &quot;()&quot; somewhere in the input.</span>
+    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;found empty s-expression&quot;</span>)]</span>
+    <span class="ident">EmptySexp</span>,
+
+    <span class="doccomment">/// A list was found where an operator was expected. This is caused by</span>
+    <span class="doccomment">/// s-expressions of the form &quot;((a b c) d e f).&quot;</span>
+    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;found a list in the head position: {0}&quot;</span>)]</span>
+    <span class="ident">HeadList</span>(<span class="ident">Sexp</span>),
+
+    <span class="doccomment">/// Attempting to parse an operator into a value of type `L` failed.</span>
+    <span class="attribute">#[<span class="ident">error</span>(<span class="ident">transparent</span>)]</span>
+    <span class="ident">BadOp</span>(<span class="ident">E</span>),
+
+    <span class="doccomment">/// An error occurred while parsing the s-expression itself, generally</span>
+    <span class="doccomment">/// because the input had an invalid structure (e.g. unpaired parentheses).</span>
+    <span class="attribute">#[<span class="ident">error</span>(<span class="ident">transparent</span>)]</span>
+    <span class="ident">BadSexp</span>(<span class="ident">SexpError</span>),
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span> <span class="ident">std</span>::<span class="ident">str</span>::<span class="ident">FromStr</span> <span class="kw">for</span> <span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
-    <span class="kw">type</span> <span class="prelude-val">Err</span> <span class="op">=</span> <span class="ident">String</span>;
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">FromOp</span><span class="op">&gt;</span> <span class="ident">FromStr</span> <span class="kw">for</span> <span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
+    <span class="kw">type</span> <span class="prelude-val">Err</span> <span class="op">=</span> <span class="ident">RecExprParseError</span><span class="op">&lt;</span><span class="ident">L</span>::<span class="ident">Error</span><span class="op">&gt;</span>;
+
     <span class="kw">fn</span> <span class="ident">from_str</span>(<span class="ident">s</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="self">Self</span>::<span class="prelude-val">Err</span><span class="op">&gt;</span> {
-        <span class="kw">fn</span> <span class="ident">parse_sexp_into</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span>(<span class="ident">sexp</span>: <span class="kw-2">&amp;</span><span class="ident">Sexp</span>, <span class="ident">expr</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Id</span>, <span class="ident">String</span><span class="op">&gt;</span> {
+        <span class="kw">use</span> <span class="ident">RecExprParseError</span>::<span class="kw-2">*</span>;
+
+        <span class="kw">fn</span> <span class="ident">parse_sexp_into</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">FromOp</span><span class="op">&gt;</span>(
+            <span class="ident">sexp</span>: <span class="kw-2">&amp;</span><span class="ident">Sexp</span>,
+            <span class="ident">expr</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
+        ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Id</span>, <span class="ident">RecExprParseError</span><span class="op">&lt;</span><span class="ident">L</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> {
             <span class="kw">match</span> <span class="ident">sexp</span> {
-                <span class="ident">Sexp</span>::<span class="ident">Empty</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="string">&quot;Found empty s-expression&quot;</span>.<span class="ident">into</span>()),
+                <span class="ident">Sexp</span>::<span class="ident">Empty</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">EmptySexp</span>),
                 <span class="ident">Sexp</span>::<span class="ident">String</span>(<span class="ident">s</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                    <span class="kw">let</span> <span class="ident">node</span> <span class="op">=</span> <span class="ident">L</span>::<span class="ident">from_op_str</span>(<span class="ident">s</span>, <span class="macro">vec</span><span class="macro">!</span>[])<span class="question-mark">?</span>;
+                    <span class="kw">let</span> <span class="ident">node</span> <span class="op">=</span> <span class="ident">L</span>::<span class="ident">from_op</span>(<span class="ident">s</span>, <span class="macro">vec</span><span class="macro">!</span>[]).<span class="ident">map_err</span>(<span class="ident">BadOp</span>)<span class="question-mark">?</span>;
                     <span class="prelude-val">Ok</span>(<span class="ident">expr</span>.<span class="ident">add</span>(<span class="ident">node</span>))
                 }
-                <span class="ident">Sexp</span>::<span class="ident">List</span>(<span class="ident">list</span>) <span class="kw">if</span> <span class="ident">list</span>.<span class="ident">is_empty</span>() <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="string">&quot;Found empty s-expression&quot;</span>.<span class="ident">into</span>()),
+                <span class="ident">Sexp</span>::<span class="ident">List</span>(<span class="ident">list</span>) <span class="kw">if</span> <span class="ident">list</span>.<span class="ident">is_empty</span>() <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">EmptySexp</span>),
                 <span class="ident">Sexp</span>::<span class="ident">List</span>(<span class="ident">list</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">match</span> <span class="kw-2">&amp;</span><span class="ident">list</span>[<span class="number">0</span>] {
                     <span class="ident">Sexp</span>::<span class="ident">Empty</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">unreachable</span><span class="macro">!</span>(<span class="string">&quot;Cannot be in head position&quot;</span>),
-                    <span class="ident">Sexp</span>::<span class="ident">List</span>(<span class="ident">l</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="string">&quot;Found a list in the head position: {:?}&quot;</span>, <span class="ident">l</span>),
+                    <span class="ident">list</span> @ <span class="ident">Sexp</span>::<span class="ident">List</span>(..) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">HeadList</span>(<span class="ident">list</span>.<span class="ident">to_owned</span>())),
                     <span class="ident">Sexp</span>::<span class="ident">String</span>(<span class="ident">op</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                        <span class="kw">let</span> <span class="ident">arg_ids</span>: <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span>, <span class="kw">_</span><span class="op">&gt;</span> <span class="op">=</span>
-                            <span class="ident">list</span>[<span class="number">1</span>..].<span class="ident">iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">parse_sexp_into</span>(<span class="ident">s</span>, <span class="ident">expr</span>)).<span class="ident">collect</span>();
-
-                        <span class="kw">let</span> <span class="ident">node</span> <span class="op">=</span> <span class="ident">L</span>::<span class="ident">from_op_str</span>(<span class="ident">op</span>, <span class="ident">arg_ids</span><span class="question-mark">?</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> {
-                            <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Failed to parse &#39;{}&#39;, error message:\n{}&quot;</span>, <span class="ident">sexp</span>, <span class="ident">e</span>)
-                        })<span class="question-mark">?</span>;
+                        <span class="kw">let</span> <span class="ident">arg_ids</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">list</span>[<span class="number">1</span>..]
+                            .<span class="ident">iter</span>()
+                            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">parse_sexp_into</span>(<span class="ident">s</span>, <span class="ident">expr</span>))
+                            .<span class="ident">collect</span>::<span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw">_</span>, <span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>()<span class="question-mark">?</span>;
+                        <span class="kw">let</span> <span class="ident">node</span> <span class="op">=</span> <span class="ident">L</span>::<span class="ident">from_op</span>(<span class="ident">op</span>, <span class="ident">arg_ids</span>).<span class="ident">map_err</span>(<span class="ident">BadOp</span>)<span class="question-mark">?</span>;
                         <span class="prelude-val">Ok</span>(<span class="ident">expr</span>.<span class="ident">add</span>(<span class="ident">node</span>))
                     }
                 },
@@ -1016,7 +1170,7 @@
         }
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">expr</span> <span class="op">=</span> <span class="ident">RecExpr</span>::<span class="ident">default</span>();
-        <span class="kw">let</span> <span class="ident">sexp</span> <span class="op">=</span> <span class="ident">symbolic_expressions</span>::<span class="ident">parser</span>::<span class="ident">parse_str</span>(<span class="ident">s</span>.<span class="ident">trim</span>()).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">e</span>.<span class="ident">to_string</span>())<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">sexp</span> <span class="op">=</span> <span class="ident">symbolic_expressions</span>::<span class="ident">parser</span>::<span class="ident">parse_str</span>(<span class="ident">s</span>.<span class="ident">trim</span>()).<span class="ident">map_err</span>(<span class="ident">BadSexp</span>)<span class="question-mark">?</span>;
         <span class="ident">parse_sexp_into</span>(<span class="kw-2">&amp;</span><span class="ident">sexp</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">expr</span>)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(<span class="ident">expr</span>)
     }
@@ -1197,23 +1351,29 @@ assert_eq!(runner.egraph.find(runner.roots[0]), runner.egraph.find(just_foo));
         <span class="self">self</span>.<span class="ident">op</span> <span class="op">=</span><span class="op">=</span> <span class="ident">other</span>.<span class="ident">op</span> <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">len</span>() <span class="op">=</span><span class="op">=</span> <span class="ident">other</span>.<span class="ident">len</span>()
     }
 
-    <span class="kw">fn</span> <span class="ident">display_op</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw">dyn</span> <span class="ident">Display</span> {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">op</span>
-    }
-
-    <span class="kw">fn</span> <span class="ident">from_op_str</span>(<span class="ident">op_str</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>, <span class="ident">children</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">String</span><span class="op">&gt;</span> {
-        <span class="prelude-val">Ok</span>(<span class="self">Self</span> {
-            <span class="ident">op</span>: <span class="ident">op_str</span>.<span class="ident">into</span>(),
-            <span class="ident">children</span>,
-        })
-    }
-
     <span class="kw">fn</span> <span class="ident">for_each</span><span class="op">&lt;</span><span class="ident">F</span>: <span class="ident">FnMut</span>(<span class="ident">Id</span>)<span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="ident">F</span>) {
         <span class="self">self</span>.<span class="ident">children</span>.<span class="ident">iter</span>().<span class="ident">copied</span>().<span class="ident">for_each</span>(<span class="ident">f</span>)
     }
 
     <span class="kw">fn</span> <span class="ident">for_each_mut</span><span class="op">&lt;</span><span class="ident">F</span>: <span class="ident">FnMut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Id</span>)<span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">f</span>: <span class="ident">F</span>) {
         <span class="self">self</span>.<span class="ident">children</span>.<span class="ident">iter_mut</span>().<span class="ident">for_each</span>(<span class="ident">f</span>)
+    }
+}
+
+<span class="kw">impl</span> <span class="ident">Display</span> <span class="kw">for</span> <span class="ident">SymbolLang</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
+        <span class="ident">Display</span>::<span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">op</span>, <span class="ident">f</span>)
+    }
+}
+
+<span class="kw">impl</span> <span class="ident">FromOp</span> <span class="kw">for</span> <span class="ident">SymbolLang</span> {
+    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Infallible</span>;
+
+    <span class="kw">fn</span> <span class="ident">from_op</span>(<span class="ident">op</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>, <span class="ident">children</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
+        <span class="prelude-val">Ok</span>(<span class="self">Self</span> {
+            <span class="ident">op</span>: <span class="ident">op</span>.<span class="ident">into</span>(),
+            <span class="ident">children</span>,
+        })
     }
 }
 </pre></div>

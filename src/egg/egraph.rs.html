@@ -655,12 +655,17 @@
 <span id="652">652</span>
 <span id="653">653</span>
 <span id="654">654</span>
+<span id="655">655</span>
+<span id="656">656</span>
+<span id="657">657</span>
+<span id="658">658</span>
+<span id="659">659</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident">std</span>::{
     <span class="ident">borrow</span>::<span class="ident">BorrowMut</span>,
     <span class="ident">cmp</span>::<span class="ident">Ordering</span>,
-    <span class="ident">fmt</span>::{<span class="self">self</span>, <span class="ident">Debug</span>},
+    <span class="ident">fmt</span>::{<span class="self">self</span>, <span class="ident">Debug</span>, <span class="ident">Display</span>},
 };
 
 <span class="kw">use</span> <span class="ident">log</span>::<span class="kw-2">*</span>;
@@ -992,28 +997,6 @@ and
         <span class="ident">equiv_eclasses</span>
     }
 
-    <span class="doccomment">/// Panic if the given eclass doesn&#39;t contain the given patterns</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Useful for testing.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">check_goals</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">id</span>: <span class="ident">Id</span>, <span class="ident">goals</span>: <span class="kw-2">&amp;</span>[<span class="ident">Pattern</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>]) {
-        <span class="kw">let</span> (<span class="ident">cost</span>, <span class="ident">best</span>) <span class="op">=</span> <span class="ident">Extractor</span>::<span class="ident">new</span>(<span class="self">self</span>, <span class="ident">AstSize</span>).<span class="ident">find_best</span>(<span class="ident">id</span>);
-        <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;End ({}): {}&quot;</span>, <span class="ident">cost</span>, <span class="ident">best</span>.<span class="ident">pretty</span>(<span class="number">80</span>));
-
-        <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">goal</span>) <span class="kw">in</span> <span class="ident">goals</span>.<span class="ident">iter</span>().<span class="ident">enumerate</span>() {
-            <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;Trying to prove goal {}: {}&quot;</span>, <span class="ident">i</span>, <span class="ident">goal</span>.<span class="ident">pretty</span>(<span class="number">40</span>));
-            <span class="kw">let</span> <span class="ident">matches</span> <span class="op">=</span> <span class="ident">goal</span>.<span class="ident">search_eclass</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">id</span>);
-            <span class="kw">if</span> <span class="ident">matches</span>.<span class="ident">is_none</span>() {
-                <span class="kw">let</span> <span class="ident">best</span> <span class="op">=</span> <span class="ident">Extractor</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">AstSize</span>).<span class="ident">find_best</span>(<span class="ident">id</span>).<span class="number">1</span>;
-                <span class="macro">panic</span><span class="macro">!</span>(
-                    <span class="string">&quot;Could not prove goal {}:\n{}\nBest thing found:\n{}&quot;</span>,
-                    <span class="ident">i</span>,
-                    <span class="ident">goal</span>.<span class="ident">pretty</span>(<span class="number">40</span>),
-                    <span class="ident">best</span>.<span class="ident">pretty</span>(<span class="number">40</span>),
-                );
-            }
-        }
-    }
-
     <span class="doccomment">/// Unions two eclasses given their ids.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// The given ids need not be canonical.</span>
@@ -1080,6 +1063,33 @@ and
     <span class="doccomment">/// [`Debug`]: std::fmt::Debug</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">dump</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">impl</span> <span class="ident">Debug</span> <span class="op">+</span> <span class="lifetime">&#39;_</span> {
         <span class="ident">EGraphDump</span>(<span class="self">self</span>)
+    }
+}
+
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span> <span class="op">+</span> <span class="ident">Display</span>, <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span> {
+    <span class="doccomment">/// Panic if the given eclass doesn&#39;t contain the given patterns</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Useful for testing.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">check_goals</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">id</span>: <span class="ident">Id</span>, <span class="ident">goals</span>: <span class="kw-2">&amp;</span>[<span class="ident">Pattern</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>]) {
+        <span class="kw">let</span> (<span class="ident">cost</span>, <span class="ident">best</span>) <span class="op">=</span> <span class="ident">Extractor</span>::<span class="ident">new</span>(<span class="self">self</span>, <span class="ident">AstSize</span>).<span class="ident">find_best</span>(<span class="ident">id</span>);
+        <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;End ({}): {}&quot;</span>, <span class="ident">cost</span>, <span class="ident">best</span>.<span class="ident">pretty</span>(<span class="number">80</span>));
+
+        <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">goal</span>) <span class="kw">in</span> <span class="ident">goals</span>.<span class="ident">iter</span>().<span class="ident">enumerate</span>() {
+            <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;Trying to prove goal {}: {}&quot;</span>, <span class="ident">i</span>, <span class="ident">goal</span>.<span class="ident">pretty</span>(<span class="number">40</span>));
+            <span class="kw">let</span> <span class="ident">matches</span> <span class="op">=</span> <span class="ident">goal</span>.<span class="ident">search_eclass</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">id</span>);
+            <span class="kw">if</span> <span class="ident">matches</span>.<span class="ident">is_none</span>() {
+                <span class="kw">let</span> <span class="ident">best</span> <span class="op">=</span> <span class="ident">Extractor</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">AstSize</span>).<span class="ident">find_best</span>(<span class="ident">id</span>).<span class="number">1</span>;
+                <span class="macro">panic</span><span class="macro">!</span>(
+                    <span class="string">&quot;Could not prove goal {}:\n\
+                     {}\n\
+                     Best thing found:\n\
+                     {}&quot;</span>,
+                    <span class="ident">i</span>,
+                    <span class="ident">goal</span>.<span class="ident">pretty</span>(<span class="number">40</span>),
+                    <span class="ident">best</span>.<span class="ident">pretty</span>(<span class="number">40</span>),
+                );
+            }
+        }
     }
 }
 

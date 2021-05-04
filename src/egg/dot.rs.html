@@ -237,13 +237,6 @@
 <span id="234">234</span>
 <span id="235">235</span>
 <span id="236">236</span>
-<span id="237">237</span>
-<span id="238">238</span>
-<span id="239">239</span>
-<span id="240">240</span>
-<span id="241">241</span>
-<span id="242">242</span>
-<span id="243">243</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">/*!
 EGraph visualization with [GraphViz]
@@ -308,15 +301,14 @@ instead of to its own eclass.
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span> <span class="ident">Dot</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>
 <span class="kw">where</span>
-    <span class="ident">L</span>: <span class="ident">Language</span>,
+    <span class="ident">L</span>: <span class="ident">Language</span> <span class="op">+</span> <span class="ident">Display</span>,
     <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
 {
     <span class="doccomment">/// Writes the `Dot` to a .dot file with the given filename.</span>
     <span class="doccomment">/// Does _not_ require a `dot` binary.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">to_dot</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">filename</span>: <span class="kw">impl</span> <span class="ident">AsRef</span><span class="op">&lt;</span><span class="ident">Path</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">file</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">fs</span>::<span class="ident">File</span>::<span class="ident">create</span>(<span class="ident">filename</span>)<span class="question-mark">?</span>;
-        <span class="macro">write</span><span class="macro">!</span>(<span class="ident">file</span>, <span class="string">&quot;{}&quot;</span>, <span class="self">self</span>)<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(())
+        <span class="macro">write</span><span class="macro">!</span>(<span class="ident">file</span>, <span class="string">&quot;{}&quot;</span>, <span class="self">self</span>)
     }
 
     <span class="doccomment">/// Adds a line to the dot output.</span>
@@ -420,13 +412,13 @@ instead of to its own eclass.
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">L</span>: <span class="ident">Language</span>, <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">Debug</span> <span class="kw">for</span> <span class="ident">Dot</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span> {
     <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Formatter</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
-        <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;Dot({:?})&quot;</span>, <span class="self">self</span>.<span class="ident">egraph</span>)
+        <span class="ident">f</span>.<span class="ident">debug_tuple</span>(<span class="string">&quot;Dot&quot;</span>).<span class="ident">field</span>(<span class="self">self</span>.<span class="ident">egraph</span>).<span class="ident">finish</span>()
     }
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span> <span class="ident">Display</span> <span class="kw">for</span> <span class="ident">Dot</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>
 <span class="kw">where</span>
-    <span class="ident">L</span>: <span class="ident">Language</span>,
+    <span class="ident">L</span>: <span class="ident">Language</span> <span class="op">+</span> <span class="ident">Display</span>,
     <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
 {
     <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Formatter</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
@@ -445,13 +437,7 @@ instead of to its own eclass.
             <span class="macro">writeln</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;  subgraph cluster_{} {{&quot;</span>, <span class="ident">class</span>.<span class="ident">id</span>)<span class="question-mark">?</span>;
             <span class="macro">writeln</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;    style=dotted&quot;</span>)<span class="question-mark">?</span>;
             <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">node</span>) <span class="kw">in</span> <span class="ident">class</span>.<span class="ident">iter</span>().<span class="ident">enumerate</span>() {
-                <span class="macro">writeln</span><span class="macro">!</span>(
-                    <span class="ident">f</span>,
-                    <span class="string">&quot;    {}.{}[label = \&quot;{}\&quot;]&quot;</span>,
-                    <span class="ident">class</span>.<span class="ident">id</span>,
-                    <span class="ident">i</span>,
-                    <span class="ident">node</span>.<span class="ident">display_op</span>()
-                )<span class="question-mark">?</span>;
+                <span class="macro">writeln</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;    {}.{}[label = \&quot;{}\&quot;]&quot;</span>, <span class="ident">class</span>.<span class="ident">id</span>, <span class="ident">i</span>, <span class="ident">node</span>)<span class="question-mark">?</span>;
             }
             <span class="macro">writeln</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;  }}&quot;</span>)<span class="question-mark">?</span>;
         }
