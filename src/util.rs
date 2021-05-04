@@ -2,6 +2,7 @@ use std::fmt;
 use std::str::FromStr;
 use std::sync::Mutex;
 
+use fmt::{Debug, Display, Formatter};
 use once_cell::sync::Lazy;
 
 #[allow(unused_imports)]
@@ -98,23 +99,23 @@ impl FromStr for Symbol {
     }
 }
 
-impl fmt::Display for Symbol {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.as_str())
+impl Display for Symbol {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        Display::fmt(self.as_str(), f)
     }
 }
 
-impl fmt::Debug for Symbol {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self.as_str())
+impl Debug for Symbol {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        Debug::fmt(self.as_str(), f)
     }
 }
 
 /// A wrapper that uses display implementation as debug
 pub(crate) struct DisplayAsDebug<T>(pub T);
 
-impl<T: fmt::Display> fmt::Debug for DisplayAsDebug<T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
+impl<T: Display> Debug for DisplayAsDebug<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        Display::fmt(&self.0, f)
     }
 }

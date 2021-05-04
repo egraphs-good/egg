@@ -1,27 +1,33 @@
-use std::fmt::{self, Debug, Display};
-use std::hash::Hash;
 use std::ops::{Index, IndexMut};
 use std::{cmp::Ordering, convert::TryFrom};
+use std::{
+    convert::Infallible,
+    error::Error,
+    fmt::{self, Debug, Display},
+};
+use std::{hash::Hash, str::FromStr};
 
 use crate::*;
 
-use symbolic_expressions::Sexp;
+use fmt::Formatter;
+use symbolic_expressions::{Sexp, SexpError};
+use thiserror::Error;
 
 /// Trait that defines a Language whose terms will be in the [`EGraph`].
 ///
 /// Check out the [`define_language!`] macro for an easy way to create
 /// a [`Language`].
 ///
-/// Note that the default implementations of
-/// [`from_op_str`](Language::from_op_str()) and
-/// [`display_op`](Language::display_op()) panic. You
-/// should override them if you want to parse or pretty-print expressions.
-/// [`define_language!`] implements these for you.
+/// If you want to pretty-print expressions, you should implement [`Display`] to
+/// display the language node's operator. For example, a language node
+/// `Add([Id; 2])` might be displayed as "+".
+///
+/// To parse expressions from strings you should also implement [`FromOp`].
+///
+/// The [`define_language!`] macro automatically implements both [`Display`] and
+/// [`FromOp`].
 ///
 /// See [`SymbolLang`] for quick-and-dirty use cases.
-///
-/// [`FromStr`]: std::str::FromStr
-/// [`Display`]: std::fmt::Display
 #[allow(clippy::len_without_is_empty)]
 pub trait Language: Debug + Clone + Eq + Ord + Hash {
     /// Returns true if this enode matches another enode.
@@ -42,28 +48,6 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
         E: Clone,
     {
         self.fold(Ok(()), |res, id| res.and_then(|_| f(id)))
-    }
-
-    /// Returns something that will print the operator.
-    ///
-    /// Default implementation panics, so make sure to implement this if you
-    /// want to print `Language` elements.
-    /// The [`define_language!`] macro will
-    /// implement this for you.
-    fn display_op(&self) -> &dyn Display {
-        unimplemented!("display_op not implemented")
-    }
-
-    /// Given a string for the operator and the children, tries to make an
-    /// enode.
-    ///
-    /// Default implementation panics, so make sure to implement this if you
-    /// want to parse `Language` elements.
-    /// The [`define_language!`] macro will
-    /// implement this for you.
-    #[allow(unused_variables)]
-    fn from_op_str(op_str: &str, children: Vec<Id>) -> Result<Self, String> {
-        unimplemented!("from_op_str not implemented")
     }
 
     /// Returns the number of the children this enode has.
@@ -145,6 +129,78 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
             .map_children(|id| build(&mut expr, child_recexpr(id)));
         expr.add(node);
         expr
+    }
+}
+
+/// A trait for parsing e-nodes. This is implemented automatically by
+/// [`define_language!`].
+///
+/// If a [`Language`] implements both [`Display`] and [`FromOp`], the
+/// [`Display`] implementation should produce a string suitable for parsing by
+/// [`from_op`]:
+///
+/// ```
+/// # use egg::*;
+/// # use std::fmt::Display;
+/// fn from_op_display_compatible<T: FromOp + Display>(node: T) {
+///     let op = node.to_string();
+///     let mut children = Vec::new();
+///     node.for_each(|id| children.push(id));
+///     let parsed = T::from_op(&op, children).unwrap();
+///
+///     assert_eq!(node, parsed);
+/// }
+/// ```
+///
+/// # Examples
+/// `define_language!` implements [`FromOp`] and [`Display`] automatically:
+/// ```
+/// # use egg::*;
+///
+/// define_language! {
+///     enum Calc {
+///        "+" = Add([Id; 2]),
+///        Num(i32),
+///     }
+/// }
+///
+/// let add = Calc::Add([Id::from(0), Id::from(1)]);
+/// let parsed = Calc::from_op("+", vec![Id::from(0), Id::from(1)]).unwrap();
+///
+/// assert_eq!(add.to_string(), "+");
+/// assert_eq!(parsed, add);
+/// ```
+///
+/// [`from_op`]: FromOp::from_op
+pub trait FromOp: Language + Sized {
+    /// The error type returned by [`from_op`] if its arguments do not
+    /// represent a valid e-node.
+    ///
+    /// [`from_op`]: FromOp::from_op
+    type Error: Error + 'static;
+
+    /// Parse an e-node with operator `op` and children `children`.
+    fn from_op(op: &str, children: Vec<Id>) -> Result<Self, Self::Error>;
+}
+
+/// A generic error for failing to parse an operator. This is the error type
+/// used by [`define_language!`] for [`FromOp::Error`], and is a sensible choice
+/// when implementing [`FromOp`] manually.
+#[derive(Debug, Error)]
+#[error("could not parse an e-node with operator {op:?} and children {children:?}")]
+pub struct FromOpError {
+    op: String,
+    children: Vec<Id>,
+}
+
+impl FromOpError {
+    /// Create a new `FromOpError` representing a failed call
+    /// `FromOp::from_op(op, children)`.
+    pub fn new(op: &str, children: Vec<Id>) -> Self {
+        Self {
+            op: op.to_owned(),
+            children,
+        }
     }
 }
 
@@ -230,15 +286,13 @@ impl LanguageChildren for Id {
 ///
 /// If the `serde-1` feature is enabled, this implements
 /// [`serde::Serialize`][https://docs.rs/serde/latest/serde/trait.Serialize.html].
-///
-/// [pretty]: RecExpr::pretty()
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RecExpr<L> {
     nodes: Vec<L>,
 }
 
 #[cfg(feature = "serde-1")]
-impl<L: Language> serde::Serialize for RecExpr<L> {
+impl<L: Language + Display> serde::Serialize for RecExpr<L> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -294,7 +348,7 @@ impl<L: Language> IndexMut<Id> for RecExpr<L> {
     }
 }
 
-impl<L: Language> Display for RecExpr<L> {
+impl<L: Language + Display> Display for RecExpr<L> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.nodes.is_empty() {
             write!(f, "()")
@@ -305,10 +359,10 @@ impl<L: Language> Display for RecExpr<L> {
     }
 }
 
-impl<L: Language> RecExpr<L> {
+impl<L: Language + Display> RecExpr<L> {
     fn to_sexp(&self, i: usize) -> Sexp {
         let node = &self.nodes[i];
-        let op = Sexp::String(node.display_op().to_string());
+        let op = Sexp::String(node.to_string());
         if node.is_leaf() {
             op
         } else {
@@ -368,36 +422,56 @@ impl<L: Language> RecExpr<L> {
     }
 }
 
-macro_rules! bail {
-    ($s:literal $(,)?) => {
-        return Err($s.into())
-    };
-    ($s:literal, $($args:expr),+) => {
-        return Err(format!($s, $($args),+).into())
-    };
+/// An error type for failures when attempting to parse an s-expression as a
+/// [`RecExpr<L>`].
+#[derive(Debug, Error)]
+pub enum RecExprParseError<E: Error + 'static> {
+    /// An empty s-expression was found. Usually this is caused by an
+    /// empty list "()" somewhere in the input.
+    #[error("found empty s-expression")]
+    EmptySexp,
+
+    /// A list was found where an operator was expected. This is caused by
+    /// s-expressions of the form "((a b c) d e f)."
+    #[error("found a list in the head position: {0}")]
+    HeadList(Sexp),
+
+    /// Attempting to parse an operator into a value of type `L` failed.
+    #[error(transparent)]
+    BadOp(E),
+
+    /// An error occurred while parsing the s-expression itself, generally
+    /// because the input had an invalid structure (e.g. unpaired parentheses).
+    #[error(transparent)]
+    BadSexp(SexpError),
 }
 
-impl<L: Language> std::str::FromStr for RecExpr<L> {
-    type Err = String;
+impl<L: FromOp> FromStr for RecExpr<L> {
+    type Err = RecExprParseError<L::Error>;
+
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        fn parse_sexp_into<L: Language>(sexp: &Sexp, expr: &mut RecExpr<L>) -> Result<Id, String> {
+        use RecExprParseError::*;
+
+        fn parse_sexp_into<L: FromOp>(
+            sexp: &Sexp,
+            expr: &mut RecExpr<L>,
+        ) -> Result<Id, RecExprParseError<L::Error>> {
             match sexp {
-                Sexp::Empty => Err("Found empty s-expression".into()),
+                Sexp::Empty => Err(EmptySexp),
                 Sexp::String(s) => {
-                    let node = L::from_op_str(s, vec![])?;
+                    let node = L::from_op(s, vec![]).map_err(BadOp)?;
                     Ok(expr.add(node))
                 }
-                Sexp::List(list) if list.is_empty() => Err("Found empty s-expression".into()),
+                Sexp::List(list) if list.is_empty() => Err(EmptySexp),
                 Sexp::List(list) => match &list[0] {
                     Sexp::Empty => unreachable!("Cannot be in head position"),
-                    Sexp::List(l) => bail!("Found a list in the head position: {:?}", l),
+                    list @ Sexp::List(..) => Err(HeadList(list.to_owned())),
                     Sexp::String(op) => {
-                        let arg_ids: Result<Vec<Id>, _> =
-                            list[1..].iter().map(|s| parse_sexp_into(s, expr)).collect();
-
-                        let node = L::from_op_str(op, arg_ids?).map_err(|e| {
-                            format!("Failed to parse '{}', error message:\n{}", sexp, e)
-                        })?;
+                        let arg_ids: Vec<Id> = list[1..]
+                            .iter()
+                            .map(|s| parse_sexp_into(s, expr))
+                            .collect::<Result<_, _>>()?;
+                        let node = L::from_op(op, arg_ids).map_err(BadOp)?;
                         Ok(expr.add(node))
                     }
                 },
@@ -405,7 +479,7 @@ impl<L: Language> std::str::FromStr for RecExpr<L> {
         }
 
         let mut expr = RecExpr::default();
-        let sexp = symbolic_expressions::parser::parse_str(s.trim()).map_err(|e| e.to_string())?;
+        let sexp = symbolic_expressions::parser::parse_str(s.trim()).map_err(BadSexp)?;
         parse_sexp_into(&sexp, &mut expr)?;
         Ok(expr)
     }
@@ -586,22 +660,28 @@ impl Language for SymbolLang {
         self.op == other.op && self.len() == other.len()
     }
 
-    fn display_op(&self) -> &dyn Display {
-        &self.op
-    }
-
-    fn from_op_str(op_str: &str, children: Vec<Id>) -> Result<Self, String> {
-        Ok(Self {
-            op: op_str.into(),
-            children,
-        })
-    }
-
     fn for_each<F: FnMut(Id)>(&self, f: F) {
         self.children.iter().copied().for_each(f)
     }
 
     fn for_each_mut<F: FnMut(&mut Id)>(&mut self, f: F) {
         self.children.iter_mut().for_each(f)
+    }
+}
+
+impl Display for SymbolLang {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        Display::fmt(&self.op, f)
+    }
+}
+
+impl FromOp for SymbolLang {
+    type Error = Infallible;
+
+    fn from_op(op: &str, children: Vec<Id>) -> Result<Self, Self::Error> {
+        Ok(Self {
+            op: op.into(),
+            children,
+        })
     }
 }

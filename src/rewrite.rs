@@ -1,4 +1,4 @@
-use std::fmt;
+use std::fmt::{self, Debug, Display};
 use std::{any::Any, sync::Arc};
 
 use crate::*;
@@ -23,9 +23,9 @@ pub struct Rewrite<L, N> {
     pub applier: Arc<dyn Applier<L, N> + Sync + Send>,
 }
 
-impl<L, N> fmt::Debug for Rewrite<L, N>
+impl<L, N> Debug for Rewrite<L, N>
 where
-    L: Language + 'static,
+    L: Language + Display + 'static,
     N: 'static,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -406,7 +406,7 @@ where
 ///
 pub struct ConditionEqual<A1, A2>(pub A1, pub A2);
 
-impl<L: Language> ConditionEqual<Pattern<L>, Pattern<L>> {
+impl<L: FromOp> ConditionEqual<Pattern<L>, Pattern<L>> {
     /// Create a ConditionEqual by parsing two pattern strings.
     ///
     /// This panics if the parsing fails.

@@ -2,7 +2,7 @@ use crate::*;
 use std::{
     borrow::BorrowMut,
     cmp::Ordering,
-    fmt::{self, Debug},
+    fmt::{self, Debug, Display},
 };
 
 use log::*;
@@ -334,28 +334,6 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         equiv_eclasses
     }
 
-    /// Panic if the given eclass doesn't contain the given patterns
-    ///
-    /// Useful for testing.
-    pub fn check_goals(&self, id: Id, goals: &[Pattern<L>]) {
-        let (cost, best) = Extractor::new(self, AstSize).find_best(id);
-        println!("End ({}): {}", cost, best.pretty(80));
-
-        for (i, goal) in goals.iter().enumerate() {
-            println!("Trying to prove goal {}: {}", i, goal.pretty(40));
-            let matches = goal.search_eclass(&self, id);
-            if matches.is_none() {
-                let best = Extractor::new(&self, AstSize).find_best(id).1;
-                panic!(
-                    "Could not prove goal {}:\n{}\nBest thing found:\n{}",
-                    i,
-                    goal.pretty(40),
-                    best.pretty(40),
-                );
-            }
-        }
-    }
-
     /// Unions two eclasses given their ids.
     ///
     /// The given ids need not be canonical.
@@ -422,6 +400,33 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// [`Debug`]: std::fmt::Debug
     pub fn dump(&self) -> impl Debug + '_ {
         EGraphDump(self)
+    }
+}
+
+impl<L: Language + Display, N: Analysis<L>> EGraph<L, N> {
+    /// Panic if the given eclass doesn't contain the given patterns
+    ///
+    /// Useful for testing.
+    pub fn check_goals(&self, id: Id, goals: &[Pattern<L>]) {
+        let (cost, best) = Extractor::new(self, AstSize).find_best(id);
+        println!("End ({}): {}", cost, best.pretty(80));
+
+        for (i, goal) in goals.iter().enumerate() {
+            println!("Trying to prove goal {}: {}", i, goal.pretty(40));
+            let matches = goal.search_eclass(&self, id);
+            if matches.is_none() {
+                let best = Extractor::new(&self, AstSize).find_best(id).1;
+                panic!(
+                    "Could not prove goal {}:\n\
+                     {}\n\
+                     Best thing found:\n\
+                     {}",
+                    i,
+                    goal.pretty(40),
+                    best.pretty(40),
+                );
+            }
+        }
     }
 }
 
