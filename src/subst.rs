@@ -2,6 +2,7 @@ use std::fmt;
 use std::str::FromStr;
 
 use crate::*;
+use fmt::{Debug, Display, Formatter};
 use thiserror::Error;
 
 /// A variable for use in [`Pattern`]s or [`Subst`]s.
@@ -15,7 +16,7 @@ pub struct Var(Symbol);
 
 #[derive(Debug, Error)]
 pub enum VarParseError {
-    #[error("'{0}' doesn't start with '?'")]
+    #[error("pattern variable {0:?} should have a leading question mark")]
     MissingQuestionMark(String),
 }
 
@@ -23,23 +24,25 @@ impl FromStr for Var {
     type Err = VarParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        use VarParseError::*;
+
         if s.starts_with('?') && s.len() > 1 {
             Ok(Var(s.into()))
         } else {
-            Err(VarParseError::MissingQuestionMark(s.to_owned()))
+            Err(MissingQuestionMark(s.to_owned()))
         }
     }
 }
 
-impl fmt::Display for Var {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
+impl Display for Var {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        Display::fmt(&self.0, f)
     }
 }
 
-impl fmt::Debug for Var {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
+impl Debug for Var {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        Debug::fmt(&self.0, f)
     }
 }
 
@@ -89,8 +92,8 @@ impl std::ops::Index<Var> for Subst {
     }
 }
 
-impl fmt::Debug for Subst {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl Debug for Subst {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let len = self.vec.len();
         write!(f, "{{")?;
         for i in 0..len {

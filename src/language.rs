@@ -1,4 +1,3 @@
-use std::hash::Hash;
 use std::ops::{Index, IndexMut};
 use std::{cmp::Ordering, convert::TryFrom};
 use std::{
@@ -6,6 +5,7 @@ use std::{
     error::Error,
     fmt::{self, Debug, Display},
 };
+use std::{hash::Hash, str::FromStr};
 
 use crate::*;
 
@@ -18,8 +18,14 @@ use thiserror::Error;
 /// Check out the [`define_language!`] macro for an easy way to create
 /// a [`Language`].
 ///
-/// Note that if you want to parse or pretty-print expressions, you also need to
-/// implement [`OpStr`]. [`define_language!`] implements both traits for you.
+/// If you want to pretty-print expressions, you should implement [`Display`] to
+/// display the language node's operator. For example, a language node
+/// `Add([Id; 2])` might be displayed as "+".
+///
+/// To parse expressions from strings you should also implement [`FromOp`].
+///
+/// The [`define_language!`] macro automatically implements both [`Display`] and
+/// [`FromOp`].
 ///
 /// See [`SymbolLang`] for quick-and-dirty use cases.
 #[allow(clippy::len_without_is_empty)]
@@ -126,27 +132,28 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
     }
 }
 
-/// A trait for parsing and printing [`Language`]s. This is implemented
-/// automatically when using [`define_language!`].
+/// A trait for parsing e-nodes. This is implemented automatically by
+/// [`define_language!`].
 ///
-/// The [`OpStr::fmt`] and [`OpStr::from_str`] methods should be inverses in the following
-/// sense, where [`DisplayOp`] is a thin wrapper around an [`OpStr`] which uses
-/// [`OpStr::fmt`] as its [`Display`] implementation:
+/// If a [`Language`] implements both [`Display`] and [`FromOp`], the
+/// [`Display`] implementation should produce a string suitable for parsing by
+/// [`from_op`]:
 ///
 /// ```
 /// # use egg::*;
-/// fn assert_inverse<T: OpStr>(orig: T) {
-///     let op_string = DisplayOp(&orig).to_string();
+/// # use std::fmt::Display;
+/// fn from_op_display_compatible<T: FromOp + Display>(node: T) {
+///     let op = node.to_string();
 ///     let mut children = Vec::new();
-///     orig.for_each(|id| children.push(id));
-///     let parsed = <T as OpStr>::from_str(&op_string, children).unwrap();
+///     node.for_each(|id| children.push(id));
+///     let parsed = T::from_op(&op, children).unwrap();
 ///
-///     assert_eq!(orig, parsed);
+///     assert_eq!(node, parsed);
 /// }
 /// ```
 ///
 /// # Examples
-/// `define_language!` implements `OpStr` automatically:
+/// `define_language!` implements [`FromOp`] and [`Display`] automatically:
 /// ```
 /// # use egg::*;
 ///
@@ -158,51 +165,40 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
 /// }
 ///
 /// let add = Calc::Add([Id::from(0), Id::from(1)]);
+/// let parsed = Calc::from_op("+", vec![Id::from(0), Id::from(1)]).unwrap();
 ///
-/// assert_eq!(DisplayOp(&add).to_string(), "+");
-/// assert_eq!(Calc::from_str("+", vec![Id::from(0), Id::from(1)]).unwrap(), add);
+/// assert_eq!(add.to_string(), "+");
+/// assert_eq!(parsed, add);
 /// ```
-pub trait OpStr: Language {
-    /// The type returned by `from_str` if a string can't be parsed as an
-    /// operator.
+///
+/// [`from_op`]: FromOp::from_op
+pub trait FromOp: Language + Sized {
+    /// The error type returned by [`from_op`] if its arguments do not
+    /// represent a valid e-node.
+    ///
+    /// [`from_op`]: FromOp::from_op
     type Error: Error + 'static;
 
-    /// Format this operator.
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result;
-
-    /// Parse an operator string `s` into an e-node with children `children`.
-    fn from_str(s: &str, children: Vec<Id>) -> Result<Self, Self::Error>
-    where
-        Self: Sized;
-}
-
-/// A wrapper for a `Language` whose `Display` implementation forwards to
-/// `OpStr::fmt`.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct DisplayOp<'a, T: OpStr + 'a>(pub &'a T);
-
-impl<'a, T: OpStr + 'a> Display for DisplayOp<'a, T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        <T as OpStr>::fmt(self.0, f)
-    }
+    /// Parse an e-node with operator `op` and children `children`.
+    fn from_op(op: &str, children: Vec<Id>) -> Result<Self, Self::Error>;
 }
 
 /// A generic error for failing to parse an operator. This is the error type
-/// used by `define_language!` for `OpStr::Error`, and is a sensible choice when
-/// implementing `OpStr` manually.
+/// used by [`define_language!`] for [`FromOp::Error`], and is a sensible choice
+/// when implementing [`FromOp`] manually.
 #[derive(Debug, Error)]
-#[error("failed to parse {op_string:?} as an operator with children {children:?}")]
-pub struct OpParseError {
-    op_string: String,
+#[error("could not parse an e-node with operator {op:?} and children {children:?}")]
+pub struct FromOpError {
+    op: String,
     children: Vec<Id>,
 }
 
-impl OpParseError {
-    /// Create a new `OpParseError` indicating that `op_str` couldn't be parsed
-    /// with children `children`.
-    pub fn new(op_str: &str, children: Vec<Id>) -> Self {
+impl FromOpError {
+    /// Create a new `FromOpError` representing a failed call
+    /// `FromOp::from_op(op, children)`.
+    pub fn new(op: &str, children: Vec<Id>) -> Self {
         Self {
-            op_string: op_str.to_owned(),
+            op: op.to_owned(),
             children,
         }
     }
@@ -290,15 +286,13 @@ impl LanguageChildren for Id {
 ///
 /// If the `serde-1` feature is enabled, this implements
 /// [`serde::Serialize`][https://docs.rs/serde/latest/serde/trait.Serialize.html].
-///
-/// [pretty]: RecExpr::pretty()
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RecExpr<L> {
     nodes: Vec<L>,
 }
 
 #[cfg(feature = "serde-1")]
-impl<L: OpStr> serde::Serialize for RecExpr<L> {
+impl<L: Language + Display> serde::Serialize for RecExpr<L> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -354,7 +348,7 @@ impl<L: Language> IndexMut<Id> for RecExpr<L> {
     }
 }
 
-impl<L: OpStr> Display for RecExpr<L> {
+impl<L: Language + Display> Display for RecExpr<L> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.nodes.is_empty() {
             write!(f, "()")
@@ -365,10 +359,10 @@ impl<L: OpStr> Display for RecExpr<L> {
     }
 }
 
-impl<L: OpStr> RecExpr<L> {
+impl<L: Language + Display> RecExpr<L> {
     fn to_sexp(&self, i: usize) -> Sexp {
         let node = &self.nodes[i];
-        let op = Sexp::String(DisplayOp(node).to_string());
+        let op = Sexp::String(node.to_string());
         if node.is_leaf() {
             op
         } else {
@@ -429,9 +423,9 @@ impl<L: OpStr> RecExpr<L> {
 }
 
 /// An error type for failures when attempting to parse an s-expression as a
-/// `RecExpr<L>`.
+/// [`RecExpr<L>`].
 #[derive(Debug, Error)]
-pub enum RecExprParseError<L: OpStr> {
+pub enum RecExprParseError<E: Error + 'static> {
     /// An empty s-expression was found. Usually this is caused by an
     /// empty list "()" somewhere in the input.
     #[error("found empty s-expression")]
@@ -443,40 +437,29 @@ pub enum RecExprParseError<L: OpStr> {
     HeadList(Sexp),
 
     /// Attempting to parse an operator into a value of type `L` failed.
-    #[error("failed to parse operator: {op_string}")]
-    BadOperator {
-        /// The operator.
-        op_string: String,
-
-        /// The resulting error.
-        source: L::Error,
-    },
+    #[error(transparent)]
+    BadOp(E),
 
     /// An error occurred while parsing the s-expression itself, generally
     /// because the input had an invalid structure (e.g. unpaired parentheses).
-    #[error("failed to parse an s-expression")]
-    BadSexp(#[from] SexpError),
+    #[error(transparent)]
+    BadSexp(SexpError),
 }
 
-impl<L: OpStr> std::str::FromStr for RecExpr<L> {
-    type Err = RecExprParseError<L>;
+impl<L: FromOp> FromStr for RecExpr<L> {
+    type Err = RecExprParseError<L::Error>;
+
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         use RecExprParseError::*;
 
-        fn parse_op<L: OpStr>(op_str: &str, children: Vec<Id>) -> Result<L, RecExprParseError<L>> {
-            L::from_str(op_str, children).map_err(|source| BadOperator {
-                op_string: op_str.to_owned(),
-                source,
-            })
-        }
-        fn parse_sexp_into<L: OpStr>(
+        fn parse_sexp_into<L: FromOp>(
             sexp: &Sexp,
             expr: &mut RecExpr<L>,
-        ) -> Result<Id, RecExprParseError<L>> {
+        ) -> Result<Id, RecExprParseError<L::Error>> {
             match sexp {
                 Sexp::Empty => Err(EmptySexp),
                 Sexp::String(s) => {
-                    let node = parse_op(s, vec![])?;
+                    let node = L::from_op(s, vec![]).map_err(BadOp)?;
                     Ok(expr.add(node))
                 }
                 Sexp::List(list) if list.is_empty() => Err(EmptySexp),
@@ -488,7 +471,7 @@ impl<L: OpStr> std::str::FromStr for RecExpr<L> {
                             .iter()
                             .map(|s| parse_sexp_into(s, expr))
                             .collect::<Result<_, _>>()?;
-                        let node = parse_op(op, arg_ids)?;
+                        let node = L::from_op(op, arg_ids).map_err(BadOp)?;
                         Ok(expr.add(node))
                     }
                 },
@@ -686,16 +669,18 @@ impl Language for SymbolLang {
     }
 }
 
-impl OpStr for SymbolLang {
+impl Display for SymbolLang {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        Display::fmt(&self.op, f)
+    }
+}
+
+impl FromOp for SymbolLang {
     type Error = Infallible;
 
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.op)
-    }
-
-    fn from_str(s: &str, children: Vec<Id>) -> Result<Self, Self::Error> {
+    fn from_op(op: &str, children: Vec<Id>) -> Result<Self, Self::Error> {
         Ok(Self {
-            op: s.into(),
+            op: op.into(),
             children,
         })
     }

@@ -1,5 +1,6 @@
+use fmt::Formatter;
 use log::*;
-use std::fmt;
+use std::fmt::{self, Display};
 use std::{convert::TryFrom, error::Error, str::FromStr};
 
 use thiserror::Error;
@@ -85,7 +86,7 @@ impl<L: Language> Pattern<L> {
     }
 }
 
-impl<L: OpStr> Pattern<L> {
+impl<L: Language + Display> Pattern<L> {
     /// Pretty print this pattern as a sexp with the given width
     pub fn pretty(&self, width: usize) -> String {
         self.ast.pretty(width)
@@ -122,50 +123,48 @@ impl<L: Language> Language for ENodeOrVar<L> {
     }
 }
 
+impl<L: Language + Display> Display for ENodeOrVar<L> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::ENode(node) => Display::fmt(node, f),
+            Self::Var(var) => Display::fmt(var, f),
+        }
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum ENodeOrVarParseError<E: Error + 'static> {
-    #[error("invalid pattern variable")]
-    BadVar(#[source] <Var as FromStr>::Err),
+    #[error(transparent)]
+    BadVar(<Var as FromStr>::Err),
 
-    #[error("tried to parse pattern variable '{0}' in the op position")]
+    #[error("tried to parse pattern variable {0:?} as an operator")]
     UnexpectedVar(String),
 
-    #[error("failed to parse operator")]
-    BadOp(#[source] E),
+    #[error(transparent)]
+    BadOp(E),
 }
 
-impl<L: OpStr> OpStr for ENodeOrVar<L> {
+impl<L: FromOp> FromOp for ENodeOrVar<L> {
     type Error = ENodeOrVarParseError<L::Error>;
 
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ENodeOrVar::ENode(node) => OpStr::fmt(node, f),
-            ENodeOrVar::Var(var) => write!(f, "{}", var),
-        }
-    }
-
-    fn from_str(s: &str, children: Vec<Id>) -> Result<Self, Self::Error>
-    where
-        Self: Sized,
-    {
+    fn from_op(op: &str, children: Vec<Id>) -> Result<Self, Self::Error> {
         use ENodeOrVarParseError::*;
 
-        if s.starts_with('?') && s.len() > 1 {
+        if op.starts_with('?') && op.len() > 1 {
             if children.is_empty() {
-                s.parse().map(ENodeOrVar::Var).map_err(BadVar)
+                op.parse().map(Self::Var).map_err(BadVar)
             } else {
-                Err(UnexpectedVar(s.to_owned()))
+                Err(UnexpectedVar(op.to_owned()))
             }
         } else {
-            L::from_str(s, children)
-                .map(ENodeOrVar::ENode)
-                .map_err(BadOp)
+            L::from_op(op, children).map(Self::ENode).map_err(BadOp)
         }
     }
 }
 
-impl<L: OpStr> std::str::FromStr for Pattern<L> {
-    type Err = RecExprParseError<ENodeOrVar<L>>;
+impl<L: FromOp> std::str::FromStr for Pattern<L> {
+    type Err = RecExprParseError<ENodeOrVarParseError<L::Error>>;
+
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         PatternAst::from_str(s).map(Self::from)
     }
@@ -200,9 +199,9 @@ impl<L: Language> TryFrom<Pattern<L>> for RecExpr<L> {
     }
 }
 
-impl<L: OpStr> fmt::Display for Pattern<L> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.ast)
+impl<L: Language + Display> Display for Pattern<L> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        Display::fmt(&self.ast, f)
     }
 }
 

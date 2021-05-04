@@ -11,7 +11,7 @@ use std::fmt::{self, Debug, Display, Formatter};
 use std::io::{Error, ErrorKind, Result, Write};
 use std::path::Path;
 
-use crate::{egraph::EGraph, Analysis, DisplayOp, Language, OpStr};
+use crate::{egraph::EGraph, Analysis, Language};
 
 /**
 A wrapper for an [`EGraph`] that can output [GraphViz] for
@@ -61,15 +61,14 @@ pub struct Dot<'a, L: Language, N: Analysis<L>> {
 
 impl<'a, L, N> Dot<'a, L, N>
 where
-    L: OpStr,
+    L: Language + Display,
     N: Analysis<L>,
 {
     /// Writes the `Dot` to a .dot file with the given filename.
     /// Does _not_ require a `dot` binary.
     pub fn to_dot(&self, filename: impl AsRef<Path>) -> Result<()> {
         let mut file = std::fs::File::create(filename)?;
-        write!(file, "{}", self)?;
-        Ok(())
+        write!(file, "{}", self)
     }
 
     /// Adds a line to the dot output.
@@ -173,13 +172,13 @@ where
 
 impl<'a, L: Language, N: Analysis<L>> Debug for Dot<'a, L, N> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "Dot({:?})", self.egraph)
+        f.debug_tuple("Dot").field(self.egraph).finish()
     }
 }
 
 impl<'a, L, N> Display for Dot<'a, L, N>
 where
-    L: OpStr,
+    L: Language + Display,
     N: Analysis<L>,
 {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
@@ -198,7 +197,7 @@ where
             writeln!(f, "  subgraph cluster_{} {{", class.id)?;
             writeln!(f, "    style=dotted")?;
             for (i, node) in class.iter().enumerate() {
-                writeln!(f, "    {}.{}[label = \"{}\"]", class.id, i, DisplayOp(node))?;
+                writeln!(f, "    {}.{}[label = \"{}\"]", class.id, i, node)?;
             }
             writeln!(f, "  }}")?;
         }
