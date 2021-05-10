@@ -37,7 +37,7 @@ where
     if eclass.nodes.len() < 50 {
         eclass.nodes.iter().filter(|n| node.matches(n)).for_each(f)
     } else {
-        debug_assert!(node.all(|id| id == Id::from(0)));
+        debug_assert!(node.children().all(|id| id == Id::from(0)));
         debug_assert!(eclass.nodes.windows(2).all(|w| w[0] < w[1]));
         let mut start = eclass.nodes.binary_search(node).unwrap_or_else(|i| i);
         let discrim = std::mem::discriminant(node);
@@ -93,7 +93,7 @@ impl Machine {
                     let remaining_instructions = instructions.as_slice();
                     return for_each_matching_node(&egraph[self.reg(*i)], node, |matched| {
                         self.reg.truncate(out.0 as usize);
-                        matched.for_each(|id| self.reg.push(id));
+                        matched.children().for_each(|id| self.reg.push(id));
                         self.run(egraph, remaining_instructions, subst, yield_fn)
                     });
                 }
@@ -169,7 +169,7 @@ impl<'a, L: Language> Compiler<'a, L> {
         for i in 0..self.pattern.len() {
             if let ENodeOrVar::ENode(node) = &self.pattern[i] {
                 if !is_ground[i] {
-                    node.for_each(|c| {
+                    node.children().for_each(|c| {
                         let c = usize::from(c);
                         // If a ground pattern is a child of a non-ground pattern,
                         // we load the ground pattern
@@ -198,9 +198,9 @@ impl<'a, L: Language> Compiler<'a, L> {
 
     fn build_ground_terms(&self, loc: usize, expr: &mut RecExpr<L>) {
         if let ENodeOrVar::ENode(mut node) = self.pattern[loc].clone() {
-            node.update_children(|c| {
-                self.build_ground_terms(usize::from(c), expr);
-                (expr.as_ref().len() - 1).into()
+            node.children_mut().for_each(|c| {
+                self.build_ground_terms(usize::from(*c), expr);
+                *c = (expr.as_ref().len() - 1).into()
             });
             expr.add(node);
         } else {
@@ -212,7 +212,7 @@ impl<'a, L: Language> Compiler<'a, L> {
         let mut is_ground: Vec<bool> = vec![false; self.pattern.len()];
         for i in 0..self.pattern.len() {
             if let ENodeOrVar::ENode(node) = &self.pattern[i] {
-                is_ground[i] = node.all(|c| is_ground[usize::from(c)]);
+                is_ground[i] = node.children().all(|c| is_ground[usize::from(c)]);
             }
         }
 
@@ -259,7 +259,7 @@ impl<'a, L: Language> Compiler<'a, L> {
                     self.out.0 += node.len() as u32;
 
                     let mut id = 0;
-                    node.for_each(|child| {
+                    node.children().for_each(|child| {
                         let r = Reg(out.0 + id as u32);
                         self.todo.push(Todo {
                             reg: r,
@@ -271,7 +271,8 @@ impl<'a, L: Language> Compiler<'a, L> {
                     });
 
                     // zero out the children so Bind can use it to sort
-                    let node = node.map_children(|_| Id::from(0));
+                    let mut node = node;
+                    node.children_mut().for_each(|child| *child = Id::from(0));
                     instructions.push(Instruction::Bind { i, node, out })
                 }
             }

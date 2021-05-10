@@ -1,5 +1,4 @@
-use core::slice;
-use std::{iter::Copied, ops::{Index, IndexMut}};
+use std::slice;
 use std::{cmp::Ordering, convert::TryFrom};
 use std::{
     convert::Infallible,
@@ -7,6 +6,10 @@ use std::{
     fmt::{self, Debug, Display},
 };
 use std::{hash::Hash, str::FromStr};
+use std::{
+    iter::Copied,
+    ops::{Index, IndexMut},
+};
 
 use crate::*;
 
@@ -14,11 +17,26 @@ use fmt::Formatter;
 use symbolic_expressions::{Sexp, SexpError};
 use thiserror::Error;
 
+/// A trait for things with children, represented as `Id`s.
+///
+/// Due to limitations in rust's type system, this is parameterized over a
+/// specific lifetime. To use this trait as a bound, you need to use
+/// [Higher-Rank Trait Bounds]. What this means in practice is that you should
+/// write `for<'a> HasChildren<'a>` wherever you would normally write
+/// `HasChildren`. See [`Language`] for an example of this.
+///
+/// [Higher-Rank Trait Bounds]: https://doc.rust-lang.org/nomicon/hrtb.html
 pub trait HasChildren<'a> {
+    /// The type of an iterator over the child `Id`s.
     type IterChildren: Iterator<Item = Id>;
+
+    /// The type of an iterator over mutable references to the child `Id`s.
     type IterChildrenMut: Iterator<Item = &'a mut Id>;
 
+    /// Get an iterator over the child `Id`s.
     fn children(&'a self) -> Self::IterChildren;
+
+    /// Get an iterator over mutable references to the child `Id`s.
     fn children_mut(&'a mut self) -> Self::IterChildrenMut;
 }
 
@@ -43,67 +61,17 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash + for<'a> HasChildren<'a> {
     /// This should only consider the operator, not the children `Id`s.
     fn matches(&self, other: &Self) -> bool;
 
-    /// Runs a given function on each child `Id`.
-    fn for_each<F: FnMut(Id)>(&self, f: F);
-
-    /// Runs a given function on each child `Id`, allowing mutation of that `Id`.
-    fn for_each_mut<F: FnMut(&mut Id)>(&mut self, f: F);
-
-    /// Runs a falliable function on each child, stopping if the function returns
-    /// an error.
-    fn try_for_each<E, F>(&self, mut f: F) -> Result<(), E>
-    where
-        F: FnMut(Id) -> Result<(), E>,
-        E: Clone,
-    {
-        self.fold(Ok(()), |res, id| res.and_then(|_| f(id)))
-    }
-
     /// Returns the number of the children this enode has.
     ///
     /// The default implementation uses `fold` to accumulate the number of
     /// children.
     fn len(&self) -> usize {
-        self.fold(0, |len, _| len + 1)
+        self.children().count()
     }
 
     /// Returns true if this enode has no children.
     fn is_leaf(&self) -> bool {
-        self.all(|_| false)
-    }
-
-    /// Runs a given function to replace the children.
-    fn update_children<F: FnMut(Id) -> Id>(&mut self, mut f: F) {
-        self.for_each_mut(|id| *id = f(*id))
-    }
-
-    /// Creates a new enode with children determined by the given function.
-    fn map_children<F: FnMut(Id) -> Id>(mut self, f: F) -> Self {
-        self.update_children(f);
-        self
-    }
-
-    /// Folds over the children, given an initial accumulator.
-    fn fold<F, T>(&self, init: T, mut f: F) -> T
-    where
-        F: FnMut(T, Id) -> T,
-        T: Clone,
-    {
-        let mut acc = init;
-        self.for_each(|id| acc = f(acc.clone(), id));
-        acc
-    }
-
-    /// Returns true if the predicate is true on all children.
-    /// Does not short circuit.
-    fn all<F: FnMut(Id) -> bool>(&self, mut f: F) -> bool {
-        self.fold(true, |acc, id| acc && f(id))
-    }
-
-    /// Returns true if the predicate is true on any children.
-    /// Does not short circuit.
-    fn any<F: FnMut(Id) -> bool>(&self, mut f: F) -> bool {
-        self.fold(false, |acc, id| acc || f(id))
+        self.children().all(|_| false)
     }
 
     /// Make a `RecExpr` converting this enodes children to `RecExpr`s
@@ -124,18 +92,18 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash + for<'a> HasChildren<'a> {
         F: FnMut(Id) -> &'a [Self],
     {
         fn build<L: Language>(to: &mut RecExpr<L>, from: &[L]) -> Id {
-            let last = from.last().unwrap().clone();
-            let new_node = last.map_children(|id| {
-                let i = usize::from(id) + 1;
-                build(to, &from[0..i])
+            let mut new_node = from.last().unwrap().clone();
+            new_node.children_mut().for_each(|child| {
+                let i = usize::from(*child) + 1;
+                *child = build(to, &from[0..i])
             });
             to.add(new_node)
         }
 
         let mut expr = RecExpr::default();
-        let node = self
-            .clone()
-            .map_children(|id| build(&mut expr, child_recexpr(id)));
+        let mut node = self.clone();
+        node.children_mut()
+            .for_each(|child| *child = build(&mut expr, child_recexpr(*child)));
         expr.add(node);
         expr
     }
@@ -153,10 +121,8 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash + for<'a> HasChildren<'a> {
 /// # use std::fmt::Display;
 /// fn from_op_display_compatible<T: FromOp + Display>(node: T) {
 ///     let op = node.to_string();
-///     let mut children = Vec::new();
-///     node.for_each(|id| children.push(id));
+///     let children: Vec<_> = node.children().collect();
 ///     let parsed = T::from_op(&op, children).unwrap();
-///
 ///     assert_eq!(node, parsed);
 /// }
 /// ```
@@ -334,7 +300,7 @@ impl<L: Language> RecExpr<L> {
     /// The enode's children `Id`s must refer to elements already in this list.
     pub fn add(&mut self, node: L) -> Id {
         debug_assert!(
-            node.all(|id| usize::from(id) < self.nodes.len()),
+            node.children().all(|id| usize::from(id) < self.nodes.len()),
             "node {:?} has children not in this expr: {:?}",
             node,
             self
@@ -376,7 +342,8 @@ impl<L: Language + Display> RecExpr<L> {
             op
         } else {
             let mut vec = vec![op];
-            node.for_each(|id| vec.push(self.to_sexp(id.into())));
+            node.children()
+                .for_each(|id| vec.push(self.to_sexp(id.into())));
             Sexp::List(vec)
         }
     }
@@ -680,14 +647,6 @@ impl<'a> HasChildren<'a> for SymbolLang {
 impl Language for SymbolLang {
     fn matches(&self, other: &Self) -> bool {
         self.op == other.op && self.len() == other.len()
-    }
-
-    fn for_each<F: FnMut(Id)>(&self, f: F) {
-        self.children().for_each(f)
-    }
-
-    fn for_each_mut<F: FnMut(&mut Id)>(&mut self, f: F) {
-        self.children_mut().for_each(f)
     }
 }
 

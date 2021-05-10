@@ -57,7 +57,7 @@ the operator:
 struct SillyCostFn;
 impl CostFunction<SymbolLang> for SillyCostFn {
     type Cost = f64;
-    fn cost<C>(&mut self, enode: &SymbolLang, mut costs: C) -> Self::Cost
+    fn cost<C>(&mut self, enode: &SymbolLang, costs: C) -> Self::Cost
     where
         C: FnMut(Id) -> Self::Cost
     {
@@ -66,7 +66,7 @@ impl CostFunction<SymbolLang> for SillyCostFn {
             "bar" => 0.7,
             _ => 1.0
         };
-        enode.fold(op_cost, |sum, id| sum + costs(id))
+        op_cost + enode.children().map(costs).sum::<f64>()
     }
 }
 
@@ -120,11 +120,11 @@ assert_eq!(AstSize.cost_rec(&e), 4);
 pub struct AstSize;
 impl<L: Language> CostFunction<L> for AstSize {
     type Cost = usize;
-    fn cost<C>(&mut self, enode: &L, mut costs: C) -> Self::Cost
+    fn cost<C>(&mut self, enode: &L, costs: C) -> Self::Cost
     where
         C: FnMut(Id) -> Self::Cost,
     {
-        enode.fold(1, |sum, id| sum + costs(id))
+        1 + enode.children().map(costs).sum::<usize>()
     }
 }
 
@@ -140,11 +140,11 @@ assert_eq!(AstDepth.cost_rec(&e), 2);
 pub struct AstDepth;
 impl<L: Language> CostFunction<L> for AstDepth {
     type Cost = usize;
-    fn cost<C>(&mut self, enode: &L, mut costs: C) -> Self::Cost
+    fn cost<C>(&mut self, enode: &L, costs: C) -> Self::Cost
     where
         C: FnMut(Id) -> Self::Cost,
     {
-        1 + enode.fold(0, |max, id| max.max(costs(id)))
+        1 + enode.children().map(costs).max().unwrap_or(0)
     }
 }
 
@@ -228,8 +228,9 @@ where
         match added_memo.get(&id) {
             Some(id_expr) => (*id_expr, best_cost),
             None => {
-                let node = best_node
-                    .map_children(|child| self.find_best_rec(ids, expr, child, added_memo).0);
+                let mut node = best_node;
+                node.children_mut()
+                    .for_each(|child| *child = self.find_best_rec(ids, expr, *child, added_memo).0);
                 let id_expr = expr.add(node);
                 if id_expr == Id::from(expr.as_ref().len() - 1) {
                     ids.push(id);
@@ -243,7 +244,7 @@ where
     fn node_total_cost(&mut self, node: &L) -> Option<CF::Cost> {
         let eg = &self.egraph;
         let has_cost = |id| self.costs.contains_key(&eg.find(id));
-        if node.all(has_cost) {
+        if node.children().all(has_cost) {
             let costs = &self.costs;
             let cost_f = |id| costs[&eg.find(id)].0.clone();
             Some(self.cost_function.cost(&node, cost_f))

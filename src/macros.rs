@@ -97,17 +97,7 @@ macro_rules! __define_language {
                 ::std::mem::discriminant(self) == ::std::mem::discriminant(other) &&
                 match (self, other) { $($matches)* _ => false }
             }
-
-            #[inline]
-            fn for_each<F: FnMut(Id)>(&self, f: F) {
-                (match self $for_each).iter().copied().for_each(f)
-            }
-
-            #[inline]
-            fn for_each_mut<F: FnMut(&mut Id)>(&mut self, f: F) {
-                (match self $for_each_mut).iter_mut().for_each(f)
-            }
-        }
+       }
 
         impl ::std::fmt::Display for $name {
             fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
@@ -359,7 +349,7 @@ mod tests {
     #[test]
     fn modify_children() {
         let mut add = Simple::Add([0.into(), 0.into()]);
-        add.for_each_mut(|id| *id = 1.into());
+        add.children_mut().for_each(|id| *id = 1.into());
         assert_eq!(add, Simple::Add([1.into(), 1.into()]));
     }
 

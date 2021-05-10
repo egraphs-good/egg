@@ -1,7 +1,11 @@
 use fmt::Formatter;
 use log::*;
-use std::{convert::identity, fmt::{self, Display}, iter::Flatten, option};
 use std::{convert::TryFrom, error::Error, str::FromStr};
+use std::{
+    fmt::{self, Display},
+    iter::Flatten,
+    option,
+};
 
 use thiserror::Error;
 
@@ -127,20 +131,6 @@ impl<'a, L: Language> HasChildren<'a> for ENodeOrVar<L> {
 impl<L: Language> Language for ENodeOrVar<L> {
     fn matches(&self, _other: &Self) -> bool {
         panic!("Should never call this")
-    }
-
-    fn for_each<F: FnMut(Id)>(&self, f: F) {
-        match self {
-            ENodeOrVar::ENode(n) => n.for_each(f),
-            ENodeOrVar::Var(_) => (),
-        }
-    }
-
-    fn for_each_mut<F: FnMut(&mut Id)>(&mut self, f: F) {
-        match self {
-            ENodeOrVar::ENode(n) => n.for_each_mut(f),
-            ENodeOrVar::Var(_) => (),
-        }
     }
 }
 
@@ -322,7 +312,9 @@ fn apply_pat<L: Language, A: Analysis<L>>(
         let id = match pat_node {
             ENodeOrVar::Var(w) => subst[*w],
             ENodeOrVar::ENode(e) => {
-                let n = e.clone().map_children(|child| ids[usize::from(child)]);
+                let mut n = e.clone();
+                n.children_mut()
+                    .for_each(|child| *child = ids[usize::from(*child)]);
                 trace!("adding: {:?}", n);
                 egraph.add(n)
             }

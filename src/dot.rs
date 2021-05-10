@@ -205,7 +205,7 @@ where
         for class in self.egraph.classes() {
             for (i_in_class, node) in class.iter().enumerate() {
                 let mut arg_i = 0;
-                node.try_for_each(|child| {
+                node.children().try_for_each(|child| {
                     // write the edge to the child, but clip it to the eclass with lhead
                     let (anchor, label) = self.edge(arg_i, node.len());
                     let child_leader = self.egraph.find(child);

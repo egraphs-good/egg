@@ -86,7 +86,9 @@ impl Analysis<Lambda> for LambdaAnalysis {
                 free.extend(f(a));
                 free.remove(v);
             }
-            _ => enode.for_each(|c| free.extend(&egraph[c].data.free)),
+            _ => enode
+                .children()
+                .for_each(|c| free.extend(&egraph[c].data.free)),
         }
         let constant = eval(egraph, enode);
         Data { constant, free }

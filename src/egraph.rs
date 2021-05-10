@@ -216,7 +216,9 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         let nodes = expr.as_ref();
         let mut new_ids = Vec::with_capacity(nodes.len());
         for node in nodes {
-            let node = node.clone().map_children(|i| new_ids[usize::from(i)]);
+            let mut node = node.clone();
+            node.children_mut()
+                .for_each(|child| *child = new_ids[usize::from(*child)]);
             new_ids.push(self.add(node))
         }
         *new_ids.last().unwrap()
@@ -252,7 +254,9 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         B: BorrowMut<L>,
     {
         let enode = enode.borrow_mut();
-        enode.update_children(|id| self.find(id));
+        enode
+            .children_mut()
+            .for_each(|child| *child = self.find(*child));
         let id = self.memo.get(enode);
         id.map(|&id| self.find(id))
     }
@@ -262,7 +266,9 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         let nodes = expr.as_ref();
         let mut new_ids = Vec::with_capacity(nodes.len());
         for node in nodes {
-            let node = node.clone().map_children(|i| new_ids[usize::from(i)]);
+            let mut node = node.clone();
+            node.children_mut()
+                .for_each(|child| *child = new_ids[usize::from(*child)]);
             let id = self.lookup(node)?;
             new_ids.push(id)
         }
@@ -294,7 +300,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             };
 
             // add this enode to the parent lists of its children
-            enode.for_each(|child| {
+            enode.children().for_each(|child| {
                 let tup = (enode.clone(), id);
                 self[child].parents.push(tup);
             });
@@ -442,10 +448,10 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         let uf = &mut self.unionfind;
         for class in self.classes.values_mut() {
             let old_len = class.len();
-            class
-                .nodes
-                .iter_mut()
-                .for_each(|n| n.update_children(|id| uf.find_mut(id)));
+            class.nodes.iter_mut().for_each(|n| {
+                n.children_mut()
+                    .for_each(|child| *child = uf.find_mut(*child))
+            });
             class.nodes.sort_unstable();
             class.nodes.dedup();
 
@@ -523,7 +529,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
         while !self.pending.is_empty() {
             while let Some((mut node, class)) = self.pending.pop() {
-                node.update_children(|id| self.find_mut(id));
+                node.children_mut()
+                    .for_each(|child| *child = self.find_mut(*child));
                 if let Some(memo_class) = self.memo.insert(node, class) {
                     let (_, did_something) = self.union(memo_class, class);
                     n_unions += did_something as usize;

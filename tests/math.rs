@@ -34,7 +34,7 @@ define_language! {
 pub struct MathCostFn;
 impl egg::CostFunction<Math> for MathCostFn {
     type Cost = usize;
-    fn cost<C>(&mut self, enode: &Math, mut costs: C) -> Self::Cost
+    fn cost<C>(&mut self, enode: &Math, costs: C) -> Self::Cost
     where
         C: FnMut(Id) -> Self::Cost,
     {
@@ -43,7 +43,7 @@ impl egg::CostFunction<Math> for MathCostFn {
             Math::Integral(..) => 100,
             _ => 1,
         };
-        enode.fold(op_cost, |sum, i| sum + costs(i))
+        op_cost + enode.children().map(costs).sum::<usize>()
     }
 }
 
