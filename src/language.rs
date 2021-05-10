@@ -34,11 +34,21 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
     /// This should only consider the operator, not the children `Id`s.
     fn matches(&self, other: &Self) -> bool;
 
+    /// Returns the children of this e-node.
+    fn children(&self) -> &[Id];
+
+    /// Returns a mutable slice of the children of this e-node.
+    fn children_mut(&mut self) -> &mut [Id];
+
     /// Runs a given function on each child `Id`.
-    fn for_each<F: FnMut(Id)>(&self, f: F);
+    fn for_each<F: FnMut(Id)>(&self, f: F) {
+        self.children().iter().copied().for_each(f)
+    }
 
     /// Runs a given function on each child `Id`, allowing mutation of that `Id`.
-    fn for_each_mut<F: FnMut(&mut Id)>(&mut self, f: F);
+    fn for_each_mut<F: FnMut(&mut Id)>(&mut self, f: F) {
+        self.children_mut().iter_mut().for_each(f)
+    }
 
     /// Runs a falliable function on each child, stopping if the function returns
     /// an error.
@@ -664,12 +674,12 @@ impl Language for SymbolLang {
         self.op == other.op && self.len() == other.len()
     }
 
-    fn for_each<F: FnMut(Id)>(&self, f: F) {
-        self.children.iter().copied().for_each(f)
+    fn children(&self) -> &[Id] {
+        &self.children
     }
 
-    fn for_each_mut<F: FnMut(&mut Id)>(&mut self, f: F) {
-        self.children.iter_mut().for_each(f)
+    fn children_mut(&mut self) -> &mut [Id] {
+        &mut self.children
     }
 }
 

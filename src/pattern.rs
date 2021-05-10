@@ -108,17 +108,17 @@ impl<L: Language> Language for ENodeOrVar<L> {
         panic!("Should never call this")
     }
 
-    fn for_each<F: FnMut(Id)>(&self, f: F) {
+    fn children(&self) -> &[Id] {
         match self {
-            ENodeOrVar::ENode(n) => n.for_each(f),
-            ENodeOrVar::Var(_) => (),
+            ENodeOrVar::ENode(n) => n.children(),
+            ENodeOrVar::Var(_) => &[],
         }
     }
 
-    fn for_each_mut<F: FnMut(&mut Id)>(&mut self, f: F) {
+    fn children_mut(&mut self) -> &mut [Id] {
         match self {
-            ENodeOrVar::ENode(n) => n.for_each_mut(f),
-            ENodeOrVar::Var(_) => (),
+            ENodeOrVar::ENode(n) => n.children_mut(),
+            ENodeOrVar::Var(_) => &mut [],
         }
     }
 }
