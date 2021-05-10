@@ -78,6 +78,19 @@ macro_rules! __define_language {
         #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
         $vis enum $name $decl
 
+        impl<'a> $crate::HasChildren<'a> for $name {
+            type IterChildren = ::std::iter::Copied<::std::slice::Iter<'a, Id>>;
+            type IterChildrenMut = ::std::slice::IterMut<'a, Id>;
+
+            fn children(&'a self) -> Self::IterChildren {
+                (match self $for_each).iter().copied()
+            }
+
+            fn children_mut(&'a mut self) -> Self::IterChildrenMut {
+                (match self $for_each_mut).iter_mut()
+            }
+        }
+
         impl $crate::Language for $name {
             #[inline(always)]
             fn matches(&self, other: &Self) -> bool {

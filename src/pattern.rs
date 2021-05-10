@@ -1,6 +1,6 @@
 use fmt::Formatter;
 use log::*;
-use std::fmt::{self, Display};
+use std::{convert::identity, fmt::{self, Display}, iter::Flatten, option};
 use std::{convert::TryFrom, error::Error, str::FromStr};
 
 use thiserror::Error;
@@ -101,6 +101,27 @@ pub enum ENodeOrVar<L> {
     ENode(L),
     /// A pattern variable
     Var(Var),
+}
+
+impl<'a, L: Language> HasChildren<'a> for ENodeOrVar<L> {
+    type IterChildren = Flatten<option::IntoIter<<L as HasChildren<'a>>::IterChildren>>;
+    type IterChildrenMut = Flatten<option::IntoIter<<L as HasChildren<'a>>::IterChildrenMut>>;
+
+    fn children(&'a self) -> Self::IterChildren {
+        let children = match self {
+            ENodeOrVar::ENode(node) => Some(node.children()),
+            ENodeOrVar::Var(_) => None,
+        };
+        children.into_iter().flatten()
+    }
+
+    fn children_mut(&'a mut self) -> Self::IterChildrenMut {
+        let children_mut = match self {
+            ENodeOrVar::ENode(node) => Some(node.children_mut()),
+            ENodeOrVar::Var(_) => None,
+        };
+        children_mut.into_iter().flatten()
+    }
 }
 
 impl<L: Language> Language for ENodeOrVar<L> {

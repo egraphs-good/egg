@@ -1,4 +1,5 @@
-use std::ops::{Index, IndexMut};
+use core::slice;
+use std::{iter::Copied, ops::{Index, IndexMut}};
 use std::{cmp::Ordering, convert::TryFrom};
 use std::{
     convert::Infallible,
@@ -12,6 +13,14 @@ use crate::*;
 use fmt::Formatter;
 use symbolic_expressions::{Sexp, SexpError};
 use thiserror::Error;
+
+pub trait HasChildren<'a> {
+    type IterChildren: Iterator<Item = Id>;
+    type IterChildrenMut: Iterator<Item = &'a mut Id>;
+
+    fn children(&'a self) -> Self::IterChildren;
+    fn children_mut(&'a mut self) -> Self::IterChildrenMut;
+}
 
 /// Trait that defines a Language whose terms will be in the [`EGraph`].
 ///
@@ -29,7 +38,7 @@ use thiserror::Error;
 ///
 /// See [`SymbolLang`] for quick-and-dirty use cases.
 #[allow(clippy::len_without_is_empty)]
-pub trait Language: Debug + Clone + Eq + Ord + Hash {
+pub trait Language: Debug + Clone + Eq + Ord + Hash + for<'a> HasChildren<'a> {
     /// Returns true if this enode matches another enode.
     /// This should only consider the operator, not the children `Id`s.
     fn matches(&self, other: &Self) -> bool;
@@ -655,17 +664,30 @@ impl SymbolLang {
     }
 }
 
+impl<'a> HasChildren<'a> for SymbolLang {
+    type IterChildren = Copied<slice::Iter<'a, Id>>;
+    type IterChildrenMut = slice::IterMut<'a, Id>;
+
+    fn children(&'a self) -> Self::IterChildren {
+        self.children.iter().copied()
+    }
+
+    fn children_mut(&'a mut self) -> Self::IterChildrenMut {
+        self.children.iter_mut()
+    }
+}
+
 impl Language for SymbolLang {
     fn matches(&self, other: &Self) -> bool {
         self.op == other.op && self.len() == other.len()
     }
 
     fn for_each<F: FnMut(Id)>(&self, f: F) {
-        self.children.iter().copied().for_each(f)
+        self.children().for_each(f)
     }
 
     fn for_each_mut<F: FnMut(&mut Id)>(&mut self, f: F) {
-        self.children.iter_mut().for_each(f)
+        self.children_mut().for_each(f)
     }
 }
 
