@@ -688,6 +688,21 @@
 <span id="685">685</span>
 <span id="686">686</span>
 <span id="687">687</span>
+<span id="688">688</span>
+<span id="689">689</span>
+<span id="690">690</span>
+<span id="691">691</span>
+<span id="692">692</span>
+<span id="693">693</span>
+<span id="694">694</span>
+<span id="695">695</span>
+<span id="696">696</span>
+<span id="697">697</span>
+<span id="698">698</span>
+<span id="699">699</span>
+<span id="700">700</span>
+<span id="701">701</span>
+<span id="702">702</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">ops</span>::{<span class="ident">Index</span>, <span class="ident">IndexMut</span>};
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">cmp</span>::<span class="ident">Ordering</span>, <span class="ident">convert</span>::<span class="ident">TryFrom</span>};
@@ -725,11 +740,22 @@
     <span class="doccomment">/// This should only consider the operator, not the children `Id`s.</span>
     <span class="kw">fn</span> <span class="ident">matches</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span>;
 
+    <span class="doccomment">/// Returns the children of this e-node.</span>
+    <span class="kw">fn</span> <span class="ident">children</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span>[<span class="ident">Id</span>];
+
+    <span class="doccomment">/// Returns a mutable slice of the children of this e-node.</span>
+    <span class="kw">fn</span> <span class="ident">children_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">Id</span>];
+
     <span class="doccomment">/// Runs a given function on each child `Id`.</span>
-    <span class="kw">fn</span> <span class="ident">for_each</span><span class="op">&lt;</span><span class="ident">F</span>: <span class="ident">FnMut</span>(<span class="ident">Id</span>)<span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="ident">F</span>);
+    <span class="kw">fn</span> <span class="ident">for_each</span><span class="op">&lt;</span><span class="ident">F</span>: <span class="ident">FnMut</span>(<span class="ident">Id</span>)<span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="ident">F</span>) {
+        <span class="self">self</span>.<span class="ident">children</span>().<span class="ident">iter</span>().<span class="ident">copied</span>().<span class="ident">for_each</span>(<span class="ident">f</span>)
+    }
 
     <span class="doccomment">/// Runs a given function on each child `Id`, allowing mutation of that `Id`.</span>
-    <span class="kw">fn</span> <span class="ident">for_each_mut</span><span class="op">&lt;</span><span class="ident">F</span>: <span class="ident">FnMut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Id</span>)<span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">f</span>: <span class="ident">F</span>);
+    <span class="kw">fn</span> <span class="ident">for_each_mut</span><span class="op">&lt;</span><span class="ident">F</span>: <span class="ident">FnMut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Id</span>)<span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">f</span>: <span class="ident">F</span>) {
+        <span class="self">self</span>.<span class="ident">children_mut</span>().<span class="ident">iter_mut</span>().<span class="ident">for_each</span>(<span class="ident">f</span>)
+    }
+
 
     <span class="doccomment">/// Runs a falliable function on each child, stopping if the function returns</span>
     <span class="doccomment">/// an error.</span>
@@ -1277,13 +1303,17 @@ assert_eq!(runner.egraph.find(runner.roots[0]), runner.egraph.find(just_foo));
     <span class="doccomment">/// Defines how to merge two `Data`s when their containing</span>
     <span class="doccomment">/// [`EClass`]es merge.</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// Only called when the two datas are unordered in the lattice.</span>
+    <span class="doccomment">/// Since `merge` can modify `a`, let `a0`/`a1` be the value of</span>
+    <span class="doccomment">/// `a` before/after the call to `merge`, respectively.</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// This must respect the partial ordering of `a` with respect to `b`:</span>
-    <span class="doccomment">/// - if `a &lt; b`, then `a` should be assigned to `b`.</span>
-    <span class="doccomment">/// - if `a &gt; b`, then `a` should be unmodified.</span>
-    <span class="doccomment">/// - if `a == b`, then `a` should be unmodified.</span>
-    <span class="doccomment">/// - if they cannot be compared, then `a` should be modifed.</span>
+    <span class="doccomment">/// The return value of `merge` should be the partial ordering of `a0` and `b`.</span>
+    <span class="doccomment">/// After `merge` returns, `a1` must be the least upper bound of `a0` and `b`.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// In other words, `merge` must respect the following:</span>
+    <span class="doccomment">/// - if `a0 &lt; b`, then `a1 = b`,</span>
+    <span class="doccomment">/// - if `a0 &gt; b`, then `a0 = a1`,</span>
+    <span class="doccomment">/// - if `a0 == b`, then `a0 = a1`,</span>
+    <span class="doccomment">/// - if they cannot be compared, then `a1 &gt; b` and `a1 &gt; b`.</span>
     <span class="kw">fn</span> <span class="ident">merge</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">a</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span>::<span class="ident">Data</span>, <span class="ident">b</span>: <span class="self">Self</span>::<span class="ident">Data</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Ordering</span><span class="op">&gt;</span>;
 
     <span class="doccomment">/// A hook that allows the modification of the</span>
@@ -1351,12 +1381,12 @@ assert_eq!(runner.egraph.find(runner.roots[0]), runner.egraph.find(just_foo));
         <span class="self">self</span>.<span class="ident">op</span> <span class="op">=</span><span class="op">=</span> <span class="ident">other</span>.<span class="ident">op</span> <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">len</span>() <span class="op">=</span><span class="op">=</span> <span class="ident">other</span>.<span class="ident">len</span>()
     }
 
-    <span class="kw">fn</span> <span class="ident">for_each</span><span class="op">&lt;</span><span class="ident">F</span>: <span class="ident">FnMut</span>(<span class="ident">Id</span>)<span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="ident">F</span>) {
-        <span class="self">self</span>.<span class="ident">children</span>.<span class="ident">iter</span>().<span class="ident">copied</span>().<span class="ident">for_each</span>(<span class="ident">f</span>)
+    <span class="kw">fn</span> <span class="ident">children</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span>[<span class="ident">Id</span>] {
+       <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">children</span>
     }
 
-    <span class="kw">fn</span> <span class="ident">for_each_mut</span><span class="op">&lt;</span><span class="ident">F</span>: <span class="ident">FnMut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Id</span>)<span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">f</span>: <span class="ident">F</span>) {
-        <span class="self">self</span>.<span class="ident">children</span>.<span class="ident">iter_mut</span>().<span class="ident">for_each</span>(<span class="ident">f</span>)
+    <span class="kw">fn</span> <span class="ident">children_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">Id</span>] {
+       <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">children</span>
     }
 }
 
