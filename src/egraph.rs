@@ -257,18 +257,6 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         id.map(|&id| self.find(id))
     }
 
-    /// Lookup the eclass of the given [`RecExpr`].
-    pub fn lookup_expr(&self, expr: &RecExpr<L>) -> Option<Id> {
-        let nodes = expr.as_ref();
-        let mut new_ids = Vec::with_capacity(nodes.len());
-        for node in nodes {
-            let node = node.clone().map_children(|i| new_ids[usize::from(i)]);
-            let id = self.lookup(node)?;
-            new_ids.push(id)
-        }
-        Some(*new_ids.last().unwrap())
-    }
-
     /// Adds an enode to the [`EGraph`].
     ///
     /// When adding an enode, to the egraph, [`add`] it performs
