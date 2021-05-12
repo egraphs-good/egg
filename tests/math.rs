@@ -104,21 +104,17 @@ fn is_const_or_distinct_var(v: &str, w: &str) -> impl Fn(&mut EGraph, Id, &Subst
     let w = w.parse().unwrap();
     move |egraph, _, subst| {
         egraph.find(subst[v]) != egraph.find(subst[w])
-            && egraph[subst[v]]
-                .nodes
-                .iter()
-                .any(|n| matches!(n, Math::Constant(..) | Math::Symbol(..)))
+            && (egraph[subst[v]].data.is_some()
+                || egraph[subst[v]]
+                    .nodes
+                    .iter()
+                    .any(|n| matches!(n, Math::Symbol(..))))
     }
 }
 
 fn is_const(var: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let var = var.parse().unwrap();
-    move |egraph, _, subst| {
-        egraph[subst[var]]
-            .nodes
-            .iter()
-            .any(|n| matches!(n, Math::Constant(..)))
-    }
+    move |egraph, _, subst| egraph[subst[var]].data.is_some()
 }
 
 fn is_sym(var: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
@@ -133,8 +129,13 @@ fn is_sym(var: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
 
 fn is_not_zero(var: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let var = var.parse().unwrap();
-    let zero = Math::Constant(0.0.into());
-    move |egraph, _, subst| !egraph[subst[var]].nodes.contains(&zero)
+    move |egraph, _, subst| {
+        if let Some(n) = egraph[subst[var]].data {
+            *n != 0.0
+        } else {
+            true
+        }
+    }
 }
 
 #[rustfmt::skip]
@@ -299,4 +300,16 @@ egg::test_fn! {
 
 egg::test_fn! {
     integ_part3, rules(), "(i (ln x) x)" => "(- (* x (ln x)) x)"
+}
+
+#[test]
+fn assoc_mul_saturates() {
+    let expr: RecExpr<Math> = "(* x 1)".parse().unwrap();
+
+    let runner: Runner<Math, ConstantFold> = Runner::default()
+        .with_iter_limit(3)
+        .with_expr(&expr)
+        .run(&rules());
+
+    assert!(matches!(runner.stop_reason, Some(StopReason::Saturated)));
 }

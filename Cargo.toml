@@ -23,6 +23,7 @@ serde = { version = "1", features = ["derive"], optional = true }
 serde_json = { version = "1", optional = true }
 fxhash = "0.2"
 hashbrown = { version = "0.11", default-features = false, features = ["inline-more"] }
+thiserror = "1"
 
 [[bench]]
 name = "bench_tests"

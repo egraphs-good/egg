@@ -1,4 +1,4 @@
-use std::fmt;
+use std::fmt::{self, Debug, Display};
 use std::{any::Any, sync::Arc};
 
 use crate::*;
@@ -18,14 +18,14 @@ pub struct Rewrite<L, N> {
     /// The name of the rewrite.
     pub name: String,
     /// The searcher (left-hand side) of the rewrite.
-    pub searcher: Arc<dyn Searcher<L, N>>,
+    pub searcher: Arc<dyn Searcher<L, N> + Sync + Send>,
     /// The applier (right-hand side) of the rewrite.
-    pub applier: Arc<dyn Applier<L, N>>,
+    pub applier: Arc<dyn Applier<L, N> + Sync + Send>,
 }
 
-impl<L, N> fmt::Debug for Rewrite<L, N>
+impl<L, N> Debug for Rewrite<L, N>
 where
-    L: Language + 'static,
+    L: Language + Display + 'static,
     N: 'static,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -61,8 +61,8 @@ impl<L: Language, N: Analysis<L>> Rewrite<L, N> {
     ///
     pub fn new(
         name: impl Into<String>,
-        searcher: impl Searcher<L, N> + 'static,
-        applier: impl Applier<L, N> + 'static,
+        searcher: impl Searcher<L, N> + Send + Sync + 'static,
+        applier: impl Applier<L, N> + Send + Sync + 'static,
     ) -> Result<Self, String> {
         let name = name.into();
         let searcher = Arc::new(searcher);
@@ -406,7 +406,7 @@ where
 ///
 pub struct ConditionEqual<A1, A2>(pub A1, pub A2);
 
-impl<L: Language> ConditionEqual<Pattern<L>, Pattern<L>> {
+impl<L: FromOp> ConditionEqual<Pattern<L>, Pattern<L>> {
     /// Create a ConditionEqual by parsing two pattern strings.
     ///
     /// This panics if the parsing fails.

@@ -5,9 +5,7 @@ use crate::*;
 
 `define_language` derives `Debug`, `PartialEq`, `Eq`, `PartialOrd`, `Ord`,
 `Hash`, and `Clone` on the given `enum` so it can implement [`Language`].
-The macro also implements
-[`Language::from_op_str`](Language::from_op_str()) and
-[`Language::display_op`](Language::display_op()) for the `enum`
+The macro also implements [`Display`] and [`FromOp`] for the `enum`
 based on either the data of variants or the provided strings.
 
 The final variant **must have a trailing comma**; this is due to limitations in
@@ -60,7 +58,6 @@ define_language! {
 }
 ```
 
-[`FromStr`]: std::str::FromStr
 [`Display`]: std::fmt::Display
 **/
 #[macro_export]
@@ -74,8 +71,8 @@ macro_rules! define_language {
 #[macro_export]
 macro_rules! __define_language {
     ($(#[$meta:meta])* $vis:vis enum $name:ident {} ->
-     $decl:tt {$($matches:tt)*} $for_each:tt $for_each_mut:tt
-     $display_op:tt {$($from_op_str:tt)*}
+     $decl:tt {$($matches:tt)*} $children:tt $children_mut:tt
+     $display:tt {$($from_op:tt)*}
     ) => {
         $(#[$meta])*
         #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
@@ -88,24 +85,25 @@ macro_rules! __define_language {
                 match (self, other) { $($matches)* _ => false }
             }
 
-            #[inline]
-            fn for_each<F: FnMut(Id)>(&self, f: F) {
-                (match self $for_each).iter().copied().for_each(f)
-            }
+            fn children(&self) -> &[Id] { match self $children }
+            fn children_mut(&mut self) -> &mut [Id] { match self $children_mut }
+        }
 
-            #[inline]
-            fn for_each_mut<F: FnMut(&mut Id)>(&mut self, f: F) {
-                (match self $for_each_mut).iter_mut().for_each(f)
+        impl ::std::fmt::Display for $name {
+            fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+                // We need to pass `f` to the match expression for hygiene
+                // reasons.
+                match (self, f) $display
             }
+        }
 
-            fn display_op(&self) -> &dyn ::std::fmt::Display {
-                match self $display_op
-            }
+        impl $crate::FromOp for $name {
+            type Error = $crate::FromOpError;
 
-            fn from_op_str(op_str: &str, children: Vec<$crate::Id>) -> ::std::result::Result<Self, String> {
-                match (op_str, children) {
-                    $($from_op_str)*
-                    (s, c) => Err(::std::format!("Failed to parse '{}' with children {:?}", s, c)),
+            fn from_op(op: &str, children: ::std::vec::Vec<$crate::Id>) -> ::std::result::Result<Self, Self::Error> {
+                match (op, children) {
+                    $($from_op)*
+                    (op, children) => Err($crate::FromOpError::new(op, children)),
                 }
             }
         }
@@ -116,18 +114,18 @@ macro_rules! __define_language {
          $string:literal = $variant:ident,
          $($variants:tt)*
      } ->
-     { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
-     { $($display_op:tt)* } { $($from_op_str:tt)* }
+     { $($decl:tt)* } { $($matches:tt)* } { $($children:tt)* } { $($children_mut:tt)* }
+     { $($display:tt)* } { $($from_op:tt)* }
     ) => {
         $crate::__define_language!(
             $(#[$meta])* $vis enum $name
             { $($variants)* } ->
             { $($decl)*          $variant, }
             { $($matches)*       ($name::$variant, $name::$variant) => true, }
-            { $($for_each)*      $name::$variant => &[], }
-            { $($for_each_mut)*  $name::$variant => &mut [], }
-            { $($display_op)*    $name::$variant => &$string, }
-            { $($from_op_str)*   ($string, v) if v.is_empty() => Ok($name::$variant), }
+            { $($children)*      $name::$variant => &[], }
+            { $($children_mut)*  $name::$variant => &mut [], }
+            { $($display)*       ($name::$variant, f) => f.write_str($string), }
+            { $($from_op)*       ($string, children) if children.is_empty() => Ok($name::$variant), }
         );
     };
 
@@ -136,21 +134,22 @@ macro_rules! __define_language {
          $string:literal = $variant:ident ($ids:ty),
          $($variants:tt)*
      } ->
-     { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
-     { $($display_op:tt)* } { $($from_op_str:tt)* }
+     { $($decl:tt)* } { $($matches:tt)* } { $($children:tt)* } { $($children_mut:tt)* }
+     { $($display:tt)* } { $($from_op:tt)* }
     ) => {
         $crate::__define_language!(
             $(#[$meta])* $vis enum $name
             { $($variants)* } ->
             { $($decl)*          $variant($ids), }
             { $($matches)*       ($name::$variant(l), $name::$variant(r)) => $crate::LanguageChildren::len(l) == $crate::LanguageChildren::len(r), }
-            { $($for_each)*      $name::$variant(ids) => $crate::LanguageChildren::as_slice(ids), }
-            { $($for_each_mut)*  $name::$variant(ids) => $crate::LanguageChildren::as_mut_slice(ids), }
-            { $($display_op)*    $name::$variant(..) => &$string, }
-            { $($from_op_str)*   (s, v) if s == $string && <$ids as $crate::LanguageChildren>::can_be_length(v.len()) => {
-                let ids = <$ids as $crate::LanguageChildren>::from_vec(v);
-                Ok($name::$variant(ids))
-            }, }
+            { $($children)*      $name::$variant(ids) => $crate::LanguageChildren::as_slice(ids), }
+            { $($children_mut)*  $name::$variant(ids) => $crate::LanguageChildren::as_mut_slice(ids), }
+            { $($display)*       ($name::$variant(..), f) => f.write_str($string), }
+            { $($from_op)*       (op, children) if op == $string && <$ids as $crate::LanguageChildren>::can_be_length(children.len()) => {
+                  let children = <$ids as $crate::LanguageChildren>::from_vec(children);
+                  Ok($name::$variant(children))
+              },
+            }
         );
     };
 
@@ -159,18 +158,18 @@ macro_rules! __define_language {
          $variant:ident ($data:ty),
          $($variants:tt)*
      } ->
-     { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
-     { $($display_op:tt)* } { $($from_op_str:tt)* }
+     { $($decl:tt)* } { $($matches:tt)* } { $($children:tt)* } { $($children_mut:tt)* }
+     { $($display:tt)* } { $($from_op:tt)* }
     ) => {
         $crate::__define_language!(
             $(#[$meta])* $vis enum $name
             { $($variants)* } ->
             { $($decl)*          $variant($data), }
             { $($matches)*       ($name::$variant(data1), $name::$variant(data2)) => data1 == data2, }
-            { $($for_each)*      $name::$variant(_data) => &[], }
-            { $($for_each_mut)*  $name::$variant(_data) => &mut [], }
-            { $($display_op)*    $name::$variant(data) => data, }
-            { $($from_op_str)*   (s, v) if s.parse::<$data>().is_ok() && v.is_empty() => Ok($name::$variant(s.parse().unwrap())), }
+            { $($children)*      $name::$variant(_data) => &[], }
+            { $($children_mut)*  $name::$variant(_data) => &mut [], }
+            { $($display)*       ($name::$variant(data), f) => ::std::fmt::Display::fmt(data, f), }
+            { $($from_op)*       (op, children) if op.parse::<$data>().is_ok() && children.is_empty() => Ok($name::$variant(op.parse().unwrap())), }
         );
     };
 
@@ -179,22 +178,23 @@ macro_rules! __define_language {
          $variant:ident ($data:ty, $ids:ty),
          $($variants:tt)*
      } ->
-     { $($decl:tt)* } { $($matches:tt)* } { $($for_each:tt)* } { $($for_each_mut:tt)* }
-     { $($display_op:tt)* } { $($from_op_str:tt)* }
+     { $($decl:tt)* } { $($matches:tt)* } { $($children:tt)* } { $($children_mut:tt)* }
+     { $($display:tt)* } { $($from_op:tt)* }
     ) => {
         $crate::__define_language!(
             $(#[$meta])* $vis enum $name
             { $($variants)* } ->
             { $($decl)*          $variant($data, $ids), }
             { $($matches)*       ($name::$variant(d1, l), $name::$variant(d2, r)) => d1 == d2 && $crate::LanguageChildren::len(l) == $crate::LanguageChildren::len(r), }
-            { $($for_each)*      $name::$variant(_, ids) => $crate::LanguageChildren::as_slice(ids), }
-            { $($for_each_mut)*  $name::$variant(_, ids) => $crate::LanguageChildren::as_mut_slice(ids), }
-            { $($display_op)*    $name::$variant(data, _) => data, }
-            { $($from_op_str)*   (s, v) if s.parse::<$data>().is_ok() && <$ids as $crate::LanguageChildren>::can_be_length(v.len()) => {
-                let data = s.parse::<$data>().unwrap();
-                let ids = <$ids as $crate::LanguageChildren>::from_vec(v);
-                Ok($name::$variant(data, ids))
-            }, }
+            { $($children)*      $name::$variant(_, ids) => $crate::LanguageChildren::as_slice(ids), }
+            { $($children_mut)*  $name::$variant(_, ids) => $crate::LanguageChildren::as_mut_slice(ids), }
+            { $($display)*       ($name::$variant(data, _), f) => ::std::fmt::Display::fmt(data, f), }
+            { $($from_op)*       (op, children) if op.parse::<$data>().is_ok() && <$ids as $crate::LanguageChildren>::can_be_length(children.len()) => {
+                  let data = op.parse::<$data>().unwrap();
+                  let children = <$ids as $crate::LanguageChildren>::from_vec(children);
+                  Ok($name::$variant(data, children))
+              },
+            }
         );
     };
 }
