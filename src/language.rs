@@ -606,7 +606,7 @@ pub trait Analysis<L: Language>: Sized {
     /// - if `a0 < b`, then `a1 = b`,
     /// - if `a0 > b`, then `a0 = a1`,
     /// - if `a0 == b`, then `a0 = a1`,
-    /// - if they cannot be compared, then `a1 > b` and `a1 > b`.
+    /// - if they cannot be compared, then `a1 >= a0` and `a1 >= b`.
     fn merge(&self, a: &mut Self::Data, b: Self::Data) -> Option<Ordering>;
 
     /// A hook that allows the modification of the
