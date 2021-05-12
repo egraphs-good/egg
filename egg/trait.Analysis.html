@@ -89,7 +89,7 @@ After <code>merge</code> returns, <code>a1</code> must be the least upper bound 
 <li>if <code>a0 &lt; b</code>, then <code>a1 = b</code>,</li>
 <li>if <code>a0 &gt; b</code>, then <code>a0 = a1</code>,</li>
 <li>if <code>a0 == b</code>, then <code>a0 = a1</code>,</li>
-<li>if they cannot be compared, then <code>a1 &gt; b</code> and <code>a1 &gt; b</code>.</li>
+<li>if they cannot be compared, then <code>a1 &gt;= a0</code> and <code>a1 &gt;= b</code>.</li>
 </ul>
 </div></div><span class="loading-content">Loading content...</span><h2 id="provided-methods" class="small-section-header">Provided methods<a href="#provided-methods" class="anchor"></a></h2><div class="methods"><h3 id="method.pre_union" class="method"><code>fn <a href="#method.pre_union" class="fnname">pre_union</a>(egraph: &amp;<a class="struct" href="../egg/struct.EGraph.html" title="struct egg::EGraph">EGraph</a>&lt;L, Self&gt;, id1: <a class="struct" href="../egg/struct.Id.html" title="struct egg::Id">Id</a>, id2: <a class="struct" href="../egg/struct.Id.html" title="struct egg::Id">Id</a>)</code><a class="srclink" href="../src/egg/language.rs.html#594" title="goto source code">[src]</a></h3><div class="docblock"><p>An optional hook that allows inspection before a <a href="../egg/struct.EGraph.html#method.union"><code>union</code></a> occurs.</p>
 <p>By default it does nothing.</p>

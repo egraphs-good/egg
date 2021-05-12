@@ -1311,7 +1311,7 @@ assert_eq!(runner.egraph.find(runner.roots[0]), runner.egraph.find(just_foo));
     <span class="doccomment">/// - if `a0 &lt; b`, then `a1 = b`,</span>
     <span class="doccomment">/// - if `a0 &gt; b`, then `a0 = a1`,</span>
     <span class="doccomment">/// - if `a0 == b`, then `a0 = a1`,</span>
-    <span class="doccomment">/// - if they cannot be compared, then `a1 &gt; b` and `a1 &gt; b`.</span>
+    <span class="doccomment">/// - if they cannot be compared, then `a1 &gt;= a0` and `a1 &gt;= b`.</span>
     <span class="kw">fn</span> <span class="ident">merge</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">a</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span>::<span class="ident">Data</span>, <span class="ident">b</span>: <span class="self">Self</span>::<span class="ident">Data</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Ordering</span><span class="op">&gt;</span>;
 
     <span class="doccomment">/// A hook that allows the modification of the</span>
