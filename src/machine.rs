@@ -217,16 +217,20 @@ impl<'a, L: Language> Compiler<'a, L> {
         }
 
         let ground_locs = self.get_ground_locs(&is_ground);
-        let ground_terms: Vec<RecExpr<L>> = ground_locs
+        let mut ground_terms: Vec<(u32, RecExpr<L>)> = ground_locs
             .iter()
             .enumerate()
-            .filter_map(|(i, r)| r.map(|_| i))
-            .map(|i| {
+            .filter_map(|(i, r)| r.map(|r| (i, r.0)))
+            .map(|(i, r)| {
                 let mut expr = Default::default();
                 self.build_ground_terms(i, &mut expr);
-                expr
+                (r, expr)
             })
             .collect();
+        ground_terms.sort_by_key(|(r, _expr)| *r);
+        let ground_terms: Vec<RecExpr<L>> =
+            ground_terms.into_iter().map(|(_r, expr)| expr).collect();
+
         self.todo.push(Todo {
             reg: Reg(self.out.0),
             is_ground: is_ground[self.pattern.len() - 1],
