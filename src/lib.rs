@@ -14,6 +14,16 @@ on Github provide some more elaborate examples.
 There is also a [paper](https://arxiv.org/abs/2004.03082)
 describing `egg` and some of its technical novelties.
 
+## Logging
+
+Many parts of `egg` dump useful logging info using the [`log`](https://docs.rs/log/) crate.
+The easiest way to see this info is to use the [`env_logger`](https://docs.rs/env_logger/)
+crate in your binary or test.
+The simplest way to enable `env_logger` is to put the following line near the top of your `main`:
+`env_logger::init();`.
+Then, set the environment variable `RUST_LOG=egg=info`, or use `warn` or `debug` instead of info
+for less or more logging.
+
 !*/
 
 mod macros;
