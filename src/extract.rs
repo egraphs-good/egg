@@ -76,6 +76,34 @@ assert_eq!(AstSize.cost_rec(&e), 4);
 assert_eq!(AstDepth.cost_rec(&e), 2);
 ```
 
+If you'd like to access the [`Analysis`] data or anything else in the e-graph,
+you can put a reference to the e-graph in your [`CostFunction`]:
+
+```
+# use egg::*;
+# type MyAnalysis = ();
+struct EGraphCostFn<'a> {
+    egraph: &'a EGraph<SymbolLang, MyAnalysis>,
+}
+
+impl<'a> CostFunction<SymbolLang> for EGraphCostFn<'a> {
+    type Cost = usize;
+    fn cost<C>(&mut self, enode: &SymbolLang, mut costs: C) -> Self::Cost
+    where
+        C: FnMut(Id) -> Self::Cost
+    {
+        // use self.egraph however you want here
+        println!("the egraph has {} classes", self.egraph.number_of_classes());
+        return 1
+    }
+}
+
+let mut egraph = EGraph::<SymbolLang, MyAnalysis>::default();
+let id = egraph.add_expr(&"(foo bar)".parse().unwrap());
+let cost_func = EGraphCostFn { egraph: &egraph };
+let mut extractor = Extractor::new(&egraph, cost_func);
+let _ = extractor.find_best(id);
+```
 **/
 pub trait CostFunction<L: Language> {
     /// The `Cost` type. It only requires `PartialOrd` so you can use
