@@ -190,6 +190,9 @@
 <span id="187">187</span>
 <span id="188">188</span>
 <span id="189">189</span>
+<span id="190">190</span>
+<span id="191">191</span>
+<span id="192">192</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// -*- mode: markdown;  markdown-fontify-code-block-default-mode: rustic-mode; evil-shift-width: 2; -*-</span>
 <span class="doccomment">/*!
@@ -301,6 +304,9 @@ let mut egraph: EGraph&lt;SymbolLang, ()&gt; = Default::default();
 let a = egraph.add(SymbolLang::leaf(&quot;a&quot;));
 let b = egraph.add(SymbolLang::leaf(&quot;b&quot;));
 let foo = egraph.add(SymbolLang::new(&quot;foo&quot;, vec![a, b]));
+
+// rebuild the e-graph since we modified it
+egraph.rebuild();
 
 // we can make Patterns by parsing, similar to RecExprs
 // names preceded by ? are parsed as Pattern variables and will match anything
