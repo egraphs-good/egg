@@ -109,6 +109,9 @@ let a = egraph.add(SymbolLang::leaf("a"));
 let b = egraph.add(SymbolLang::leaf("b"));
 let foo = egraph.add(SymbolLang::new("foo", vec![a, b]));
 
+// rebuild the e-graph since we modified it
+egraph.rebuild();
+
 // we can make Patterns by parsing, similar to RecExprs
 // names preceded by ? are parsed as Pattern variables and will match anything
 let pat: Pattern<SymbolLang> = "(foo ?x ?x)".parse().unwrap();
