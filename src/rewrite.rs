@@ -404,6 +404,7 @@ where
 /// This condition adds its two [`Applier`]s to the egraph and passes
 /// if and only if they are equivalent (in the same eclass).
 ///
+#[derive(Debug)]
 pub struct ConditionEqual<A1, A2>(pub A1, pub A2);
 
 impl<L: FromOp> ConditionEqual<Pattern<L>, Pattern<L>> {

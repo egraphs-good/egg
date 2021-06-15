@@ -37,6 +37,7 @@ assert_eq!(best, "10".parse().unwrap());
 ```
 
 **/
+#[derive(Debug)]
 pub struct Extractor<'a, CF: CostFunction<L>, L: Language, N: Analysis<L>> {
     cost_function: CF,
     costs: HashMap<Id, (CF::Cost, L)>,
@@ -145,6 +146,7 @@ assert_eq!(AstSize.cost_rec(&e), 4);
 ```
 
 **/
+#[derive(Debug)]
 pub struct AstSize;
 impl<L: Language> CostFunction<L> for AstSize {
     type Cost = usize;
@@ -165,6 +167,7 @@ assert_eq!(AstDepth.cost_rec(&e), 2);
 ```
 
 **/
+#[derive(Debug)]
 pub struct AstDepth;
 impl<L: Language> CostFunction<L> for AstDepth {
     type Cost = usize;
