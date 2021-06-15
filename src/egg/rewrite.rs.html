@@ -518,6 +518,7 @@
 <span id="515">515</span>
 <span id="516">516</span>
 <span id="517">517</span>
+<span id="518">518</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fmt</span>::{<span class="self">self</span>, <span class="ident">Debug</span>, <span class="ident">Display</span>};
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">any</span>::<span class="ident">Any</span>, <span class="ident">sync</span>::<span class="ident">Arc</span>};
@@ -925,6 +926,7 @@
 <span class="doccomment">/// This condition adds its two [`Applier`]s to the egraph and passes</span>
 <span class="doccomment">/// if and only if they are equivalent (in the same eclass).</span>
 <span class="doccomment">///</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ConditionEqual</span><span class="op">&lt;</span><span class="ident">A1</span>, <span class="ident">A2</span><span class="op">&gt;</span>(<span class="kw">pub</span> <span class="ident">A1</span>, <span class="kw">pub</span> <span class="ident">A2</span>);
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">FromOp</span><span class="op">&gt;</span> <span class="ident">ConditionEqual</span><span class="op">&lt;</span><span class="ident">Pattern</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>, <span class="ident">Pattern</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> {

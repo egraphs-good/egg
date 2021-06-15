@@ -324,6 +324,9 @@
 <span id="321">321</span>
 <span id="322">322</span>
 <span id="323">323</span>
+<span id="324">324</span>
+<span id="325">325</span>
+<span id="326">326</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">cmp</span>::<span class="ident">Ordering</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Debug</span>;
@@ -364,6 +367,7 @@ assert_eq!(best, &quot;10&quot;.parse().unwrap());
 ```
 
 **/</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Extractor</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">CF</span>: <span class="ident">CostFunction</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>, <span class="ident">L</span>: <span class="ident">Language</span>, <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> {
     <span class="ident">cost_function</span>: <span class="ident">CF</span>,
     <span class="ident">costs</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">Id</span>, (<span class="ident">CF</span>::<span class="ident">Cost</span>, <span class="ident">L</span>)<span class="op">&gt;</span>,
@@ -472,6 +476,7 @@ assert_eq!(AstSize.cost_rec(&amp;e), 4);
 ```
 
 **/</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">AstSize</span>;
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span> <span class="ident">CostFunction</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">AstSize</span> {
     <span class="kw">type</span> <span class="ident">Cost</span> <span class="op">=</span> <span class="ident">usize</span>;
@@ -492,6 +497,7 @@ assert_eq!(AstDepth.cost_rec(&amp;e), 2);
 ```
 
 **/</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">AstDepth</span>;
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span> <span class="ident">CostFunction</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">AstDepth</span> {
     <span class="kw">type</span> <span class="ident">Cost</span> <span class="op">=</span> <span class="ident">usize</span>;
