@@ -215,7 +215,7 @@ where
 
     /// Find the cheapest (lowest cost) represented `RecExpr` in the
     /// given eclass.
-    pub fn find_best(&mut self, eclass: Id) -> (CF::Cost, RecExpr<L>) {
+    pub fn find_best(&self, eclass: Id) -> (CF::Cost, RecExpr<L>) {
         let (cost, expr, _ids) = self.find_best_with_ids(eclass);
         (cost, expr)
     }
@@ -223,7 +223,7 @@ where
     /// Find the cheapest (lowest cost) represented `RecExpr` in the
     /// given eclass, also returning the e-classes that the best e-nodes came from.
     /// The e-node with index `i` in the RecExpr is from e-class `i` in the returned `Vec<Id>`.
-    pub fn find_best_with_ids(&mut self, eclass: Id) -> (CF::Cost, RecExpr<L>, Vec<Id>) {
+    pub fn find_best_with_ids(&self, eclass: Id) -> (CF::Cost, RecExpr<L>, Vec<Id>) {
         let mut expr = RecExpr::default();
         let mut ids: Vec<Id> = vec![];
         // added_memo maps eclass id to id in expr
@@ -233,18 +233,18 @@ where
     }
 
     /// Find the cheapest e-node in the given e-class.
-    pub fn find_best_node(&mut self, eclass: Id) -> &L {
+    pub fn find_best_node(&self, eclass: Id) -> &L {
         &self.costs[&self.egraph.find(eclass)].1
     }
 
     /// Find the cost of the term that would be extracted from this e-class.
-    pub fn find_best_cost(&mut self, eclass: Id) -> CF::Cost {
+    pub fn find_best_cost(&self, eclass: Id) -> CF::Cost {
         let (cost, _) = &self.costs[&self.egraph.find(eclass)];
         cost.clone()
     }
 
     fn find_best_rec(
-        &mut self,
+        &self,
         ids: &mut Vec<Id>,
         expr: &mut RecExpr<L>,
         eclass: Id,

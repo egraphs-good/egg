@@ -359,7 +359,7 @@ mod tests {
 
         use crate::extract::{AstSize, Extractor};
 
-        let mut ext = Extractor::new(&egraph, AstSize);
+        let ext = Extractor::new(&egraph, AstSize);
         let (_, best) = ext.find_best(plus);
         eprintln!("Best: {:#?}", best);
     }
