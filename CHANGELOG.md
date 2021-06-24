@@ -7,6 +7,7 @@
 ### Added
 - The `BackoffScheduler` is now more flexible.
 - `EGraph::pre_union` allows inspection of unions, which can be useful for debugging.
+- The dot printer is now more flexible.
 
 ### Changed
 - `EGraph::add_expr` now proceeds linearly through the given `RecExpr`, which
@@ -18,6 +19,12 @@
   [Downey, Sethi, Tarjan](https://dl.acm.org/doi/pdf/10.1145/322217.322228),
   and the analysis data propagation is more precise with respect to merging.
   Overall, the algorithm is simpler, easier to reason about, and more than twice as fast!
+- ([#86](https://github.com/egraphs-good/egg/pull/86))
+  `Language::display_op` has been removed. Languages should implement `Display`
+  to display the operator instead. `define_language!` now implements `Display`
+  accordingly.
+- `Language::from_op_str` has been replaced by a new `FromOp` trait.
+  `define_language!` implements this trait automatically.
 
 ## [0.6.0] - 2020-07-16
 

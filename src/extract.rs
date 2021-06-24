@@ -37,6 +37,7 @@ assert_eq!(best, "10".parse().unwrap());
 ```
 
 **/
+#[derive(Debug)]
 pub struct Extractor<'a, CF: CostFunction<L>, L: Language, N: Analysis<L>> {
     cost_function: CF,
     costs: HashMap<Id, (CF::Cost, L)>,
@@ -76,6 +77,34 @@ assert_eq!(AstSize.cost_rec(&e), 4);
 assert_eq!(AstDepth.cost_rec(&e), 2);
 ```
 
+If you'd like to access the [`Analysis`] data or anything else in the e-graph,
+you can put a reference to the e-graph in your [`CostFunction`]:
+
+```
+# use egg::*;
+# type MyAnalysis = ();
+struct EGraphCostFn<'a> {
+    egraph: &'a EGraph<SymbolLang, MyAnalysis>,
+}
+
+impl<'a> CostFunction<SymbolLang> for EGraphCostFn<'a> {
+    type Cost = usize;
+    fn cost<C>(&mut self, enode: &SymbolLang, mut costs: C) -> Self::Cost
+    where
+        C: FnMut(Id) -> Self::Cost
+    {
+        // use self.egraph however you want here
+        println!("the egraph has {} classes", self.egraph.number_of_classes());
+        return 1
+    }
+}
+
+let mut egraph = EGraph::<SymbolLang, MyAnalysis>::default();
+let id = egraph.add_expr(&"(foo bar)".parse().unwrap());
+let cost_func = EGraphCostFn { egraph: &egraph };
+let mut extractor = Extractor::new(&egraph, cost_func);
+let _ = extractor.find_best(id);
+```
 **/
 pub trait CostFunction<L: Language> {
     /// The `Cost` type. It only requires `PartialOrd` so you can use
@@ -117,6 +146,7 @@ assert_eq!(AstSize.cost_rec(&e), 4);
 ```
 
 **/
+#[derive(Debug)]
 pub struct AstSize;
 impl<L: Language> CostFunction<L> for AstSize {
     type Cost = usize;
@@ -137,6 +167,7 @@ assert_eq!(AstDepth.cost_rec(&e), 2);
 ```
 
 **/
+#[derive(Debug)]
 pub struct AstDepth;
 impl<L: Language> CostFunction<L> for AstDepth {
     type Cost = usize;
@@ -184,22 +215,37 @@ where
 
     /// Find the cheapest (lowest cost) represented `RecExpr` in the
     /// given eclass.
-    pub fn find_best(&mut self, eclass: Id) -> (CF::Cost, RecExpr<L>) {
-        let mut expr = RecExpr::default();
-        // added_memo maps eclass id to id in expr
-        let mut added_memo: HashMap<Id, Id> = Default::default();
-        let (_, cost) = self.find_best_rec(&mut expr, eclass, &mut added_memo);
+    pub fn find_best(&self, eclass: Id) -> (CF::Cost, RecExpr<L>) {
+        let (cost, expr, _ids) = self.find_best_with_ids(eclass);
         (cost, expr)
     }
 
+    /// Find the cheapest (lowest cost) represented `RecExpr` in the
+    /// given eclass, also returning the e-classes that the best e-nodes came from.
+    /// The e-node with index `i` in the RecExpr is from e-class `i` in the returned `Vec<Id>`.
+    pub fn find_best_with_ids(&self, eclass: Id) -> (CF::Cost, RecExpr<L>, Vec<Id>) {
+        let mut expr = RecExpr::default();
+        let mut ids: Vec<Id> = vec![];
+        // added_memo maps eclass id to id in expr
+        let mut added_memo: HashMap<Id, Id> = Default::default();
+        let (_, cost) = self.find_best_rec(&mut ids, &mut expr, eclass, &mut added_memo);
+        (cost, expr, ids)
+    }
+
+    /// Find the cheapest e-node in the given e-class.
+    pub fn find_best_node(&self, eclass: Id) -> &L {
+        &self.costs[&self.egraph.find(eclass)].1
+    }
+
     /// Find the cost of the term that would be extracted from this e-class.
-    pub fn find_best_cost(&mut self, eclass: Id) -> CF::Cost {
+    pub fn find_best_cost(&self, eclass: Id) -> CF::Cost {
         let (cost, _) = &self.costs[&self.egraph.find(eclass)];
         cost.clone()
     }
 
     fn find_best_rec(
-        &mut self,
+        &self,
+        ids: &mut Vec<Id>,
         expr: &mut RecExpr<L>,
         eclass: Id,
         added_memo: &mut HashMap<Id, Id>,
@@ -213,9 +259,12 @@ where
         match added_memo.get(&id) {
             Some(id_expr) => (*id_expr, best_cost),
             None => {
-                let node =
-                    best_node.map_children(|child| self.find_best_rec(expr, child, added_memo).0);
+                let node = best_node
+                    .map_children(|child| self.find_best_rec(ids, expr, child, added_memo).0);
                 let id_expr = expr.add(node);
+                if id_expr == Id::from(expr.as_ref().len() - 1) {
+                    ids.push(id);
+                }
                 assert!(added_memo.insert(id, id_expr).is_none());
                 (id_expr, best_cost)
             }

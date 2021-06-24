@@ -7,6 +7,7 @@ test:
 
 .PHONY: nits
 nits:
+	rustup component add rustfmt clippy
 	cargo fmt -- --check
 	cargo clean --doc
 	cargo doc --no-deps

@@ -1,3 +1,5 @@
+use std::fmt::{self, Debug, Formatter};
+
 use log::*;
 
 use crate::*;
@@ -165,6 +167,42 @@ where
 {
     fn default() -> Self {
         Runner::new(N::default())
+    }
+}
+
+impl<L, N, IterData> Debug for Runner<L, N, IterData>
+where
+    L: Language,
+    N: Analysis<L>,
+    IterData: Debug,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        // Use an exhaustive pattern match to ensure the Debug implementation and the struct stay in sync.
+        let Runner {
+            egraph,
+            iterations,
+            roots,
+            stop_reason,
+            hooks,
+            iter_limit,
+            node_limit,
+            time_limit,
+            start_time,
+            scheduler: _,
+        } = self;
+
+        f.debug_struct("Runner")
+            .field("egraph", egraph)
+            .field("iterations", iterations)
+            .field("roots", roots)
+            .field("stop_reason", stop_reason)
+            .field("hooks", &vec![format_args!("<dyn FnMut ..>"); hooks.len()])
+            .field("iter_limit", iter_limit)
+            .field("node_limit", node_limit)
+            .field("time_limit", time_limit)
+            .field("start_time", start_time)
+            .field("scheduler", &format_args!("<dyn RewriteScheduler ..>"))
+            .finish()
     }
 }
 
@@ -601,6 +639,7 @@ where
 /// [`with_scheduler`](Runner::with_scheduler())
 /// method.
 ///
+#[derive(Debug)]
 pub struct SimpleScheduler;
 
 impl<L, N> RewriteScheduler<L, N> for SimpleScheduler
@@ -622,12 +661,14 @@ where
 ///
 /// [`BackoffScheduler`] is configurable in the builder-pattern style.
 ///
+#[derive(Debug)]
 pub struct BackoffScheduler {
     default_match_limit: usize,
     default_ban_length: usize,
     stats: IndexMap<String, RuleStats>,
 }
 
+#[derive(Debug)]
 struct RuleStats {
     times_applied: usize,
     banned_until: usize,

@@ -3,6 +3,8 @@
 These are not considered part of the public api.
 */
 
+use std::fmt::Display;
+
 use crate::*;
 
 pub fn env_var<T>(s: &str) -> Option<T>
@@ -32,7 +34,7 @@ pub fn test_runner<L, A>(
     check_fn: Option<fn(Runner<L, A, ()>)>,
     should_check: bool,
 ) where
-    L: Language + 'static,
+    L: Language + Display + 'static,
     A: Analysis<L> + Default,
 {
     let mut runner = runner.unwrap_or_default().with_expr(&start);

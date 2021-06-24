@@ -2,7 +2,7 @@ use crate::*;
 use std::{
     borrow::BorrowMut,
     cmp::Ordering,
-    fmt::{self, Debug},
+    fmt::{self, Debug, Display},
 };
 
 use log::*;
@@ -179,7 +179,11 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// Creates a [`Dot`] to visualize this egraph. See [`Dot`].
     ///
     pub fn dot(&self) -> Dot<L, N> {
-        Dot { egraph: self }
+        Dot {
+            egraph: self,
+            config: vec![],
+            use_anchors: true,
+        }
     }
 }
 
@@ -265,6 +269,18 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         id.map(|&id| self.find(id))
     }
 
+    /// Lookup the eclass of the given [`RecExpr`].
+    pub fn lookup_expr(&self, expr: &RecExpr<L>) -> Option<Id> {
+        let nodes = expr.as_ref();
+        let mut new_ids = Vec::with_capacity(nodes.len());
+        for node in nodes {
+            let node = node.clone().map_children(|i| new_ids[usize::from(i)]);
+            let id = self.lookup(node)?;
+            new_ids.push(id)
+        }
+        Some(*new_ids.last().unwrap())
+    }
+
     /// Adds an enode to the [`EGraph`].
     ///
     /// When adding an enode, to the egraph, [`add`] it performs
@@ -273,7 +289,9 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// Hashconsing ensures that only one copy of that enode is in the egraph.
     /// If a copy is in the egraph, then [`add`] simply returns the id of the
     /// eclass in which the enode was found.
-    /// Otherwise
+    ///
+    /// Like [`union`](EGraph::union), this modifies the e-graph,
+    /// so you must call [`rebuild`](EGraph::rebuild) any query operations.
     ///
     /// [`add`]: EGraph::add()
     pub fn add(&mut self, mut enode: L) -> Id {
@@ -328,34 +346,15 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         equiv_eclasses
     }
 
-    /// Panic if the given eclass doesn't contain the given patterns
-    ///
-    /// Useful for testing.
-    pub fn check_goals(&self, id: Id, goals: &[Pattern<L>]) {
-        let (cost, best) = Extractor::new(self, AstSize).find_best(id);
-        println!("End ({}): {}", cost, best.pretty(80));
-
-        for (i, goal) in goals.iter().enumerate() {
-            println!("Trying to prove goal {}: {}", i, goal.pretty(40));
-            let matches = goal.search_eclass(&self, id);
-            if matches.is_none() {
-                let best = Extractor::new(&self, AstSize).find_best(id).1;
-                panic!(
-                    "Could not prove goal {}:\n{}\nBest thing found:\n{}",
-                    i,
-                    goal.pretty(40),
-                    best.pretty(40),
-                );
-            }
-        }
-    }
-
     /// Unions two eclasses given their ids.
     ///
     /// The given ids need not be canonical.
     /// The returned `bool` indicates whether a union was done,
     /// so it's `false` if they were already equivalent.
     /// Both results are canonical.
+    ///
+    /// Like [`add`](EGraph::add), this modifies the e-graph,
+    /// so you must call [`rebuild`](EGraph::rebuild) any query operations.
     pub fn union(&mut self, mut id1: Id, mut id2: Id) -> (Id, bool) {
         id1 = self.find_mut(id1);
         id2 = self.find_mut(id2);
@@ -442,6 +441,33 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             }
         }
         self.db = db;
+    }
+}
+
+impl<L: Language + Display, N: Analysis<L>> EGraph<L, N> {
+    /// Panic if the given eclass doesn't contain the given patterns
+    ///
+    /// Useful for testing.
+    pub fn check_goals(&self, id: Id, goals: &[Pattern<L>]) {
+        let (cost, best) = Extractor::new(self, AstSize).find_best(id);
+        println!("End ({}): {}", cost, best.pretty(80));
+
+        for (i, goal) in goals.iter().enumerate() {
+            println!("Trying to prove goal {}: {}", i, goal.pretty(40));
+            let matches = goal.search_eclass(&self, id);
+            if matches.is_none() {
+                let best = Extractor::new(&self, AstSize).find_best(id).1;
+                panic!(
+                    "Could not prove goal {}:\n\
+                     {}\n\
+                     Best thing found:\n\
+                     {}",
+                    i,
+                    goal.pretty(40),
+                    best.pretty(40),
+                );
+            }
+        }
     }
 }
 
@@ -574,6 +600,11 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// invariants at a time of their choosing. It's a reasonably
     /// fast, linear-ish traversal through the egraph.
     ///
+    /// After modifying an e-graph with [`add`](EGraph::add) or
+    /// [`union`](EGraph::union), you must call `rebuild` to restore
+    /// invariants before any query operations, otherwise the results
+    /// may be stale or incorrect.
+    ///
     /// # Example
     /// ```
     /// use egg::{*, SymbolLang as S};
@@ -639,7 +670,7 @@ impl<'a, L: Language, N: Analysis<L>> Debug for EGraphDump<'a, L, N> {
         for id in ids {
             let mut nodes = self.0[id].nodes.clone();
             nodes.sort();
-            writeln!(f, "{}: {:?}", id, nodes)?
+            writeln!(f, "{} ({:?}): {:?}", id, self.0[id].data, nodes)?
         }
         Ok(())
     }

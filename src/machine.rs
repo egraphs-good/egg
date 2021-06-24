@@ -1,5 +1,5 @@
 use crate::util::HashSet;
-use crate::{Analysis, EClass, EGraph, ENodeOrVar, Id, Language, PatternAst, Subst, Var};
+use crate::{Analysis, EClass, EGraph, ENodeOrVar, Id, Language, PatternAst, RecExpr, Subst, Var};
 use std::cmp::Ordering;
 
 struct Machine {
@@ -18,6 +18,7 @@ struct Reg(u32);
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Program<L> {
     instructions: Vec<Instruction<L>>,
+    ground_terms: Vec<RecExpr<L>>,
     subst: Subst,
 }
 
@@ -115,6 +116,8 @@ type TodoList<L> = std::collections::BinaryHeap<Todo<L>>;
 #[derive(PartialEq, Eq)]
 struct Todo<L> {
     reg: Reg,
+    is_ground: bool,
+    loc: usize,
     pat: ENodeOrVar<L>,
 }
 
@@ -128,6 +131,11 @@ impl<L: Language> Ord for Todo<L> {
     // TodoList is a max-heap, so we greater is higher priority
     fn cmp(&self, other: &Self) -> Ordering {
         use ENodeOrVar::*;
+        match (&self.is_ground, &other.is_ground) {
+            (true, false) => return Ordering::Greater,
+            (false, true) => return Ordering::Less,
+            _ => (),
+        };
         match (&self.pat, &other.pat) {
             // fewer children means higher priority
             (ENode(e1), ENode(e2)) => e2.len().cmp(&e1.len()),
@@ -148,23 +156,96 @@ struct Compiler<'a, L> {
 
 impl<'a, L: Language> Compiler<'a, L> {
     fn compile(pattern: &'a [ENodeOrVar<L>]) -> Program<L> {
-        let last = pattern.last().unwrap();
         let mut compiler = Self {
             pattern,
             v2r: Default::default(),
             todo: Default::default(),
-            out: Reg(1),
+            out: Reg(0),
         };
-        compiler.todo.push(Todo {
-            reg: Reg(0),
-            pat: last.clone(),
-        });
         compiler.go()
     }
 
+    fn get_ground_locs(&mut self, is_ground: &Vec<bool>) -> Vec<Option<Reg>> {
+        let mut ground_locs: Vec<Option<Reg>> = vec![None; self.pattern.len()];
+        for i in 0..self.pattern.len() {
+            if let ENodeOrVar::ENode(node) = &self.pattern[i] {
+                if !is_ground[i] {
+                    node.for_each(|c| {
+                        let c = usize::from(c);
+                        // If a ground pattern is a child of a non-ground pattern,
+                        // we load the ground pattern
+                        if is_ground[c] && ground_locs[c].is_none() {
+                            if let ENodeOrVar::ENode(_) = &self.pattern[c] {
+                                ground_locs[c] = Some(self.out);
+                                self.out.0 += 1;
+                            } else {
+                                unreachable!("ground locs");
+                            }
+                        }
+                    })
+                }
+            }
+        }
+        if *is_ground.last().unwrap() {
+            if let Some(_) = self.pattern.last() {
+                *ground_locs.last_mut().unwrap() = Some(self.out);
+                self.out.0 += 1;
+            } else {
+                unreachable!("ground locs");
+            }
+        }
+        ground_locs
+    }
+
+    fn build_ground_terms(&self, loc: usize, expr: &mut RecExpr<L>) {
+        if let ENodeOrVar::ENode(mut node) = self.pattern[loc].clone() {
+            node.update_children(|c| {
+                self.build_ground_terms(usize::from(c), expr);
+                (expr.as_ref().len() - 1).into()
+            });
+            expr.add(node);
+        } else {
+            panic!("could only build ground terms");
+        }
+    }
+
     fn go(&mut self) -> Program<L> {
+        let mut is_ground: Vec<bool> = vec![false; self.pattern.len()];
+        for i in 0..self.pattern.len() {
+            if let ENodeOrVar::ENode(node) = &self.pattern[i] {
+                is_ground[i] = node.all(|c| is_ground[usize::from(c)]);
+            }
+        }
+
+        let ground_locs = self.get_ground_locs(&is_ground);
+        let mut ground_terms: Vec<(u32, RecExpr<L>)> = ground_locs
+            .iter()
+            .enumerate()
+            .filter_map(|(i, r)| r.map(|r| (i, r.0)))
+            .map(|(i, r)| {
+                let mut expr = Default::default();
+                self.build_ground_terms(i, &mut expr);
+                (r, expr)
+            })
+            .collect();
+        ground_terms.sort_by_key(|(r, _expr)| *r);
+        let ground_terms: Vec<RecExpr<L>> =
+            ground_terms.into_iter().map(|(_r, expr)| expr).collect();
+
+        self.todo.push(Todo {
+            reg: Reg(self.out.0),
+            is_ground: is_ground[self.pattern.len() - 1],
+            loc: self.pattern.len() - 1,
+            pat: self.pattern.last().unwrap().clone(),
+        });
+        self.out.0 += 1;
+
         let mut instructions = vec![];
-        while let Some(Todo { reg: i, pat }) = self.todo.pop() {
+
+        while let Some(Todo {
+            reg: i, pat, loc, ..
+        }) = self.todo.pop()
+        {
             match pat {
                 ENodeOrVar::Var(v) => {
                     if let Some(&j) = self.v2r.get(&v) {
@@ -174,6 +255,11 @@ impl<'a, L: Language> Compiler<'a, L> {
                     }
                 }
                 ENodeOrVar::ENode(node) => {
+                    if let Some(j) = ground_locs[loc] {
+                        instructions.push(Instruction::Compare { i, j });
+                        continue;
+                    }
+
                     let out = self.out;
                     self.out.0 += node.len() as u32;
 
@@ -182,6 +268,8 @@ impl<'a, L: Language> Compiler<'a, L> {
                         let r = Reg(out.0 + id as u32);
                         self.todo.push(Todo {
                             reg: r,
+                            is_ground: is_ground[usize::from(child)],
+                            loc: usize::from(child),
                             pat: self.pattern[usize::from(child)].clone(),
                         });
                         id += 1;
@@ -198,9 +286,11 @@ impl<'a, L: Language> Compiler<'a, L> {
         for (v, r) in &self.v2r {
             subst.insert(*v, Id::from(r.0 as usize));
         }
+
         Program {
             instructions,
             subst,
+            ground_terms,
         }
     }
 }
@@ -223,6 +313,13 @@ impl<L: Language> Program<L> {
         let mut machine = Machine::default();
 
         assert_eq!(machine.reg.len(), 0);
+        for expr in &self.ground_terms {
+            if let Some(id) = egraph.lookup_expr(&mut expr.clone()) {
+                machine.reg.push(id)
+            } else {
+                return vec![];
+            }
+        }
         machine.reg.push(eclass);
 
         let mut substs = Vec::new();
