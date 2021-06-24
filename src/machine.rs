@@ -29,13 +29,21 @@ enum Instruction<L> {
 }
 
 #[inline(always)]
-fn for_each_matching_node<L, D>(eclass: &EClass<L, D>, node: &L, mut f: impl FnMut(&L) -> Result<(), ()>) -> Result<(), ()>
+fn for_each_matching_node<L, D>(
+    eclass: &EClass<L, D>,
+    node: &L,
+    mut f: impl FnMut(&L) -> Result<(), ()>,
+) -> Result<(), ()>
 where
     L: Language,
 {
     #[allow(clippy::mem_discriminant_non_enum)]
     if eclass.nodes.len() < 50 {
-        eclass.nodes.iter().filter(|n| node.matches(n)).try_for_each(f)
+        eclass
+            .nodes
+            .iter()
+            .filter(|n| node.matches(n))
+            .try_for_each(f)
     } else {
         debug_assert!(node.all(|id| id == Id::from(0)));
         debug_assert!(eclass.nodes.windows(2).all(|w| w[0] < w[1]));
@@ -96,7 +104,7 @@ impl Machine {
                         self.reg.truncate(out.0 as usize);
                         matched.for_each(|id| self.reg.push(id));
                         self.run(egraph, remaining_instructions, subst, yield_fn)
-                    })
+                    });
                 }
                 Instruction::Compare { i, j } => {
                     if egraph.find(self.reg(*i)) != egraph.find(self.reg(*j)) {
@@ -302,7 +310,12 @@ impl<L: Language> Program<L> {
         program
     }
 
-    pub fn run_with_limit<A>(&self, egraph: &EGraph<L, A>, eclass: Id, mut limit: usize) -> Vec<Subst>
+    pub fn run_with_limit<A>(
+        &self,
+        egraph: &EGraph<L, A>,
+        eclass: Id,
+        mut limit: usize,
+    ) -> Vec<Subst>
     where
         A: Analysis<L>,
     {
@@ -323,27 +336,29 @@ impl<L: Language> Program<L> {
         machine.reg.push(eclass);
 
         let mut substs = Vec::new();
-        machine.run(
-            egraph,
-            &self.instructions,
-            &self.subst,
-            &mut |machine, subst| {
-                let mut subst_vec: smallvec::SmallVec<[_; 3]> = subst
-                    .vec
-                    .iter()
-                    // HACK we are reusing Ids here, this is bad
-                    .map(|(v, reg_id)| (*v, machine.reg(Reg(usize::from(*reg_id) as u32))))
-                    .collect();
-                
-                substs.push(Subst { vec: subst_vec });
-                limit -= 1;
-                if limit == 0 {
-                    Err(())
-                } else {
-                    Ok(())
-                }
-            },
-        ).unwrap_or_default();
+        machine
+            .run(
+                egraph,
+                &self.instructions,
+                &self.subst,
+                &mut |machine, subst| {
+                    let mut subst_vec: smallvec::SmallVec<[_; 3]> = subst
+                        .vec
+                        .iter()
+                        // HACK we are reusing Ids here, this is bad
+                        .map(|(v, reg_id)| (*v, machine.reg(Reg(usize::from(*reg_id) as u32))))
+                        .collect();
+
+                    substs.push(Subst { vec: subst_vec });
+                    limit -= 1;
+                    if limit == 0 {
+                        Err(())
+                    } else {
+                        Ok(())
+                    }
+                },
+            )
+            .unwrap_or_default();
 
         log::trace!("Ran program, found {:?}", substs);
         substs

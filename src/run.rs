@@ -445,9 +445,7 @@ where
         result = result.and_then(|_| {
             rules.iter().try_for_each(|rule| {
                 let start = Instant::now();
-                let ms = self
-                    .scheduler
-                    .search_rewrite(i, &self.egraph, rule);
+                let ms = self.scheduler.search_rewrite(i, &self.egraph, rule);
                 let num_of_rewrites = ms.iter().map(|m| m.substs.len()).sum::<usize>();
                 println!(
                     "{:20} {:10} {:?}",
@@ -472,7 +470,9 @@ where
                 debug!("Applying {} {} times", rw.name(), total_matches);
 
                 let limit = self.node_limit - self.egraph.total_size();
-                let actually_matched = self.scheduler.apply_rewrite_with_limit(i, &mut self.egraph, rw, ms, limit);
+                let actually_matched =
+                    self.scheduler
+                        .apply_rewrite_with_limit(i, &mut self.egraph, rw, ms, limit);
                 if actually_matched > 0 {
                     if let Some(count) = applied.get_mut(rw.name()) {
                         *count += actually_matched;
@@ -622,9 +622,12 @@ where
         egraph: &mut EGraph<L, N>,
         rewrite: &Rewrite<L, N>,
         matches: Vec<SearchMatches>,
-        limit: usize
+        limit: usize,
     ) -> usize {
-        rewrite.applier.apply_matches_with_limit(egraph, &matches, limit).len()
+        rewrite
+            .applier
+            .apply_matches_with_limit(egraph, &matches, limit)
+            .len()
     }
 }
 

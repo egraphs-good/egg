@@ -69,7 +69,7 @@ pub fn test_runner<L, A>(
         });
     }
     let runner = runner.run(rules);
-    
+
     if should_check {
         runner.egraph.check_goals(id, &goals);
 

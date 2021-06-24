@@ -676,6 +676,10 @@ impl SymbolLang {
 impl Language for SymbolLang {
     type Operator = Symbol;
 
+    fn operator(&self) -> Self::Operator {
+        self.op.clone()
+    }
+
     fn matches(&self, other: &Self) -> bool {
         self.op == other.op && self.len() == other.len()
     }
@@ -703,9 +707,5 @@ impl FromOp for SymbolLang {
             op: op.into(),
             children,
         })
-    }
-
-    fn operator(&self) -> Self::Operator {
-        self.op.clone()
     }
 }

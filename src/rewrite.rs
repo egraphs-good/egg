@@ -33,13 +33,13 @@ where
         d.field("name", &self.name);
 
         if let Some(pat) = Any::downcast_ref::<Pattern<L>>(&self.searcher) {
-            d.field("searcher", &DisplayAsDebug(pat));
+            d.field("searcher", &pat.ast);
         } else {
             d.field("searcher", &"<< searcher >>");
         }
 
         if let Some(pat) = Any::downcast_ref::<Pattern<L>>(&self.applier) {
-            d.field("applier", &DisplayAsDebug(pat));
+            d.field("applier", &pat.ast);
         } else {
             d.field("applier", &"<< applier >>");
         }
@@ -133,9 +133,14 @@ where
             .collect()
     }
 
-    fn search_eclass_with_limit(&self, egraph: &EGraph<L, N>, eclass: Id, limit: usize) -> Option<SearchMatches>;
+    fn search_eclass_with_limit(
+        &self,
+        egraph: &EGraph<L, N>,
+        eclass: Id,
+        limit: usize,
+    ) -> Option<SearchMatches>;
     fn search_with_limit(&self, egraph: &EGraph<L, N>, limit: usize) -> Vec<SearchMatches>;
-    
+
     /// Returns a list of the variables bound by this Searcher
     fn vars(&self) -> Vec<Var>;
 }
@@ -258,7 +263,12 @@ where
         self.apply_matches_with_limit(egraph, matches, usize::MAX)
     }
 
-    fn apply_matches_with_limit(&self, egraph: &mut EGraph<L, N>, matches: &[SearchMatches], limit: usize) -> Vec<Id> {
+    fn apply_matches_with_limit(
+        &self,
+        egraph: &mut EGraph<L, N>,
+        matches: &[SearchMatches],
+        limit: usize,
+    ) -> Vec<Id> {
         let mut added = vec![];
         for mat in matches {
             for subst in &mat.substs {
@@ -402,7 +412,7 @@ where
 ///
 pub struct ConditionEqual<A1, A2>(pub A1, pub A2);
 
-impl<L: Language> ConditionEqual<Pattern<L>, Pattern<L>> {
+impl<L: FromOp> ConditionEqual<Pattern<L>, Pattern<L>> {
     /// Create a ConditionEqual by parsing two pattern strings.
     ///
     /// This panics if the parsing fails.
