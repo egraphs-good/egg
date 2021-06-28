@@ -73,7 +73,7 @@ impl<L: Language> PartialEq for Pattern<L> {
         self.ast == other.ast
     }
 }
-
+#[allow(clippy::upper_case_acronyms)]
 pub(crate) type LangDB<L> = qry::Database<<L as Language>::Operator, Id>;
 
 /// A [`RecExpr`] that represents a
@@ -113,13 +113,18 @@ pub enum ENodeOrVar<L> {
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, PartialOrd, Ord)]
+/// Either an operator or a pattern variable.
+///
+/// This is the [`Language::Operator`] for [`Pattern`]s.
 pub enum OpOrVar<L: Language> {
+    /// An operator from the given [`Language`].
     Op(L::Operator),
+    /// A pattern variable.
     Var(Var),
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
-pub enum VarOrId {
+enum VarOrId {
     Var(Var),
     Id(Id),
 }
@@ -144,8 +149,7 @@ fn compile_to_query<L: Language>(ast: &PatternAst<L>) -> Query<L> {
     }
 
     assert!(!atoms.is_empty());
-    let q = Query::new(atoms);
-    q
+    Query::new(atoms)
 }
 
 impl<L: Language> Language for ENodeOrVar<L> {
@@ -186,14 +190,18 @@ impl<L: Language + Display> Display for ENodeOrVar<L> {
     }
 }
 
+/// A error raised when a pattern fails to parse.
 #[derive(Debug, Error)]
 pub enum ENodeOrVarParseError<E: Error + 'static> {
+    /// A malformed variable.
     #[error(transparent)]
     BadVar(<Var as FromStr>::Err),
 
+    /// An variable was in the operator position
     #[error("tried to parse pattern variable {0:?} as an operator")]
     UnexpectedVar(String),
 
+    /// An operator failed to parse.
     #[error(transparent)]
     BadOp(E),
 }

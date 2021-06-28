@@ -6,8 +6,8 @@ use crate::*;
 `define_language` derives `Debug`, `PartialEq`, `Eq`, `PartialOrd`, `Ord`,
 `Hash`, and `Clone` on the given `enum` so it can implement [`Language`].
 The macro also implements
-[`Language::from_op`](Language::from_op()) and
-[`Language::display_op`](Language::display_op()) for the `enum`
+[`FromOp::from_op`] and
+[`Display`] for the `enum`
 based on either the data of variants or the provided strings.
 
 The final variant **must have a trailing comma**; this is due to limitations in

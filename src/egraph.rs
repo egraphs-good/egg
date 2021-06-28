@@ -52,15 +52,19 @@ pub struct EGraph<L: Language, N: Analysis<L>> {
     memo: HashMap<L, Id>,
     unionfind: UnionFind,
     classes: HashMap<Id, EClass<L, N::Data>>,
+    /// The e-matching strategy to use
     pub strategy: Strategy,
     pub(crate) db: LangDB<L>,
     pub(crate) eval_ctx: std::sync::Arc<std::sync::Mutex<qry::EvalContext<L::Operator, Id>>>,
     pub(crate) classes_by_op: HashMap<std::mem::Discriminant<L>, HashSet<Id>>,
 }
 
+/// Which e-matching approach to use.
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Strategy {
+    /// Conventional, top-down e-matching
     EMatch,
+    /// Relational e-matching using generic join
     GenericJoin,
 }
 

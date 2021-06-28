@@ -30,8 +30,10 @@ use thiserror::Error;
 /// See [`SymbolLang`] for quick-and-dirty use cases.
 #[allow(clippy::len_without_is_empty)]
 pub trait Language: Debug + Clone + Eq + Ord + Hash + 'static {
+    /// A type that represents just the operator (without children).
     type Operator: Debug + Clone + Eq + Ord + Hash + 'static + Send + Sync;
 
+    /// Produce the operator for this enode.
     fn operator(&self) -> Self::Operator;
 
     /// Returns true if this enode matches another enode.
@@ -677,7 +679,7 @@ impl Language for SymbolLang {
     type Operator = Symbol;
 
     fn operator(&self) -> Self::Operator {
-        self.op.clone()
+        self.op
     }
 
     fn matches(&self, other: &Self) -> bool {

@@ -32,13 +32,13 @@ where
         let mut d = f.debug_struct("Rewrite");
         d.field("name", &self.name);
 
-        if let Some(pat) = Any::downcast_ref::<Pattern<L>>(&self.searcher) {
+        if let Some(pat) = <dyn Any>::downcast_ref::<Pattern<L>>(&self.searcher) {
             d.field("searcher", &pat.ast);
         } else {
             d.field("searcher", &"<< searcher >>");
         }
 
-        if let Some(pat) = Any::downcast_ref::<Pattern<L>>(&self.applier) {
+        if let Some(pat) = <dyn Any>::downcast_ref::<Pattern<L>>(&self.applier) {
             d.field("applier", &pat.ast);
         } else {
             d.field("applier", &"<< applier >>");
@@ -133,12 +133,15 @@ where
             .collect()
     }
 
+    /// Search one eclass, but stop before a producing a certain number of matches.
     fn search_eclass_with_limit(
         &self,
         egraph: &EGraph<L, N>,
         eclass: Id,
         limit: usize,
     ) -> Option<SearchMatches>;
+
+    /// Search the whole egraph, but stop before a certain egraph node limit.
     fn search_with_limit(&self, egraph: &EGraph<L, N>, limit: usize) -> Vec<SearchMatches>;
 
     /// Returns a list of the variables bound by this Searcher
@@ -263,6 +266,7 @@ where
         self.apply_matches_with_limit(egraph, matches, usize::MAX)
     }
 
+    /// Apply a match, but do so while pr
     fn apply_matches_with_limit(
         &self,
         egraph: &mut EGraph<L, N>,

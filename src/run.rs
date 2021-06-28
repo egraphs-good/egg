@@ -439,18 +439,15 @@ where
         trace!("EGraph {:?}", self.egraph.dump());
 
         let start_time = Instant::now();
-        let time_limit = self.time_limit;
-        let mut node_limit = self.node_limit;
         let mut matches = Vec::new();
         result = result.and_then(|_| {
             rules.iter().try_for_each(|rule| {
                 let start = Instant::now();
                 let ms = self.scheduler.search_rewrite(i, &self.egraph, rule);
-                let num_of_rewrites = ms.iter().map(|m| m.substs.len()).sum::<usize>();
-                println!(
+                debug!(
                     "{:20} {:10} {:?}",
                     rule.name(),
-                    num_of_rewrites,
+                    ms.iter().map(|m| m.substs.len()).sum::<usize>(),
                     start.elapsed(),
                 );
                 matches.push(ms);
@@ -589,8 +586,8 @@ where
     /// A hook allowing you to customize rewrite searching behavior.
     /// Useful to implement rule management.
     ///
-    /// Default implementation just calls
-    /// [`Rewrite::search`](Rewrite::search()).
+    /// Default implementation just calls [`Searcher::search`]
+    /// on this rewrite's [`Searcher`].
     fn search_rewrite(
         &mut self,
         iteration: usize,
@@ -603,8 +600,8 @@ where
     /// A hook allowing you to customize rewrite application behavior.
     /// Useful to implement rule management.
     ///
-    /// Default implementation just calls
-    /// [`Rewrite::apply`](Rewrite::apply())
+    /// Default implementation just calls [`Applier::apply_matches`]
+    /// on this rewrite's [`Applier`].
     /// and returns number of new applications.
     fn apply_rewrite(
         &mut self,
@@ -616,6 +613,7 @@ where
         rewrite.applier.apply_matches(egraph, &matches).len()
     }
 
+    /// Apply a rewrite up to a number of times.
     fn apply_rewrite_with_limit(
         &mut self,
         iteration: usize,
