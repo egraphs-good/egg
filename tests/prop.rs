@@ -1,5 +1,3 @@
-use std::cmp::Ordering;
-
 use egg::*;
 
 define_language! {
@@ -20,8 +18,8 @@ type Rewrite = egg::Rewrite<Prop, ConstantFold>;
 struct ConstantFold;
 impl Analysis<Prop> for ConstantFold {
     type Data = Option<bool>;
-    fn merge(&self, to: &mut Self::Data, from: Self::Data) -> Option<Ordering> {
-        Some(merge_max(to, from))
+    fn merge(&self, to: &mut Self::Data, from: Self::Data) -> (bool, bool) {
+        merge_max(to, from)
     }
     fn make(egraph: &EGraph, enode: &Prop) -> Self::Data {
         let x = |i: &Id| egraph[*i].data;

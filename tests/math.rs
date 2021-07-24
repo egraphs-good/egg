@@ -1,5 +1,3 @@
-use std::cmp::Ordering;
-
 use egg::{rewrite as rw, *};
 use ordered_float::NotNan;
 
@@ -64,15 +62,15 @@ impl Analysis<Math> for ConstantFold {
         })
     }
 
-    fn merge(&self, a: &mut Self::Data, b: Self::Data) -> Option<Ordering> {
+    fn merge(&self, a: &mut Self::Data, b: Self::Data) -> (bool, bool) {
         match (a.as_mut(), b) {
-            (None, None) => Some(Ordering::Equal),
+            (None, None) => (false, false),
             (None, Some(_)) => {
                 *a = b;
-                Some(Ordering::Less)
+                (true, false)
             }
-            (Some(_), None) => Some(Ordering::Greater),
-            (Some(_), Some(_)) => Some(Ordering::Equal),
+            (Some(_), None) => (false, true),
+            (Some(_), Some(_)) => (false, false),
         }
         // if a.is_none() && b.is_some() {
         //     *a = b

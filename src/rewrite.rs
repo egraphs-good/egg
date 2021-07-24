@@ -185,8 +185,8 @@ where
 /// struct MinSize;
 /// impl Analysis<Math> for MinSize {
 ///     type Data = usize;
-///     fn merge(&self, to: &mut Self::Data, from: Self::Data) -> Option<std::cmp::Ordering> {
-///         Some(merge_min(to, from))
+///     fn merge(&self, to: &mut Self::Data, from: Self::Data) -> (bool, bool) {
+///         merge_min(to, from)
 ///     }
 ///     fn make(egraph: &EGraph, enode: &Math) -> Self::Data {
 ///         let get_size = |i: Id| egraph[i].data;

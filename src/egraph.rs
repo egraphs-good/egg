@@ -1,7 +1,6 @@
 use crate::*;
 use std::{
     borrow::BorrowMut,
-    cmp::Ordering,
     fmt::{self, Debug, Display},
 };
 
@@ -369,18 +368,12 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         assert_eq!(id1, class1.id);
 
         self.pending.extend(class2.parents.iter().cloned());
-        match self.analysis.merge(&mut class1.data, class2.data) {
-            Some(Ordering::Equal) => {}
-            Some(Ordering::Greater) => {
-                self.analysis_pending.extend(class2.parents.iter().cloned());
-            }
-            Some(Ordering::Less) => {
-                self.analysis_pending.extend(class1.parents.iter().cloned());
-            }
-            None => {
-                let both = class1.parents.iter().chain(&class2.parents).cloned();
-                self.analysis_pending.extend(both);
-            }
+        let (changed1, changed2) = self.analysis.merge(&mut class1.data, class2.data);
+        if changed1 {
+            self.analysis_pending.extend(class1.parents.iter().cloned());
+        }
+        if changed2 {
+            self.analysis_pending.extend(class2.parents.iter().cloned());
         }
 
         concat_vecs(&mut class1.nodes, class2.nodes);
@@ -534,12 +527,11 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                 let class_id = self.find_mut(class_id);
                 let node_data = N::make(self, &node);
                 let class = self.classes.get_mut(&class_id).unwrap();
-                match self.analysis.merge(&mut class.data, node_data) {
-                    Some(Ordering::Equal) | Some(Ordering::Greater) => {}
-                    Some(Ordering::Less) | None => {
-                        self.analysis_pending.extend(class.parents.iter().cloned());
-                        N::modify(self, class_id)
-                    }
+
+                let (changed1, _) = self.analysis.merge(&mut class.data, node_data);
+                if changed1 {
+                    self.analysis_pending.extend(class.parents.iter().cloned());
+                    N::modify(self, class_id)
                 }
             }
         }

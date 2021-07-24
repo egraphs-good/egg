@@ -532,8 +532,8 @@ struct ConstantFolding;
 impl Analysis<SimpleMath> for ConstantFolding {
     type Data = Option<i32>;
 
-    fn merge(&self, to: &mut Self::Data, from: Self::Data) -> Option<std::cmp::Ordering> {
-        Some(egg::merge_max(to, from))
+    fn merge(&self, to: &mut Self::Data, from: Self::Data) -> (bool, bool) {
+        egg::merge_max(to, from)
     }
 
     fn make(egraph: &EGraph<SimpleMath, Self>, enode: &SimpleMath) -> Self::Data {
@@ -596,18 +596,14 @@ pub trait Analysis<L: Language>: Sized {
     /// Defines how to merge two `Data`s when their containing
     /// [`EClass`]es merge.
     ///
-    /// Since `merge` can modify `a`, let `a0`/`a1` be the value of
-    /// `a` before/after the call to `merge`, respectively.
+    /// This should update `a` to correspond to the merged analysis
+    /// data.
     ///
-    /// The return value of `merge` should be the partial ordering of `a0` and `b`.
-    /// After `merge` returns, `a1` must be the least upper bound of `a0` and `b`.
-    ///
-    /// In other words, `merge` must respect the following:
-    /// - if `a0 < b`, then `a1 = b`,
-    /// - if `a0 > b`, then `a0 = a1`,
-    /// - if `a0 == b`, then `a0 = a1`,
-    /// - if they cannot be compared, then `a1 >= a0` and `a1 >= b`.
-    fn merge(&self, a: &mut Self::Data, b: Self::Data) -> Option<Ordering>;
+    /// The return value of `merge` should indicate whether the
+    /// resulting merged value is different from `a` and `b`
+    /// respectively. This information causes re-analysis of
+    /// parent expressions.
+    fn merge(&self, a: &mut Self::Data, b: Self::Data) -> (bool, bool);
 
     /// A hook that allows the modification of the
     /// [`EGraph`]
@@ -620,33 +616,40 @@ pub trait Analysis<L: Language>: Sized {
 impl<L: Language> Analysis<L> for () {
     type Data = ();
     fn make(_egraph: &EGraph<L, Self>, _enode: &L) -> Self::Data {}
-    fn merge(&self, _: &mut Self::Data, _: Self::Data) -> Option<Ordering> {
-        Some(Ordering::Equal)
+    fn merge(&self, _: &mut Self::Data, _: Self::Data) -> (bool, bool) {
+        (false, false)
     }
 }
 
 /// A utility for implementing [`Analysis::merge`]
 /// when the `Data` type has a total ordering.
 /// This will take the maximum of the two values.
-pub fn merge_max<T: Ord>(to: &mut T, from: T) -> Ordering {
+pub fn merge_max<T: Ord>(to: &mut T, from: T) -> (bool, bool) {
     let cmp = (*to).cmp(&from);
-    if cmp == Ordering::Less {
-        *to = from;
+    match cmp {
+        Ordering::Less => {
+            *to = from;
+            (true, false)
+        }
+        Ordering::Equal => (false, false),
+        Ordering::Greater => (false, true),
     }
-    cmp
 }
 
 /// A utility for implementing [`Analysis::merge`]
 /// when the `Data` type has a total ordering.
 /// This will take the minimum of the two values.
-pub fn merge_min<T: Ord>(to: &mut T, from: T) -> Ordering {
-    let cmp = (*to).cmp(&from).reverse();
-    if cmp == Ordering::Less {
-        *to = from;
+pub fn merge_min<T: Ord>(to: &mut T, from: T) -> (bool, bool) {
+    let cmp = (*to).cmp(&from);
+    match cmp {
+        Ordering::Less => (false, true),
+        Ordering::Equal => (false, false),
+        Ordering::Greater => {
+            *to = from;
+            (true, false)
+        }
     }
-    cmp
 }
-
 /// A simple language used for testing.
 #[derive(Debug, Hash, PartialEq, Eq, Clone, PartialOrd, Ord)]
 pub struct SymbolLang {
