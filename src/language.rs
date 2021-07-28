@@ -1,4 +1,4 @@
-use std::ops::{Index, IndexMut};
+use std::ops::{BitOr, Index, IndexMut};
 use std::{cmp::Ordering, convert::TryFrom};
 use std::{
     convert::Infallible,
@@ -532,7 +532,7 @@ struct ConstantFolding;
 impl Analysis<SimpleMath> for ConstantFolding {
     type Data = Option<i32>;
 
-    fn merge(&self, to: &mut Self::Data, from: Self::Data) -> (bool, bool) {
+    fn merge(&self, to: &mut Self::Data, from: Self::Data) -> MergeResult {
         egg::merge_max(to, from)
     }
 
@@ -573,6 +573,65 @@ assert_eq!(runner.egraph.find(runner.roots[0]), runner.egraph.find(just_foo));
 [`prop.rs`]: https://github.com/egraphs-good/egg/blob/main/tests/prop.rs
 */
 
+/// Result of [`Analysis::merge`] indicating which of the inputs
+/// are different from the merged result.
+pub struct MergeResult {
+    /// False if `a` was unchanged as part of the merge operation.
+    ///
+    /// This may be conservative -- it may return `true` even when `a`
+    /// wasn't actually changed.
+    ///
+    /// Conceptually, it should pass the following for all `a` and `b`:
+    ///
+    /// ```norun
+    /// let a_0 = a.clone();
+    /// let result = analysis.merge(&mut a, b);
+    /// if !result.a_did_change {
+    ///   assert_eq!(a_0, a);
+    /// }
+    /// ```
+    pub a_did_change: bool,
+
+    /// False that `a` has been updated to equal `b` as part of the merge.
+    ///
+    /// This may be conservative -- it may return `true` even when `b`
+    /// is in fact equal to the result.
+    ///
+    /// Conceptually, it should pass the following for all `a` and `b`:
+    ///
+    /// ```norun
+    /// let b_0 = b.clone();
+    /// let result = analysis.merge(&mut a, b);
+    /// if !result.b_did_change {
+    ///   assert_eq!(b_0, a);
+    /// }
+    /// ```
+    pub b_did_change: bool,
+}
+
+impl MergeResult {
+    /// Create a new `MergeResult`.
+    ///
+    /// See the description of [MergeResult::a_did_change] and [MergeResult::b_did_change]
+    /// for the meaning / requirements of each field.
+    pub fn new(a_did_change: bool, b_did_change: bool) -> Self {
+        Self {
+            a_did_change,
+            b_did_change,
+        }
+    }
+}
+
+impl BitOr for MergeResult {
+    type Output = MergeResult;
+
+    fn bitor(mut self, rhs: Self) -> Self::Output {
+        self.a_did_change |= rhs.a_did_change;
+        self.b_did_change |= rhs.b_did_change;
+        self
+    }
+}
+
 pub trait Analysis<L: Language>: Sized {
     /// The per-[`EClass`] data for this analysis.
     type Data: Debug;
@@ -599,11 +658,15 @@ pub trait Analysis<L: Language>: Sized {
     /// This should update `a` to correspond to the merged analysis
     /// data.
     ///
-    /// The return value of `merge` should indicate whether the
-    /// resulting merged value is different from `a` and `b`
-    /// respectively. This information causes re-analysis of
-    /// parent expressions.
-    fn merge(&self, a: &mut Self::Data, b: Self::Data) -> (bool, bool);
+    /// Since `merge` can modify `a`, let `a0`/`a1` be the value of `a`
+    /// before/after the call to `merge`, respectively.
+    ///
+    /// The return value should indicate that `a_did_change` if `a0 != `a1`.
+    /// This may be conservative -- it may indicate `a_did_change` even if `a0 == a1`.
+    ///
+    /// The return value should indicate that `b_did_change` if `b != `a1`.
+    /// This may be conservative -- it may indicate `b_did_change` even if `b == a1`.
+    fn merge(&self, a: &mut Self::Data, b: Self::Data) -> MergeResult;
 
     /// A hook that allows the modification of the
     /// [`EGraph`]
@@ -616,37 +679,37 @@ pub trait Analysis<L: Language>: Sized {
 impl<L: Language> Analysis<L> for () {
     type Data = ();
     fn make(_egraph: &EGraph<L, Self>, _enode: &L) -> Self::Data {}
-    fn merge(&self, _: &mut Self::Data, _: Self::Data) -> (bool, bool) {
-        (false, false)
+    fn merge(&self, _: &mut Self::Data, _: Self::Data) -> MergeResult {
+        MergeResult::new(false, false)
     }
 }
 
 /// A utility for implementing [`Analysis::merge`]
 /// when the `Data` type has a total ordering.
 /// This will take the maximum of the two values.
-pub fn merge_max<T: Ord>(to: &mut T, from: T) -> (bool, bool) {
+pub fn merge_max<T: Ord>(to: &mut T, from: T) -> MergeResult {
     let cmp = (*to).cmp(&from);
     match cmp {
         Ordering::Less => {
             *to = from;
-            (true, false)
+            MergeResult::new(true, false)
         }
-        Ordering::Equal => (false, false),
-        Ordering::Greater => (false, true),
+        Ordering::Equal => MergeResult::new(false, false),
+        Ordering::Greater => MergeResult::new(false, true),
     }
 }
 
 /// A utility for implementing [`Analysis::merge`]
 /// when the `Data` type has a total ordering.
 /// This will take the minimum of the two values.
-pub fn merge_min<T: Ord>(to: &mut T, from: T) -> (bool, bool) {
+pub fn merge_min<T: Ord>(to: &mut T, from: T) -> MergeResult {
     let cmp = (*to).cmp(&from);
     match cmp {
-        Ordering::Less => (false, true),
-        Ordering::Equal => (false, false),
+        Ordering::Less => MergeResult::new(false, true),
+        Ordering::Equal => MergeResult::new(false, false),
         Ordering::Greater => {
             *to = from;
-            (true, false)
+            MergeResult::new(true, false)
         }
     }
 }

@@ -18,7 +18,7 @@ type Rewrite = egg::Rewrite<Prop, ConstantFold>;
 struct ConstantFold;
 impl Analysis<Prop> for ConstantFold {
     type Data = Option<bool>;
-    fn merge(&self, to: &mut Self::Data, from: Self::Data) -> (bool, bool) {
+    fn merge(&self, to: &mut Self::Data, from: Self::Data) -> MergeResult {
         merge_max(to, from)
     }
     fn make(egraph: &EGraph, enode: &Prop) -> Self::Data {

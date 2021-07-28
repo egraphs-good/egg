@@ -54,15 +54,15 @@ fn eval(egraph: &EGraph, enode: &Lambda) -> Option<Lambda> {
 
 impl Analysis<Lambda> for LambdaAnalysis {
     type Data = Data;
-    fn merge(&self, to: &mut Data, from: Data) -> (bool, bool) {
+    fn merge(&self, to: &mut Data, from: Data) -> MergeResult {
         let before_len = to.free.len();
         // to.free.extend(from.free);
         to.free.retain(|i| from.free.contains(i));
         if to.constant.is_none() && from.constant.is_some() {
             to.constant = from.constant;
-            (true, to.free.len() != from.free.len())
+            MergeResult::new(true, to.free.len() != from.free.len())
         } else {
-            (before_len != to.free.len(), true)
+            MergeResult::new(before_len != to.free.len(), true)
         }
     }
 

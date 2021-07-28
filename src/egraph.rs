@@ -368,11 +368,11 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         assert_eq!(id1, class1.id);
 
         self.pending.extend(class2.parents.iter().cloned());
-        let (changed1, changed2) = self.analysis.merge(&mut class1.data, class2.data);
-        if changed1 {
+        let merge_result = self.analysis.merge(&mut class1.data, class2.data);
+        if merge_result.a_did_change {
             self.analysis_pending.extend(class1.parents.iter().cloned());
         }
-        if changed2 {
+        if merge_result.b_did_change {
             self.analysis_pending.extend(class2.parents.iter().cloned());
         }
 
@@ -528,8 +528,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                 let node_data = N::make(self, &node);
                 let class = self.classes.get_mut(&class_id).unwrap();
 
-                let (changed1, _) = self.analysis.merge(&mut class.data, node_data);
-                if changed1 {
+                let merge_result = self.analysis.merge(&mut class.data, node_data);
+                if merge_result.a_did_change {
                     self.analysis_pending.extend(class.parents.iter().cloned());
                     N::modify(self, class_id)
                 }
