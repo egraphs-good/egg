@@ -62,15 +62,15 @@ impl Analysis<Math> for ConstantFold {
         })
     }
 
-    fn merge(&self, a: &mut Self::Data, b: Self::Data) -> MergeResult {
+    fn merge(&self, a: &mut Self::Data, b: Self::Data) -> DidMerge {
         match (a.as_mut(), b) {
-            (None, None) => MergeResult::new(false, false),
+            (None, None) => DidMerge(false, false),
             (None, Some(_)) => {
                 *a = b;
-                MergeResult::new(true, false)
+                DidMerge(true, false)
             }
-            (Some(_), None) => MergeResult::new(false, true),
-            (Some(_), Some(_)) => MergeResult::new(false, false),
+            (Some(_), None) => DidMerge(false, true),
+            (Some(_), Some(_)) => DidMerge(false, false),
         }
         // if a.is_none() && b.is_some() {
         //     *a = b
