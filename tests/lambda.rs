@@ -1,6 +1,5 @@
 use egg::{rewrite as rw, *};
 use fxhash::FxHashSet as HashSet;
-use std::cmp::Ordering;
 
 define_language! {
     enum Lambda {
@@ -55,18 +54,15 @@ fn eval(egraph: &EGraph, enode: &Lambda) -> Option<Lambda> {
 
 impl Analysis<Lambda> for LambdaAnalysis {
     type Data = Data;
-    fn merge(&self, to: &mut Data, from: Data) -> Option<Ordering> {
+    fn merge(&self, to: &mut Data, from: Data) -> DidMerge {
         let before_len = to.free.len();
         // to.free.extend(from.free);
         to.free.retain(|i| from.free.contains(i));
-        let did_change = before_len != to.free.len();
         if to.constant.is_none() && from.constant.is_some() {
             to.constant = from.constant;
-            None
-        } else if did_change {
-            None
+            DidMerge(true, to.free.len() != from.free.len())
         } else {
-            Some(Ordering::Greater)
+            DidMerge(before_len != to.free.len(), true)
         }
     }
 
