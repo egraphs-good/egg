@@ -147,6 +147,13 @@ where
             .collect()
     }
 
+    /// Return the pattern corresponding to the searcher.
+    /// 
+    /// This pattern is commonly used for proof-production mode.
+    fn get_ast(&self) -> Option<&PatternAst<L>> {
+        None
+    }
+
     /// Returns a list of the variables bound by this Searcher
     fn vars(&self) -> Vec<Var>;
 }
@@ -256,46 +263,61 @@ where
 {
     /// Apply many substititions.
     ///
-    /// This method should call [`apply_one`] for each match and then
-    /// unify the results with the matched eclass.
-    /// This should return a list of [`Id`]s where the union actually
-    /// did something.
+    /// This method should call [`apply_one`] for each match,
+    /// then call [`union_one`] to combine the results.
+    /// 
+    /// It returns the ids resulting from the calls to `union_one`.
     ///
     /// The default implementation does this and should suffice for
     /// most use cases.
     ///
     /// [`apply_one`]: Applier::apply_one()
-    fn apply_matches(&self, egraph: &mut EGraph<L, N>, matches: &[SearchMatches]) -> Vec<Id> {
+    fn apply_matches(&self, egraph: &mut EGraph<L, N>, searcher_ast: Option<&PatternAst<L>>, matches: &[SearchMatches], rule_name: &str) -> Vec<Id> {
         let mut added = vec![];
         for mat in matches {
             for subst in &mat.substs {
-                let ids = self
-                    .apply_one(egraph, mat.eclass, subst)
-                    .into_iter()
-                    .filter_map(|id| {
-                        let (to, did_something) = egraph.union(id, mat.eclass);
-                        if did_something {
-                            Some(to)
-                        } else {
-                            None
-                        }
-                    });
-                added.extend(ids)
+                let ids = self.apply_one(egraph, mat.eclass, subst);
+                let unions = self.union_results(egraph, mat.eclass, ids, searcher_ast, rule_name);
+                added.extend(unions)
             }
         }
         added
+    }
+
+    /// Return the pattern corresponding to the applier.
+    /// 
+    /// This pattern is commonly used for proof-production mode.
+    fn get_ast(&self) -> Option<&PatternAst<L>> {
+        None
+    }
+
+    /// Unions the eclasses after a match has been applied.
+    /// 
+    /// This should return a list of [`Id`]s of eclasses which 
+    /// had unions applied to them.
+    fn union_results(&self, egraph: &mut EGraph<L, N>, eclass: Id, application_ids : Vec<Id>, searcher_ast: Option<&PatternAst<L>>, rule_name: &str) -> Vec<Id> {
+        let mut unioned = vec![];
+        for application_id in application_ids {
+            let (to, did_something) = egraph.union_with_justification(eclass, application_id, searcher_ast.unwrap(), self.get_ast().unwrap(), rule_name, None, None);
+            if did_something {
+                unioned.push(to);
+            }
+        }
+        unioned
     }
 
     /// Apply a single substitition.
     ///
     /// An [`Applier`] should only add things to the egraph here,
     /// _not_ union them with the id `eclass`.
-    /// That is the responsibility of the [`apply_matches`] method.
+    /// That is the responsibility of the [`union_one`] method.
     /// The `eclass` parameter allows the implementer to inspect the
     /// eclass where the match was found if they need to.
     ///
     /// This should return a list of [`Id`]s of things you'd like to
     /// be unioned with `eclass`. There can be zero, one, or many.
+    /// These should NOT be canonicalized ids, but the resulting ids of
+    /// the applications.
     ///
     /// [`apply_matches`]: Applier::apply_matches()
     fn apply_one(&self, egraph: &mut EGraph<L, N>, eclass: Id, subst: &Subst) -> Vec<Id>;

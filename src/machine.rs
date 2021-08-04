@@ -2,8 +2,10 @@ use crate::util::HashSet;
 use crate::{Analysis, EClass, EGraph, ENodeOrVar, Id, Language, PatternAst, RecExpr, Subst, Var};
 use std::cmp::Ordering;
 
+type EMatch = Vec<Id>;
+
 struct Machine {
-    reg: Vec<Id>,
+    reg: EMatch,
 }
 
 impl Default for Machine {

@@ -205,6 +205,11 @@ impl<L: Language + Display> Display for Pattern<L> {
     }
 }
 
+
+pub struct SearchMatch {
+    subst: Subst,
+}
+
 /// The result of searching a [`Searcher`] over one eclass.
 ///
 /// Note that one [`SearchMatches`] can contain many found
@@ -217,7 +222,7 @@ pub struct SearchMatches {
     /// The eclass id that these matches were found in.
     pub eclass: Id,
     /// The matches themselves.
-    pub substs: Vec<Subst>,
+    pub substs: Vec<SearchMatch>,
 }
 
 impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
