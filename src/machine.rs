@@ -1,8 +1,12 @@
 use crate::util::HashSet;
-use crate::{Analysis, EClass, EGraph, ENodeOrVar, Id, Language, PatternAst, RecExpr, Subst, Var};
+use crate::{
+    Analysis, EClass, EGraph, ENodeOrVar, Id, Language, PatternAst, RecExpr, SearchMatch, Subst,
+    Var,
+};
 use std::cmp::Ordering;
 
-type EMatch = Vec<Id>;
+/// The [`ID`] of each of the nodes that matched the pattern in preorder.
+pub type EMatch = Vec<Id>;
 
 struct Machine {
     reg: EMatch,
@@ -303,7 +307,7 @@ impl<L: Language> Program<L> {
         program
     }
 
-    pub fn run<A>(&self, egraph: &EGraph<L, A>, eclass: Id) -> Vec<Subst>
+    pub fn run<A>(&self, egraph: &EGraph<L, A>, eclass: Id) -> Vec<SearchMatch>
     where
         A: Analysis<L>,
     {
@@ -319,7 +323,7 @@ impl<L: Language> Program<L> {
         }
         machine.reg.push(eclass);
 
-        let mut substs = Vec::new();
+        let mut matches = Vec::new();
         machine.run(
             egraph,
             &self.instructions,
@@ -331,11 +335,13 @@ impl<L: Language> Program<L> {
                     // HACK we are reusing Ids here, this is bad
                     .map(|(v, reg_id)| (*v, machine.reg(Reg(usize::from(*reg_id) as u32))))
                     .collect();
-                substs.push(Subst { vec: subst_vec })
+                matches.push(SearchMatch {
+                    subst: Subst { vec: subst_vec },
+                });
             },
         );
 
-        log::trace!("Ran program, found {:?}", substs);
-        substs
+        log::trace!("Ran program, found {:?}", matches);
+        matches
     }
 }

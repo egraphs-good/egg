@@ -335,10 +335,19 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
     /// Given two patterns which match eclasses id1 and id2 respectively,
     /// unions the two eclasses.
-    /// 
-    /// If searcher-ematch or application-ematch is given, then it is used to perform the union.
+    ///
+    /// If searcher_ematch or application_ematch is given, then it is used to perform the union.
     /// Otherwise, it performs an e-match in order to find the justification.
-    pub fn union_with_justification(&mut self, id1: Id, id2: Id, pat1: PatternAst<L>, to: PatternAst<L>, rule_name: &str, searcher-ematch: Option<EMatch>, application-ematch: Option<EMatch>) -> (Id, bool) {
+    pub fn union_with_justification(
+        &mut self,
+        id1: Id,
+        id2: Id,
+        pat1: &PatternAst<L>,
+        to: &PatternAst<L>,
+        rule_name: &str,
+        searcher_ematch: Option<EMatch>,
+        application_ematch: Option<EMatch>,
+    ) -> (Id, bool) {
         self.union(id1, id2)
     }
 

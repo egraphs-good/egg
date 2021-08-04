@@ -154,6 +154,45 @@ struct CaptureAvoid {
 }
 
 impl Applier<Lambda, LambdaAnalysis> for CaptureAvoid {
+    fn union_results(
+        &self,
+        egraph: &mut EGraph,
+        eclass: Id,
+        application_ids: Vec<Id>,
+        searcher_ast: Option<&PatternAst<Lambda>>,
+        search_match: &SearchMatch,
+        rule_name: &str,
+    ) -> Vec<Id> {
+        println!("Called");
+        let subst = &search_match.subst;
+        let e = subst[self.e];
+        let v2 = subst[self.v2];
+        let v2_free_in_e = egraph[e].data.free.contains(&v2);
+
+        let ast = if v2_free_in_e {
+            egg::Searcher::<_, LambdaAnalysis>::get_ast(&self.if_free).unwrap()
+        } else {
+            egg::Searcher::<_, LambdaAnalysis>::get_ast(&self.if_not_free).unwrap()
+        };
+
+        let mut unioned = vec![];
+        for application_id in application_ids {
+            let (to, did_something) = egraph.union_with_justification(
+                eclass,
+                application_id,
+                searcher_ast.unwrap(),
+                ast,
+                rule_name,
+                None,
+                None,
+            );
+            if did_something {
+                unioned.push(to);
+            }
+        }
+        unioned
+    }
+
     fn apply_one(&self, egraph: &mut EGraph, eclass: Id, subst: &Subst) -> Vec<Id> {
         let e = subst[self.e];
         let v2 = subst[self.v2];

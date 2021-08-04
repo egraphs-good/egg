@@ -457,7 +457,7 @@ where
         let mut applied = IndexMap::default();
         result = result.and_then(|_| {
             rules.iter().zip(matches).try_for_each(|(rw, ms)| {
-                let total_matches: usize = ms.iter().map(|m| m.substs.len()).sum();
+                let total_matches: usize = ms.iter().map(|m| m.matches.len()).sum();
                 debug!("Applying {} {} times", rw.name(), total_matches);
 
                 let actually_matched = self.scheduler.apply_rewrite(i, &mut self.egraph, rw, ms);
@@ -779,7 +779,7 @@ where
         }
 
         let matches = rewrite.search(egraph);
-        let total_len: usize = matches.iter().map(|m| m.substs.len()).sum();
+        let total_len: usize = matches.iter().map(|m| m.matches.len()).sum();
         let threshold = stats.match_limit << stats.times_banned;
         if total_len > threshold {
             let ban_length = stats.ban_length << stats.times_banned;
