@@ -5,7 +5,7 @@ use crate::{
 };
 use std::cmp::Ordering;
 
-/// The [`ID`] of each of the nodes that matched the pattern in preorder.
+/// The [`Id`] of each of the nodes that matched the pattern in preorder.
 pub type EMatch = Vec<Id>;
 
 struct Machine {

@@ -275,7 +275,7 @@ where
     /// This method should call [`apply_one`] for each match,
     /// then call [`union_results`] to combine the results.
     ///
-    /// It returns the ids resulting from the calls to `union_results`.
+    /// It returns the ids resulting from the calls to [`union_results`].
     ///
     /// The default implementation does this and should suffice for
     /// most use cases.
@@ -317,6 +317,7 @@ where
     ///
     /// This should return a list of [`Id`]s of eclasses which
     /// had unions applied to them.
+    /// [`union_results`]: Applier::union_results()
     fn union_results(
         &self,
         egraph: &mut EGraph<L, N>,

@@ -308,7 +308,7 @@ where
                     search_match,
                     rule_name,
                 );
-                if to.len() > 0 {
+                if !to.is_empty() {
                     added.push(to[0])
                 }
             }
