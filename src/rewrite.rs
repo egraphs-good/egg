@@ -330,7 +330,7 @@ where
         println!("Rule {}", rule_name);
         let mut unioned = vec![];
         for application_id in application_ids {
-            let (to, did_something) = egraph.union_with_justification(
+            let did_something = egraph.union_with_justification(
                 eclass,
                 application_id,
                 searcher_ast.unwrap(),
@@ -340,7 +340,7 @@ where
                 None,
             );
             if did_something {
-                unioned.push(to);
+                unioned.push(eclass);
             }
         }
         unioned

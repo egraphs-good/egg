@@ -46,6 +46,7 @@ and
 pub struct EGraph<L: Language, N: Analysis<L>> {
     /// The `Analysis` given when creating this `EGraph`.
     pub analysis: N,
+    to_union: Vec<(Id, Id)>,
     pending: Vec<(L, Id)>,
     analysis_pending: IndexSet<(L, Id)>,
     memo: HashMap<L, Id>,
@@ -76,6 +77,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         Self {
             analysis,
             memo: Default::default(),
+            to_union: Default::default(),
             classes: Default::default(),
             unionfind: Default::default(),
             pending: Default::default(),
@@ -151,6 +153,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// assert_ne!(egraph.find(x), egraph.find(y));
     ///
     /// egraph.union(x, y);
+    /// egraph.rebuild();
     /// assert_eq!(egraph.find(x), egraph.find(y));
     /// ```
     pub fn find(&self, id: Id) -> Id {
@@ -334,8 +337,10 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     }
 
     /// Given two patterns which match eclasses id1 and id2 respectively,
-    /// unions the two eclasses.
+    /// marks the two eclasses for unioning.
     ///
+    /// The returned `bool` indicates whether a union is necessary.
+    /// 
     /// If searcher_ematch or application_ematch is given, then it is used to perform the union.
     /// Otherwise, it performs an e-match in order to find the justification.
     pub fn union_with_justification(
@@ -347,27 +352,39 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         rule_name: &str,
         searcher_ematch: Option<EMatch>,
         application_ematch: Option<EMatch>,
-    ) -> (Id, bool) {
+    ) -> bool {
         self.union(id1, id2)
     }
 
-    /// Unions two eclasses given their ids.
-    ///
+    /// Marks two eclasses to be unioned given their ids.
+    /// 
+    /// At the end of each iteration, these classes are unioned during
+    /// [`rebuild`](EGraph::rebuild).
+    /// 
     /// The given ids need not be canonical.
-    /// The returned `bool` indicates whether a union was done,
+    /// The returned `bool` indicates whether a union is necessary,
     /// so it's `false` if they were already equivalent.
     /// Both results are canonical.
     ///
-    /// Like [`add`](EGraph::add), this modifies the e-graph,
-    /// so you must call [`rebuild`](EGraph::rebuild) any query operations.
-    pub fn union(&mut self, mut id1: Id, mut id2: Id) -> (Id, bool) {
+    /// You must call [`rebuild`](EGraph::rebuild) to observe any effect.
+    pub fn union(&mut self, mut id1: Id, mut id2: Id) -> bool {
         id1 = self.find_mut(id1);
         id2 = self.find_mut(id2);
 
         if id1 == id2 {
-            return (id1, false);
+            false
+        } else {
+            self.to_union.push((id1, id2));
+            true
         }
+    }
 
+    fn perform_union(&mut self, mut id1: Id, mut id2: Id) {
+        id1 = self.find_mut(id1);
+        id2 = self.find_mut(id2);
+        if id1 == id2 {
+            return;
+        }
         // make sure class2 has fewer parents
         let class1_parents = self.classes[&id1].parents.len();
         let class2_parents = self.classes[&id2].parents.len();
@@ -398,7 +415,6 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         concat_vecs(&mut class1.parents, class2.parents);
 
         N::modify(self, id1);
-        (id1, id1 != id2)
     }
 
     /// Returns a more debug-able representation of the egraph.
@@ -528,15 +544,28 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         true
     }
 
+    fn perform_to_union(&mut self) {
+        while !self.to_union.is_empty() {
+            let mut current = vec![];
+            std::mem::swap(&mut self.to_union, &mut current);
+            for (id1, id2) in current.into_iter() {
+                self.perform_union(id1, id2);
+            }
+        }
+    }
+
     #[inline(never)]
     fn process_unions(&mut self) -> usize {
+        self.perform_to_union();
+
         let mut n_unions = 0;
 
         while !self.pending.is_empty() {
             while let Some((mut node, class)) = self.pending.pop() {
                 node.update_children(|id| self.find_mut(id));
                 if let Some(memo_class) = self.memo.insert(node, class) {
-                    let (_, did_something) = self.union(memo_class, class);
+                    let did_something = self.union(memo_class, class);
+                    self.perform_to_union();
                     n_unions += did_something as usize;
                 }
             }
@@ -549,7 +578,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                 let did_merge = self.analysis.merge(&mut class.data, node_data);
                 if did_merge.0 {
                     self.analysis_pending.extend(class.parents.iter().cloned());
-                    N::modify(self, class_id)
+                    N::modify(self, class_id);
+                    self.perform_to_union();
                 }
             }
         }
@@ -583,14 +613,15 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// let ax = egraph.add_expr(&"(+ a x)".parse().unwrap());
     /// let ay = egraph.add_expr(&"(+ a y)".parse().unwrap());
     ///
-    /// // The effects of this union aren't yet visible; ax and ay
-    /// // should be equivalent by congruence since x = y.
+    /// // The effects of this union aren't yet visible; 
+    /// // The union has not taken effect.
     /// egraph.union(x, y);
-    /// // Classes: [x y] [ax] [ay] [a]
-    /// assert_eq!(egraph.number_of_classes(), 4);
+    /// // Classes: [x] [y] [ax] [ay] [a]
+    /// assert_eq!(egraph.number_of_classes(), 5);
     /// assert_ne!(egraph.find(ax), egraph.find(ay));
     ///
-    /// // Rebuilding restores the invariants, finding the "missing" equivalence
+    /// // Rebuilding applies the union and restores the invariants, finding
+    /// // that ax and ay are equivalent.
     /// egraph.rebuild();
     /// // Classes: [x y] [ax ay] [a]
     /// assert_eq!(egraph.number_of_classes(), 3);

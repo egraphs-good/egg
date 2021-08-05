@@ -160,11 +160,9 @@ impl Applier<Lambda, LambdaAnalysis> for CaptureAvoid {
         eclass: Id,
         application_ids: Vec<Id>,
         searcher_ast: Option<&PatternAst<Lambda>>,
-        search_match: &SearchMatch,
+        subst: &Subst,
         rule_name: &str,
     ) -> Vec<Id> {
-        println!("Called");
-        let subst = &search_match.subst;
         let e = subst[self.e];
         let v2 = subst[self.v2];
         let v2_free_in_e = egraph[e].data.free.contains(&v2);
@@ -177,7 +175,7 @@ impl Applier<Lambda, LambdaAnalysis> for CaptureAvoid {
 
         let mut unioned = vec![];
         for application_id in application_ids {
-            let (to, did_something) = egraph.union_with_justification(
+            let did_something = egraph.union_with_justification(
                 eclass,
                 application_id,
                 searcher_ast.unwrap(),
@@ -187,7 +185,7 @@ impl Applier<Lambda, LambdaAnalysis> for CaptureAvoid {
                 None,
             );
             if did_something {
-                unioned.push(to);
+                unioned.push(eclass);
             }
         }
         unioned

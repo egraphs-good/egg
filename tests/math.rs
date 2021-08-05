@@ -82,15 +82,10 @@ impl Analysis<Math> for ConstantFold {
         let class = &mut egraph[id];
         if let Some(c) = class.data {
             let added = egraph.add(Math::Constant(c));
-            let (id, _did_something) = egraph.union(id, added);
+            egraph.union(id, added);
             // to not prune, comment this out
             egraph[id].nodes.retain(|n| n.is_leaf());
 
-            assert!(
-                !egraph[id].nodes.is_empty(),
-                "empty eclass! {:#?}",
-                egraph[id]
-            );
             #[cfg(debug_assertions)]
             egraph[id].assert_unique_leaves();
         }
