@@ -13,6 +13,7 @@ pub struct EClass<L, D> {
     pub nodes: Vec<L>,
     /// The analysis data associated with this eclass.
     pub data: D,
+    /// The parent enodes and their original Ids.
     pub(crate) parents: Vec<(L, Id)>,
 }
 

@@ -1,7 +1,7 @@
 use fmt::Formatter;
 use log::*;
 use std::fmt::{self, Display};
-use std::{convert::TryFrom, error::Error, str::FromStr};
+use std::{convert::TryFrom, error::Error, str::FromStr, sync::Arc};
 
 use thiserror::Error;
 
@@ -222,8 +222,8 @@ pub struct SearchMatches {
 }
 
 impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
-    fn get_ast(&self) -> Option<&PatternAst<L>> {
-        Some(&self.ast)
+    fn get_ast(&self, egraph: &mut EGraph<L, A>, eclass: Id, subst: &Subst) -> Option<PatternAst<L>> {
+        Some(self.ast.clone())
     }
 
     fn search(&self, egraph: &EGraph<L, A>) -> Vec<SearchMatches> {
@@ -265,8 +265,8 @@ where
     L: Language,
     A: Analysis<L>,
 {
-    fn get_ast(&self) -> Option<&PatternAst<L>> {
-        Some(&self.ast)
+    fn get_ast(&self, egraph: &mut EGraph<L, A>, eclass: Id, subst: &Subst) -> Option<PatternAst<L>> {
+        Some(self.ast.clone())
     }
 
     fn apply_one(&self, egraph: &mut EGraph<L, A>, _: Id, subst: &Subst) -> Vec<Id> {
@@ -283,7 +283,7 @@ where
     fn apply_matches(
         &self,
         egraph: &mut EGraph<L, A>,
-        searcher_ast: Option<&PatternAst<L>>,
+        searcher: &Arc<dyn Searcher<L, A> + Sync + Send>,
         matches: &[SearchMatches],
         rule_name: &str,
     ) -> Vec<Id> {
@@ -293,11 +293,12 @@ where
         for mat in matches {
             for subst in &mat.substs {
                 let id = apply_pat(&mut id_buf, ast, egraph, subst);
+                let searcher_ast = searcher.get_ast(egraph, mat.eclass, subst);
                 let to = self.union_results(
                     egraph,
                     mat.eclass,
                     vec![id],
-                    searcher_ast,
+                    searcher_ast.as_ref(),
                     subst,
                     rule_name,
                 );

@@ -353,7 +353,9 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         if self.find_mut(id1) == self.find_mut(id2) {
             false
         } else {
-            self.to_union.push((id1, id2, Some(rule_name.to_string())));
+            let left_added = self.explain.add_match(from_pat, subst, &self.classes);
+            let right_added = self.explain.add_match(to_pat, subst, &self.classes);
+            self.to_union.push((left_added, right_added, Some(rule_name.to_string())));
             true
         }
     }
@@ -378,9 +380,9 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         }
     }
 
-    fn perform_union(&mut self, mut id1: Id, mut id2: Id, rule: Option<Justification>) -> bool {
-        id1 = self.find_mut(id1);
-        id2 = self.find_mut(id2);
+    fn perform_union(&mut self, enode_id1: Id, enode_id2: Id, rule: Option<Justification>) -> bool {
+        let mut id1 = self.find_mut(enode_id1);
+        let mut id2 = self.find_mut(enode_id2);
         if id1 == id2 {
             return false;
         }
@@ -394,7 +396,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         N::pre_union(self, id1, id2);
 
         // make id1 the new root
-        self.explain.union(id1, id2, rule);
+        self.explain.union(enode_id1, enode_id2, id1, id2, rule);
 
         assert_ne!(id1, id2);
         let class2 = self.classes.remove(&id2).unwrap();

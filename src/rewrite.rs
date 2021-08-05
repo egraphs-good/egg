@@ -93,9 +93,7 @@ impl<L: Language, N: Analysis<L>> Rewrite<L, N> {
     ///
     /// [`apply_matches`]: Applier::apply_matches()
     pub fn apply(&self, egraph: &mut EGraph<L, N>, matches: &[SearchMatches]) -> Vec<Id> {
-        assert!(self.searcher.get_ast() != None);
-        self.applier
-            .apply_matches(egraph, self.searcher.get_ast(), matches, &self.name)
+        self.applier.apply_matches(egraph, &self.searcher, matches, &self.name)
     }
 
     /// This `run` is for testing use only. You should use things
@@ -152,7 +150,7 @@ where
     /// Return the pattern corresponding to the searcher.
     ///
     /// This pattern is commonly used for proof-production mode.
-    fn get_ast(&self) -> Option<&PatternAst<L>> {
+    fn get_ast(&self, egraph: &mut EGraph<L, N>, eclass: Id, subst: &Subst) -> Option<PatternAst<L>> {
         None
     }
 
@@ -229,8 +227,8 @@ where
 ///
 /// impl Applier<Math, MinSize> for Funky {
 ///
-///     fn get_ast(&self) -> Option<&PatternAst<Math>> {
-///        return Some(&self.ast);
+///     fn get_ast(&self, egraph: &mut EGraph, eclass: Id, subst: &Subst) -> Option<PatternAst<Math>> {
+///        return Some(self.ast.clone());
 ///     }
 ///
 ///     fn apply_one(&self, egraph: &mut EGraph, matched_id: Id, subst: &Subst) -> Vec<Id> {
@@ -284,7 +282,7 @@ where
     fn apply_matches(
         &self,
         egraph: &mut EGraph<L, N>,
-        searcher_ast: Option<&PatternAst<L>>,
+        searcher: &Arc<dyn Searcher<L, N> + Sync + Send>,
         matches: &[SearchMatches],
         rule_name: &str,
     ) -> Vec<Id> {
@@ -292,11 +290,12 @@ where
         for mat in matches {
             for subst in &mat.substs {
                 let ids = self.apply_one(egraph, mat.eclass, subst);
+                let searcher_ast = searcher.get_ast(egraph, mat.eclass, subst);
                 let unions = self.union_results(
                     egraph,
                     mat.eclass,
                     ids,
-                    searcher_ast,
+                    searcher_ast.as_ref(),
                     subst,
                     rule_name,
                 );
@@ -309,7 +308,7 @@ where
     /// Return the pattern corresponding to the applier.
     ///
     /// This pattern is commonly used for proof-production mode.
-    fn get_ast(&self) -> Option<&PatternAst<L>> {
+    fn get_ast(&self, egraph: &mut EGraph<L, N>, eclass: Id, subst: &Subst) -> Option<PatternAst<L>> {
         None
     }
 
@@ -327,14 +326,14 @@ where
         subst: &Subst,
         rule_name: &str,
     ) -> Vec<Id> {
-        println!("Rule {}", rule_name);
         let mut unioned = vec![];
         for application_id in application_ids {
+            let ast = self.get_ast(egraph, eclass, subst);
             let did_something = egraph.union_with_justification(
                 eclass,
                 application_id,
                 searcher_ast.unwrap(),
-                self.get_ast().unwrap(),
+                &ast.unwrap(),
                 subst,
                 rule_name,
             );
@@ -402,8 +401,8 @@ where
     A: Applier<L, N>,
     N: Analysis<L>,
 {
-    fn get_ast(&self) -> Option<&PatternAst<L>> {
-        self.applier.get_ast()
+    fn get_ast(&self, egraph: &mut EGraph<L, N>, eclass: Id, subst: &Subst) -> Option<PatternAst<L>> {
+        self.applier.get_ast(egraph, eclass, subst)
     }
 
     fn union_results(
@@ -582,9 +581,16 @@ mod tests {
         struct Appender {
             rhs: PatternAst<S>,
         };
+
+
         impl Applier<SymbolLang, ()> for Appender {
-            fn get_ast(&self) -> Option<&PatternAst<S>> {
-                Some(&self.rhs)
+            fn get_ast(&self, egraph: &mut EGraph, eclass: Id, subst: &Subst) -> Option<PatternAst<SymbolLang>> {
+                let a: Var = "?a".parse().unwrap();
+                let b: Var = "?b".parse().unwrap();
+                let a = get(&egraph, subst[a]);
+                let b = get(&egraph, subst[b]);
+                let s = format!("{}{}", a, b);
+                Some(PatternAst::from_str(&s).unwrap())
             }
 
             fn apply_one(&self, egraph: &mut EGraph, _eclass: Id, subst: &Subst) -> Vec<Id> {
@@ -598,7 +604,7 @@ mod tests {
         }
 
         let fold_add = rewrite!(
-            "fold_add"; "(+ ?a ?b)" => { Appender { rhs: "?x".parse().unwrap()}}
+            "fold_add"; "(+ ?a ?b)" => { Appender { rhs: "?a".parse().unwrap()}}
         );
 
         egraph.rebuild();
