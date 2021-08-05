@@ -205,13 +205,6 @@ impl<L: Language + Display> Display for Pattern<L> {
     }
 }
 
-/// The substitution for a single match of a pattern,
-/// plus the [`EMatch`] if proof-production mode is enabled.
-#[derive(Debug)]
-pub struct SearchMatch {
-    /// The substitution for the match.
-    pub subst: Subst,
-}
 
 /// The result of searching a [`Searcher`] over one eclass.
 ///
@@ -224,8 +217,8 @@ pub struct SearchMatch {
 pub struct SearchMatches {
     /// The eclass id that these matches were found in.
     pub eclass: Id,
-    /// The matches themselves.
-    pub matches: Vec<SearchMatch>,
+    /// The substitutions for each match.
+    pub substs: Vec<Subst>,
 }
 
 impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
@@ -254,11 +247,11 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
     }
 
     fn search_eclass(&self, egraph: &EGraph<L, A>, eclass: Id) -> Option<SearchMatches> {
-        let matches = self.program.run(egraph, eclass);
-        if matches.is_empty() {
+        let substs = self.program.run(egraph, eclass);
+        if substs.is_empty() {
             None
         } else {
-            Some(SearchMatches { eclass, matches })
+            Some(SearchMatches { eclass, substs })
         }
     }
 
@@ -291,21 +284,21 @@ where
         &self,
         egraph: &mut EGraph<L, A>,
         searcher_ast: Option<&PatternAst<L>>,
-        all_matches: &[SearchMatches],
+        matches: &[SearchMatches],
         rule_name: &str,
     ) -> Vec<Id> {
         let mut added = vec![];
         let ast = self.ast.as_ref();
         let mut id_buf = vec![0.into(); ast.len()];
-        for mat in all_matches {
-            for search_match in &mat.matches {
-                let id = apply_pat(&mut id_buf, ast, egraph, &search_match.subst);
+        for mat in matches {
+            for subst in &mat.substs {
+                let id = apply_pat(&mut id_buf, ast, egraph, subst);
                 let to = self.union_results(
                     egraph,
                     mat.eclass,
                     vec![id],
                     searcher_ast,
-                    search_match,
+                    subst,
                     rule_name,
                 );
                 if !to.is_empty() {
@@ -370,17 +363,14 @@ mod tests {
         );
 
         let matches = commute_plus.search(&egraph);
-        let n_matches: usize = matches.iter().map(|m| m.matches.len()).sum();
+        let n_matches: usize = matches.iter().map(|m| m.substs.len()).sum();
         assert_eq!(n_matches, 2, "matches is wrong: {:#?}", matches);
 
         let applications = commute_plus.apply(&mut egraph, &matches);
         egraph.rebuild();
         assert_eq!(applications.len(), 2);
 
-        let actual_substs: Vec<Subst> = matches
-            .iter()
-            .flat_map(|m| m.matches.iter().map(|mat| mat.subst.clone()))
-            .collect();
+        let actual_substs: Vec<Subst> = matches.iter().flat_map(|m| m.substs.clone()).collect();
 
         println!("Here are the substs!");
         for m in &actual_substs {

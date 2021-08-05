@@ -81,7 +81,7 @@ pub use {
     extract::*,
     language::*,
     machine::EMatch,
-    pattern::{ENodeOrVar, Pattern, PatternAst, SearchMatch, SearchMatches},
+    pattern::{ENodeOrVar, Pattern, PatternAst, SearchMatches},
     rewrite::{Applier, Condition, ConditionEqual, ConditionalApplier, Rewrite, Searcher},
     run::*,
     subst::{Subst, Var},

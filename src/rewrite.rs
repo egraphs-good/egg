@@ -285,19 +285,19 @@ where
         &self,
         egraph: &mut EGraph<L, N>,
         searcher_ast: Option<&PatternAst<L>>,
-        all_matches: &[SearchMatches],
+        matches: &[SearchMatches],
         rule_name: &str,
     ) -> Vec<Id> {
         let mut added = vec![];
-        for matches in all_matches {
-            for search_match in &matches.matches {
-                let ids = self.apply_one(egraph, matches.eclass, &search_match.subst);
+        for mat in matches {
+            for subst in &mat.substs {
+                let ids = self.apply_one(egraph, mat.eclass, subst);
                 let unions = self.union_results(
                     egraph,
-                    matches.eclass,
+                    mat.eclass,
                     ids,
                     searcher_ast,
-                    search_match,
+                    subst,
                     rule_name,
                 );
                 added.extend(unions)
@@ -324,7 +324,7 @@ where
         eclass: Id,
         application_ids: Vec<Id>,
         searcher_ast: Option<&PatternAst<L>>,
-        search_match: &SearchMatch,
+        subst: &Subst,
         rule_name: &str,
     ) -> Vec<Id> {
         println!("Rule {}", rule_name);
@@ -413,7 +413,7 @@ where
         eclass: Id,
         application_ids: Vec<Id>,
         searcher_ast: Option<&PatternAst<L>>,
-        search_match: &SearchMatch,
+        subst: &Subst,
         rule_name: &str,
     ) -> Vec<Id> {
         self.applier.union_results(
@@ -421,7 +421,7 @@ where
             eclass,
             application_ids,
             searcher_ast,
-            search_match,
+            subst,
             rule_name,
         )
     }

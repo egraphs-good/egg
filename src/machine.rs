@@ -1,6 +1,6 @@
 use crate::util::HashSet;
 use crate::{
-    Analysis, EClass, EGraph, ENodeOrVar, Id, Language, PatternAst, RecExpr, SearchMatch, Subst,
+    Analysis, EClass, EGraph, ENodeOrVar, Id, Language, PatternAst, RecExpr, Subst,
     Var,
 };
 use std::cmp::Ordering;
@@ -307,7 +307,7 @@ impl<L: Language> Program<L> {
         program
     }
 
-    pub fn run<A>(&self, egraph: &EGraph<L, A>, eclass: Id) -> Vec<SearchMatch>
+    pub fn run<A>(&self, egraph: &EGraph<L, A>, eclass: Id) -> Vec<Subst>
     where
         A: Analysis<L>,
     {
@@ -335,9 +335,7 @@ impl<L: Language> Program<L> {
                     // HACK we are reusing Ids here, this is bad
                     .map(|(v, reg_id)| (*v, machine.reg(Reg(usize::from(*reg_id) as u32))))
                     .collect();
-                matches.push(SearchMatch {
-                    subst: Subst { vec: subst_vec },
-                });
+                matches.push(Subst { vec: subst_vec });
             },
         );
 
