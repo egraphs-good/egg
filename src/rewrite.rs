@@ -335,9 +335,8 @@ where
                 application_id,
                 searcher_ast.unwrap(),
                 self.get_ast().unwrap(),
+                subst,
                 rule_name,
-                None,
-                None,
             );
             if did_something {
                 unioned.push(eclass);

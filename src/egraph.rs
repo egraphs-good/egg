@@ -345,11 +345,10 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         &mut self,
         id1: Id,
         id2: Id,
-        pat1: &PatternAst<L>,
-        to: &PatternAst<L>,
+        from_pat: &PatternAst<L>,
+        to_pat: &PatternAst<L>,
+        subst: &Subst,
         rule_name: &str,
-        searcher_ematch: Option<EMatch>,
-        application_ematch: Option<EMatch>,
     ) -> bool {
         if self.find_mut(id1) == self.find_mut(id2) {
             false
@@ -379,11 +378,11 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         }
     }
 
-    fn perform_union(&mut self, mut id1: Id, mut id2: Id, rule: Option<String>) {
+    fn perform_union(&mut self, mut id1: Id, mut id2: Id, rule: Option<Justification>) -> bool {
         id1 = self.find_mut(id1);
         id2 = self.find_mut(id2);
         if id1 == id2 {
-            return;
+            return false;
         }
         // make sure class2 has fewer parents
         let class1_parents = self.classes[&id1].parents.len();
@@ -415,6 +414,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         concat_vecs(&mut class1.parents, class2.parents);
 
         N::modify(self, id1);
+        true
     }
 
     /// Returns a more debug-able representation of the egraph.
@@ -549,7 +549,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             let mut current = vec![];
             std::mem::swap(&mut self.to_union, &mut current);
             for (id1, id2, rule) in current.into_iter() {
-                self.perform_union(id1, id2, rule);
+                self.perform_union(id1, id2, rule.map(|r| Justification::Rule(r)));
             }
         }
     }
@@ -564,8 +564,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             while let Some((mut node, class)) = self.pending.pop() {
                 node.update_children(|id| self.find_mut(id));
                 if let Some(memo_class) = self.explain.memo.insert(node, class) {
-                    let did_something = self.union(memo_class, class);
-                    self.perform_to_union();
+                    let did_something = self.perform_union(memo_class, class, None);
                     n_unions += did_something as usize;
                 }
             }
@@ -579,6 +578,9 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                 if did_merge.0 {
                     self.analysis_pending.extend(class.parents.iter().cloned());
                     N::modify(self, class_id);
+                    // this allows analyses to perform unions during rebuilding
+                    // at the cost of making the memo in explain.rs out of date
+                    // This is fine, but makes proof production do a slightly slower search
                     self.perform_to_union();
                 }
             }

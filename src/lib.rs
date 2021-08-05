@@ -75,6 +75,7 @@ impl std::fmt::Display for Id {
 
 pub(crate) use {
     explain::Explain,
+    explain::Justification,
     unionfind::UnionFind,   
 };
 

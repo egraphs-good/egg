@@ -180,9 +180,8 @@ impl Applier<Lambda, LambdaAnalysis> for CaptureAvoid {
                 application_id,
                 searcher_ast.unwrap(),
                 ast,
+                subst,
                 rule_name,
-                None,
-                None,
             );
             if did_something {
                 unioned.push(eclass);
