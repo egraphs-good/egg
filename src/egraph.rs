@@ -46,11 +46,10 @@ and
 pub struct EGraph<L: Language, N: Analysis<L>> {
     /// The `Analysis` given when creating this `EGraph`.
     pub analysis: N,
-    to_union: Vec<(Id, Id)>,
+    to_union: Vec<(Id, Id, Option<String>)>,
     pending: Vec<(L, Id)>,
     analysis_pending: IndexSet<(L, Id)>,
-    memo: HashMap<L, Id>,
-    unionfind: UnionFind,
+    explain: Explain<L>,
     classes: HashMap<Id, EClass<L, N::Data>>,
     pub(crate) classes_by_op: HashMap<std::mem::Discriminant<L>, HashSet<Id>>,
 }
@@ -65,7 +64,7 @@ impl<L: Language, N: Analysis<L> + Default> Default for EGraph<L, N> {
 impl<L: Language, N: Analysis<L>> Debug for EGraph<L, N> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("EGraph")
-            .field("memo", &self.memo)
+            .field("memo", &self.explain.memo)
             .field("classes", &self.classes)
             .finish()
     }
@@ -76,10 +75,9 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     pub fn new(analysis: N) -> Self {
         Self {
             analysis,
-            memo: Default::default(),
             to_union: Default::default(),
             classes: Default::default(),
-            unionfind: Default::default(),
+            explain: Default::default(),
             pending: Default::default(),
             analysis_pending: Default::default(),
             classes_by_op: Default::default(),
@@ -106,7 +104,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// assert!(!egraph.is_empty());
     /// ```
     pub fn is_empty(&self) -> bool {
-        self.memo.is_empty()
+        self.explain.memo.is_empty()
     }
 
     /// Returns the number of enodes in the `EGraph`.
@@ -126,7 +124,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// assert_eq!(egraph.number_of_classes(), 1);
     /// ```
     pub fn total_size(&self) -> usize {
-        self.memo.len()
+        self.explain.memo.len()
     }
 
     /// Iterates over the classes, returning the total number of nodes.
@@ -157,13 +155,13 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// assert_eq!(egraph.find(x), egraph.find(y));
     /// ```
     pub fn find(&self, id: Id) -> Id {
-        self.unionfind.find(id)
+        self.explain.find(id)
     }
 
     /// This is private, but internals should use this whenever
     /// possible because it does path compression.
     fn find_mut(&mut self, id: Id) -> Id {
-        self.unionfind.find_mut(id)
+        self.explain.find_mut(id)
     }
 
     /// Creates a [`Dot`] to visualize this egraph. See [`Dot`].
@@ -255,7 +253,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     {
         let enode = enode.borrow_mut();
         enode.update_children(|id| self.find(id));
-        let id = self.memo.get(enode);
+        let id = self.explain.memo.get(enode);
         id.map(|&id| self.find(id))
     }
 
@@ -286,7 +284,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// [`add`]: EGraph::add()
     pub fn add(&mut self, mut enode: L) -> Id {
         self.lookup(&mut enode).unwrap_or_else(|| {
-            let id = self.unionfind.make_set();
+            let id = self.explain.add(enode.clone());
             log::trace!("  ...adding to {}", id);
             let class = EClass {
                 id,
@@ -305,7 +303,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             self.pending.push((enode.clone(), id));
 
             self.classes.insert(id, class);
-            assert!(self.memo.insert(enode, id).is_none());
+            assert!(self.explain.memo.insert(enode, id).is_none());
 
             N::modify(self, id);
             id
@@ -353,7 +351,12 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         searcher_ematch: Option<EMatch>,
         application_ematch: Option<EMatch>,
     ) -> bool {
-        self.union(id1, id2)
+        if self.find_mut(id1) == self.find_mut(id2) {
+            false
+        } else {
+            self.to_union.push((id1, id2, Some(rule_name.to_string())));
+            true
+        }
     }
 
     /// Marks two eclasses to be unioned given their ids.
@@ -367,19 +370,16 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// Both results are canonical.
     ///
     /// You must call [`rebuild`](EGraph::rebuild) to observe any effect.
-    pub fn union(&mut self, mut id1: Id, mut id2: Id) -> bool {
-        id1 = self.find_mut(id1);
-        id2 = self.find_mut(id2);
-
-        if id1 == id2 {
+    pub fn union(&mut self, id1: Id, id2: Id) -> bool {
+        if self.find_mut(id1) == self.find_mut(id2) {
             false
         } else {
-            self.to_union.push((id1, id2));
+            self.to_union.push((id1, id2, None));
             true
         }
     }
 
-    fn perform_union(&mut self, mut id1: Id, mut id2: Id) {
+    fn perform_union(&mut self, mut id1: Id, mut id2: Id, rule: Option<String>) {
         id1 = self.find_mut(id1);
         id2 = self.find_mut(id2);
         if id1 == id2 {
@@ -395,7 +395,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         N::pre_union(self, id1, id2);
 
         // make id1 the new root
-        self.unionfind.union(id1, id2);
+        self.explain.union(id1, id2, rule);
 
         assert_ne!(id1, id2);
         let class2 = self.classes.remove(&id2).unwrap();
@@ -466,7 +466,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
         let mut trimmed = 0;
 
-        let uf = &mut self.unionfind;
+        let uf = &mut self.explain;
         for class in self.classes.values_mut() {
             let old_len = class.len();
             class
@@ -534,7 +534,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             assert_eq!(e, self.find(e));
             assert_eq!(
                 Some(e),
-                self.memo.get(n).map(|id| self.find(*id)),
+                self.explain.memo.get(n).map(|id| self.find(*id)),
                 "Entry for {:?} at {} in test_memo was incorrect",
                 n,
                 e
@@ -548,8 +548,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         while !self.to_union.is_empty() {
             let mut current = vec![];
             std::mem::swap(&mut self.to_union, &mut current);
-            for (id1, id2) in current.into_iter() {
-                self.perform_union(id1, id2);
+            for (id1, id2, rule) in current.into_iter() {
+                self.perform_union(id1, id2, rule);
             }
         }
     }
@@ -563,7 +563,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         while !self.pending.is_empty() {
             while let Some((mut node, class)) = self.pending.pop() {
                 node.update_children(|id| self.find_mut(id));
-                if let Some(memo_class) = self.memo.insert(node, class) {
+                if let Some(memo_class) = self.explain.memo.insert(node, class) {
                     let did_something = self.union(memo_class, class);
                     self.perform_to_union();
                     n_unions += did_something as usize;
@@ -628,7 +628,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// assert_eq!(egraph.find(ax), egraph.find(ay));
     /// ```
     pub fn rebuild(&mut self) -> usize {
-        let old_hc_size = self.memo.len();
+        let old_hc_size = self.explain.memo.len();
         let old_n_eclasses = self.number_of_classes();
 
         let start = Instant::now();
@@ -648,7 +648,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             elapsed.subsec_millis(),
             old_hc_size,
             old_n_eclasses,
-            self.memo.len(),
+            self.explain.memo.len(),
             self.number_of_classes(),
             n_unions,
             trimmed_nodes,

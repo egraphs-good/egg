@@ -38,10 +38,13 @@ impl UnionFind {
     }
 
     /// Returns (new_leader, old_leader)
-    pub fn union(&mut self, root1: Id, root2: Id) -> Id {
-        assert_eq!(root1, self.parent(root1));
-        assert_eq!(root2, self.parent(root2));
-        assert_ne!(root1, root2);
+    pub fn union(&mut self, mut id1: Id, mut id2: Id) -> Id {
+        id1 = self.find(id1);
+        id2 = self.find(id2);
+        self.union_roots(id1, id2)
+    }
+
+    pub fn union_roots(&mut self, mut root1: Id, mut root2: Id) -> Id {
         *self.parent_mut(root2) = root1;
         root1
     }
