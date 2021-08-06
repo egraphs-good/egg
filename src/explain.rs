@@ -227,8 +227,8 @@ impl<L: Language> Explain<L> {
 
     // add_match uses the memo in order to re-discover matches
     // given a substitution.
-    // If the memo is not sufficiently up-to-date, the eclass is searched for the un-updated enode.
-    pub(crate) fn add_match<N>(&mut self, pattern: &PatternAst<L>, subst: &Subst, classes: &HashMap<Id, EClass<L, N>>) -> Id {
+    // This requires that congruence has been restored and the memo is up to date.
+    pub(crate) fn add_match<N>(&mut self, eclass: Id, pattern: &PatternAst<L>, subst: &Subst, classes: &HashMap<Id, EClass<L, N>>) -> Id {
         let nodes = pattern.as_ref();
         let mut new_ids = Vec::with_capacity(nodes.len());
         let mut match_ids = Vec::with_capacity(nodes.len());
@@ -243,18 +243,17 @@ impl<L: Language> Explain<L> {
                     let node = pattern_node.clone().map_children(|i| new_ids[usize::from(i)]);
                     let new_congruent_node = pattern_node.clone().map_children(|i| match_ids[usize::from(i)]);
                     if let Some(existing_id) = self.uncanon_memo.get(&new_congruent_node) {
-                        println!("Found");
                         new_ids.push(self.find(*existing_id));
                         match_ids.push(*existing_id);
                     } else {
-                        println!("Searching!");
                         let congruent_id = *self.memo.get(&node).unwrap_or_else(|| {
-                            for (pnode, pid) in &classes.get(&node.children()[0]).unwrap().parents {
+                            panic!("Memo not up to date!");
+                            /*for (pnode, pid) in &classes.get(&node.children()[0]).unwrap().parents {
                                 if pnode.clone().map_children(|id| self.find(id)) == node {
                                     return pid;
                                 }
                             }
-                            panic!("Didn't find matching parent for pattern");
+                            panic!("Didn't find matching parent for pattern");*/
                         });
                         new_ids.push(self.find(congruent_id));
                         assert!(node == self.explainfind[usize::from(congruent_id)].node.clone().map_children(|id| self.find(id)));
@@ -269,7 +268,9 @@ impl<L: Language> Explain<L> {
             }
         }
 
-        *match_ids.last().unwrap()
+        let last_id = *match_ids.last().unwrap();
+        assert_eq!(self.find(last_id), self.find(eclass));
+        last_id
     }
 
     pub fn find(&self, current: Id) -> Id {

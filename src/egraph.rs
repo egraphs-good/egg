@@ -353,8 +353,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         if self.find_mut(id1) == self.find_mut(id2) {
             false
         } else {
-            let left_added = self.explain.add_match(from_pat, subst, &self.classes);
-            let right_added = self.explain.add_match(to_pat, subst, &self.classes);
+            let left_added = self.explain.add_match(id1, from_pat, subst, &self.classes);
+            let right_added = self.explain.add_match(id2, to_pat, subst, &self.classes);
             self.to_union.push((left_added, right_added, Some(rule_name.to_string())));
             true
         }
@@ -563,11 +563,13 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         let mut n_unions = 0;
 
         while !self.pending.is_empty() {
-            while let Some((mut node, class)) = self.pending.pop() {
-                node.update_children(|id| self.find_mut(id));
-                if let Some(memo_class) = self.explain.memo.insert(node, class) {
-                    let did_something = self.perform_union(memo_class, class, None);
-                    n_unions += did_something as usize;
+            while !self.pending.is_empty() {
+                while let Some((mut node, class)) = self.pending.pop() {
+                    node.update_children(|id| self.find_mut(id));
+                    if let Some(memo_class) = self.explain.memo.insert(node, class) {
+                        let did_something = self.perform_union(memo_class, class, None);
+                        n_unions += did_something as usize;
+                    }
                 }
             }
 
