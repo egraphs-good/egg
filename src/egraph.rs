@@ -353,8 +353,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         if self.find_mut(id1) == self.find_mut(id2) {
             false
         } else {
-            let left_added = self.explain.add_match(id1, from_pat, subst);
-            let right_added = self.explain.add_match(id2, to_pat, subst);
+            let left_added = self.explain.add_match(Some(id1), from_pat, subst);
+            let right_added = self.explain.add_match(Some(id2), to_pat, subst);
             self.to_union
                 .push((left_added, right_added, Some(rule_name.to_string())));
             true
@@ -667,6 +667,10 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
     pub fn check_each_explain(&self, rules: &[&Rewrite<L, N>]) -> bool {
         self.explain.check_each_explain(rules)
+    }
+
+    pub fn explain_equivalence(&mut self, left: &RecExpr<L>, right: &RecExpr<L>) -> Explanation<L> {
+        self.explain.explain_equivalence(left, right)
     }
 }
 

@@ -387,6 +387,11 @@ where
         self
     }
 
+    /// Get an explanation for why two expressions are equivalent.
+    pub fn explain_equivalence(&mut self, left: &RecExpr<L>, right: &RecExpr<L>) -> Explanation<L> {
+        self.egraph.explain_equivalence(left, right)
+    }
+
     #[rustfmt::skip]
     /// Prints some information about a runners run.
     pub fn print_report(&self) {
