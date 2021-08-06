@@ -45,15 +45,18 @@ struct Data {
 fn eval(egraph: &EGraph, enode: &Lambda) -> Option<(Lambda, PatternAst<Lambda>)> {
     let x = |i: &Id| egraph[*i].data.constant.as_ref().map(|c| &c.0).clone();
     match enode {
-        Lambda::Num(_) | Lambda::Bool(_) => Some((enode.clone(), RecExpr::from(vec![ENodeOrVar::ENode(enode.clone())]))),
-        Lambda::Add([a, b]) => {
-            Some((Lambda::Num(x(a)?.num()? + x(b)?.num()?),
-                  format!("(+ {} {})", x(a)?, x(b)?).parse().unwrap()))
-        }
-        Lambda::Eq([a, b]) => {
-            Some((Lambda::Bool(x(a)? == x(b)?),
-                  format!("(== {} {})", x(a)?, x(b)?).parse().unwrap()))                
-        }
+        Lambda::Num(_) | Lambda::Bool(_) => Some((
+            enode.clone(),
+            RecExpr::from(vec![ENodeOrVar::ENode(enode.clone())]),
+        )),
+        Lambda::Add([a, b]) => Some((
+            Lambda::Num(x(a)?.num()? + x(b)?.num()?),
+            format!("(+ {} {})", x(a)?, x(b)?).parse().unwrap(),
+        )),
+        Lambda::Eq([a, b]) => Some((
+            Lambda::Bool(x(a)? == x(b)?),
+            format!("(= {} {})", x(a)?, x(b)?).parse().unwrap(),
+        )),
         _ => None,
     }
 }
@@ -97,7 +100,14 @@ impl Analysis<Lambda> for LambdaAnalysis {
     fn modify(egraph: &mut EGraph, id: Id) {
         if let Some(c) = egraph[id].data.constant.clone() {
             let const_id = egraph.add(c.0.clone());
-            egraph.union_with_justification(id, const_id, &c.0.to_string().parse().unwrap(), &c.1, &Default::default(), "analysis");
+            egraph.union_with_justification(
+                const_id,
+                id,
+                &c.0.to_string().parse().unwrap(),
+                &c.1,
+                &Default::default(),
+                "analysis",
+            );
         }
     }
 }
@@ -160,12 +170,24 @@ struct CaptureAvoid {
 }
 
 impl Applier<Lambda, LambdaAnalysis> for CaptureAvoid {
-    fn get_ast(&self, egraph: &mut EGraph, eclass: Id, subst: &Subst) -> Option<PatternAst<Lambda>> {
+    fn get_ast(
+        &self,
+        egraph: &mut EGraph,
+        eclass: Id,
+        subst: &Subst,
+    ) -> Option<PatternAst<Lambda>> {
         let e = subst[self.e];
         let v2 = subst[self.v2];
         let v2_free_in_e = egraph[e].data.free.contains(&v2);
         if v2_free_in_e {
-            Some(format!("(lam _{} (let ?v1 ?e (let ?v2 (var _{}) ?body)))", eclass, eclass).parse().unwrap())
+            Some(
+                format!(
+                    "(lam _{} (let ?v1 ?e (let ?v2 (var _{}) ?body)))",
+                    eclass, eclass
+                )
+                .parse()
+                .unwrap(),
+            )
         } else {
             egg::Searcher::get_ast(&self.if_not_free, egraph, eclass, subst)
         }

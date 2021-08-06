@@ -1,8 +1,5 @@
 use crate::util::HashSet;
-use crate::{
-    Analysis, EClass, EGraph, ENodeOrVar, Id, Language, PatternAst, RecExpr, Subst,
-    Var,
-};
+use crate::{Analysis, EClass, EGraph, ENodeOrVar, Id, Language, PatternAst, RecExpr, Subst, Var};
 use std::cmp::Ordering;
 
 /// The [`Id`] of each of the nodes that matched the pattern in preorder.

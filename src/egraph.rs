@@ -338,7 +338,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// marks the two eclasses for unioning.
     ///
     /// The returned `bool` indicates whether a union is necessary.
-    /// 
+    ///
     /// If searcher_ematch or application_ematch is given, then it is used to perform the union.
     /// Otherwise, it performs an e-match in order to find the justification.
     pub fn union_with_justification(
@@ -353,18 +353,19 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         if self.find_mut(id1) == self.find_mut(id2) {
             false
         } else {
-            let left_added = self.explain.add_match(id1, from_pat, subst, &self.classes);
-            let right_added = self.explain.add_match(id2, to_pat, subst, &self.classes);
-            self.to_union.push((left_added, right_added, Some(rule_name.to_string())));
+            let left_added = self.explain.add_match(id1, from_pat, subst);
+            let right_added = self.explain.add_match(id2, to_pat, subst);
+            self.to_union
+                .push((left_added, right_added, Some(rule_name.to_string())));
             true
         }
     }
 
     /// Marks two eclasses to be unioned given their ids.
-    /// 
+    ///
     /// At the end of each iteration, these classes are unioned during
     /// [`rebuild`](EGraph::rebuild).
-    /// 
+    ///
     /// The given ids need not be canonical.
     /// The returned `bool` indicates whether a union is necessary,
     /// so it's `false` if they were already equivalent.
@@ -619,7 +620,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// let ax = egraph.add_expr(&"(+ a x)".parse().unwrap());
     /// let ay = egraph.add_expr(&"(+ a y)".parse().unwrap());
     ///
-    /// // The effects of this union aren't yet visible; 
+    /// // The effects of this union aren't yet visible;
     /// // The union has not taken effect.
     /// egraph.union(x, y);
     /// // Classes: [x] [y] [ax] [ay] [a]

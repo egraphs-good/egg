@@ -33,6 +33,7 @@ pub mod tutorials;
 mod dot;
 mod eclass;
 mod egraph;
+mod explain;
 mod extract;
 mod language;
 mod machine;
@@ -41,7 +42,6 @@ mod rewrite;
 mod run;
 mod subst;
 mod unionfind;
-mod explain;
 mod util;
 
 /// A key to identify [`EClass`]es within an
@@ -73,11 +73,7 @@ impl std::fmt::Display for Id {
     }
 }
 
-pub(crate) use {
-    explain::Explain,
-    explain::Justification,
-    unionfind::UnionFind,   
-};
+pub(crate) use {explain::Explain, explain::Justification, unionfind::UnionFind};
 
 pub use {
     dot::Dot,

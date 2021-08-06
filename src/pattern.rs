@@ -205,7 +205,6 @@ impl<L: Language + Display> Display for Pattern<L> {
     }
 }
 
-
 /// The result of searching a [`Searcher`] over one eclass.
 ///
 /// Note that one [`SearchMatches`] can contain many found
@@ -226,7 +225,12 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
         Some(&self.ast)
     }
 
-    fn get_ast(&self, egraph: &mut EGraph<L, A>, eclass: Id, subst: &Subst) -> Option<PatternAst<L>> {
+    fn get_ast(
+        &self,
+        egraph: &mut EGraph<L, A>,
+        eclass: Id,
+        subst: &Subst,
+    ) -> Option<PatternAst<L>> {
         Some(self.ast.clone())
     }
 
@@ -272,8 +276,13 @@ where
     fn get_pattern_ast(&self) -> Option<&PatternAst<L>> {
         Some(&self.ast)
     }
-    
-    fn get_ast(&self, egraph: &mut EGraph<L, A>, eclass: Id, subst: &Subst) -> Option<PatternAst<L>> {
+
+    fn get_ast(
+        &self,
+        egraph: &mut EGraph<L, A>,
+        eclass: Id,
+        subst: &Subst,
+    ) -> Option<PatternAst<L>> {
         Some(self.ast.clone())
     }
 

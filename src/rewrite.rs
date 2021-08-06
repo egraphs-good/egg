@@ -93,7 +93,8 @@ impl<L: Language, N: Analysis<L>> Rewrite<L, N> {
     ///
     /// [`apply_matches`]: Applier::apply_matches()
     pub fn apply(&self, egraph: &mut EGraph<L, N>, matches: &[SearchMatches]) -> Vec<Id> {
-        self.applier.apply_matches(egraph, &self.searcher, matches, &self.name)
+        self.applier
+            .apply_matches(egraph, &self.searcher, matches, &self.name)
     }
 
     /// This `run` is for testing use only. You should use things
@@ -155,7 +156,12 @@ where
     /// Return the pattern corresponding to the searcher.
     ///
     /// This pattern is commonly used for proof-production mode.
-    fn get_ast(&self, egraph: &mut EGraph<L, N>, eclass: Id, subst: &Subst) -> Option<PatternAst<L>> {
+    fn get_ast(
+        &self,
+        egraph: &mut EGraph<L, N>,
+        eclass: Id,
+        subst: &Subst,
+    ) -> Option<PatternAst<L>> {
         None
     }
 
@@ -318,7 +324,12 @@ where
     /// Return the pattern corresponding to the applier.
     ///
     /// This pattern is commonly used for proof-production mode.
-    fn get_ast(&self, egraph: &mut EGraph<L, N>, eclass: Id, subst: &Subst) -> Option<PatternAst<L>> {
+    fn get_ast(
+        &self,
+        egraph: &mut EGraph<L, N>,
+        eclass: Id,
+        subst: &Subst,
+    ) -> Option<PatternAst<L>> {
         None
     }
 
@@ -411,7 +422,12 @@ where
     A: Applier<L, N>,
     N: Analysis<L>,
 {
-    fn get_ast(&self, egraph: &mut EGraph<L, N>, eclass: Id, subst: &Subst) -> Option<PatternAst<L>> {
+    fn get_ast(
+        &self,
+        egraph: &mut EGraph<L, N>,
+        eclass: Id,
+        subst: &Subst,
+    ) -> Option<PatternAst<L>> {
         self.applier.get_ast(egraph, eclass, subst)
     }
 
@@ -592,9 +608,13 @@ mod tests {
             rhs: PatternAst<S>,
         };
 
-
         impl Applier<SymbolLang, ()> for Appender {
-            fn get_ast(&self, egraph: &mut EGraph, eclass: Id, subst: &Subst) -> Option<PatternAst<SymbolLang>> {
+            fn get_ast(
+                &self,
+                egraph: &mut EGraph,
+                eclass: Id,
+                subst: &Subst,
+            ) -> Option<PatternAst<SymbolLang>> {
                 let a: Var = "?a".parse().unwrap();
                 let b: Var = "?b".parse().unwrap();
                 let a = get(&egraph, subst[a]);
