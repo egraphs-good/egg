@@ -68,11 +68,19 @@ pub fn test_runner<L, A>(
             }
         });
     }
-    let runner = runner.run(rules);
+    let mut runner = runner.run(rules);
 
     if should_check {
         runner.print_report();
         runner.egraph.check_goals(id, &goals);
+
+        if cfg!(feature = "proof-generation") {
+            for goal in goals {
+                let matches = goal.search_eclass(&runner.egraph, id).unwrap();
+                let subst = matches.substs[0].clone();
+                println!("Proof: {}", runner.explain_matches(&start, &goal.ast, &subst).to_string());
+            }
+        }
 
         if let Some(check_fn) = check_fn {
             check_fn(runner)

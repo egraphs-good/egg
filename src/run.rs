@@ -389,7 +389,12 @@ where
 
     /// Get an explanation for why two expressions are equivalent.
     pub fn explain_equivalence(&mut self, left: &RecExpr<L>, right: &RecExpr<L>) -> Explanation<L> {
-        self.egraph.explain_equivalence(left, right)
+        self.egraph.explain.explain_equivalence(left, right)
+    }
+
+    /// Get an explanation for why two expressions are equivalent.
+    pub fn explain_matches(&mut self, left: &RecExpr<L>, right: &PatternAst<L>, subst: &Subst) -> Explanation<L> {
+        self.egraph.explain.explain_matches(left, right, subst)
     }
 
     #[rustfmt::skip]

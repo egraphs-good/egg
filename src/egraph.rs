@@ -46,10 +46,10 @@ and
 pub struct EGraph<L: Language, N: Analysis<L>> {
     /// The `Analysis` given when creating this `EGraph`.
     pub analysis: N,
+    pub explain: Explain<L>,
     to_union: Vec<(Id, Id, Option<String>)>,
     pending: Vec<(L, Id)>,
     analysis_pending: IndexSet<(L, Id)>,
-    explain: Explain<L>,
     classes: HashMap<Id, EClass<L, N::Data>>,
     pub(crate) classes_by_op: HashMap<std::mem::Discriminant<L>, HashSet<Id>>,
 }
@@ -667,10 +667,6 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
     pub fn check_each_explain(&self, rules: &[&Rewrite<L, N>]) -> bool {
         self.explain.check_each_explain(rules)
-    }
-
-    pub fn explain_equivalence(&mut self, left: &RecExpr<L>, right: &RecExpr<L>) -> Explanation<L> {
-        self.explain.explain_equivalence(left, right)
     }
 }
 
