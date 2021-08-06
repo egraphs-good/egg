@@ -78,7 +78,9 @@ pub fn test_runner<L, A>(
             for goal in goals {
                 let matches = goal.search_eclass(&runner.egraph, id).unwrap();
                 let subst = matches.substs[0].clone();
-                println!("Proof: {}", runner.explain_matches(&start, &goal.ast, &subst).to_string());
+                let mut explained = runner.explain_matches(&start, &goal.ast, &subst);
+                //explained.check_each_explain(rules);
+                println!("Proof: {}", explained.to_string());
             }
         }
 

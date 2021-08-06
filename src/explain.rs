@@ -179,6 +179,10 @@ impl<L: Language> TreeTerm<L> {
             representative_terms[i] = child_proof.last().unwrap().clone();
         }
 
+        if child_proofs.len() == 0 {
+            proof.push(FlatExplanationTerm::new(self.node.clone(), vec![]));
+        }
+
         proof[0].is_rewritten_backward = self.is_rewritten_backward;
         proof.last_mut().unwrap().is_rewritten_forward = self.is_rewritten_forward;
         proof.last_mut().unwrap().next_rule = self.next_rule.clone();
@@ -497,6 +501,7 @@ impl<L: Language> Explain<L> {
         canon_id2: Id,
         justification_maybe: Option<Justification>,
     ) -> Id {
+        assert_ne!(self.find(node1), self.find(node2));
         if let Some(justification) = justification_maybe {
             self.make_leader(node1);
             self.explainfind[usize::from(node1)].next = node2;
@@ -522,41 +527,50 @@ impl<L: Language> Explain<L> {
     }
 
     fn common_anscestor(&self, mut left: Id, mut right: Id) -> Id {
-        let mut seen: HashSet<Id> = Default::default();
+        println!("Anscestor of {} and {}", left, right);
+        let mut seen_left: HashSet<Id> = Default::default();
+        let mut seen_right: HashSet<Id> = Default::default();
         loop {
-            if seen.insert(left) {
+            seen_left.insert(left);
+            if seen_right.contains(&left) {
                 return left;
-            } else if seen.insert(right) {
+            }
+            
+            seen_right.insert(right);
+            if seen_left.contains(&right) {
                 return right;
             }
 
             let next_left = self.explainfind[usize::from(left)].next;
             let next_right = self.explainfind[usize::from(right)].next;
             assert!(next_left != left || next_right != right);
-            if next_left != left {
-                left = self.explainfind[usize::from(left)].next;
-            }
-            if next_right != right {
-                right = self.explainfind[usize::from(right)].next;
-            }
+            left = next_left;
+            right = next_right;
         }
     }
 
     fn get_nodes<'a>(&'a self, mut node: Id, anscestor: Id) -> Vec<&'a ExplainNode<L>> {
+        println!("node {} anscestor {}", node, anscestor);
+
+        if node == anscestor {
+            return vec![];
+        }
+
         let mut nodes = vec![];
         loop {
             let next = self.explainfind[usize::from(node)].next;
+            nodes.push(&self.explainfind[usize::from(node)]);
             if next == anscestor {
                 return nodes;
-            } else {
-                assert!(next != node);
-                nodes.push(&self.explainfind[usize::from(node)]);
-                node = next;
             }
+            assert!(next != node);
+            node = next;
         }
     }
 
     fn explain_enodes(&self, left: Id, right: Id) -> ExplanationTrees<L> {
+        assert!(self.find(left) == self.find(right));
+
         let mut proof = vec![self.node_to_explanation(left)];
         let anscestor = self.common_anscestor(left, right);
         let left_nodes = self.get_nodes(left, anscestor);
