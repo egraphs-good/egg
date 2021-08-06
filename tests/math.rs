@@ -54,10 +54,22 @@ impl Analysis<Math> for ConstantFold {
         let x = |i: &Id| egraph[*i].data.as_ref().map(|d| d.0);
         Some(match enode {
             Math::Constant(c) => (*c, format!("{}", c).parse().unwrap()),
-            Math::Add([a, b]) => (x(a)? + x(b)?, format!("(+ {} {})", x(a)?, x(b)?).parse().unwrap()),
-            Math::Sub([a, b]) => (x(a)? - x(b)?, format!("(- {} {})", x(a)?, x(b)?).parse().unwrap()),
-            Math::Mul([a, b]) => (x(a)? * x(b)?, format!("(* {} {})", x(a)?, x(b)?).parse().unwrap()),
-            Math::Div([a, b]) if x(b) != Some(0.0.into()) => (x(a)? / x(b)?, format!("(/ {} {})", x(a)?, x(b)?).parse().unwrap()),
+            Math::Add([a, b]) => (
+                x(a)? + x(b)?,
+                format!("(+ {} {})", x(a)?, x(b)?).parse().unwrap(),
+            ),
+            Math::Sub([a, b]) => (
+                x(a)? - x(b)?,
+                format!("(- {} {})", x(a)?, x(b)?).parse().unwrap(),
+            ),
+            Math::Mul([a, b]) => (
+                x(a)? * x(b)?,
+                format!("(* {} {})", x(a)?, x(b)?).parse().unwrap(),
+            ),
+            Math::Div([a, b]) if x(b) != Some(0.0.into()) => (
+                x(a)? / x(b)?,
+                format!("(/ {} {})", x(a)?, x(b)?).parse().unwrap(),
+            ),
             _ => return None,
         })
     }
@@ -82,7 +94,14 @@ impl Analysis<Math> for ConstantFold {
         let class = egraph[id].clone();
         if let Some((c, pat)) = class.data {
             let added = egraph.add(Math::Constant(c));
-            egraph.union_with_justification(id, added, &pat, &format!("{}", c).parse().unwrap(), &Default::default(), "constant_fold");
+            egraph.union_with_justification(
+                id,
+                added,
+                &pat,
+                &format!("{}", c).parse().unwrap(),
+                &Default::default(),
+                "constant_fold",
+            );
             // to not prune, comment this out
             egraph[id].nodes.retain(|n| n.is_leaf());
 

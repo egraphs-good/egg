@@ -393,7 +393,12 @@ where
     }
 
     /// Get an explanation for why two expressions are equivalent.
-    pub fn explain_matches(&mut self, left: &RecExpr<L>, right: &PatternAst<L>, subst: &Subst) -> Explanation<L> {
+    pub fn explain_matches(
+        &mut self,
+        left: &RecExpr<L>,
+        right: &PatternAst<L>,
+        subst: &Subst,
+    ) -> Explanation<L> {
         self.egraph.explain.explain_matches(left, right, subst)
     }
 
