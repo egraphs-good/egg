@@ -222,6 +222,10 @@ pub struct SearchMatches {
 }
 
 impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
+    fn get_pattern_ast(&self) -> Option<&PatternAst<L>> {
+        Some(&self.ast)
+    }
+
     fn get_ast(&self, egraph: &mut EGraph<L, A>, eclass: Id, subst: &Subst) -> Option<PatternAst<L>> {
         Some(self.ast.clone())
     }
@@ -265,6 +269,10 @@ where
     L: Language,
     A: Analysis<L>,
 {
+    fn get_pattern_ast(&self) -> Option<&PatternAst<L>> {
+        Some(&self.ast)
+    }
+    
     fn get_ast(&self, egraph: &mut EGraph<L, A>, eclass: Id, subst: &Subst) -> Option<PatternAst<L>> {
         Some(self.ast.clone())
     }

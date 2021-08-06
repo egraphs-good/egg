@@ -39,15 +39,21 @@ struct LambdaAnalysis;
 #[derive(Debug)]
 struct Data {
     free: HashSet<Id>,
-    constant: Option<Lambda>,
+    constant: Option<(Lambda, PatternAst<Lambda>)>,
 }
 
-fn eval(egraph: &EGraph, enode: &Lambda) -> Option<Lambda> {
-    let x = |i: &Id| egraph[*i].data.constant.clone();
+fn eval(egraph: &EGraph, enode: &Lambda) -> Option<(Lambda, PatternAst<Lambda>)> {
+    let x = |i: &Id| egraph[*i].data.constant.as_ref().map(|c| &c.0).clone();
     match enode {
-        Lambda::Num(_) | Lambda::Bool(_) => Some(enode.clone()),
-        Lambda::Add([a, b]) => Some(Lambda::Num(x(a)?.num()? + x(b)?.num()?)),
-        Lambda::Eq([a, b]) => Some(Lambda::Bool(x(a)? == x(b)?)),
+        Lambda::Num(_) | Lambda::Bool(_) => Some((enode.clone(), RecExpr::from(vec![ENodeOrVar::ENode(enode.clone())]))),
+        Lambda::Add([a, b]) => {
+            Some((Lambda::Num(x(a)?.num()? + x(b)?.num()?),
+                  format!("(+ {} {})", x(a)?, x(b)?).parse().unwrap()))
+        }
+        Lambda::Eq([a, b]) => {
+            Some((Lambda::Bool(x(a)? == x(b)?),
+                  format!("(== {} {})", x(a)?, x(b)?).parse().unwrap()))                
+        }
         _ => None,
     }
 }
@@ -90,8 +96,8 @@ impl Analysis<Lambda> for LambdaAnalysis {
 
     fn modify(egraph: &mut EGraph, id: Id) {
         if let Some(c) = egraph[id].data.constant.clone() {
-            let const_id = egraph.add(c);
-            egraph.union(id, const_id);
+            let const_id = egraph.add(c.0);
+            egraph.union_with_justification(id, const_id, &c.1, &c.1.to_string().parse().unwrap(), &Default::default(), "analysis");
         }
     }
 }

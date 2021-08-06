@@ -478,6 +478,7 @@ where
 
         let rebuild_time = Instant::now();
         let n_rebuilds = self.egraph.rebuild();
+        debug_assert!(self.egraph.check_each_explain(rules));
 
         let rebuild_time = rebuild_time.elapsed().as_secs_f64();
         info!("Rebuild time: {}", rebuild_time);

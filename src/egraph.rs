@@ -661,6 +661,10 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         debug_assert!(self.check_memo());
         n_unions
     }
+
+    pub fn check_each_explain(&self, rules: &[&Rewrite<L, N>]) -> bool {
+        self.explain.check_each_explain(rules)
+    }
 }
 
 struct EGraphDump<'a, L: Language, N: Analysis<L>>(&'a EGraph<L, N>);

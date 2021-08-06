@@ -147,6 +147,11 @@ where
             .collect()
     }
 
+    /// For patterns, return the ast directly as a reference
+    fn get_pattern_ast(&self) -> Option<&PatternAst<L>> {
+        None
+    }
+
     /// Return the pattern corresponding to the searcher.
     ///
     /// This pattern is commonly used for proof-production mode.
@@ -303,6 +308,11 @@ where
             }
         }
         added
+    }
+
+    /// For patterns, get the ast directly as a reference.
+    fn get_pattern_ast(&self) -> Option<&PatternAst<L>> {
+        None
     }
 
     /// Return the pattern corresponding to the applier.
