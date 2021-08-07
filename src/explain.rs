@@ -178,8 +178,16 @@ impl<L: Language> TreeTerm<L> {
             child_proofs.push(flat_proof);
         }
 
+        proof.push(FlatTerm {
+            node: self.node.clone(),
+            is_rewritten_forward: false,
+            is_rewritten_backward: false,
+            next_rule: None,
+            children: representative_terms.clone(),
+        });
+
         for (i, child_proof) in child_proofs.iter().enumerate() {
-            for child in child_proof.iter() {
+            for child in child_proof.iter().skip(1) {
                 let mut children = vec![];
                 for (j, rep_term) in representative_terms.iter().enumerate() {
                     if j == i {
@@ -198,10 +206,6 @@ impl<L: Language> TreeTerm<L> {
                 });
             }
             representative_terms[i] = child_proof.last().unwrap().clone();
-        }
-
-        if child_proofs.len() == 0 {
-            proof.push(FlatTerm::new(self.node.clone(), vec![]));
         }
 
         proof[0].is_rewritten_backward = self.is_rewritten_backward;
@@ -258,7 +262,7 @@ impl<L: Language> Default for Explain<L> {
 impl<L: Language + Display> FlatTerm<L> {
     pub fn to_sexp(&self) -> Sexp {
         let op = Sexp::String(self.node.to_string());
-        let expr = if self.node.is_leaf() {
+        let mut expr = if self.node.is_leaf() {
             op
         } else {
             let mut vec = vec![op];
@@ -267,6 +271,15 @@ impl<L: Language + Display> FlatTerm<L> {
             }
             Sexp::List(vec)
         };
+
+        if self.is_rewritten_backward {
+            expr = Sexp::List(vec![Sexp::String("<=".to_string()), expr]);
+        }
+
+        if self.is_rewritten_forward {
+            expr = Sexp::List(vec![Sexp::String("=>".to_string()), expr]);
+        }
+
         if let Some(name) = &self.next_rule {
             Sexp::List(vec![
                 Sexp::String("Rewrite".to_string()),
@@ -584,6 +597,7 @@ impl<L: Language> Explain<L> {
         justification_maybe: Option<Justification>,
     ) -> Id {
         assert_ne!(self.find(node1), self.find(node2));
+        assert!(!justification_maybe.is_none());
         if let Some(justification) = justification_maybe {
             self.make_leader(node1);
             self.explainfind[usize::from(node1)].next = node2;
@@ -613,8 +627,7 @@ impl<L: Language> Explain<L> {
         Explanation::new(self.explain_enodes(left_added, right_added))
     }
 
-    fn common_anscestor(&self, mut left: Id, mut right: Id) -> Id {
-        println!("Anscestor of {} and {}", left, right);
+    fn common_ancestor(&self, mut left: Id, mut right: Id) -> Id {
         let mut seen_left: HashSet<Id> = Default::default();
         let mut seen_right: HashSet<Id> = Default::default();
         loop {
@@ -636,10 +649,8 @@ impl<L: Language> Explain<L> {
         }
     }
 
-    fn get_nodes<'a>(&'a self, mut node: Id, anscestor: Id) -> Vec<&'a ExplainNode<L>> {
-        println!("node {} anscestor {}", node, anscestor);
-
-        if node == anscestor {
+    fn get_nodes<'a>(&'a self, mut node: Id, ancestor: Id) -> Vec<&'a ExplainNode<L>> {
+        if node == ancestor {
             return vec![];
         }
 
@@ -647,7 +658,7 @@ impl<L: Language> Explain<L> {
         loop {
             let next = self.explainfind[usize::from(node)].next;
             nodes.push(&self.explainfind[usize::from(node)]);
-            if next == anscestor {
+            if next == ancestor {
                 return nodes;
             }
             assert!(next != node);
@@ -659,11 +670,11 @@ impl<L: Language> Explain<L> {
         assert!(self.find(left) == self.find(right));
 
         let mut proof = vec![self.node_to_explanation(left)];
-        let anscestor = self.common_anscestor(left, right);
-        let left_nodes = self.get_nodes(left, anscestor);
-        let right_nodes = self.get_nodes(right, anscestor);
+        let ancestor = self.common_ancestor(left, right);
+        let left_nodes = self.get_nodes(left, ancestor);
+        let right_nodes = self.get_nodes(right, ancestor);
 
-        for (i, node) in left_nodes.iter().chain(right_nodes.iter()).enumerate() {
+        for (i, node) in left_nodes.iter().chain(right_nodes.iter().rev()).enumerate() {
             let mut direction = node.is_rewrite_forward;
             let mut next = node.next;
             let mut current = node.current;
@@ -689,6 +700,8 @@ impl<L: Language> Explain<L> {
                     // add the children proofs to the last explanation
                     let current_node = &self.explainfind[usize::from(current)].node;
                     let next_node = &self.explainfind[usize::from(next)].node;
+                    assert!(current_node.matches(next_node));
+                    assert_eq!(current_node.len(), proof.last().unwrap().child_proofs.len());
 
                     for (i, (left_child, right_child)) in current_node
                         .children()

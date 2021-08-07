@@ -80,7 +80,7 @@ pub fn test_runner<L, A>(
                 let subst = matches.substs[0].clone();
                 let mut explained = runner.explain_matches(&start, &goal.ast, &subst);
                 //explained.check_each_explain(rules);
-                println!("Proof: {}", explained.to_string());
+                println!("Proof: {}", explained.to_flat_string());
             }
         }
 
