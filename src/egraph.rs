@@ -575,6 +575,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                 }
             }
 
+            // we restored congruence, so now it's save to deal with the analysis
             while let Some((node, class_id)) = self.analysis_pending.pop() {
                 let class_id = self.find_mut(class_id);
                 let node_data = N::make(self, &node);
@@ -584,9 +585,6 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                 if did_merge.0 {
                     self.analysis_pending.extend(class.parents.iter().cloned());
                     N::modify(self, class_id);
-                    // this allows analyses to perform unions during rebuilding
-                    // at the cost of making the memo in explain.rs out of date
-                    // This is fine, but makes proof production do a slightly slower search
                     self.perform_to_union();
                 }
             }
