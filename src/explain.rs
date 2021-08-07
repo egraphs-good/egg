@@ -1,6 +1,6 @@
 use crate::{
     Analysis, EClass, ENodeOrVar, HashMap, HashSet, Id, Language, PatternAst, RecExpr, Rewrite,
-    Subst, UnionFind, Var,
+    Subst, UnionFind, Var, util::pretty_print
 };
 use std::fmt::{self, Debug, Display, Formatter};
 use std::rc::Rc;
@@ -80,13 +80,21 @@ impl<L: Language> Explanation<L> {
             self.flat_explanation.as_ref().unwrap()
         }
     }
-    /*
-    pub fn check_proof<N>(self, rules: &[&Rewrite<L, N>]) {
-        let flat_explanation = self.make_flat_explanation();
+    
+
+    pub fn check_proof<'a, R, N: Analysis<L>>(&mut self, rules: R)  where
+        R: IntoIterator<Item = &'a Rewrite<L, N>>,
+        L: 'a,
+        N: 'a,
+    {
+        let rules: Vec<&Rewrite<L, N>> = rules.into_iter().collect();
+        let rule_table = Explain::make_rule_table(rules.as_slice());
+        self.make_flat_explanation();
+        let flat_explanation = self.flat_explanation.as_ref().unwrap();
         for (i, term) in flat_explanation.iter().enumerate() {
             let mut current = term;
             if let Some(mut next) = flat_explanation.get(i+1) {
-                let next_rule = current.next_rule.as_ref().unwrap();
+                println!("At index {}", i);
                 let has_forward = current.has_rewrite_forward();
                 let has_backward = next.has_rewrite_backward();
                 if i == 0 {
@@ -94,26 +102,34 @@ impl<L: Language> Explanation<L> {
                 }
                 assert!(has_forward ^ has_backward);
                 if has_forward {
-                    self.check_rewrite_at(current, next, rules, true);
+                    assert!(self.check_rewrite_at(current, next, &rule_table, true));
                 } else {
-                    self.check_rewrite_at(next, current, rules, false);
+                    assert!(self.check_rewrite_at(next, current, &rule_table, false));
                 }
             } else {
-                assert!(current.next_rule.is_none());
                 assert!(!current.has_rewrite_forward());
             }
         }
     }
 
-    fn check_rewrite_at<N>(self, current: &FlatTerm<L>, next: &FlatTerm<L>, rewrite: &Rewrite<L, N>, is_forward: bool) {
-        if is_forward && current.is_rewritten_forward {
-            Explain::check_rewrite(current, next, rewrite, true)
-        } else if !is_forward && next.is_rewritten_backward {
-            Explain::check_rewrite(next, current, rewrite, false)
+    fn check_rewrite_at<N: Analysis<L>>(&self, current: &FlatTerm<L>, next: &FlatTerm<L>, table: &HashMap<String, &Rewrite<L, N>>, is_forward: bool) -> bool{    
+        if is_forward && current.forward_rule.is_some() {
+            let rule_name = current.forward_rule.as_ref().unwrap();
+            let rule = table.get(rule_name).unwrap().clone();
+            Explanation::check_rewrite(current, next, rule, true)
+        } else if !is_forward && next.backward_rule.is_some() {
+            let rule_name = next.backward_rule.as_ref().unwrap();
+            let rule = table.get(rule_name).unwrap().clone();
+            Explanation::check_rewrite(next, current, rule, false)
         } else {
-
+            for (left, right) in current.children.iter().zip(next.children.iter()) {
+                if !self.check_rewrite_at(left, right, table, is_forward) {
+                    return false;
+                }
+            }
+            true
         }
-    }*/
+    }
 
     // if the rewrite is just patterns, then it can check it
     fn check_rewrite<'a, N: Analysis<L>>(
@@ -143,9 +159,9 @@ impl<L: Language> Explanation<L> {
 #[derive(Debug, Clone)]
 pub struct TreeTerm<L: Language> {
     node: L,
-    is_rewritten_forward: bool,
-    is_rewritten_backward: bool,
-    next_rule: Option<String>,
+    // a rule for rewriting the term backward or forward
+    backward_rule: Option<String>,
+    forward_rule: Option<String>,
     // one proof per child of the node
     child_proofs: Vec<ExplanationTrees<L>>,
 }
@@ -154,9 +170,8 @@ impl<L: Language> TreeTerm<L> {
     pub fn new(node: L, child_proofs: Vec<ExplanationTrees<L>>) -> TreeTerm<L> {
         TreeTerm {
             node,
-            is_rewritten_forward: false,
-            is_rewritten_backward: false,
-            next_rule: None,
+            backward_rule: None,
+            forward_rule: None,
             child_proofs,
         }
     }
@@ -178,13 +193,7 @@ impl<L: Language> TreeTerm<L> {
             child_proofs.push(flat_proof);
         }
 
-        proof.push(FlatTerm {
-            node: self.node.clone(),
-            is_rewritten_forward: false,
-            is_rewritten_backward: false,
-            next_rule: None,
-            children: representative_terms.clone(),
-        });
+        proof.push(FlatTerm::new(self.node.clone(), representative_terms.clone()));
 
         for (i, child_proof) in child_proofs.iter().enumerate() {
             for child in child_proof.iter().skip(1) {
@@ -197,20 +206,13 @@ impl<L: Language> TreeTerm<L> {
                     }
                 }
 
-                proof.push(FlatTerm {
-                    node: self.node.clone(),
-                    is_rewritten_forward: false,
-                    is_rewritten_backward: false,
-                    next_rule: child.next_rule.clone(),
-                    children,
-                });
+                proof.push(FlatTerm::new(self.node.clone(), children));
             }
             representative_terms[i] = child_proof.last().unwrap().clone();
         }
 
-        proof[0].is_rewritten_backward = self.is_rewritten_backward;
-        proof.last_mut().unwrap().is_rewritten_forward = self.is_rewritten_forward;
-        proof.last_mut().unwrap().next_rule = self.next_rule.clone();
+        proof[0].backward_rule = self.backward_rule.clone();
+        proof.last_mut().unwrap().forward_rule = self.forward_rule.clone();
 
         proof
     }
@@ -220,14 +222,11 @@ impl<L: Language> TreeTerm<L> {
 /// in a proof.
 /// At most one part of the term is rewritten forward and at most one
 /// part of the term is rewritten backwards.
-/// `next_rule` represents the rule that can be used to rewrite either this term or
-/// the next back to this term.
 #[derive(Debug, Clone, Eq)]
 pub struct FlatTerm<L: Language> {
     node: L,
-    is_rewritten_forward: bool,
-    is_rewritten_backward: bool,
-    next_rule: Option<String>,
+    backward_rule: Option<String>,
+    forward_rule: Option<String>,
     children: Vec<FlatTerm<L>>,
 }
 
@@ -272,37 +271,31 @@ impl<L: Language + Display> FlatTerm<L> {
             Sexp::List(vec)
         };
 
-        if self.is_rewritten_backward {
-            expr = Sexp::List(vec![Sexp::String("<=".to_string()), expr]);
+        if let Some(rule_name) = &self.backward_rule {
+            expr = Sexp::List(vec![Sexp::String("Rewrite<=".to_string()), expr, Sexp::String(rule_name.clone())]);
         }
 
-        if self.is_rewritten_forward {
-            expr = Sexp::List(vec![Sexp::String("=>".to_string()), expr]);
+        if let Some(rule_name) = &self.forward_rule {
+            expr = Sexp::List(vec![Sexp::String("Rewrite=>".to_string()), expr,  Sexp::String(rule_name.clone())]);
         }
 
-        if let Some(name) = &self.next_rule {
-            Sexp::List(vec![
-                Sexp::String("Rewrite".to_string()),
-                expr,
-                Sexp::String(name.clone()),
-            ])
-        } else {
-            expr
-        }
+        expr
     }
 }
 
 impl<L: Language + Display> Display for TreeTerm<L> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let s = self.to_sexp().to_string();
-        write!(f, "{}", s)
+        let mut buf = String::new();
+        let width = 80;
+        pretty_print(&mut buf, &self.to_sexp(), width, 1).unwrap();
+        write!(f, "{}", buf)
     }
 }
 
 impl<L: Language + Display> TreeTerm<L> {
     pub fn to_sexp(&self) -> Sexp {
         let op = Sexp::String(self.node.to_string());
-        let expr = if self.node.is_leaf() {
+        let mut expr = if self.node.is_leaf() {
             op
         } else {
             let mut vec = vec![op];
@@ -320,15 +313,16 @@ impl<L: Language + Display> TreeTerm<L> {
             }
             Sexp::List(vec)
         };
-        if let Some(name) = &self.next_rule {
-            Sexp::List(vec![
-                Sexp::String("Rewrite".to_string()),
-                expr,
-                Sexp::String(name.clone()),
-            ])
-        } else {
-            expr
+
+        if let Some(rule_name) = &self.backward_rule {
+            expr = Sexp::List(vec![Sexp::String("Rewrite<=".to_string()), expr, Sexp::String(rule_name.clone())]);
         }
+
+        if let Some(rule_name) = &self.forward_rule {
+            expr = Sexp::List(vec![Sexp::String("Rewrite=>".to_string()), expr, Sexp::String(rule_name.clone())]);
+        }
+
+        expr
     }
 }
 
@@ -336,9 +330,8 @@ impl<L: Language> FlatTerm<L> {
     pub fn new(node: L, children: Vec<FlatTerm<L>>) -> FlatTerm<L> {
         FlatTerm {
             node,
-            is_rewritten_forward: false,
-            is_rewritten_backward: false,
-            next_rule: None,
+            backward_rule: None,
+            forward_rule: None,
             children,
         }
     }
@@ -351,7 +344,7 @@ impl<L: Language> FlatTerm<L> {
     }
 
     pub fn has_rewrite_forward(&self) -> bool {
-        self.is_rewritten_forward
+        !self.forward_rule.is_none()
             || self
                 .children
                 .iter()
@@ -359,7 +352,7 @@ impl<L: Language> FlatTerm<L> {
     }
 
     pub fn has_rewrite_backward(&self) -> bool {
-        self.is_rewritten_backward
+        !self.backward_rule.is_none()
             || self
                 .children
                 .iter()
@@ -429,7 +422,6 @@ impl<L: Language> Explain<L> {
     }
 
     fn make_rule_table<'a, N: Analysis<L>>(
-        &self,
         rules: &[&'a Rewrite<L, N>],
     ) -> HashMap<String, &'a Rewrite<L, N>> {
         let mut table: HashMap<String, &Rewrite<L, N>> = Default::default();
@@ -440,7 +432,7 @@ impl<L: Language> Explain<L> {
     }
 
     pub fn check_each_explain<N: Analysis<L>>(&self, rules: &[&Rewrite<L, N>]) -> bool {
-        let rule_table = self.make_rule_table(rules);
+        let rule_table = Explain::make_rule_table(rules);
         for i in 0..self.explainfind.len() {
             let explain_node = &self.explainfind[i];
             if explain_node.next != Id::from(i) {
@@ -685,15 +677,13 @@ impl<L: Language> Explain<L> {
 
             match &node.justification {
                 Justification::Rule(name) => {
-                    if direction {
-                        proof.last_mut().unwrap().is_rewritten_forward = true;
-                    }
-                    proof.last_mut().unwrap().next_rule = Some(name.clone());
-
                     let mut rewritten = self.node_to_explanation(next);
-                    if !direction {
-                        rewritten.is_rewritten_backward = true;
+                    if direction {
+                        proof.last_mut().unwrap().forward_rule = Some(name.clone());
+                    } else {
+                        rewritten.backward_rule = Some(name.clone());
                     }
+                    
                     proof.push(rewritten);
                 }
                 Justification::Congruence => {
@@ -709,7 +699,11 @@ impl<L: Language> Explain<L> {
                         .zip(next_node.children().iter())
                         .enumerate()
                     {
-                        let subproof = self.explain_enodes(*left_child, *right_child);
+                        let mut subproof = self.explain_enodes(*left_child, *right_child);
+                        let last = proof.last_mut().unwrap().child_proofs[i].pop().unwrap();
+                        let mut subproof_first = (*subproof[0]).clone();
+                        subproof_first.backward_rule = last.backward_rule.clone();
+                        subproof[0] = Rc::new(subproof_first);
                         proof.last_mut().unwrap().child_proofs[i].extend(subproof);
                     }
                 }

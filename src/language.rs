@@ -397,37 +397,10 @@ impl<L: Language + Display> RecExpr<L> {
     /// ".trim());
     /// ```
     pub fn pretty(&self, width: usize) -> String {
-        use std::fmt::{Result, Write};
         let sexp = self.to_sexp(self.nodes.len() - 1);
 
-        fn pp(buf: &mut String, sexp: &Sexp, width: usize, level: usize) -> Result {
-            if let Sexp::List(list) = sexp {
-                let indent = sexp.to_string().len() > width;
-                write!(buf, "(")?;
-
-                for (i, val) in list.iter().enumerate() {
-                    if indent && i > 0 {
-                        writeln!(buf)?;
-                        for _ in 0..level {
-                            write!(buf, "  ")?;
-                        }
-                    }
-                    pp(buf, val, width, level + 1)?;
-                    if !indent && i < list.len() - 1 {
-                        write!(buf, " ")?;
-                    }
-                }
-
-                write!(buf, ")")?;
-                Ok(())
-            } else {
-                // I don't care about quotes
-                write!(buf, "{}", sexp.to_string().trim_matches('"'))
-            }
-        }
-
         let mut buf = String::new();
-        pp(&mut buf, &sexp, width, 1).unwrap();
+        pretty_print(&mut buf, &sexp, width, 1).unwrap();
         buf
     }
 }

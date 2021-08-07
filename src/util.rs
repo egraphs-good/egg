@@ -1,6 +1,7 @@
 use std::fmt;
 use std::str::FromStr;
 use std::sync::Mutex;
+use symbolic_expressions::Sexp;
 
 use fmt::{Debug, Display, Formatter};
 use once_cell::sync::Lazy;
@@ -24,6 +25,33 @@ pub(crate) fn concat_vecs<T>(to: &mut Vec<T>, mut from: Vec<T>) {
         std::mem::swap(to, &mut from)
     }
     to.extend(from);
+}
+
+pub(crate) fn pretty_print(buf: &mut String, sexp: &Sexp, width: usize, level: usize) -> std::fmt::Result {
+    use std::fmt::Write;
+    if let Sexp::List(list) = sexp {
+        let indent = sexp.to_string().len() > width;
+        write!(buf, "(")?;
+
+        for (i, val) in list.iter().enumerate() {
+            if indent && i > 0 {
+                writeln!(buf)?;
+                for _ in 0..level {
+                    write!(buf, "  ")?;
+                }
+            }
+            pretty_print(buf, val, width, level + 1)?;
+            if !indent && i < list.len() - 1 {
+                write!(buf, " ")?;
+            }
+        }
+
+        write!(buf, ")")?;
+        Ok(())
+    } else {
+        // I don't care about quotes
+        write!(buf, "{}", sexp.to_string().trim_matches('"'))
+    }
 }
 
 static STRINGS: Lazy<Mutex<IndexSet<&'static str>>> = Lazy::new(Default::default);
