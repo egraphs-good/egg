@@ -606,15 +606,12 @@ impl<L: Language> Explain<L> {
                         match_ids.push(*existing_id);
                     } else {
                         let congruent_id = *self.memo.get(&node).unwrap_or_else(|| {
-                            panic!("Memo not up to date!");
-                            /*for (pnode, pid) in &classes.get(&node.children()[0]).unwrap().parents {
-                                if pnode.clone().map_children(|id| self.find(id)) == node {
-                                    return pid;
-                                }
-                            }
-                            panic!("Didn't find matching parent for pattern");*/
+                            panic!("Pattern did not exist for substitution!");
                         });
-                        new_ids.push(self.find(congruent_id));
+
+                        let congruent_class = self.find(congruent_id);
+
+                        new_ids.push(congruent_class);
                         assert!(
                             node == self.explainfind[usize::from(congruent_id)]
                                 .node
@@ -628,7 +625,7 @@ impl<L: Language> Explain<L> {
                         self.union(
                             new_congruent_id,
                             congruent_id,
-                            self.find(congruent_id),
+                            congruent_class,
                             new_congruent_id,
                             Some(Justification::Congruence),
                         );

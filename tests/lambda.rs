@@ -44,18 +44,26 @@ struct Data {
 
 fn eval(egraph: &EGraph, enode: &Lambda) -> Option<(Lambda, PatternAst<Lambda>)> {
     let x = |i: &Id| egraph[*i].data.constant.as_ref().map(|c| &c.0).clone();
+    let pat = |i: &Id| egraph[*i].data.constant.as_ref().map(|c| &c.1).clone();
     match enode {
-        Lambda::Num(_) | Lambda::Bool(_) => Some((
+        Lambda::Num(n) => Some((
             enode.clone(),
-            RecExpr::from(vec![ENodeOrVar::ENode(enode.clone())]),
+            format!("{}", n).parse().unwrap(),
         )),
-        Lambda::Add([a, b]) => Some((
+        Lambda::Bool(b) => 
+            Some((
+            enode.clone(),
+            format!("{}", b).parse().unwrap(),)),
+            
+        Lambda::Add([a, b]) =>
+            Some((
             Lambda::Num(x(a)?.num()? + x(b)?.num()?),
-            format!("(+ {} {})", x(a)?, x(b)?).parse().unwrap(),
+            format!("(+ {} {})", pat(a)?, pat(b)?).parse().unwrap(),
         )),
-        Lambda::Eq([a, b]) => Some((
+        Lambda::Eq([a, b]) => 
+            Some((
             Lambda::Bool(x(a)? == x(b)?),
-            format!("(= {} {})", x(a)?, x(b)?).parse().unwrap(),
+            format!("(= {} {})", pat(a)?, pat(b)?).parse().unwrap(),
         )),
         _ => None,
     }

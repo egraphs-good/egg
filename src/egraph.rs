@@ -559,11 +559,11 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
     #[inline(never)]
     fn process_unions(&mut self) -> usize {
-        self.perform_to_union();
-
         let mut n_unions = 0;
 
-        while !self.pending.is_empty() {
+        while !self.pending.is_empty() || !self.to_union.is_empty() {
+            self.perform_to_union();
+
             while !self.pending.is_empty() {
                 while let Some((mut node, class)) = self.pending.pop() {
                     node.update_children(|id| self.find_mut(id));
@@ -585,7 +585,6 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                 if did_merge.0 {
                     self.analysis_pending.extend(class.parents.iter().cloned());
                     N::modify(self, class_id);
-                    self.perform_to_union();
                 }
             }
         }
