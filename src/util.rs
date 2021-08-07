@@ -27,7 +27,12 @@ pub(crate) fn concat_vecs<T>(to: &mut Vec<T>, mut from: Vec<T>) {
     to.extend(from);
 }
 
-pub(crate) fn pretty_print(buf: &mut String, sexp: &Sexp, width: usize, level: usize) -> std::fmt::Result {
+pub(crate) fn pretty_print(
+    buf: &mut String,
+    sexp: &Sexp,
+    width: usize,
+    level: usize,
+) -> std::fmt::Result {
     use std::fmt::Write;
     if let Sexp::List(list) = sexp {
         let indent = sexp.to_string().len() > width;

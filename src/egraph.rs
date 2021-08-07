@@ -568,7 +568,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                 while let Some((mut node, class)) = self.pending.pop() {
                     node.update_children(|id| self.find_mut(id));
                     if let Some(memo_class) = self.explain.memo.insert(node, class) {
-                        let did_something = self.perform_union(memo_class, class, Some(Justification::Congruence));
+                        let did_something =
+                            self.perform_union(memo_class, class, Some(Justification::Congruence));
                         n_unions += did_something as usize;
                     }
                 }
