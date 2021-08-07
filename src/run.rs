@@ -600,7 +600,7 @@ where
         iteration: usize,
         egraph: &EGraph<L, N>,
         rewrite: &Rewrite<L, N>,
-    ) -> Vec<SearchMatches> {
+    ) -> Vec<SearchMatches<L>> {
         rewrite.search(egraph)
     }
 
@@ -615,7 +615,7 @@ where
         iteration: usize,
         egraph: &mut EGraph<L, N>,
         rewrite: &Rewrite<L, N>,
-        matches: Vec<SearchMatches>,
+        matches: Vec<SearchMatches<L>>,
     ) -> usize {
         rewrite.apply(egraph, &matches).len()
     }
@@ -780,7 +780,7 @@ where
         iteration: usize,
         egraph: &EGraph<L, N>,
         rewrite: &Rewrite<L, N>,
-    ) -> Vec<SearchMatches> {
+    ) -> Vec<SearchMatches<L>> {
         let stats = self.rule_stats(rewrite.name());
 
         if iteration < stats.banned_until {

@@ -170,30 +170,7 @@ struct CaptureAvoid {
 }
 
 impl Applier<Lambda, LambdaAnalysis> for CaptureAvoid {
-    fn get_ast(
-        &self,
-        egraph: &mut EGraph,
-        eclass: Id,
-        subst: &Subst,
-    ) -> Option<PatternAst<Lambda>> {
-        let e = subst[self.e];
-        let v2 = subst[self.v2];
-        let v2_free_in_e = egraph[e].data.free.contains(&v2);
-        if v2_free_in_e {
-            Some(
-                format!(
-                    "(lam _{} (let ?v1 ?e (let ?v2 (var _{}) ?body)))",
-                    eclass, eclass
-                )
-                .parse()
-                .unwrap(),
-            )
-        } else {
-            egg::Searcher::get_ast(&self.if_not_free, egraph, eclass, subst)
-        }
-    }
-
-    fn apply_one(&self, egraph: &mut EGraph, eclass: Id, subst: &Subst) -> Vec<Id> {
+    fn apply_one(&self, egraph: &mut EGraph, eclass: Id, subst: &Subst) -> (Vec<Id>, Option<PatternAst<Lambda>>) {
         let e = subst[self.e];
         let v2 = subst[self.v2];
         let v2_free_in_e = egraph[e].data.free.contains(&v2);
@@ -201,7 +178,15 @@ impl Applier<Lambda, LambdaAnalysis> for CaptureAvoid {
             let mut subst = subst.clone();
             let sym = Lambda::Symbol(format!("_{}", eclass).into());
             subst.insert(self.fresh, egraph.add(sym));
-            self.if_free.apply_one(egraph, eclass, &subst)
+            let ast = Some(
+                format!(
+                    "(lam _{} (let ?v1 ?e (let ?v2 (var _{}) ?body)))",
+                    eclass, eclass
+                )
+                .parse()
+                .unwrap(),
+            );
+            (self.if_free.apply_one(egraph, eclass, &subst).0, ast)
         } else {
             self.if_not_free.apply_one(egraph, eclass, &subst)
         }

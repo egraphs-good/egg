@@ -591,7 +591,7 @@ impl<L: Language> Explain<L> {
             match node {
                 ENodeOrVar::Var(var) => {
                     let bottom_id = self.find(subst[*var]);
-                    new_ids.push(bottom_id);
+                    new_ids.push(self.find(bottom_id));
                     match_ids.push(bottom_id);
                 }
                 ENodeOrVar::ENode(pattern_node) => {

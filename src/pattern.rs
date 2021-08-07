@@ -213,11 +213,13 @@ impl<L: Language + Display> Display for Pattern<L> {
 /// many matches were found total.
 ///
 #[derive(Debug)]
-pub struct SearchMatches {
+pub struct SearchMatches<L> {
     /// The eclass id that these matches were found in.
     pub eclass: Id,
     /// The substitutions for each match.
     pub substs: Vec<Subst>,
+    /// Optionally, an ast for the matches used in proof production.
+    pub ast: Option<PatternAst<L>>,
 }
 
 impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
@@ -225,16 +227,7 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
         Some(&self.ast)
     }
 
-    fn get_ast(
-        &self,
-        egraph: &mut EGraph<L, A>,
-        eclass: Id,
-        subst: &Subst,
-    ) -> Option<PatternAst<L>> {
-        Some(self.ast.clone())
-    }
-
-    fn search(&self, egraph: &EGraph<L, A>) -> Vec<SearchMatches> {
+    fn search(&self, egraph: &EGraph<L, A>) -> Vec<SearchMatches<L>> {
         match self.ast.as_ref().last().unwrap() {
             ENodeOrVar::ENode(e) => {
                 #[allow(clippy::mem_discriminant_non_enum)]
@@ -254,12 +247,12 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
         }
     }
 
-    fn search_eclass(&self, egraph: &EGraph<L, A>, eclass: Id) -> Option<SearchMatches> {
+    fn search_eclass(&self, egraph: &EGraph<L, A>, eclass: Id) -> Option<SearchMatches<L>> {
         let substs = self.program.run(egraph, eclass);
         if substs.is_empty() {
             None
         } else {
-            Some(SearchMatches { eclass, substs })
+            Some(SearchMatches { eclass, substs, ast: Some(self.ast.clone())})
         }
     }
 
@@ -277,20 +270,11 @@ where
         Some(&self.ast)
     }
 
-    fn get_ast(
-        &self,
-        egraph: &mut EGraph<L, A>,
-        eclass: Id,
-        subst: &Subst,
-    ) -> Option<PatternAst<L>> {
-        Some(self.ast.clone())
-    }
-
-    fn apply_one(&self, egraph: &mut EGraph<L, A>, _: Id, subst: &Subst) -> Vec<Id> {
+    fn apply_one(&self, egraph: &mut EGraph<L, A>, _: Id, subst: &Subst) -> (Vec<Id>, Option<PatternAst<L>>) {
         let ast = self.ast.as_ref();
         let mut id_buf = vec![0.into(); ast.len()];
         let id = apply_pat(&mut id_buf, ast, egraph, subst);
-        vec![id]
+        (vec![id], Some(self.ast.clone()))
     }
 
     fn vars(&self) -> Vec<Var> {
@@ -301,7 +285,7 @@ where
         &self,
         egraph: &mut EGraph<L, A>,
         searcher: &Arc<dyn Searcher<L, A> + Sync + Send>,
-        matches: &[SearchMatches],
+        matches: &[SearchMatches<L>],
         rule_name: &str,
     ) -> Vec<Id> {
         let mut added = vec![];
@@ -310,12 +294,12 @@ where
         for mat in matches {
             for subst in &mat.substs {
                 let id = apply_pat(&mut id_buf, ast, egraph, subst);
-                let searcher_ast = searcher.get_ast(egraph, mat.eclass, subst);
                 let to = self.union_results(
                     egraph,
                     mat.eclass,
                     vec![id],
-                    searcher_ast.as_ref(),
+                    mat.ast.as_ref(),
+                    Some(&self.ast),
                     subst,
                     rule_name,
                 );
