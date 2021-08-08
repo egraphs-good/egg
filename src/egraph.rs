@@ -48,6 +48,7 @@ pub struct EGraph<L: Language, N: Analysis<L>> {
     pub analysis: N,
     pub explain: Explain<L>,
     to_union: Vec<(Id, Id, Option<String>)>,
+    to_analyze: Vec<Id>,
     pending: Vec<(L, Id)>,
     analysis_pending: IndexSet<(L, Id)>,
     classes: HashMap<Id, EClass<L, N::Data>>,
@@ -76,6 +77,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         Self {
             analysis,
             to_union: Default::default(),
+            to_analyze: Default::default(),
             classes: Default::default(),
             explain: Default::default(),
             pending: Default::default(),
@@ -305,7 +307,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             self.classes.insert(id, class);
             assert!(self.explain.memo.insert(enode, id).is_none());
 
-            N::modify(self, id);
+            self.to_analyze.push(id);
             id
         })
     }
@@ -561,7 +563,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     fn process_unions(&mut self) -> usize {
         let mut n_unions = 0;
 
-        while !self.pending.is_empty() || !self.to_union.is_empty() {
+        while !self.pending.is_empty() || !self.to_union.is_empty() || !self.to_analyze.is_empty() || !self.analysis_pending.is_empty() {
             self.perform_to_union();
 
             while !self.pending.is_empty() {
@@ -575,22 +577,35 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                 }
             }
 
-            // we restored congruence, so now it's save to deal with the analysis
-            while let Some((node, class_id)) = self.analysis_pending.pop() {
-                let class_id = self.find_mut(class_id);
-                let node_data = N::make(self, &node);
-                let class = self.classes.get_mut(&class_id).unwrap();
+            if self.to_analyze.is_empty() {
+                // we restored congruence, so now it's save to deal with the analysis
+                // we can only do one round of analysis before we restore congruence
+                let mut analysis_pending = Default::default();
+                std::mem::swap(&mut self.analysis_pending, &mut analysis_pending);
+                for (node, class_id) in analysis_pending {
+                    let class_id = self.find_mut(class_id);
+                    let node_data = N::make(self, &node);
+                    let class = self.classes.get_mut(&class_id).unwrap();
 
-                let did_merge = self.analysis.merge(&mut class.data, node_data);
-                if did_merge.0 {
-                    self.analysis_pending.extend(class.parents.iter().cloned());
-                    N::modify(self, class_id);
+                    let did_merge = self.analysis.merge(&mut class.data, node_data);
+                    if did_merge.0 {
+                        self.analysis_pending.extend(class.parents.iter().cloned());
+                        self.to_analyze.push(class_id);
+                    }
+                }
+            } else {
+                let mut todo = vec![];
+                std::mem::swap(&mut self.to_analyze, &mut todo);
+                for id in todo {
+                    N::modify(self, id);
                 }
             }
         }
 
         assert!(self.pending.is_empty());
         assert!(self.analysis_pending.is_empty());
+        assert!(self.to_union.is_empty());
+        assert!(self.to_analyze.is_empty());
 
         n_unions
     }

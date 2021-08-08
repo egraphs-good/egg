@@ -44,7 +44,6 @@ struct Data {
 
 fn eval(egraph: &EGraph, enode: &Lambda) -> Option<(Lambda, PatternAst<Lambda>)> {
     let x = |i: &Id| egraph[*i].data.constant.as_ref().map(|c| &c.0).clone();
-    let pat = |i: &Id| egraph[*i].data.constant.as_ref().map(|c| &c.1).clone();
     match enode {
         Lambda::Num(n) => Some((
             enode.clone(),
@@ -53,17 +52,18 @@ fn eval(egraph: &EGraph, enode: &Lambda) -> Option<(Lambda, PatternAst<Lambda>)>
         Lambda::Bool(b) => 
             Some((
             enode.clone(),
-            format!("{}", b).parse().unwrap(),)),
-            
-        Lambda::Add([a, b]) =>
+            format!("{}", b).parse().unwrap(),
+        )),
+        Lambda::Add([a, b]) =>              
             Some((
             Lambda::Num(x(a)?.num()? + x(b)?.num()?),
-            format!("(+ {} {})", pat(a)?, pat(b)?).parse().unwrap(),
-        )),
-        Lambda::Eq([a, b]) => 
+            format!("(+ {} {})", x(a)?, x(b)?).parse().unwrap(),
+        ))
+    ,
+        Lambda::Eq([a, b]) =>             
             Some((
             Lambda::Bool(x(a)? == x(b)?),
-            format!("(= {} {})", pat(a)?, pat(b)?).parse().unwrap(),
+            format!("(= {} {})", x(a)?, x(b)?).parse().unwrap(),
         )),
         _ => None,
     }
@@ -108,6 +108,7 @@ impl Analysis<Lambda> for LambdaAnalysis {
     fn modify(egraph: &mut EGraph, id: Id) {
         if let Some(c) = egraph[id].data.constant.clone() {
             let const_id = egraph.add(c.0.clone());
+            println!("left {} right {}", &c.0.to_string(), &c.1);
             egraph.union_with_justification(
                 const_id,
                 id,
@@ -183,6 +184,7 @@ impl Applier<Lambda, LambdaAnalysis> for CaptureAvoid {
         let v2 = subst[self.v2];
         let v2_free_in_e = egraph[e].data.free.contains(&v2);
         if v2_free_in_e {
+            println!("first");
             let mut subst = subst.clone();
             let sym = Lambda::Symbol(format!("_{}", eclass).into());
             subst.insert(self.fresh, egraph.add(sym));
@@ -196,6 +198,7 @@ impl Applier<Lambda, LambdaAnalysis> for CaptureAvoid {
             );
             (self.if_free.apply_one(egraph, eclass, &subst).0, ast)
         } else {
+            println!("Second");
             self.if_not_free.apply_one(egraph, eclass, &subst)
         }
     }
