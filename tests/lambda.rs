@@ -183,7 +183,6 @@ impl Applier<Lambda, LambdaAnalysis> for CaptureAvoid {
         let v2 = subst[self.v2];
         let v2_free_in_e = egraph[e].data.free.contains(&v2);
         if v2_free_in_e {
-            println!("first");
             let mut subst = subst.clone();
             let sym = Lambda::Symbol(format!("_{}", eclass).into());
             subst.insert(self.fresh, egraph.add(sym));
@@ -197,7 +196,6 @@ impl Applier<Lambda, LambdaAnalysis> for CaptureAvoid {
             );
             (self.if_free.apply_one(egraph, eclass, &subst).0, ast)
         } else {
-            println!("Second");
             self.if_not_free.apply_one(egraph, eclass, &subst)
         }
     }

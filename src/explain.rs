@@ -31,6 +31,8 @@ pub struct Explain<L: Language> {
 }
 
 pub type ExplanationTrees<L> = Vec<Rc<TreeTerm<L>>>;
+// given two adjacent nodes and the direction of the proof
+type ExplainCache<L> = HashMap<(Id, Id), Rc<TreeTerm<L>>>;
 
 pub struct Explanation<L: Language> {
     pub explanation_trees: ExplanationTrees<L>,
@@ -94,23 +96,20 @@ impl<L: Language> Explanation<L> {
         let rule_table = Explain::make_rule_table(rules.as_slice());
         self.make_flat_explanation();
         let flat_explanation = self.flat_explanation.as_ref().unwrap();
-        for (i, term) in flat_explanation.iter().enumerate() {
-            let current = term;
-            if let Some(next) = flat_explanation.get(i + 1) {
-                println!("At index {}", i);
-                let has_forward = current.has_rewrite_forward();
-                let has_backward = next.has_rewrite_backward();
-                if i == 0 {
-                    assert!(!current.has_rewrite_backward());
-                }
-                assert!(has_forward ^ has_backward);
-                if has_forward {
-                    assert!(self.check_rewrite_at(current, next, &rule_table, true));
-                } else {
-                    assert!(self.check_rewrite_at(current, next, &rule_table, false));
-                }
+        assert!(!flat_explanation[0].has_rewrite_forward());
+        assert!(!flat_explanation[0].has_rewrite_backward());
+        for i in 0..flat_explanation.len() - 1 {
+            let current = &flat_explanation[i];
+            let next = &flat_explanation[i+1];
+            
+            let has_forward = next.has_rewrite_forward();
+            let has_backward = next.has_rewrite_backward();
+            assert!(has_forward ^ has_backward);
+
+            if has_forward {
+                assert!(self.check_rewrite_at(current, next, &rule_table, true));
             } else {
-                assert!(!current.has_rewrite_forward());
+                assert!(self.check_rewrite_at(current, next, &rule_table, false));
             }
         }
     }
@@ -122,8 +121,8 @@ impl<L: Language> Explanation<L> {
         table: &HashMap<String, &Rewrite<L, N>>,
         is_forward: bool,
     ) -> bool {
-        if is_forward && current.forward_rule.is_some() {
-            let rule_name = current.forward_rule.as_ref().unwrap();
+        if is_forward && next.forward_rule.is_some() {
+            let rule_name = next.forward_rule.as_ref().unwrap();
             if let Some(rule) = table.get(rule_name) {
                 println!("Checking {} forward", rule_name);
                 Explanation::check_rewrite(current, next, rule)
@@ -158,7 +157,6 @@ impl<L: Language> Explanation<L> {
         if let Some(lhs) = rewrite.searcher.get_pattern_ast() {
             if let Some(rhs) = rewrite.applier.get_pattern_ast() {
                 if &current.rewrite(lhs, rhs) != next {
-                    println!("Bad!");
                     return false;
                 }
             }
@@ -177,7 +175,6 @@ pub struct TreeTerm<L: Language> {
     // a rule for rewriting the term backward or forward
     backward_rule: Option<String>,
     forward_rule: Option<String>,
-    forward_identity: bool,
     // one proof per child of the node
     child_proofs: Vec<ExplanationTrees<L>>,
 }
@@ -188,29 +185,23 @@ impl<L: Language> TreeTerm<L> {
             node,
             backward_rule: None,
             forward_rule: None,
-            forward_identity: false,
             child_proofs,
         }
     }
 
     fn flatten_proof(proof: &ExplanationTrees<L>) -> Vec<FlatTerm<L>> {
-        let mut flat_proof  = vec![];
-        let mut combine_next = false;
+        let mut flat_proof: Vec<FlatTerm<L>>  = vec![];
         for tree in proof {
             let mut explanation = tree.flatten_explanation();
 
-            if combine_next {
-                let last = flat_proof.pop().unwrap();
-                explanation[0].combine_rewrites(&last);
+            if !flat_proof.is_empty() {
+                if !explanation[0].has_rewrite_forward() && !explanation[0].has_rewrite_backward() {
+                    let last = flat_proof.pop().unwrap();
+                    explanation[0].combine_rewrites(&last);
+                }
             }
 
             flat_proof.extend(explanation);
-
-            if tree.forward_identity {
-                combine_next = true;
-            } else {
-                combine_next = false;
-            }
         }
 
         flat_proof
@@ -251,7 +242,7 @@ impl<L: Language> TreeTerm<L> {
         }
 
         proof[0].backward_rule = self.backward_rule.clone();
-        proof.last_mut().unwrap().forward_rule = self.forward_rule.clone();
+        proof[0].forward_rule = self.forward_rule.clone();
 
         proof
     }
@@ -341,16 +332,16 @@ impl<L: Language + Display> FlatTerm<L> {
         if let Some(rule_name) = &self.backward_rule {
             expr = Sexp::List(vec![
                 Sexp::String("Rewrite<=".to_string()),
-                expr,
                 Sexp::String(rule_name.clone()),
+                expr,
             ]);
         }
 
         if let Some(rule_name) = &self.forward_rule {
             expr = Sexp::List(vec![
                 Sexp::String("Rewrite=>".to_string()),
-                expr,
                 Sexp::String(rule_name.clone()),
+                expr,
             ]);
         }
 
@@ -392,16 +383,16 @@ impl<L: Language + Display> TreeTerm<L> {
         if let Some(rule_name) = &self.backward_rule {
             expr = Sexp::List(vec![
                 Sexp::String("Rewrite<=".to_string()),
-                expr,
                 Sexp::String(rule_name.clone()),
+                expr,
             ]);
         }
 
         if let Some(rule_name) = &self.forward_rule {
             expr = Sexp::List(vec![
                 Sexp::String("Rewrite=>".to_string()),
-                expr,
                 Sexp::String(rule_name.clone()),
+                expr,
             ]);
         }
 
@@ -691,13 +682,15 @@ impl<L: Language> Explain<L> {
     ) -> Explanation<L> {
         let left_added = self.add_expr(left);
         let right_added = self.add_match(None, &right, &subst);
-        Explanation::new(self.explain_enodes(left_added, right_added))
+        let mut cache = Default::default();
+        Explanation::new(self.explain_enodes(left_added, right_added, &mut cache))
     }
 
     pub fn explain_equivalence(&mut self, left: &RecExpr<L>, right: &RecExpr<L>) -> Explanation<L> {
         let left_added = self.add_expr(left);
         let right_added = self.add_expr(right);
-        Explanation::new(self.explain_enodes(left_added, right_added))
+        let mut cache = Default::default();
+        Explanation::new(self.explain_enodes(left_added, right_added, &mut cache))
     }
 
     fn common_ancestor(&self, mut left: Id, mut right: Id) -> Id {
@@ -739,10 +732,10 @@ impl<L: Language> Explain<L> {
         }
     }
 
-    fn explain_enodes(&self, left: Id, right: Id) -> ExplanationTrees<L> {
+    fn explain_enodes(&self, left: Id, right: Id, cache: &mut ExplainCache<L>) -> ExplanationTrees<L> {
         assert!(self.find(left) == self.find(right));
 
-        let mut proof = vec![self.node_to_explanation(left)];
+        let mut proof = vec![Rc::new(self.node_to_explanation(left))];
         let ancestor = self.common_ancestor(left, right);
         let left_nodes = self.get_nodes(left, ancestor);
         let right_nodes = self.get_nodes(right, ancestor);
@@ -760,44 +753,49 @@ impl<L: Language> Explain<L> {
                 std::mem::swap(&mut next, &mut current);
             }
 
-            match &node.justification {
-                Justification::Rule(name) => {
-                    let mut rewritten = self.node_to_explanation(next);
-                    if direction {
-                        proof.last_mut().unwrap().forward_rule = Some(name.clone());
-                    } else {
-                        rewritten.backward_rule = Some(name.clone());
-                    }
-
-                    proof.push(rewritten);
-                }
-                Justification::Congruence => {
-                    // add the children proofs to the last explanation
-                    let current_node = &self.explainfind[usize::from(current)].node;
-                    let next_node = &self.explainfind[usize::from(next)].node;
-                    assert!(current_node.matches(next_node));
-                    assert_eq!(current_node.len(), proof.last().unwrap().child_proofs.len());
-
-                    for (i, (left_child, right_child)) in current_node
-                        .children()
-                        .iter()
-                        .zip(next_node.children().iter())
-                        .enumerate()
-                    {
-                        let mut subproof = self.explain_enodes(*left_child, *right_child);
-
-                        // stitch together new subproof with last one
-                        let mut last = (*proof.last_mut().unwrap().child_proofs[i].pop().unwrap()).clone();
-                        last.forward_identity = true;
-                        proof.last_mut().unwrap().child_proofs[i].push(Rc::new(last));
-
-                        proof.last_mut().unwrap().child_proofs[i].extend(subproof);
-                    }
-                }
-            }
+            proof.push(self.explain_adjacent(current, next, direction, &node.justification, cache));
         }
-        let res = proof.into_iter().map(|term| Rc::new(term)).collect();
+        proof
+    }
 
-        res
+    fn explain_adjacent(&self, current: Id, next: Id, rule_direction: bool, justification: &Justification, cache: &mut ExplainCache<L>) -> Rc<TreeTerm<L>> {
+        let fingerprint = (current, next);
+
+        if let Some(answer) = cache.get(&fingerprint) {
+            return answer.clone();
+        }
+
+        let term = match justification {
+            Justification::Rule(name) => {
+                let mut rewritten = self.node_to_explanation(next);
+                if rule_direction {
+                    rewritten.forward_rule = Some(name.clone());
+                } else {
+                    rewritten.backward_rule = Some(name.clone());
+                }
+
+                Rc::new(rewritten)
+            }
+            Justification::Congruence => {
+                // add the children proofs to the last explanation
+                let current_node = &self.explainfind[usize::from(current)].node;
+                let next_node = &self.explainfind[usize::from(next)].node;
+                assert!(current_node.matches(next_node));
+                let mut subproofs = vec![];
+
+                for (left_child, right_child) in current_node
+                    .children()
+                    .iter()
+                    .zip(next_node.children().iter())
+                {
+                    subproofs.push(self.explain_enodes(*left_child, *right_child, cache));
+                }
+                Rc::new(TreeTerm::new(current_node.clone(), subproofs))
+            }
+        };
+
+        cache.insert(fingerprint, term.clone());
+
+        term
     }
 }
