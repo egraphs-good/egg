@@ -351,7 +351,12 @@ where
     /// the applications.
     ///
     /// [`apply_matches`]: Applier::apply_matches()
-    fn apply_one(&self, egraph: &mut EGraph<L, N>, eclass: Id, subst: &Subst) -> (Vec<Id>, Option<PatternAst<L>>);
+    fn apply_one(
+        &self,
+        egraph: &mut EGraph<L, N>,
+        eclass: Id,
+        subst: &Subst,
+    ) -> (Vec<Id>, Option<PatternAst<L>>);
 
     /// Returns a list of variables that this Applier assumes are bound.
     ///
@@ -415,7 +420,12 @@ where
         )
     }
 
-    fn apply_one(&self, egraph: &mut EGraph<L, N>, eclass: Id, subst: &Subst) -> (Vec<Id>, Option<PatternAst<L>>) {
+    fn apply_one(
+        &self,
+        egraph: &mut EGraph<L, N>,
+        eclass: Id,
+        subst: &Subst,
+    ) -> (Vec<Id>, Option<PatternAst<L>>) {
         if self.condition.check(egraph, eclass, subst) {
             self.applier.apply_one(egraph, eclass, subst)
         } else {
@@ -574,13 +584,21 @@ mod tests {
         };
 
         impl Applier<SymbolLang, ()> for Appender {
-            fn apply_one(&self, egraph: &mut EGraph, _eclass: Id, subst: &Subst) -> (Vec<Id>, Option<PatternAst<SymbolLang>>) {
+            fn apply_one(
+                &self,
+                egraph: &mut EGraph,
+                _eclass: Id,
+                subst: &Subst,
+            ) -> (Vec<Id>, Option<PatternAst<SymbolLang>>) {
                 let a: Var = "?a".parse().unwrap();
                 let b: Var = "?b".parse().unwrap();
                 let a = get(&egraph, subst[a]);
                 let b = get(&egraph, subst[b]);
                 let s = format!("{}{}", a, b);
-                (vec![egraph.add(S::leaf(&s))], Some(PatternAst::from_str(&s).unwrap()))
+                (
+                    vec![egraph.add(S::leaf(&s))],
+                    Some(PatternAst::from_str(&s).unwrap()),
+                )
             }
         }
 

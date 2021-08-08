@@ -83,7 +83,6 @@ impl<L: Language> Explanation<L> {
         }
     }
 
-
     /// Check the validity of the explanation with respect to the given rules.
     /// This only is able to check rule applications when the rules are implement `get_pattern_ast`.
     pub fn check_proof<'a, R, N: Analysis<L>>(&mut self, rules: R)
@@ -100,8 +99,8 @@ impl<L: Language> Explanation<L> {
         assert!(!flat_explanation[0].has_rewrite_backward());
         for i in 0..flat_explanation.len() - 1 {
             let current = &flat_explanation[i];
-            let next = &flat_explanation[i+1];
-            
+            let next = &flat_explanation[i + 1];
+
             let has_forward = next.has_rewrite_forward();
             let has_backward = next.has_rewrite_backward();
             assert!(has_forward ^ has_backward);
@@ -190,7 +189,7 @@ impl<L: Language> TreeTerm<L> {
     }
 
     fn flatten_proof(proof: &ExplanationTrees<L>) -> Vec<FlatTerm<L>> {
-        let mut flat_proof: Vec<FlatTerm<L>>  = vec![];
+        let mut flat_proof: Vec<FlatTerm<L>> = vec![];
         for tree in proof {
             let mut explanation = tree.flatten_explanation();
 
@@ -732,7 +731,12 @@ impl<L: Language> Explain<L> {
         }
     }
 
-    fn explain_enodes(&self, left: Id, right: Id, cache: &mut ExplainCache<L>) -> ExplanationTrees<L> {
+    fn explain_enodes(
+        &self,
+        left: Id,
+        right: Id,
+        cache: &mut ExplainCache<L>,
+    ) -> ExplanationTrees<L> {
         assert!(self.find(left) == self.find(right));
 
         let mut proof = vec![Rc::new(self.node_to_explanation(left))];
@@ -758,7 +762,14 @@ impl<L: Language> Explain<L> {
         proof
     }
 
-    fn explain_adjacent(&self, current: Id, next: Id, rule_direction: bool, justification: &Justification, cache: &mut ExplainCache<L>) -> Rc<TreeTerm<L>> {
+    fn explain_adjacent(
+        &self,
+        current: Id,
+        next: Id,
+        rule_direction: bool,
+        justification: &Justification,
+        cache: &mut ExplainCache<L>,
+    ) -> Rc<TreeTerm<L>> {
         let fingerprint = (current, next);
 
         if let Some(answer) = cache.get(&fingerprint) {

@@ -252,7 +252,11 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
         if substs.is_empty() {
             None
         } else {
-            Some(SearchMatches { eclass, substs, ast: Some(self.ast.clone())})
+            Some(SearchMatches {
+                eclass,
+                substs,
+                ast: Some(self.ast.clone()),
+            })
         }
     }
 
@@ -270,7 +274,12 @@ where
         Some(&self.ast)
     }
 
-    fn apply_one(&self, egraph: &mut EGraph<L, A>, _: Id, subst: &Subst) -> (Vec<Id>, Option<PatternAst<L>>) {
+    fn apply_one(
+        &self,
+        egraph: &mut EGraph<L, A>,
+        _: Id,
+        subst: &Subst,
+    ) -> (Vec<Id>, Option<PatternAst<L>>) {
         let ast = self.ast.as_ref();
         let mut id_buf = vec![0.into(); ast.len()];
         let id = apply_pat(&mut id_buf, ast, egraph, subst);

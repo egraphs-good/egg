@@ -44,7 +44,6 @@ impl UnionFind {
         self.union_roots(id1, id2)
     }
 
-
     /// Given two leader ids, unions the two eclasses making root1 the leader.
     pub fn union_roots(&mut self, root1: Id, root2: Id) -> Id {
         *self.parent_mut(root2) = root1;

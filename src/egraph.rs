@@ -563,7 +563,11 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     fn process_unions(&mut self) -> usize {
         let mut n_unions = 0;
 
-        while !self.pending.is_empty() || !self.to_union.is_empty() || !self.to_analyze.is_empty() || !self.analysis_pending.is_empty() {
+        while !self.pending.is_empty()
+            || !self.to_union.is_empty()
+            || !self.to_analyze.is_empty()
+            || !self.analysis_pending.is_empty()
+        {
             if self.pending.is_empty() {
                 if !self.to_union.is_empty() {
                     self.perform_to_union();
@@ -594,8 +598,11 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                     while let Some((mut node, class)) = self.pending.pop() {
                         node.update_children(|id| self.find_mut(id));
                         if let Some(memo_class) = self.explain.memo.insert(node, class) {
-                            let did_something =
-                                self.perform_union(memo_class, class, Some(Justification::Congruence));
+                            let did_something = self.perform_union(
+                                memo_class,
+                                class,
+                                Some(Justification::Congruence),
+                            );
                             n_unions += did_something as usize;
                         }
                     }

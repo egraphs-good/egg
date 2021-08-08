@@ -45,23 +45,13 @@ struct Data {
 fn eval(egraph: &EGraph, enode: &Lambda) -> Option<(Lambda, PatternAst<Lambda>)> {
     let x = |i: &Id| egraph[*i].data.constant.as_ref().map(|c| &c.0).clone();
     match enode {
-        Lambda::Num(n) => Some((
-            enode.clone(),
-            format!("{}", n).parse().unwrap(),
-        )),
-        Lambda::Bool(b) => 
-            Some((
-            enode.clone(),
-            format!("{}", b).parse().unwrap(),
-        )),
-        Lambda::Add([a, b]) =>              
-            Some((
+        Lambda::Num(n) => Some((enode.clone(), format!("{}", n).parse().unwrap())),
+        Lambda::Bool(b) => Some((enode.clone(), format!("{}", b).parse().unwrap())),
+        Lambda::Add([a, b]) => Some((
             Lambda::Num(x(a)?.num()? + x(b)?.num()?),
             format!("(+ {} {})", x(a)?, x(b)?).parse().unwrap(),
-        ))
-    ,
-        Lambda::Eq([a, b]) =>             
-            Some((
+        )),
+        Lambda::Eq([a, b]) => Some((
             Lambda::Bool(x(a)? == x(b)?),
             format!("(= {} {})", x(a)?, x(b)?).parse().unwrap(),
         )),
@@ -178,7 +168,12 @@ struct CaptureAvoid {
 }
 
 impl Applier<Lambda, LambdaAnalysis> for CaptureAvoid {
-    fn apply_one(&self, egraph: &mut EGraph, eclass: Id, subst: &Subst) -> (Vec<Id>, Option<PatternAst<Lambda>>) {
+    fn apply_one(
+        &self,
+        egraph: &mut EGraph,
+        eclass: Id,
+        subst: &Subst,
+    ) -> (Vec<Id>, Option<PatternAst<Lambda>>) {
         let e = subst[self.e];
         let v2 = subst[self.v2];
         let v2_free_in_e = egraph[e].data.free.contains(&v2);
