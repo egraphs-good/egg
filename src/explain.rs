@@ -30,19 +30,8 @@ pub struct Explain<L: Language> {
     uncanon_memo: HashMap<L, Id>,
 }
 
+pub type ExplanationTrees<L> = Vec<Rc<TreeTerm<L>>>;
 
-/// ExplanationTrees is a proof that an expression is equal to the goal.
-pub type ExplanationTrees<L> = Rc<Vec<TreeTerm<L>>>;
-/// ExplanationTreeGroup can be flattened via the identity function between
-/// ExplanationTrees into a single ExplanationTree.
-/// This allows for caching ExplanationTrees.
-pub type ExplanationTreeGroup<L> = Vec<ExplanationTrees<L>>;
-
-type ExplainCache<L> = HashMap<(Id, Id), ExplanationTrees<L>>;
-
-/// An explanation for two terms being equivalent.
-/// Internally, stores the ExplanationTrees for the two terms
-/// and the flat explanation if generated.
 pub struct Explanation<L: Language> {
     pub explanation_trees: ExplanationTrees<L>,
     flat_explanation: Option<Vec<FlatTerm<L>>>,
@@ -87,7 +76,7 @@ impl<L: Language> Explanation<L> {
         if self.flat_explanation.is_some() {
             return self.flat_explanation.as_ref().unwrap();
         } else {
-            self.flat_explanation = Some(TreeTerm::flatten_proof(&vec![self.explanation_trees.clone()]));
+            self.flat_explanation = Some(TreeTerm::flatten_proof(&self.explanation_trees));
             self.flat_explanation.as_ref().unwrap()
         }
     }
@@ -108,6 +97,7 @@ impl<L: Language> Explanation<L> {
         for (i, term) in flat_explanation.iter().enumerate() {
             let current = term;
             if let Some(next) = flat_explanation.get(i + 1) {
+                println!("At index {}", i);
                 let has_forward = current.has_rewrite_forward();
                 let has_backward = next.has_rewrite_backward();
                 if i == 0 {
@@ -187,31 +177,39 @@ pub struct TreeTerm<L: Language> {
     // a rule for rewriting the term backward or forward
     backward_rule: Option<String>,
     forward_rule: Option<String>,
+    forward_identity: bool,
     // one proof per child of the node
-    child_proofs: Vec<ExplanationTreeGroup<L>>,
+    child_proofs: Vec<ExplanationTrees<L>>,
 }
 
 impl<L: Language> TreeTerm<L> {
-    pub fn new(node: L, child_proofs: Vec<ExplanationTreeGroup<L>>) -> TreeTerm<L> {
+    pub fn new(node: L, child_proofs: Vec<ExplanationTrees<L>>) -> TreeTerm<L> {
         TreeTerm {
             node,
             backward_rule: None,
             forward_rule: None,
+            forward_identity: false,
             child_proofs,
         }
     }
 
-    fn flatten_proof(proof: &ExplanationTreeGroup<L>) -> Vec<FlatTerm<L>> {
+    fn flatten_proof(proof: &ExplanationTrees<L>) -> Vec<FlatTerm<L>> {
         let mut flat_proof  = vec![];
-        for explanation_trees in proof {
-            let before_len = flat_proof.len();
-            let popped = flat_proof.pop();
-            for tree in explanation_trees.iter() {
-                flat_proof.extend(tree.flatten_explanation());
+        let mut combine_next = false;
+        for tree in proof {
+            let mut explanation = tree.flatten_explanation();
+
+            if combine_next {
+                let last = flat_proof.pop().unwrap();
+                explanation[0].combine_rewrites(&last);
             }
 
-            if before_len != 0 {
-                flat_proof[before_len-1].combine_rewrites(&popped.unwrap());
+            flat_proof.extend(explanation);
+
+            if tree.forward_identity {
+                combine_next = true;
+            } else {
+                combine_next = false;
             }
         }
 
@@ -376,25 +374,16 @@ impl<L: Language + Display> TreeTerm<L> {
             op
         } else {
             let mut vec = vec![op];
-            for child_trees in &self.child_proofs {
-                assert!(child_trees.len() > 0);
-                let mut children_flat = vec![Sexp::String("ConcatIdentity".to_string())];
-                for child in child_trees {
-                    assert!(child.len() > 0);
-                    if child.len() == 1 {
-                        children_flat.push(child[0].to_sexp());
-                    } else {
-                        let mut child_expressions = vec![Sexp::String("Explanation".to_string())];
-                        for child_explanation in child.iter() {
-                            child_expressions.push(child_explanation.to_sexp());
-                        }
-                        children_flat.push(Sexp::List(child_expressions));
-                    }
-                }
-                if children_flat.len() > 2 {
-                    vec.push(Sexp::List(children_flat));
+            for child in &self.child_proofs {
+                assert!(child.len() > 0);
+                if child.len() == 1 {
+                    vec.push(child[0].to_sexp());
                 } else {
-                    vec.push(children_flat[1].clone());
+                    let mut child_expressions = vec![Sexp::String("Explanation".to_string())];
+                    for child_explanation in child.iter() {
+                        child_expressions.push(child_explanation.to_sexp());
+                    }
+                    vec.push(Sexp::List(child_expressions));
                 }
             }
             Sexp::List(vec)
@@ -500,7 +489,7 @@ impl<L: Language> Explain<L> {
     fn node_to_explanation(&self, node_id: Id) -> TreeTerm<L> {
         let node = self.explainfind[usize::from(node_id)].node.clone();
         let children = node.fold(vec![], |mut sofar, child| {
-            sofar.push(vec![Rc::new(vec![self.node_to_explanation(child)])]);
+            sofar.push(vec![Rc::new(self.node_to_explanation(child))]);
             sofar
         });
         TreeTerm::new(node, children)
@@ -702,15 +691,13 @@ impl<L: Language> Explain<L> {
     ) -> Explanation<L> {
         let left_added = self.add_expr(left);
         let right_added = self.add_match(None, &right, &subst);
-        let mut cache = Default::default();
-        Explanation::new(self.explain_enodes(left_added, right_added, &mut cache))
+        Explanation::new(self.explain_enodes(left_added, right_added))
     }
 
     pub fn explain_equivalence(&mut self, left: &RecExpr<L>, right: &RecExpr<L>) -> Explanation<L> {
         let left_added = self.add_expr(left);
         let right_added = self.add_expr(right);
-        let mut cache = Default::default();
-        Explanation::new(self.explain_enodes(left_added, right_added, &mut cache))
+        Explanation::new(self.explain_enodes(left_added, right_added))
     }
 
     fn common_ancestor(&self, mut left: Id, mut right: Id) -> Id {
@@ -752,15 +739,10 @@ impl<L: Language> Explain<L> {
         }
     }
 
-    fn explain_enodes(&self, left: Id, right: Id, cache: &mut ExplainCache<L>) -> ExplanationTrees<L> {
-        println!("Explain {} and {}", left, right);
+    fn explain_enodes(&self, left: Id, right: Id) -> ExplanationTrees<L> {
         assert!(self.find(left) == self.find(right));
 
         let mut proof = vec![self.node_to_explanation(left)];
-        let mut single_term_children = vec![];
-        for _ in 0..proof.last().unwrap().child_proofs.len() {
-            single_term_children.push(true);
-        }
         let ancestor = self.common_ancestor(left, right);
         let left_nodes = self.get_nodes(left, ancestor);
         let right_nodes = self.get_nodes(right, ancestor);
@@ -788,9 +770,6 @@ impl<L: Language> Explain<L> {
                     }
 
                     proof.push(rewritten);
-                    for _ in 0..proof.last().unwrap().child_proofs.len() {
-                        single_term_children.push(true);
-                    }
                 }
                 Justification::Congruence => {
                     // add the children proofs to the last explanation
@@ -805,20 +784,20 @@ impl<L: Language> Explain<L> {
                         .zip(next_node.children().iter())
                         .enumerate()
                     {
-                        if left_child != right_child {
-                            let subproof = self.explain_enodes(*left_child, *right_child, cache);
-                            if single_term_children[i] {
-                                proof.last_mut().unwrap().child_proofs[i].pop();
-                            }
-                            proof.last_mut().unwrap().child_proofs[i].push(subproof);
+                        let mut subproof = self.explain_enodes(*left_child, *right_child);
 
-                            single_term_children[i] = false;
-                        }
+                        // stitch together new subproof with last one
+                        let mut last = (*proof.last_mut().unwrap().child_proofs[i].pop().unwrap()).clone();
+                        last.forward_identity = true;
+                        proof.last_mut().unwrap().child_proofs[i].push(Rc::new(last));
+
+                        proof.last_mut().unwrap().child_proofs[i].extend(subproof);
                     }
                 }
             }
         }
+        let res = proof.into_iter().map(|term| Rc::new(term)).collect();
 
-        Rc::new(proof)
+        res
     }
 }
