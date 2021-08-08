@@ -564,40 +564,41 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         let mut n_unions = 0;
 
         while !self.pending.is_empty() || !self.to_union.is_empty() || !self.to_analyze.is_empty() || !self.analysis_pending.is_empty() {
-            self.perform_to_union();
-
-            while !self.pending.is_empty() {
-                while let Some((mut node, class)) = self.pending.pop() {
-                    node.update_children(|id| self.find_mut(id));
-                    if let Some(memo_class) = self.explain.memo.insert(node, class) {
-                        let did_something =
-                            self.perform_union(memo_class, class, Some(Justification::Congruence));
-                        n_unions += did_something as usize;
+            if self.pending.is_empty() {
+                if !self.to_union.is_empty() {
+                    self.perform_to_union();
+                } else if !self.to_analyze.is_empty() {
+                    let mut todo = vec![];
+                    std::mem::swap(&mut self.to_analyze, &mut todo);
+                    for id in todo {
+                        N::modify(self, id);
                     }
-                }
-            }
+                } else {
+                    // do more analysis
+                    let mut analysis_pending = Default::default();
+                    std::mem::swap(&mut self.analysis_pending, &mut analysis_pending);
+                    for (node, class_id) in analysis_pending {
+                        let class_id = self.find_mut(class_id);
+                        let node_data = N::make(self, &node);
+                        let class = self.classes.get_mut(&class_id).unwrap();
 
-            if self.to_analyze.is_empty() {
-                // we restored congruence, so now it's save to deal with the analysis
-                // we can only do one round of analysis before we restore congruence
-                let mut analysis_pending = Default::default();
-                std::mem::swap(&mut self.analysis_pending, &mut analysis_pending);
-                for (node, class_id) in analysis_pending {
-                    let class_id = self.find_mut(class_id);
-                    let node_data = N::make(self, &node);
-                    let class = self.classes.get_mut(&class_id).unwrap();
-
-                    let did_merge = self.analysis.merge(&mut class.data, node_data);
-                    if did_merge.0 {
-                        self.analysis_pending.extend(class.parents.iter().cloned());
-                        self.to_analyze.push(class_id);
+                        let did_merge = self.analysis.merge(&mut class.data, node_data);
+                        if did_merge.0 {
+                            self.analysis_pending.extend(class.parents.iter().cloned());
+                            self.to_analyze.push(class_id);
+                        }
                     }
                 }
             } else {
-                let mut todo = vec![];
-                std::mem::swap(&mut self.to_analyze, &mut todo);
-                for id in todo {
-                    N::modify(self, id);
+                while !self.pending.is_empty() {
+                    while let Some((mut node, class)) = self.pending.pop() {
+                        node.update_children(|id| self.find_mut(id));
+                        if let Some(memo_class) = self.explain.memo.insert(node, class) {
+                            let did_something =
+                                self.perform_union(memo_class, class, Some(Justification::Congruence));
+                            n_unions += did_something as usize;
+                        }
+                    }
                 }
             }
         }

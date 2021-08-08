@@ -108,7 +108,6 @@ impl Analysis<Lambda> for LambdaAnalysis {
     fn modify(egraph: &mut EGraph, id: Id) {
         if let Some(c) = egraph[id].data.constant.clone() {
             let const_id = egraph.add(c.0.clone());
-            println!("left {} right {}", &c.0.to_string(), &c.1);
             egraph.union_with_justification(
                 const_id,
                 id,
