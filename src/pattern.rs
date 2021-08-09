@@ -1,7 +1,7 @@
 use fmt::Formatter;
 use log::*;
 use std::fmt::{self, Display};
-use std::{convert::TryFrom, error::Error, str::FromStr, sync::Arc};
+use std::{convert::TryFrom, error::Error, str::FromStr};
 
 use thiserror::Error;
 
@@ -293,7 +293,6 @@ where
     fn apply_matches(
         &self,
         egraph: &mut EGraph<L, A>,
-        searcher: &Arc<dyn Searcher<L, A> + Sync + Send>,
         matches: &[SearchMatches<L>],
         rule_name: &str,
     ) -> Vec<Id> {

@@ -1,5 +1,5 @@
 use crate::{
-    util::pretty_print, Analysis, EClass, ENodeOrVar, HashMap, HashSet, Id, Language, PatternAst,
+    util::pretty_print, Analysis, ENodeOrVar, HashMap, HashSet, Id, Language, PatternAst,
     RecExpr, Rewrite, Subst, UnionFind, Var,
 };
 use std::fmt::{self, Debug, Display, Formatter};
@@ -34,7 +34,22 @@ pub type ExplanationTrees<L> = Vec<Rc<TreeTerm<L>>>;
 // given two adjacent nodes and the direction of the proof
 type ExplainCache<L> = HashMap<(Id, Id), Rc<TreeTerm<L>>>;
 
+
+/** A data structure representing an explanation that two terms are equivalent.
+
+There are two representations of explanations, each with
+a corresponding string representation. The first is 
+[`explanation_trees`], the compact representation where children can contain explanations.
+The second is from `make_flat_explanation`, which flattens the tree
+representation into a series of full terms.
+
+See TODO for an explanation of the tree data structure and
+TODO for an explanation of the flat representation.
+
+[`explanation_trees`]: Explanation::explanation_trees
+**/
 pub struct Explanation<L: Language> {
+    /// The tree representation of the explanation.
     pub explanation_trees: ExplanationTrees<L>,
     flat_explanation: Option<Vec<FlatTerm<L>>>,
 }
@@ -47,10 +62,12 @@ impl<L: Language + Display> Display for Explanation<L> {
 }
 
 impl<L: Language + Display> Explanation<L> {
+    /// Output the flattened explanation as a string.
     pub fn to_flat_string(&mut self) -> String {
         self.to_flat_strings().join("\n")
     }
 
+    /// Output each term in the explanation as a string.
     pub fn to_flat_strings(&mut self) -> Vec<String> {
         self.make_flat_explanation()
             .iter()
@@ -58,6 +75,7 @@ impl<L: Language + Display> Explanation<L> {
             .collect()
     }
 
+    /// Output each explanation tree as a string.
     pub fn to_strings(&self) -> Vec<String> {
         self.explanation_trees
             .iter()
@@ -67,6 +85,7 @@ impl<L: Language + Display> Explanation<L> {
 }
 
 impl<L: Language> Explanation<L> {
+    /// Construct a new explanation given its tree representation.
     pub fn new(explanation_trees: ExplanationTrees<L>) -> Explanation<L> {
         Explanation {
             explanation_trees,
@@ -74,6 +93,7 @@ impl<L: Language> Explanation<L> {
         }
     }
 
+    /// Construct the flat representation of the explanation and return it.
     pub fn make_flat_explanation<'a>(&'a mut self) -> &Vec<FlatTerm<L>> {
         if self.flat_explanation.is_some() {
             return self.flat_explanation.as_ref().unwrap();
@@ -438,7 +458,7 @@ impl<L: Language> FlatTerm<L> {
         bindings: &HashMap<Var, &FlatTerm<L>>,
     ) -> FlatTerm<L> {
         match &pattern[location] {
-            ENodeOrVar::Var(var) => bindings.get(var).unwrap().clone().clone(),
+            ENodeOrVar::Var(var) => (*bindings.get(var).unwrap()).clone(),
             ENodeOrVar::ENode(node) => {
                 let children = node.fold(vec![], |mut acc, child| {
                     acc.push(FlatTerm::from_pattern(

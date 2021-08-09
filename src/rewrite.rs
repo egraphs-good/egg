@@ -94,7 +94,7 @@ impl<L: Language, N: Analysis<L>> Rewrite<L, N> {
     /// [`apply_matches`]: Applier::apply_matches()
     pub fn apply(&self, egraph: &mut EGraph<L, N>, matches: &[SearchMatches<L>]) -> Vec<Id> {
         self.applier
-            .apply_matches(egraph, &self.searcher, matches, &self.name)
+            .apply_matches(egraph, matches, &self.name)
     }
 
     /// This `run` is for testing use only. You should use things
@@ -277,7 +277,6 @@ where
     fn apply_matches(
         &self,
         egraph: &mut EGraph<L, N>,
-        searcher: &Arc<dyn Searcher<L, N> + Sync + Send>,
         matches: &[SearchMatches<L>],
         rule_name: &str,
     ) -> Vec<Id> {

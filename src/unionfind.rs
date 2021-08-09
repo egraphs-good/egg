@@ -37,11 +37,9 @@ impl UnionFind {
         current
     }
 
-    /// Unions two eclasses and returns the new leader.
-    pub fn union(&mut self, mut id1: Id, mut id2: Id) -> Id {
-        id1 = self.find(id1);
-        id2 = self.find(id2);
-        self.union_roots(id1, id2)
+    /// Union two ids.
+    pub fn union(&mut self, root1: Id, root2: Id) -> Id {
+        self.union_roots(self.find(root1), self.find(root2))
     }
 
     /// Given two leader ids, unions the two eclasses making root1 the leader.

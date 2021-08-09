@@ -14,6 +14,7 @@ nits:
 	cargo deadlinks
 
 	cargo clippy --tests
+	cargo clippy --tests --features "proof-generation"
 	cargo clippy --tests --features "serde-1"
 	cargo clippy --tests --features "reports"
 

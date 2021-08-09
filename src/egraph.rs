@@ -46,6 +46,7 @@ and
 pub struct EGraph<L: Language, N: Analysis<L>> {
     /// The `Analysis` given when creating this `EGraph`.
     pub analysis: N,
+    /// The `Explain` used to explain equivalences in this `EGraph`.
     pub explain: Explain<L>,
     to_union: Vec<(Id, Id, Option<String>)>,
     to_analyze: Vec<Id>,
@@ -338,11 +339,11 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
     /// Given two patterns which match eclasses id1 and id2 respectively,
     /// marks the two eclasses for unioning.
+    /// 
+    /// The two patterns must match the eclasses corresponding to the ids.
+    /// The ids need not be canonical.
     ///
     /// The returned `bool` indicates whether a union is necessary.
-    ///
-    /// If searcher_ematch or application_ematch is given, then it is used to perform the union.
-    /// Otherwise, it performs an e-match in order to find the justification.
     pub fn union_with_justification(
         &mut self,
         id1: Id,
@@ -372,8 +373,12 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// The returned `bool` indicates whether a union is necessary,
     /// so it's `false` if they were already equivalent.
     /// Both results are canonical.
+    /// 
+    /// When "proof-generation" is enabled, this function is not available.
+    /// Instead, use [`union_with_justification`](EGraph::union_with_justification).
     ///
     /// You must call [`rebuild`](EGraph::rebuild) to observe any effect.
+    #[cfg(not(feature = "proof-generation"))]
     pub fn union(&mut self, id1: Id, id2: Id) -> bool {
         if self.find_mut(id1) == self.find_mut(id2) {
             false
@@ -686,7 +691,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         n_unions
     }
 
-    pub fn check_each_explain(&self, rules: &[&Rewrite<L, N>]) -> bool {
+    pub(crate) fn check_each_explain(&self, rules: &[&Rewrite<L, N>]) -> bool {
         self.explain.check_each_explain(rules)
     }
 }
