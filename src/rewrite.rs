@@ -580,7 +580,7 @@ mod tests {
         #[derive(Debug)]
         struct Appender {
             rhs: PatternAst<S>,
-        };
+        }
 
         impl Applier<SymbolLang, ()> for Appender {
             fn apply_one(

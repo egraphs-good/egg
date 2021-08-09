@@ -686,10 +686,10 @@ impl<L: Language> Explain<L> {
             self.explainfind[usize::from(node1)].next = node2;
             self.explainfind[usize::from(node1)].justification = justification;
             self.explainfind[usize::from(node1)].is_rewrite_forward = true;
-            self.unionfind.union_roots(canon_id1, canon_id2)
+            self.unionfind.union(canon_id1, canon_id2)
         } else {
             // Act like a normal union find when the rule is not provided.
-            self.unionfind.union_roots(canon_id1, canon_id2)
+            self.unionfind.union(canon_id1, canon_id2)
         }
     }
 
