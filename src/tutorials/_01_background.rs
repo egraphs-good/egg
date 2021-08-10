@@ -162,7 +162,7 @@ Let's put it all together with an example referring to the four e-graphs in the
    The result only unions e-classes,
      meaning that e-graph actually got _smaller_ from applying these rewrites,
      even though it now represents more terms.
-   In fact, observe that that the top-right "×" e-node's left child is _itself_;
+   In fact, observe that the top-right "×" e-node's left child is _itself_;
      this cycle means the e-class represents the _infinite_ (!) set of terms
      _a_, _a × 1_, _a × 1 × 1_, and so on.
 
