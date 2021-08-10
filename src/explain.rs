@@ -30,7 +30,11 @@ pub struct Explain<L: Language> {
     uncanon_memo: HashMap<L, Id>,
 }
 
+
+/// Explanation trees are TODO
 pub type ExplanationTrees<L> = Vec<Rc<TreeTerm<L>>>;
+/// FlatExplanation are TODO
+pub type FlatExplanation<L> = Vec<FlatTerm<L>>;
 // given two adjacent nodes and the direction of the proof
 type ExplainCache<L> = HashMap<(Id, Id), Rc<TreeTerm<L>>>;
 
@@ -43,15 +47,15 @@ a corresponding string representation. The first is
 The second is from `make_flat_explanation`, which flattens the tree
 representation into a series of full terms.
 
-See TODO for an explanation of the tree data structure and
-TODO for an explanation of the flat representation.
+See [`ExplanationTrees`] for an explanation of the tree data structure and
+[`FlatExplanation`] for an explanation of the flat representation.
 
 [`explanation_trees`]: Explanation::explanation_trees
 **/
 pub struct Explanation<L: Language> {
     /// The tree representation of the explanation.
     pub explanation_trees: ExplanationTrees<L>,
-    flat_explanation: Option<Vec<FlatTerm<L>>>,
+    flat_explanation: Option<FlatExplanation<L>>,
 }
 
 impl<L: Language + Display> Display for Explanation<L> {
@@ -94,7 +98,7 @@ impl<L: Language> Explanation<L> {
     }
 
     /// Construct the flat representation of the explanation and return it.
-    pub fn make_flat_explanation<'a>(&'a mut self) -> &Vec<FlatTerm<L>> {
+    pub fn make_flat_explanation<'a>(&'a mut self) -> &FlatExplanation<L> {
         if self.flat_explanation.is_some() {
             return self.flat_explanation.as_ref().unwrap();
         } else {
@@ -208,8 +212,8 @@ impl<L: Language> TreeTerm<L> {
         }
     }
 
-    fn flatten_proof(proof: &ExplanationTrees<L>) -> Vec<FlatTerm<L>> {
-        let mut flat_proof: Vec<FlatTerm<L>> = vec![];
+    fn flatten_proof(proof: &ExplanationTrees<L>) -> FlatExplanation<L> {
+        let mut flat_proof: FlatExplanation<L> = vec![];
         for tree in proof {
             let mut explanation = tree.flatten_explanation();
 
@@ -226,7 +230,7 @@ impl<L: Language> TreeTerm<L> {
         flat_proof
     }
 
-    pub fn flatten_explanation(&self) -> Vec<FlatTerm<L>> {
+    pub fn flatten_explanation(&self) -> FlatExplanation<L> {
         let mut proof = vec![];
         let mut child_proofs = vec![];
         let mut representative_terms = vec![];
@@ -276,7 +280,7 @@ pub struct FlatTerm<L: Language> {
     node: L,
     backward_rule: Option<String>,
     forward_rule: Option<String>,
-    children: Vec<FlatTerm<L>>,
+    children: FlatExplanation<L>,
 }
 
 impl<L: Language + Display> Display for FlatTerm<L> {
@@ -420,7 +424,7 @@ impl<L: Language + Display> TreeTerm<L> {
 }
 
 impl<L: Language> FlatTerm<L> {
-    pub fn new(node: L, children: Vec<FlatTerm<L>>) -> FlatTerm<L> {
+    pub fn new(node: L, children: FlatExplanation<L>) -> FlatTerm<L> {
         FlatTerm {
             node,
             backward_rule: None,

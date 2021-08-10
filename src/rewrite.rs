@@ -266,10 +266,9 @@ where
     /// Apply many substititions.
     ///
     /// This method should call [`apply_one`] for each match,
-    /// then call [`union_results`] to combine the results.
+    /// then call [`union_results`](Applier::union_results) to combine the results.
     ///
-    /// It returns the ids resulting from the calls to [`union_results`].
-    ///
+    /// It returns the ids resulting from the calls to [`union_results`](Applier::union_results).
     /// The default implementation does this and should suffice for
     /// most use cases.
     ///
@@ -308,7 +307,6 @@ where
     ///
     /// This should return a list of [`Id`]s of eclasses which
     /// had unions applied to them.
-    /// [`union_results`]: Applier::union_results()
     fn union_results(
         &self,
         egraph: &mut EGraph<L, N>,
@@ -340,14 +338,14 @@ where
     ///
     /// An [`Applier`] should only add things to the egraph here,
     /// _not_ union them with the id `eclass`.
-    /// That is the responsibility of the [`union_results`] method.
+    /// That is the responsibility of the [`union_results`](Applier::union_results) method.
     /// The `eclass` parameter allows the implementer to inspect the
     /// eclass where the match was found if they need to.
     ///
     /// This should return a list of [`Id`]s of things you'd like to
     /// be unioned with `eclass`. There can be zero, one, or many.
-    /// These should NOT be canonicalized ids, but the resulting ids of
-    /// the applications.
+    /// When proof-generation mode is enabled, a [`PatternAst`] matching
+    /// the application is also required in order to justify the application.
     ///
     /// [`apply_matches`]: Applier::apply_matches()
     fn apply_one(
