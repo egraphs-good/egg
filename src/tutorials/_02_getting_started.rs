@@ -127,7 +127,7 @@ egraph.rebuild();
 
 // now we can find a match since a = b
 let matches = pat.search(&egraph);
-assert!(!matches.is_empty())
+assert!(!matches.is_empty());
 ```
 
 
