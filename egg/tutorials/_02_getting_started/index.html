@@ -101,7 +101,7 @@ to search the e-graph for matches:</p>
 
 <span class="comment">// now we can find a match since a = b</span>
 <span class="kw">let</span> <span class="ident">matches</span> <span class="op">=</span> <span class="ident">pat</span>.<span class="ident">search</span>(<span class="kw-2">&amp;</span><span class="ident">egraph</span>);
-<span class="macro">assert</span><span class="macro">!</span>(<span class="op">!</span><span class="ident">matches</span>.<span class="ident">is_empty</span>())</pre></div>
+<span class="macro">assert</span><span class="macro">!</span>(<span class="op">!</span><span class="ident">matches</span>.<span class="ident">is_empty</span>());</pre></div>
 <h2 id="using-runner-to-make-an-optimizer" class="section-header"><a href="#using-runner-to-make-an-optimizer">Using <code>Runner</code> to make an optimizer</a></h2>
 <p>Now that we can make <a href="../../../egg/struct.Pattern.html"><code>Pattern</code></a>s and work with <a href="../../../egg/struct.RecExpr.html"><code>RecExpr</code></a>s, we can make an optimizer!
 We'll use the <a href="../../../egg/macro.rewrite.html"><code>rewrite!</code></a> macro to easily create <a href="../../../egg/struct.Rewrite.html"><code>Rewrite</code></a>s which consist of a name,
