@@ -31,10 +31,26 @@ pub struct Explain<L: Language> {
 }
 
 
-/// Explanation trees are TODO
+/// Explanation trees are the compact representation showing
+/// how one term can be rewritten to another.
+/// 
+/// Each [`TreeTerm`] has child [`ExplanationTrees`]
+/// justifying a transformation from the initial child to the final child term.
+/// Children [`TreeTerm`] can be shared, thus re-using explanations.
+/// This sharing can be checked via Rc pointer equality.
+/// 
+/// See [`TreeTerm`] for more deatils on how to
+/// interpret each term.
 pub type ExplanationTrees<L> = Vec<Rc<TreeTerm<L>>>;
-/// FlatExplanation are TODO
+
+/// FlatExplanation are the simpler, expanded representation
+/// showing one term being rewritten to another.
+/// Each step contains a full `FlatTerm`. Each flat term
+/// is connected to the previous by exactly one rewrite.
+/// 
+/// See [`FlatTerm`] for more details on how to find this rewrite.
 pub type FlatExplanation<L> = Vec<FlatTerm<L>>;
+
 // given two adjacent nodes and the direction of the proof
 type ExplainCache<L> = HashMap<(Id, Id), Rc<TreeTerm<L>>>;
 
@@ -192,6 +208,8 @@ impl<L: Language> Explanation<L> {
 /// Each child has a proof that it is congruent to the other enode's children.
 /// The rule denotes the rule that can be used to rewrite the explanation and it's
 /// final children to the next term in a proof.
+/// 
+/// TODO more detail
 #[derive(Debug, Clone)]
 pub struct TreeTerm<L: Language> {
     node: L,
@@ -275,6 +293,8 @@ impl<L: Language> TreeTerm<L> {
 /// in a proof.
 /// At most one part of the term is rewritten forward and at most one
 /// part of the term is rewritten backwards.
+/// 
+/// TODO more details
 #[derive(Debug, Clone, Eq)]
 pub struct FlatTerm<L: Language> {
     node: L,

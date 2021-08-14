@@ -374,11 +374,13 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// so it's `false` if they were already equivalent.
     /// Both results are canonical.
     /// 
-    /// When "proof-generation" is enabled, this function is not available.
+    /// When "explanation-generation" is enabled, this function is not available.
     /// Instead, use [`union_with_justification`](EGraph::union_with_justification).
+    /// See [`explain_equivalence`](Runner::explain_equivalence) for a more detailed
+    /// explanation of the feature.
     ///
     /// You must call [`rebuild`](EGraph::rebuild) to observe any effect.
-    #[cfg(not(feature = "proof-generation"))]
+    #[cfg(not(feature = "explanation-generation"))]
     pub fn union(&mut self, id1: Id, id2: Id) -> bool {
         if self.find_mut(id1) == self.find_mut(id2) {
             false

@@ -344,7 +344,7 @@ where
     ///
     /// This should return a list of [`Id`]s of things you'd like to
     /// be unioned with `eclass`. There can be zero, one, or many.
-    /// When proof-generation mode is enabled, a [`PatternAst`] matching
+    /// When explanation-generation mode is enabled, a [`PatternAst`] matching
     /// the application is also required in order to justify the application.
     ///
     /// [`apply_matches`]: Applier::apply_matches()

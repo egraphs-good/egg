@@ -286,7 +286,7 @@ egg::test_fn! {
 }
 
 egg::test_fn! {
-    #[cfg(not(feature = "proof-generation"))]
+    #[cfg(not(feature = "explanation-generation"))]
     #[cfg(not(debug_assertions))]
     lambda_function_repeat, rules(),
     runner = Runner::default()

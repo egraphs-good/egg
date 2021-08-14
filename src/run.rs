@@ -387,7 +387,10 @@ where
         self
     }
 
-    /// Get an explanation for why two expressions are equivalent.
+    /// When the feature "explanation-generation" is enabled, this function 
+    /// produces an [`Explanation`] describing why two expressions are equivalent.
+    /// 
+    /// TODO more on explanation-generation feature
     pub fn explain_equivalence(&mut self, left: &RecExpr<L>, right: &RecExpr<L>) -> Explanation<L> {
         self.egraph.explain.explain_equivalence(left, right)
     }

@@ -74,7 +74,7 @@ pub fn test_runner<L, A>(
         runner.print_report();
         runner.egraph.check_goals(id, &goals);
 
-        if cfg!(feature = "proof-generation") {
+        if cfg!(feature = "explanation-generation") {
             for goal in goals {
                 let matches = goal.search_eclass(&runner.egraph, id).unwrap();
                 let subst = matches.substs[0].clone();
