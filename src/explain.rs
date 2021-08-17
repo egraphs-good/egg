@@ -258,11 +258,12 @@ impl<L: Language> TreeTerm<L> {
         for tree in proof {
             let mut explanation = tree.flatten_explanation();
 
-            if !flat_proof.is_empty() {
-                if !explanation[0].has_rewrite_forward() && !explanation[0].has_rewrite_backward() {
-                    let last = flat_proof.pop().unwrap();
-                    explanation[0].combine_rewrites(&last);
-                }
+            if !flat_proof.is_empty()
+                && !explanation[0].has_rewrite_forward()
+                && !explanation[0].has_rewrite_backward()
+            {
+                let last = flat_proof.pop().unwrap();
+                explanation[0].combine_rewrites(&last);
             }
 
             flat_proof.extend(explanation);
@@ -325,10 +326,15 @@ impl<L: Language> TreeTerm<L> {
 /// the rule to this FlatTerm.
 #[derive(Debug, Clone, Eq)]
 pub struct FlatTerm<L: Language> {
-    node: L,
-    backward_rule: Option<String>,
-    forward_rule: Option<String>,
-    children: FlatExplanation<L>,
+    /// The node representing this FlatTerm's operator.
+    /// The children of the node should be ignored.
+    pub node: L,
+    /// A rule rewriting this FlatTerm back to the last FlatTerm.
+    pub backward_rule: Option<String>,
+    /// A rule rewriting the last FlatTerm to this FlatTerm.
+    pub forward_rule: Option<String>,
+    /// The children of this FlatTerm.
+    pub children: FlatExplanation<L>,
 }
 
 impl<L: Language + Display> Display for FlatTerm<L> {
@@ -476,6 +482,7 @@ impl<L: Language + Display> TreeTerm<L> {
 }
 
 impl<L: Language> FlatTerm<L> {
+    /// Construct a new FlatTerm given a node and its children.
     pub fn new(node: L, children: FlatExplanation<L>) -> FlatTerm<L> {
         FlatTerm {
             node,
@@ -485,6 +492,8 @@ impl<L: Language> FlatTerm<L> {
         }
     }
 
+    /// Rewrite the FlatTerm by matching the lhs and substituting the rhs.
+    /// The lhs must be guaranteed to match.
     pub fn rewrite(&self, lhs: &PatternAst<L>, rhs: &PatternAst<L>) -> FlatTerm<L> {
         let lhs_nodes = lhs.as_ref();
         let mut bindings = Default::default();
@@ -492,6 +501,7 @@ impl<L: Language> FlatTerm<L> {
         FlatTerm::from_pattern(rhs.as_ref(), rhs.as_ref().len() - 1, &bindings)
     }
 
+    /// Checks if this term or any child has a [`forward_rule`](FlatTerm::forward_rule).
     pub fn has_rewrite_forward(&self) -> bool {
         !self.forward_rule.is_none()
             || self
@@ -500,6 +510,7 @@ impl<L: Language> FlatTerm<L> {
                 .any(|child| child.has_rewrite_forward())
     }
 
+    /// Checks if this term or any child has a [`backward_rule`](FlatTerm::backward_rule).
     pub fn has_rewrite_backward(&self) -> bool {
         !self.backward_rule.is_none()
             || self
