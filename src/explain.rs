@@ -103,6 +103,7 @@ impl<L: Language + Display> Explanation<L> {
     /// The name of the rule or the reason provided to [`union_with_justification`](super::EGraph::union_with_justification).
     ///
     /// Example explanation:
+    /// ```text
     /// (+ 1 (- a (* (- 2 1) a)))
     /// (+
     ///    1
@@ -117,6 +118,7 @@ impl<L: Language + Display> Explanation<L> {
     ///          (Rewrite<= mul-one a)))
     ///      (Rewrite=> cancel-sub 0)))
     /// (Rewrite=> constant_fold 1)
+    /// ```
     pub fn get_sexps(&mut self) -> Vec<Sexp> {
         self.explanation_trees.iter().map(|e| e.to_sexp()).collect()
     }
@@ -132,12 +134,14 @@ impl<L: Language + Display> Explanation<L> {
     /// The name of the rule or the reason provided to [`union_with_justification`](super::EGraph::union_with_justification).
     ///
     /// Example explanation:
+    /// ```text
     /// (+ 1 (- a (* (- 2 1) a)))
     /// (+ 1 (- a (* (Rewrite=> constant_fold 1) a)))
     /// (+ 1 (- a (Rewrite=> comm-mul (* a 1))))
     /// (+ 1 (- a (Rewrite<= mul-one a)))
     /// (+ 1 (Rewrite=> cancel-sub 0))
     /// (Rewrite=> constant_fold 1)
+    /// ```
     pub fn get_flat_sexps(&mut self) -> Vec<Sexp> {
         self.make_flat_explanation()
             .iter()
@@ -262,10 +266,9 @@ impl<L: Language> Explanation<L> {
 ///
 /// If [`forward_rule`](TreeTerm::forward_rule) is provided, then this TreeTerm's initial term
 /// can be derived from the previous
-/// TreeTerm by applying the rule to the its final term.
+/// TreeTerm by applying the rule.
 /// Similarly, if [`backward_rule`](TreeTerm::backward_rule) is provided,
-/// then the previous TreeTerm's final term
-/// is given by applying the rule to this TreeTerm's initial term.
+/// then the previous TreeTerm's final term is given by applying the rule to this TreeTerm's initial term.
 ///
 /// TreeTerms are flattened by first flattening [`child_proofs`](TreeTerm::child_proofs), then wrapping
 /// the flattened proof with this TreeTerm's node.
