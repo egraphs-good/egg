@@ -94,15 +94,50 @@ impl<L: Language + Display> Explanation<L> {
     /// Get each tree term in the explanation as an s-expression.
     ///
     /// The s-expression format mirrors the format of each [`TreeTerm`].
-    /// Example:
+    /// When a child contains an explanation, the explanation is wrapped with
+    /// "(Explanation ...)".
+    /// When a term is being re-written it is wrapped with "(Rewrite=> rule-name expression)"
+    /// or "(Rewrite<= rule-name expression)".
+    /// "Rewrite=>" indicates that the previous term is rewritten to the current term
+    /// and "Rewrite<=" indicates that the current term is rewritten to the previous term.
+    /// The name of the rule or the reason provided to [`union_with_justification`](super::EGraph::union_with_justification).
     ///
-    ///
+    /// Example explanation:
+    /// (+ 1 (- a (* (- 2 1) a)))
+    /// (+
+    ///    1
+    ///    (Explanation
+    ///      (- a (* (- 2 1) a))
+    ///      (-
+    ///        a
+    ///        (Explanation
+    ///          (* (- 2 1) a)
+    ///          (* (Explanation (- 2 1) (Rewrite=> constant_fold 1)) a)
+    ///          (Rewrite=> comm-mul (* a 1))
+    ///          (Rewrite<= mul-one a)))
+    ///      (Rewrite=> cancel-sub 0)))
+    /// (Rewrite=> constant_fold 1)
     pub fn get_sexps(&mut self) -> Vec<Sexp> {
         self.explanation_trees.iter().map(|e| e.to_sexp()).collect()
     }
 
     /// Get each flattened term in the explanation as an s-expression.
-    /// TODO more explanation
+    ///
+    /// The s-expression format mirrors the format of each [`FlatTerm`].
+    /// Each expression after the first will be annotated in one location with a rewrite.
+    /// When a term is being re-written it is wrapped with "(Rewrite=> rule-name expression)"
+    /// or "(Rewrite<= rule-name expression)".
+    /// "Rewrite=>" indicates that the previous term is rewritten to the current term
+    /// and "Rewrite<=" indicates that the current term is rewritten to the previous term.
+    /// The name of the rule or the reason provided to [`union_with_justification`](super::EGraph::union_with_justification).
+    ///
+    /// Example explanation:
+    /// (+ 1 (- a (* (- 2 1) a)))
+    /// (+ 1 (- a (* (Rewrite=> constant_fold 1) a)))
+    /// (+ 1 (- a (Rewrite=> comm-mul (* a 1))))
+    /// (+ 1 (- a (Rewrite<= mul-one a)))
+    /// (+ 1 (Rewrite=> cancel-sub 0))
+    /// (Rewrite=> constant_fold 1)
     pub fn get_flat_sexps(&mut self) -> Vec<Sexp> {
         self.make_flat_explanation()
             .iter()
@@ -328,6 +363,9 @@ impl<L: Language> TreeTerm<L> {
 /// to this FlatTerm by applying the rule.
 /// When [`backward_rule`](FlatTerm::backward_rule) is provided, the previous FlatTerm is given by applying
 /// the rule to this FlatTerm.
+/// Rules are either the string of the name of the rule or the reason provided to
+/// [`union_with_justification`](super::EGraph::union_with_justification).
+///
 #[derive(Debug, Clone, Eq)]
 pub struct FlatTerm<L: Language> {
     /// The node representing this FlatTerm's operator.
