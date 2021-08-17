@@ -552,7 +552,14 @@ mod tests {
 
         println!("Add the needed equality");
         let two_ispow2 = egraph.add(S::new("is-power2", vec![y]));
-        egraph.union(two_ispow2, true_id);
+        egraph.union_with_justification(
+            two_ispow2,
+            true_id,
+            &"(is-power2 2)".parse().unwrap(),
+            &"TRUE".parse().unwrap(),
+            &Default::default(),
+            "direct-union",
+        );
 
         println!("Should fire now");
         egraph.rebuild();

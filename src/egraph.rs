@@ -1,6 +1,7 @@
 use crate::*;
 use std::{
     borrow::BorrowMut,
+    collections::VecDeque,
     fmt::{self, Debug, Display},
 };
 
@@ -49,7 +50,7 @@ pub struct EGraph<L: Language, N: Analysis<L>> {
     /// The `Explain` used to explain equivalences in this `EGraph`.
     pub explain: Explain<L>,
     to_union: Vec<(Id, Id, Option<String>)>,
-    to_analyze: Vec<Id>,
+    to_analyze: VecDeque<Id>,
     pending: Vec<(L, Id)>,
     analysis_pending: IndexSet<(L, Id)>,
     classes: HashMap<Id, EClass<L, N::Data>>,
@@ -308,7 +309,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             self.classes.insert(id, class);
             assert!(self.explain.memo.insert(enode, id).is_none());
 
-            self.to_analyze.push(id);
+            self.to_analyze.push_back(id);
             id
         })
     }
@@ -425,7 +426,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         concat_vecs(&mut class1.nodes, class2.nodes);
         concat_vecs(&mut class1.parents, class2.parents);
 
-        N::modify(self, id1);
+        self.to_analyze.push_back(id1);
         true
     }
 
@@ -575,32 +576,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             || !self.to_analyze.is_empty()
             || !self.analysis_pending.is_empty()
         {
-            if self.pending.is_empty() {
-                if !self.to_union.is_empty() {
-                    self.perform_to_union();
-                } else if !self.to_analyze.is_empty() {
-                    let mut todo = vec![];
-                    std::mem::swap(&mut self.to_analyze, &mut todo);
-                    for id in todo {
-                        N::modify(self, id);
-                    }
-                } else {
-                    // do more analysis
-                    let mut analysis_pending = Default::default();
-                    std::mem::swap(&mut self.analysis_pending, &mut analysis_pending);
-                    for (node, class_id) in analysis_pending {
-                        let class_id = self.find_mut(class_id);
-                        let node_data = N::make(self, &node);
-                        let class = self.classes.get_mut(&class_id).unwrap();
-
-                        let did_merge = self.analysis.merge(&mut class.data, node_data);
-                        if did_merge.0 {
-                            self.analysis_pending.extend(class.parents.iter().cloned());
-                            self.to_analyze.push(class_id);
-                        }
-                    }
-                }
-            } else {
+            if !self.pending.is_empty() {
                 while !self.pending.is_empty() {
                     while let Some((mut node, class)) = self.pending.pop() {
                         node.update_children(|id| self.find_mut(id));
@@ -612,6 +588,27 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                             );
                             n_unions += did_something as usize;
                         }
+                    }
+                }
+            } else if !self.to_union.is_empty() {
+                self.perform_to_union();
+            } else if !self.to_analyze.is_empty() {
+                let next = self.to_analyze.pop_front().unwrap();
+                N::modify(self, next);
+            } else {
+                // do more analysis
+                println!("more analysis");
+                let mut analysis_pending = Default::default();
+                std::mem::swap(&mut self.analysis_pending, &mut analysis_pending);
+                for (node, class_id) in analysis_pending {
+                    let class_id = self.find_mut(class_id);
+                    let node_data = N::make(self, &node);
+                    let class = self.classes.get_mut(&class_id).unwrap();
+
+                    let did_merge = self.analysis.merge(&mut class.data, node_data);
+                    if did_merge.0 {
+                        self.analysis_pending.extend(class.parents.iter().cloned());
+                        self.to_analyze.push_back(class_id);
                     }
                 }
             }
@@ -647,7 +644,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// let y = egraph.add(S::leaf("y"));
     /// let ax = egraph.add_expr(&"(+ a x)".parse().unwrap());
     /// let ay = egraph.add_expr(&"(+ a y)".parse().unwrap());
-    ///
+
     /// // The effects of this union aren't yet visible;
     /// // The union has not taken effect.
     /// egraph.union(x, y);
@@ -731,7 +728,14 @@ mod tests {
 
         let y = egraph.add(S::leaf("y"));
 
-        egraph.union(x, y);
+        egraph.union_with_justification(
+            x,
+            y,
+            &"x".parse().unwrap(),
+            &"y".parse().unwrap(),
+            &Default::default(),
+            &"union x and y",
+        );
         egraph.rebuild();
 
         egraph.dot().to_dot("target/foo.dot").unwrap();

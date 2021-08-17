@@ -364,7 +364,14 @@ mod tests {
         let w = egraph.add(S::leaf("w"));
         let plus2 = egraph.add(S::new("+", vec![z, w]));
 
-        egraph.union(plus, plus2);
+        egraph.union_with_justification(
+            plus,
+            plus2,
+            &"(+ x y)".parse().unwrap(),
+            &"(+ z w)".parse().unwrap(),
+            &Default::default(),
+            &"union_plus",
+        );
         egraph.rebuild();
 
         let commute_plus = rewrite!(

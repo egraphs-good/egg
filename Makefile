@@ -4,7 +4,8 @@ all: test nits bench
 test:
 	cargo build --release
 	cargo test --release
-	cargo test --release --features "proof-generation"
+	# don't run examples in proof-production mode
+	cargo test --lib --bins --tests --benches --release --features "explanation-generation"
 
 .PHONY: nits
 nits:
@@ -15,7 +16,7 @@ nits:
 	cargo deadlinks
 
 	cargo clippy --tests
-	cargo clippy --tests --features "proof-generation"
+	cargo clippy --tests --features "explanation-generation"
 	cargo clippy --tests --features "serde-1"
 	cargo clippy --tests --features "reports"
 

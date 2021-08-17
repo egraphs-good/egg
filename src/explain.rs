@@ -92,7 +92,11 @@ impl<L: Language + Display> Explanation<L> {
     }
 
     /// Get each tree term in the explanation as an s-expression.
-    /// TODO more explanation
+    ///
+    /// The s-expression format mirrors the format of each [`TreeTerm`].
+    /// Example:
+    ///
+    ///
     pub fn get_sexps(&mut self) -> Vec<Sexp> {
         self.explanation_trees.iter().map(|e| e.to_sexp()).collect()
     }

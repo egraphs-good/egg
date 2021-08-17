@@ -40,7 +40,7 @@ rev = "c0b7cb47181e9577a6847caae53a2f0f881f45b2"
 features = ["threadpool"]
 
 [features]
-proof-generation = []
+explanation-generation = []
 wasm-bindgen = [ "instant/wasm-bindgen" ]
 serde-1 = [ "serde", "indexmap/serde-1" ]
 reports = [ "serde-1", "serde_json" ]
