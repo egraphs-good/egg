@@ -684,7 +684,7 @@ impl<L: Language> Explain<L> {
                         match_ids.push(*existing_id);
                     } else {
                         let congruent_id = *self.memo.get(&node).unwrap_or_else(|| {
-                            panic!("Pattern did not exist for substitution!");
+                            panic!("Pattern did not exist for substitution!\n Did you forget to add the expression during the analysis modify function?");
                         });
 
                         let congruent_class = self.find(congruent_id);

@@ -97,10 +97,11 @@ impl Analysis<Lambda> for LambdaAnalysis {
 
     fn modify(egraph: &mut EGraph, id: Id) {
         if let Some(c) = egraph[id].data.constant.clone() {
+            let added = egraph.add_instantiation(&c.1, &Default::default());
             let const_id = egraph.add(c.0.clone());
             egraph.union_with_justification(
                 const_id,
-                id,
+                added,
                 &c.0.to_string().parse().unwrap(),
                 &c.1,
                 &Default::default(),

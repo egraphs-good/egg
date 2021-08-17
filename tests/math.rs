@@ -94,8 +94,9 @@ impl Analysis<Math> for ConstantFold {
         let class = egraph[id].clone();
         if let Some((c, pat)) = class.data {
             let added = egraph.add(Math::Constant(c));
+            let pattern_added = egraph.add_instantiation(&pat, &Default::default());
             egraph.union_with_justification(
-                id,
+                pattern_added,
                 added,
                 &pat,
                 &format!("{}", c).parse().unwrap(),

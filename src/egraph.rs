@@ -1,7 +1,6 @@
 use crate::*;
 use std::{
     borrow::BorrowMut,
-    collections::VecDeque,
     fmt::{self, Debug, Display},
 };
 
@@ -50,7 +49,6 @@ pub struct EGraph<L: Language, N: Analysis<L>> {
     /// The `Explain` used to explain equivalences in this `EGraph`.
     pub explain: Explain<L>,
     to_union: Vec<(Id, Id, Option<String>)>,
-    to_analyze: VecDeque<Id>,
     pending: Vec<(L, Id)>,
     analysis_pending: IndexSet<(L, Id)>,
     classes: HashMap<Id, EClass<L, N::Data>>,
@@ -79,7 +77,6 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         Self {
             analysis,
             to_union: Default::default(),
-            to_analyze: Default::default(),
             classes: Default::default(),
             explain: Default::default(),
             pending: Default::default(),
@@ -226,6 +223,25 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         *new_ids.last().unwrap()
     }
 
+    /// Adds a [`Pattern`] and a substitution to the [`EGraph`].
+    pub fn add_instantiation(&mut self, pat: &PatternAst<L>, subst: &Subst) -> Id {
+        let nodes = pat.as_ref();
+        let mut new_ids = Vec::with_capacity(nodes.len());
+        for node in nodes {
+            match node {
+                ENodeOrVar::Var(var) => {
+                    let id = subst[*var];
+                    new_ids.push(id);
+                }
+                ENodeOrVar::ENode(node) => {
+                    let node = node.clone().map_children(|i| new_ids[usize::from(i)]);
+                    new_ids.push(self.add(node))
+                }
+            }
+        }
+        *new_ids.last().unwrap()
+    }
+
     /// Lookup the eclass of the given enode.
     ///
     /// You can pass in either an owned enode or a `&mut` enode,
@@ -309,7 +325,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             self.classes.insert(id, class);
             assert!(self.explain.memo.insert(enode, id).is_none());
 
-            self.to_analyze.push_back(id);
+            N::modify(self, id);
             id
         })
     }
@@ -340,6 +356,9 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
     /// Given two patterns which match eclasses id1 and id2 respectively,
     /// marks the two eclasses for unioning.
+    /// Since unions happen when [`rebuild`](EGraph::rebuild) is called,
+    /// it is important to first add both expressions to the egraph
+    /// in the [`modify`](Analysis::modify) function.
     ///
     /// The two patterns must match the eclasses corresponding to the ids.
     /// The ids need not be canonical.
@@ -426,7 +445,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         concat_vecs(&mut class1.nodes, class2.nodes);
         concat_vecs(&mut class1.parents, class2.parents);
 
-        self.to_analyze.push_back(id1);
+        N::modify(self, id1);
         true
     }
 
@@ -573,7 +592,6 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
         while !self.pending.is_empty()
             || !self.to_union.is_empty()
-            || !self.to_analyze.is_empty()
             || !self.analysis_pending.is_empty()
         {
             if !self.pending.is_empty() {
@@ -592,9 +610,6 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                 }
             } else if !self.to_union.is_empty() {
                 self.perform_to_union();
-            } else if !self.to_analyze.is_empty() {
-                let next = self.to_analyze.pop_front().unwrap();
-                N::modify(self, next);
             } else {
                 // do more analysis
                 println!("more analysis");
@@ -608,7 +623,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                     let did_merge = self.analysis.merge(&mut class.data, node_data);
                     if did_merge.0 {
                         self.analysis_pending.extend(class.parents.iter().cloned());
-                        self.to_analyze.push_back(class_id);
+                        N::modify(self, class_id);
                     }
                 }
             }
@@ -617,7 +632,6 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         assert!(self.pending.is_empty());
         assert!(self.analysis_pending.is_empty());
         assert!(self.to_union.is_empty());
-        assert!(self.to_analyze.is_empty());
 
         n_unions
     }
