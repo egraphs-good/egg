@@ -79,7 +79,7 @@ pub use {
     dot::Dot,
     eclass::EClass,
     egraph::EGraph,
-    explain::{Explanation, ExplanationTrees, FlatExplanation, TreeTerm, FlatTerm},
+    explain::{Explanation, ExplanationTrees, FlatExplanation, FlatTerm, TreeTerm},
     extract::*,
     language::*,
     machine::EMatch,

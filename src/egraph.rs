@@ -339,7 +339,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
     /// Given two patterns which match eclasses id1 and id2 respectively,
     /// marks the two eclasses for unioning.
-    /// 
+    ///
     /// The two patterns must match the eclasses corresponding to the ids.
     /// The ids need not be canonical.
     ///
@@ -373,7 +373,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// The returned `bool` indicates whether a union is necessary,
     /// so it's `false` if they were already equivalent.
     /// Both results are canonical.
-    /// 
+    ///
     /// When "explanation-generation" is enabled, this function is not available.
     /// Instead, use [`union_with_justification`](EGraph::union_with_justification).
     /// See [`explain_equivalence`](Runner::explain_equivalence) for a more detailed

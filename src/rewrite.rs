@@ -93,8 +93,7 @@ impl<L: Language, N: Analysis<L>> Rewrite<L, N> {
     ///
     /// [`apply_matches`]: Applier::apply_matches()
     pub fn apply(&self, egraph: &mut EGraph<L, N>, matches: &[SearchMatches<L>]) -> Vec<Id> {
-        self.applier
-            .apply_matches(egraph, matches, &self.name)
+        self.applier.apply_matches(egraph, matches, &self.name)
     }
 
     /// This `run` is for testing use only. You should use things

@@ -1,6 +1,6 @@
 use crate::{
-    util::pretty_print, Analysis, ENodeOrVar, HashMap, HashSet, Id, Language, PatternAst,
-    RecExpr, Rewrite, Subst, UnionFind, Var,
+    util::pretty_print, Analysis, ENodeOrVar, HashMap, HashSet, Id, Language, PatternAst, RecExpr,
+    Rewrite, Subst, UnionFind, Var,
 };
 use std::fmt::{self, Debug, Display, Formatter};
 use std::rc::Rc;
@@ -30,15 +30,14 @@ pub struct Explain<L: Language> {
     uncanon_memo: HashMap<L, Id>,
 }
 
-
 /// Explanation trees are the compact representation showing
 /// how one term can be rewritten to another.
-/// 
+///
 /// Each [`TreeTerm`] has child [`ExplanationTrees`]
 /// justifying a transformation from the initial child to the final child term.
 /// Children [`TreeTerm`] can be shared, thus re-using explanations.
 /// This sharing can be checked via Rc pointer equality.
-/// 
+///
 /// See [`TreeTerm`] for more deatils on how to
 /// interpret each term.
 pub type ExplanationTrees<L> = Vec<Rc<TreeTerm<L>>>;
@@ -47,26 +46,18 @@ pub type ExplanationTrees<L> = Vec<Rc<TreeTerm<L>>>;
 /// showing one term being rewritten to another.
 /// Each step contains a full `FlatTerm`. Each flat term
 /// is connected to the previous by exactly one rewrite.
-/// 
+///
 /// See [`FlatTerm`] for more details on how to find this rewrite.
 pub type FlatExplanation<L> = Vec<FlatTerm<L>>;
 
 // given two adjacent nodes and the direction of the proof
 type ExplainCache<L> = HashMap<(Id, Id), Rc<TreeTerm<L>>>;
 
-
 /** A data structure representing an explanation that two terms are equivalent.
 
-There are two representations of explanations, each with
-a corresponding string representation. The first is 
-[`explanation_trees`], the compact representation where children can contain explanations.
-The second is from `make_flat_explanation`, which flattens the tree
-representation into a series of full terms.
-
-See [`ExplanationTrees`] for an explanation of the tree data structure and
-[`FlatExplanation`] for an explanation of the flat representation.
-
-[`explanation_trees`]: Explanation::explanation_trees
+There are two representations of explanations, each of which can be
+represented as s-expressions in strings.
+See [`Explanation`] for more details.
 **/
 pub struct Explanation<L: Language> {
     /// The tree representation of the explanation.
@@ -82,12 +73,17 @@ impl<L: Language + Display> Display for Explanation<L> {
 }
 
 impl<L: Language + Display> Explanation<L> {
-    /// Output the flattened explanation as a string.
+    /// Get the flattened explanation as a string.
     pub fn to_flat_string(&mut self) -> String {
         self.to_flat_strings().join("\n")
     }
 
-    /// Output each term in the explanation as a string.
+    /// Get the tree form of the explanation as a string.
+    pub fn to_string(&self) -> String {
+        self.to_strings().join("\n")
+    }
+
+    /// Get each term in the explanation as a string.
     pub fn to_flat_strings(&mut self) -> Vec<String> {
         self.make_flat_explanation()
             .iter()
@@ -95,7 +91,22 @@ impl<L: Language + Display> Explanation<L> {
             .collect()
     }
 
-    /// Output each explanation tree as a string.
+    /// Get each tree term in the explanation as an s-expression.
+    /// TODO more explanation
+    pub fn to_sexps(&mut self) -> Vec<Sexp> {
+        self.explanation_trees.iter().map(|e| e.to_sexp()).collect()
+    }
+
+    /// Get each flattened term in the explanation as an s-expression.
+    /// TODO more explanation
+    pub fn to_flat_sexps(&mut self) -> Vec<Sexp> {
+        self.make_flat_explanation()
+            .iter()
+            .map(|e| e.to_sexp())
+            .collect()
+    }
+
+    /// Get each explanation tree as a string.
     pub fn to_strings(&self) -> Vec<String> {
         self.explanation_trees
             .iter()
@@ -204,23 +215,35 @@ impl<L: Language> Explanation<L> {
     }
 }
 
-/// An explanation for a given term between to congruent enodes.
-/// Each child has a proof that it is congruent to the other enode's children.
-/// The rule denotes the rule that can be used to rewrite the explanation and it's
-/// final children to the next term in a proof.
-/// 
-/// TODO more detail
+/// An explanation for a term and its equivalent children.
+/// Each child is a proof transforming the initial child into the final child term.
+/// The initial term is given by taking each first sub-term
+/// in each [`child_proofs`](TreeTerm::child_proofs) recursivly.
+/// The final term is given by all of the final terms in each [`child_proofs`](TreeTerm::child_proofs).
+///
+/// If [`forward_rule`](TreeTerm::forward_rule) is provided, then this TreeTerm's initial term
+/// can be derived from the previous
+/// TreeTerm by applying the rule to the its final term.
+/// Similarly, if [`backward_rule`](TreeTerm::backward_rule) is provided,
+/// then the previous TreeTerm's final term
+/// is given by applying the rule to this TreeTerm's initial term.
+///
+/// TreeTerms are flattened by first flattening [`child_proofs`](TreeTerm::child_proofs), then wrapping
+/// the flattened proof with this TreeTerm's node.
 #[derive(Debug, Clone)]
 pub struct TreeTerm<L: Language> {
-    node: L,
-    // a rule for rewriting the term backward or forward
-    backward_rule: Option<String>,
-    forward_rule: Option<String>,
-    // one proof per child of the node
-    child_proofs: Vec<ExplanationTrees<L>>,
+    /// A node representing this TreeTerm's operator. The children of the node should be ignored.
+    pub node: L,
+    /// A rule rewritting this TreeTerm's initial term back to the last TreeTerm's final term.
+    pub backward_rule: Option<String>,
+    /// A rule rewriting the last TreeTerm's final term to this TreeTerm's initial term.
+    pub forward_rule: Option<String>,
+    /// A list of child proofs, each transforming the initial term to the final term for that child.
+    pub child_proofs: Vec<ExplanationTrees<L>>,
 }
 
 impl<L: Language> TreeTerm<L> {
+    /// Construct a new TreeTerm given its node and child_proofs.
     pub fn new(node: L, child_proofs: Vec<ExplanationTrees<L>>) -> TreeTerm<L> {
         TreeTerm {
             node,
@@ -248,6 +271,7 @@ impl<L: Language> TreeTerm<L> {
         flat_proof
     }
 
+    /// Construct the [`FlatExplanation`] for this TreeTerm.
     pub fn flatten_explanation(&self) -> FlatExplanation<L> {
         let mut proof = vec![];
         let mut child_proofs = vec![];
@@ -289,12 +313,16 @@ impl<L: Language> TreeTerm<L> {
     }
 }
 
-/// A flattened explanation which represents a single term
-/// in a proof.
-/// At most one part of the term is rewritten forward and at most one
-/// part of the term is rewritten backwards.
-/// 
-/// TODO more details
+/// A single term in an flattened explanation.
+/// After the first term in a [`FlatExplanation`], each term
+/// will be annotated with exactly one [`backward_rule`](FlatTerm::backward_rule) or one
+/// [`forward_rule`](FlatTerm::forward_rule). This can appear in children [`FlatTerm`]s,
+/// indicating that the child is being rewritten.
+///
+/// When [`forward_rule`](FlatTerm::forward_rule) is provided, the previous FlatTerm can be rewritten
+/// to this FlatTerm by applying the rule.
+/// When [`backward_rule`](FlatTerm::backward_rule) is provided, the previous FlatTerm is given by applying
+/// the rule to this FlatTerm.
 #[derive(Debug, Clone, Eq)]
 pub struct FlatTerm<L: Language> {
     node: L,
@@ -360,6 +388,8 @@ impl<L: Language> Default for Explain<L> {
 }
 
 impl<L: Language + Display> FlatTerm<L> {
+    /// Convert this FlatTerm to an S-expression.
+    /// See [`to_flat_sexps`](Explanation::to_flat_sexps) for the format of these expressions.
     pub fn to_sexp(&self) -> Sexp {
         let op = Sexp::String(self.node.to_string());
         let mut expr = if self.node.is_leaf() {
@@ -402,6 +432,8 @@ impl<L: Language + Display> Display for TreeTerm<L> {
 }
 
 impl<L: Language + Display> TreeTerm<L> {
+    /// Convert this FlatTerm to an S-expression.
+    /// See [`to_sexps`](Explanation::to_strings) for the format of these expressions.
     pub fn to_sexp(&self) -> Sexp {
         let op = Sexp::String(self.node.to_string());
         let mut expr = if self.node.is_leaf() {
