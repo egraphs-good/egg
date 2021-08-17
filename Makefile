@@ -4,6 +4,7 @@ all: test nits bench
 test:
 	cargo build --release
 	cargo test --release
+	cargo test --release --features "proof-generation"
 
 .PHONY: nits
 nits:

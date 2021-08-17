@@ -561,7 +561,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             let mut current = vec![];
             std::mem::swap(&mut self.to_union, &mut current);
             for (id1, id2, rule) in current.into_iter() {
-                self.perform_union(id1, id2, rule.map(|r| Justification::Rule(r)));
+                self.perform_union(id1, id2, rule.map(Justification::Rule));
             }
         }
     }

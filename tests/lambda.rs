@@ -43,7 +43,7 @@ struct Data {
 }
 
 fn eval(egraph: &EGraph, enode: &Lambda) -> Option<(Lambda, PatternAst<Lambda>)> {
-    let x = |i: &Id| egraph[*i].data.constant.as_ref().map(|c| &c.0).clone();
+    let x = |i: &Id| egraph[*i].data.constant.as_ref().map(|c| &c.0);
     match enode {
         Lambda::Num(n) => Some((enode.clone(), format!("{}", n).parse().unwrap())),
         Lambda::Bool(b) => Some((enode.clone(), format!("{}", b).parse().unwrap())),

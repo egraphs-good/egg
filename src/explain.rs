@@ -74,17 +74,17 @@ impl<L: Language + Display> Display for Explanation<L> {
 
 impl<L: Language + Display> Explanation<L> {
     /// Get the flattened explanation as a string.
-    pub fn to_flat_string(&mut self) -> String {
-        self.to_flat_strings().join("\n")
+    pub fn get_flat_string(&mut self) -> String {
+        self.get_flat_strings().join("\n")
     }
 
     /// Get the tree form of the explanation as a string.
-    pub fn to_string(&self) -> String {
+    pub fn get_string(&self) -> String {
         self.to_strings().join("\n")
     }
 
     /// Get each term in the explanation as a string.
-    pub fn to_flat_strings(&mut self) -> Vec<String> {
+    pub fn get_flat_strings(&mut self) -> Vec<String> {
         self.make_flat_explanation()
             .iter()
             .map(|e| e.to_string())
@@ -93,13 +93,13 @@ impl<L: Language + Display> Explanation<L> {
 
     /// Get each tree term in the explanation as an s-expression.
     /// TODO more explanation
-    pub fn to_sexps(&mut self) -> Vec<Sexp> {
+    pub fn get_sexps(&mut self) -> Vec<Sexp> {
         self.explanation_trees.iter().map(|e| e.to_sexp()).collect()
     }
 
     /// Get each flattened term in the explanation as an s-expression.
     /// TODO more explanation
-    pub fn to_flat_sexps(&mut self) -> Vec<Sexp> {
+    pub fn get_flat_sexps(&mut self) -> Vec<Sexp> {
         self.make_flat_explanation()
             .iter()
             .map(|e| e.to_sexp())
@@ -125,7 +125,7 @@ impl<L: Language> Explanation<L> {
     }
 
     /// Construct the flat representation of the explanation and return it.
-    pub fn make_flat_explanation<'a>(&'a mut self) -> &FlatExplanation<L> {
+    pub fn make_flat_explanation(&mut self) -> &FlatExplanation<L> {
         if self.flat_explanation.is_some() {
             return self.flat_explanation.as_ref().unwrap();
         } else {
@@ -253,7 +253,7 @@ impl<L: Language> TreeTerm<L> {
         }
     }
 
-    fn flatten_proof(proof: &ExplanationTrees<L>) -> FlatExplanation<L> {
+    fn flatten_proof(proof: &[Rc<TreeTerm<L>>]) -> FlatExplanation<L> {
         let mut flat_proof: FlatExplanation<L> = vec![];
         for tree in proof {
             let mut explanation = tree.flatten_explanation();
@@ -395,7 +395,7 @@ impl<L: Language> Default for Explain<L> {
 
 impl<L: Language + Display> FlatTerm<L> {
     /// Convert this FlatTerm to an S-expression.
-    /// See [`to_flat_sexps`](Explanation::to_flat_sexps) for the format of these expressions.
+    /// See [`get_flat_sexps`](Explanation::get_flat_sexps) for the format of these expressions.
     pub fn to_sexp(&self) -> Sexp {
         let op = Sexp::String(self.node.to_string());
         let mut expr = if self.node.is_leaf() {
@@ -439,7 +439,7 @@ impl<L: Language + Display> Display for TreeTerm<L> {
 
 impl<L: Language + Display> TreeTerm<L> {
     /// Convert this FlatTerm to an S-expression.
-    /// See [`to_sexps`](Explanation::to_strings) for the format of these expressions.
+    /// See [`get_sexps`](Explanation::to_strings) for the format of these expressions.
     pub fn to_sexp(&self) -> Sexp {
         let op = Sexp::String(self.node.to_string());
         let mut expr = if self.node.is_leaf() {
@@ -447,7 +447,7 @@ impl<L: Language + Display> TreeTerm<L> {
         } else {
             let mut vec = vec![op];
             for child in &self.child_proofs {
-                assert!(child.len() > 0);
+                assert!(!child.is_empty());
                 if child.len() == 1 {
                     vec.push(child[0].to_sexp());
                 } else {
@@ -503,7 +503,7 @@ impl<L: Language> FlatTerm<L> {
 
     /// Checks if this term or any child has a [`forward_rule`](FlatTerm::forward_rule).
     pub fn has_rewrite_forward(&self) -> bool {
-        !self.forward_rule.is_none()
+        self.forward_rule.is_some()
             || self
                 .children
                 .iter()
@@ -512,7 +512,7 @@ impl<L: Language> FlatTerm<L> {
 
     /// Checks if this term or any child has a [`backward_rule`](FlatTerm::backward_rule).
     pub fn has_rewrite_backward(&self) -> bool {
-        !self.backward_rule.is_none()
+        self.backward_rule.is_some()
             || self
                 .children
                 .iter()
@@ -598,22 +598,19 @@ impl<L: Language> Explain<L> {
             if explain_node.next != Id::from(i) {
                 let mut current_explanation = self.node_to_flat_explanation(Id::from(i));
                 let mut next_explanation = self.node_to_flat_explanation(explain_node.next);
-                match &explain_node.justification {
-                    Justification::Rule(rule_name) => {
-                        if let Some(rule) = rule_table.get(rule_name) {
-                            if !explain_node.is_rewrite_forward {
-                                std::mem::swap(&mut current_explanation, &mut next_explanation);
-                            }
-                            if !Explanation::check_rewrite(
-                                &current_explanation,
-                                &next_explanation,
-                                rule,
-                            ) {
-                                return false;
-                            }
+                if let Justification::Rule(rule_name) = &explain_node.justification {
+                    if let Some(rule) = rule_table.get(rule_name) {
+                        if !explain_node.is_rewrite_forward {
+                            std::mem::swap(&mut current_explanation, &mut next_explanation);
+                        }
+                        if !Explanation::check_rewrite(
+                            &current_explanation,
+                            &next_explanation,
+                            rule,
+                        ) {
+                            return false;
                         }
                     }
-                    _ => (),
                 }
             }
         }
@@ -801,7 +798,7 @@ impl<L: Language> Explain<L> {
         }
     }
 
-    fn get_nodes<'a>(&'a self, mut node: Id, ancestor: Id) -> Vec<&'a ExplainNode<L>> {
+    fn get_nodes(&self, mut node: Id, ancestor: Id) -> Vec<&ExplainNode<L>> {
         if node == ancestor {
             return vec![];
         }
