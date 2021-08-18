@@ -82,7 +82,6 @@ pub use {
     explain::{Explanation, ExplanationTrees, FlatExplanation, FlatTerm, TreeTerm},
     extract::*,
     language::*,
-    machine::EMatch,
     pattern::{ENodeOrVar, Pattern, PatternAst, SearchMatches},
     rewrite::{Applier, Condition, ConditionEqual, ConditionalApplier, Rewrite, Searcher},
     run::*,
