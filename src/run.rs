@@ -395,7 +395,9 @@ where
     /// given by [`get_flat_string`](Explanation::get_flat_string) and [`get_string`](Explanation::get_string).
     pub fn explain_equivalence(&mut self, left: &RecExpr<L>, right: &RecExpr<L>) -> Explanation<L> {
         if cfg!(not(feature = "explanation-generation")) {
-            panic!("Can't call explain_equivalence without explanation-generation feature enabled.");
+            panic!(
+                "Can't call explain_equivalence without explanation-generation feature enabled."
+            );
         }
         self.egraph.explain.explain_equivalence(left, right)
     }
