@@ -304,7 +304,15 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// [`add`]: EGraph::add()
     pub fn add(&mut self, mut enode: L) -> Id {
         self.lookup(&mut enode).unwrap_or_else(|| {
-            let id = self.explain.add(enode.clone());
+            let id;
+            #[cfg(feature = "explanation-generation")]
+            {
+                id = self.explain.add(enode.clone());
+            }
+            #[cfg(not(feature = "explanation-generation"))]
+            {
+                id = self.explain.make_set();
+            }
             log::trace!("  ...adding to {}", id);
             let class = EClass {
                 id,
@@ -373,14 +381,22 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         subst: &Subst,
         rule_name: &str,
     ) -> bool {
-        if self.find_mut(id1) == self.find_mut(id2) {
-            false
-        } else {
-            let left_added = self.explain.add_match(Some(id1), from_pat, subst);
-            let right_added = self.explain.add_match(Some(id2), to_pat, subst);
-            self.to_union
-                .push((left_added, right_added, Some(rule_name.to_string())));
-            true
+        #[cfg(not(feature = "explanation-generation"))]
+        {
+            return self.union(id1, id2);
+        }
+
+        #[cfg(feature = "explanation-generation")]
+        {
+            if self.find_mut(id1) == self.find_mut(id2) {
+                false
+            } else {
+                let left_added = self.explain.add_match(Some(id1), from_pat, subst);
+                let right_added = self.explain.add_match(Some(id2), to_pat, subst);
+                self.to_union
+                    .push((left_added, right_added, Some(rule_name.to_string())));
+                true
+            }
         }
     }
 
@@ -594,35 +610,37 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             || !self.to_union.is_empty()
             || !self.analysis_pending.is_empty()
         {
-            if !self.pending.is_empty() {
-                while !self.pending.is_empty() {
-                    while let Some((mut node, class)) = self.pending.pop() {
-                        node.update_children(|id| self.find_mut(id));
-                        if let Some(memo_class) = self.explain.memo.insert(node, class) {
-                            let did_something = self.perform_union(
-                                memo_class,
-                                class,
-                                Some(Justification::Congruence),
-                            );
-                            n_unions += did_something as usize;
+            while !self.pending.is_empty() || !self.to_union.is_empty() {
+                self.perform_to_union();
+                assert!(self.to_union.is_empty());
+
+                while let Some((mut node, class)) = self.pending.pop() {
+                    node.update_children(|id| self.find_mut(id));
+                    if let Some(memo_class) = self.explain.memo.insert(node, class) {
+                        let mut reason = None;
+                        #[cfg(feature = "explanation-generation")]
+                        {
+                            reason = Some(Justification::Congruence);
                         }
+                        let did_something = self.perform_union(memo_class, class, reason);
+                        n_unions += did_something as usize;
                     }
                 }
-            } else if !self.to_union.is_empty() {
-                self.perform_to_union();
-            } else {
-                let mut analysis_pending = Default::default();
-                std::mem::swap(&mut self.analysis_pending, &mut analysis_pending);
-                for (node, class_id) in analysis_pending {
-                    let class_id = self.find_mut(class_id);
-                    let node_data = N::make(self, &node);
-                    let class = self.classes.get_mut(&class_id).unwrap();
+            }
+            assert!(self.pending.is_empty());
+            assert!(self.to_union.is_empty());
 
-                    let did_merge = self.analysis.merge(&mut class.data, node_data);
-                    if did_merge.0 {
-                        self.analysis_pending.extend(class.parents.iter().cloned());
-                        N::modify(self, class_id);
-                    }
+            let mut analysis_pending = Default::default();
+            std::mem::swap(&mut self.analysis_pending, &mut analysis_pending);
+            for (node, class_id) in analysis_pending {
+                let class_id = self.find_mut(class_id);
+                let node_data = N::make(self, &node);
+                let class = self.classes.get_mut(&class_id).unwrap();
+
+                let did_merge = self.analysis.merge(&mut class.data, node_data);
+                if did_merge.0 {
+                    self.analysis_pending.extend(class.parents.iter().cloned());
+                    N::modify(self, class_id);
                 }
             }
         }

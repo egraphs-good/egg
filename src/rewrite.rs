@@ -16,7 +16,7 @@ use crate::*;
 #[non_exhaustive]
 pub struct Rewrite<L, N> {
     /// The name of the rewrite.
-    pub name: String,
+    pub name: String, // TODO make this an Arc
     /// The searcher (left-hand side) of the rewrite.
     pub searcher: Arc<dyn Searcher<L, N> + Sync + Send>,
     /// The applier (right-hand side) of the rewrite.

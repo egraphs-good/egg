@@ -23,3 +23,7 @@ nits:
 .PHONY: bench
 bench:
 	cargo bench | ./scripts/filter-iai-output.py
+
+.PHONY: bench_explanations
+bench_explanations:
+	cargo bench --features "explanation-generation" | ./scripts/filter-iai-output.py

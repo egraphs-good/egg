@@ -687,6 +687,10 @@ impl<L: Language> Explain<L> {
         set
     }
 
+    pub fn make_set(&mut self) -> Id {
+        self.unionfind.make_set()
+    }
+
     fn add_expr(&mut self, expr: &RecExpr<L>) -> Id {
         let nodes: Vec<ENodeOrVar<L>> = expr
             .as_ref()
