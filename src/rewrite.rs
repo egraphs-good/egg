@@ -319,7 +319,8 @@ where
         let mut unioned = vec![];
         for application_id in application_ids {
             let did_something;
-            #[cfg(feature = "explanation-generation")] {
+            #[cfg(feature = "explanation-generation")]
+            {
                 did_something = egraph.union_with_justification(
                     eclass,
                     application_id,
@@ -329,7 +330,8 @@ where
                     rule_name,
                 );
             }
-            #[cfg(not(feature = "explanation-generation"))] {
+            #[cfg(not(feature = "explanation-generation"))]
+            {
                 did_something = egraph.union(eclass, application_id);
             }
             if did_something {
