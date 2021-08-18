@@ -252,10 +252,16 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
         if substs.is_empty() {
             None
         } else {
+            let ast;
+            if cfg!(feature = "explanation-generation") {
+                ast = Some(self.ast.clone());
+            } else {
+                ast = None;
+            }
             Some(SearchMatches {
                 eclass,
                 substs,
-                ast: Some(self.ast.clone()),
+                ast,
             })
         }
     }
@@ -283,7 +289,13 @@ where
         let ast = self.ast.as_ref();
         let mut id_buf = vec![0.into(); ast.len()];
         let id = apply_pat(&mut id_buf, ast, egraph, subst);
-        (vec![id], Some(self.ast.clone()))
+        let ast_option;
+        if cfg!(feature = "explanation-generation") {
+            ast_option = Some(self.ast.clone());
+        } else {
+            ast_option = None;
+        }
+        (vec![id], ast_option)
     }
 
     fn vars(&self) -> Vec<Var> {

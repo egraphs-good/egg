@@ -2,11 +2,8 @@ use crate::util::HashSet;
 use crate::{Analysis, EClass, EGraph, ENodeOrVar, Id, Language, PatternAst, RecExpr, Subst, Var};
 use std::cmp::Ordering;
 
-/// The [`Id`] of each of the nodes that matched the pattern in preorder.
-pub type EMatch = Vec<Id>;
-
 struct Machine {
-    reg: EMatch,
+    reg: Vec<Id>,
 }
 
 impl Default for Machine {

@@ -318,14 +318,19 @@ where
     ) -> Vec<Id> {
         let mut unioned = vec![];
         for application_id in application_ids {
-            let did_something = egraph.union_with_justification(
-                eclass,
-                application_id,
-                searcher_ast.unwrap(),
-                applier_ast.unwrap(),
-                subst,
-                rule_name,
-            );
+            let did_something;
+            if cfg!(feature = "explanation-generation") {
+                did_something = egraph.union_with_justification(
+                    eclass,
+                    application_id,
+                    searcher_ast.unwrap(),
+                    applier_ast.unwrap(),
+                    subst,
+                    rule_name,
+                );
+            } else {
+                did_something = egraph.union(eclass, application_id);
+            }
             if did_something {
                 unioned.push(eclass);
             }
