@@ -120,7 +120,10 @@ impl<L: Language + Display> Explanation<L> {
     /// (Rewrite=> constant_fold 1)
     /// ```
     pub fn get_sexps(&mut self) -> Vec<Sexp> {
-        self.explanation_trees.iter().map(|e| e.to_sexp()).collect()
+        self.explanation_trees
+            .iter()
+            .map(|e| e.get_sexp())
+            .collect()
     }
 
     /// Get each flattened term in the explanation as an s-expression.
@@ -145,7 +148,7 @@ impl<L: Language + Display> Explanation<L> {
     pub fn get_flat_sexps(&mut self) -> Vec<Sexp> {
         self.make_flat_explanation()
             .iter()
-            .map(|e| e.to_sexp())
+            .map(|e| e.get_sexp())
             .collect()
     }
 
@@ -384,7 +387,7 @@ pub struct FlatTerm<L: Language> {
 
 impl<L: Language + Display> Display for FlatTerm<L> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let s = self.to_sexp().to_string();
+        let s = self.get_sexp().to_string();
         write!(f, "{}", s)
     }
 }
@@ -441,14 +444,14 @@ impl<L: Language> Default for Explain<L> {
 impl<L: Language + Display> FlatTerm<L> {
     /// Convert this FlatTerm to an S-expression.
     /// See [`get_flat_sexps`](Explanation::get_flat_sexps) for the format of these expressions.
-    pub fn to_sexp(&self) -> Sexp {
+    pub fn get_sexp(&self) -> Sexp {
         let op = Sexp::String(self.node.to_string());
         let mut expr = if self.node.is_leaf() {
             op
         } else {
             let mut vec = vec![op];
             for child in &self.children {
-                vec.push(child.to_sexp());
+                vec.push(child.get_sexp());
             }
             Sexp::List(vec)
         };
@@ -477,15 +480,15 @@ impl<L: Language + Display> Display for TreeTerm<L> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let mut buf = String::new();
         let width = 80;
-        pretty_print(&mut buf, &self.to_sexp(), width, 1).unwrap();
+        pretty_print(&mut buf, &self.get_sexp(), width, 1).unwrap();
         write!(f, "{}", buf)
     }
 }
 
 impl<L: Language + Display> TreeTerm<L> {
-    /// Convert this FlatTerm to an S-expression.
+    /// Convert this TreeTerm to an S-expression.
     /// See [`get_sexps`](Explanation::to_strings) for the format of these expressions.
-    pub fn to_sexp(&self) -> Sexp {
+    pub fn get_sexp(&self) -> Sexp {
         let op = Sexp::String(self.node.to_string());
         let mut expr = if self.node.is_leaf() {
             op
@@ -494,11 +497,11 @@ impl<L: Language + Display> TreeTerm<L> {
             for child in &self.child_proofs {
                 assert!(!child.is_empty());
                 if child.len() == 1 {
-                    vec.push(child[0].to_sexp());
+                    vec.push(child[0].get_sexp());
                 } else {
                     let mut child_expressions = vec![Sexp::String("Explanation".to_string())];
                     for child_explanation in child.iter() {
-                        child_expressions.push(child_explanation.to_sexp());
+                        child_expressions.push(child_explanation.get_sexp());
                     }
                     vec.push(Sexp::List(child_expressions));
                 }
