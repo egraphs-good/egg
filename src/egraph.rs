@@ -611,8 +611,6 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             } else if !self.to_union.is_empty() {
                 self.perform_to_union();
             } else {
-                // do more analysis
-                println!("more analysis");
                 let mut analysis_pending = Default::default();
                 std::mem::swap(&mut self.analysis_pending, &mut analysis_pending);
                 for (node, class_id) in analysis_pending {
