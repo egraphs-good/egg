@@ -228,6 +228,7 @@ the outermost, and the last condition being the innermost.
 # Example
 ```
 # use egg::*;
+use std::borrow::Cow;
 define_language! {
     enum SimpleLanguage {
         Num(i32),
@@ -263,7 +264,7 @@ rules.extend(vec![
 #[derive(Debug)]
 struct MySillyApplier(&'static str);
 impl Applier<SimpleLanguage, ()> for MySillyApplier {
-    fn apply_one(&self, _: &mut EGraph, _: Id, _: &Subst) -> (Vec<Id>, Option<PatternAst<SimpleLanguage>>) {
+    fn apply_one(&self, _: &mut EGraph, _: Id, _: &Subst) -> (Vec<Id>, Option<Cow<PatternAst<SimpleLanguage>>>) {
         panic!()
     }
 }

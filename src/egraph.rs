@@ -1,7 +1,7 @@
 use crate::*;
 use std::sync::Arc;
 use std::{
-    borrow::BorrowMut,
+    borrow::{BorrowMut, Cow},
     fmt::{self, Debug, Display},
 };
 
@@ -225,8 +225,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     }
 
     /// Adds a [`Pattern`] and a substitution to the [`EGraph`].
-    pub fn add_instantiation(&mut self, pat: &PatternAst<L>, subst: &Subst) -> Id {
-        let nodes = pat.as_ref();
+    pub fn add_instantiation(&mut self, pat: Cow<PatternAst<L>>, subst: &Subst) -> Id {
+        let nodes = pat.as_ref().as_ref();
         let mut new_ids = Vec::with_capacity(nodes.len());
         for node in nodes {
             match node {
@@ -344,10 +344,12 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// In most cases, there will none or exactly one id.
     ///
     pub fn equivs(&self, expr1: &RecExpr<L>, expr2: &RecExpr<L>) -> Vec<Id> {
-        let matches1 = Pattern::from(expr1.as_ref()).search(self);
+        let pat1 = Pattern::from(expr1.as_ref());
+        let pat2 = Pattern::from(expr2.as_ref());
+        let matches1 = pat1.search(self);
         trace!("Matches1: {:?}", matches1);
 
-        let matches2 = Pattern::from(expr2.as_ref()).search(self);
+        let matches2 = pat2.search(self);
         trace!("Matches2: {:?}", matches2);
 
         let mut equiv_eclasses = Vec::new();
@@ -377,8 +379,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         &mut self,
         id1: Id,
         id2: Id,
-        from_pat: &PatternAst<L>,
-        to_pat: &PatternAst<L>,
+        from_pat: Cow<PatternAst<L>>,
+        to_pat: Cow<PatternAst<L>>,
         subst: &Subst,
         rule_name: impl Into<Arc<String>>,
     ) -> bool {
@@ -745,6 +747,7 @@ impl<'a, L: Language, N: Analysis<L>> Debug for EGraphDump<'a, L, N> {
 mod tests {
 
     use crate::*;
+    use std::borrow::Cow;
 
     #[test]
     fn simple_add() {
@@ -762,8 +765,8 @@ mod tests {
         egraph.union_with_justification(
             x,
             y,
-            &"x".parse().unwrap(),
-            &"y".parse().unwrap(),
+            Cow::Owned("x".parse().unwrap()),
+            Cow::Owned("y".parse().unwrap()),
             &Default::default(),
             "union x and y".to_string(),
         );

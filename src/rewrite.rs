@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::fmt::{self, Debug, Display};
 use std::{any::Any, sync::Arc};
 
@@ -149,7 +150,7 @@ where
     }
 
     /// For patterns, return the ast directly as a reference
-    fn get_pattern_ast(&self) -> Option<&PatternAst<L>> {
+    fn get_pattern_ast(&self) -> Option<Cow<PatternAst<L>>> {
         None
     }
 
@@ -173,6 +174,7 @@ where
 /// # Example
 /// ```
 /// use egg::{rewrite as rw, *};
+/// use std::borrow::Cow;
 ///
 /// define_language! {
 ///     enum Math {
@@ -226,7 +228,7 @@ where
 ///
 /// impl Applier<Math, MinSize> for Funky {
 ///
-///     fn apply_one(&self, egraph: &mut EGraph, matched_id: Id, subst: &Subst) -> (Vec<Id>, Option<PatternAst<Math>>) {
+///     fn apply_one(&self, egraph: &mut EGraph, matched_id: Id, subst: &Subst) -> (Vec<Id>, Option<Cow<PatternAst<Math>>>) {
 ///         let a: Id = subst[self.a];
 ///         // In a custom Applier, you can inspect the analysis data,
 ///         // which is powerful combination!
@@ -250,7 +252,7 @@ where
 ///             // NOTE: we just return the id according to what we
 ///             // want unified with matched_id. The `apply_matches`
 ///             // method actually does the union, _not_ `apply_one`.
-///             (vec![a0b0c0], Some("(+ (+ ?a 0) (* (+ ?b 0) (+ ?c 0)))".parse().unwrap()))
+///             (vec![a0b0c0], Some(Cow::Owned("(+ (+ ?a 0) (* (+ ?b 0) (+ ?c 0)))".parse().unwrap())))
 ///         }
 ///     }
 /// }
@@ -287,8 +289,8 @@ where
                     egraph,
                     mat.eclass,
                     ids,
-                    mat.ast.as_ref(),
-                    app_ast.as_ref(),
+                    mat.ast.clone(),
+                    app_ast,
                     subst,
                     rule_name.clone(),
                 );
@@ -299,7 +301,7 @@ where
     }
 
     /// For patterns, get the ast directly as a reference.
-    fn get_pattern_ast(&self) -> Option<&PatternAst<L>> {
+    fn get_pattern_ast(&self) -> Option<Cow<PatternAst<L>>> {
         None
     }
 
@@ -312,8 +314,8 @@ where
         egraph: &mut EGraph<L, N>,
         eclass: Id,
         application_ids: Vec<Id>,
-        searcher_ast: Option<&PatternAst<L>>,
-        applier_ast: Option<&PatternAst<L>>,
+        searcher_ast: Option<Cow<PatternAst<L>>>,
+        applier_ast: Option<Cow<PatternAst<L>>>,
         subst: &Subst,
         rule_name: Arc<String>,
     ) -> Vec<Id> {
@@ -325,8 +327,8 @@ where
                 did_something = egraph.union_with_justification(
                     eclass,
                     application_id,
-                    searcher_ast.unwrap(),
-                    applier_ast.unwrap(),
+                    searcher_ast.as_ref().unwrap().clone(),
+                    applier_ast.as_ref().unwrap().clone(),
                     subst,
                     rule_name.clone(),
                 );
@@ -361,7 +363,7 @@ where
         egraph: &mut EGraph<L, N>,
         eclass: Id,
         subst: &Subst,
-    ) -> (Vec<Id>, Option<PatternAst<L>>);
+    ) -> (Vec<Id>, Option<Cow<PatternAst<L>>>);
 
     /// Returns a list of variables that this Applier assumes are bound.
     ///
@@ -409,8 +411,8 @@ where
         egraph: &mut EGraph<L, N>,
         eclass: Id,
         application_ids: Vec<Id>,
-        searcher_ast: Option<&PatternAst<L>>,
-        applier_ast: Option<&PatternAst<L>>,
+        searcher_ast: Option<Cow<PatternAst<L>>>,
+        applier_ast: Option<Cow<PatternAst<L>>>,
         subst: &Subst,
         rule_name: Arc<String>,
     ) -> Vec<Id> {
@@ -430,7 +432,7 @@ where
         egraph: &mut EGraph<L, N>,
         eclass: Id,
         subst: &Subst,
-    ) -> (Vec<Id>, Option<PatternAst<L>>) {
+    ) -> (Vec<Id>, Option<Cow<PatternAst<L>>>) {
         if self.condition.check(egraph, eclass, subst) {
             self.applier.apply_one(egraph, eclass, subst)
         } else {
@@ -531,6 +533,7 @@ where
 mod tests {
 
     use crate::{SymbolLang as S, *};
+    use std::borrow::Cow;
     use std::str::FromStr;
 
     type EGraph = crate::EGraph<S, ()>;
@@ -564,8 +567,8 @@ mod tests {
         egraph.union_with_justification(
             two_ispow2,
             true_id,
-            &"(is-power2 2)".parse().unwrap(),
-            &"TRUE".parse().unwrap(),
+            Cow::Owned("(is-power2 2)".parse().unwrap()),
+            Cow::Owned("TRUE".parse().unwrap()),
             &Default::default(),
             "direct-union".to_string(),
         );
@@ -601,7 +604,7 @@ mod tests {
                 egraph: &mut EGraph,
                 _eclass: Id,
                 subst: &Subst,
-            ) -> (Vec<Id>, Option<PatternAst<SymbolLang>>) {
+            ) -> (Vec<Id>, Option<Cow<PatternAst<SymbolLang>>>) {
                 let a: Var = "?a".parse().unwrap();
                 let b: Var = "?b".parse().unwrap();
                 let a = get(&egraph, subst[a]);
@@ -609,7 +612,7 @@ mod tests {
                 let s = format!("{}{}", a, b);
                 (
                     vec![egraph.add(S::leaf(&s))],
-                    Some(PatternAst::from_str(&s).unwrap()),
+                    Some(Cow::Owned(PatternAst::from_str(&s).unwrap())),
                 )
             }
         }

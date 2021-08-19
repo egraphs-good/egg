@@ -1,5 +1,6 @@
 use egg::{rewrite as rw, *};
 use ordered_float::NotNan;
+use std::borrow::Cow;
 
 pub type EGraph = egg::EGraph<Math, ConstantFold>;
 pub type Rewrite = egg::Rewrite<Math, ConstantFold>;
@@ -94,12 +95,12 @@ impl Analysis<Math> for ConstantFold {
         let class = egraph[id].clone();
         if let Some((c, pat)) = class.data {
             let added = egraph.add(Math::Constant(c));
-            let pattern_added = egraph.add_instantiation(&pat, &Default::default());
+            let pattern_added = egraph.add_instantiation(Cow::Borrowed(&pat), &Default::default());
             egraph.union_with_justification(
                 pattern_added,
                 added,
-                &pat,
-                &format!("{}", c).parse().unwrap(),
+                Cow::Borrowed(&pat),
+                Cow::Owned(format!("{}", c).parse().unwrap()),
                 &Default::default(),
                 "constant_fold".to_string(),
             );

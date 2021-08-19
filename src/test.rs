@@ -3,6 +3,7 @@
 These are not considered part of the public api.
 */
 
+use std::borrow::Cow;
 use std::fmt::Display;
 
 use crate::*;
@@ -78,7 +79,8 @@ pub fn test_runner<L, A>(
             for goal in goals {
                 let matches = goal.search_eclass(&runner.egraph, id).unwrap();
                 let subst = matches.substs[0].clone();
-                let mut explained = runner.explain_matches(&start, &goal.ast, &subst);
+                let mut explained =
+                    runner.explain_matches(&start, Cow::Borrowed(&goal.ast), &subst);
                 explained.check_proof(rules);
             }
         }

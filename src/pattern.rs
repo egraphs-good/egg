@@ -1,5 +1,6 @@
 use fmt::Formatter;
 use log::*;
+use std::borrow::Cow;
 use std::fmt::{self, Display};
 use std::{convert::TryFrom, error::Error, str::FromStr, sync::Arc};
 
@@ -213,18 +214,18 @@ impl<L: Language + Display> Display for Pattern<L> {
 /// many matches were found total.
 ///
 #[derive(Debug)]
-pub struct SearchMatches<L> {
+pub struct SearchMatches<'a, L: Language> {
     /// The eclass id that these matches were found in.
     pub eclass: Id,
     /// The substitutions for each match.
     pub substs: Vec<Subst>,
     /// Optionally, an ast for the matches used in proof production.
-    pub ast: Option<PatternAst<L>>,
+    pub ast: Option<Cow<'a, PatternAst<L>>>,
 }
 
 impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
-    fn get_pattern_ast(&self) -> Option<&PatternAst<L>> {
-        Some(&self.ast)
+    fn get_pattern_ast(&self) -> Option<Cow<PatternAst<L>>> {
+        Some(Cow::Borrowed(&self.ast))
     }
 
     fn search(&self, egraph: &EGraph<L, A>) -> Vec<SearchMatches<L>> {
@@ -254,7 +255,7 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
         } else {
             let ast;
             if cfg!(feature = "explanation-generation") {
-                ast = Some(self.ast.clone());
+                ast = Some(Cow::Borrowed(&self.ast));
             } else {
                 ast = None;
             }
@@ -276,8 +277,8 @@ where
     L: Language,
     A: Analysis<L>,
 {
-    fn get_pattern_ast(&self) -> Option<&PatternAst<L>> {
-        Some(&self.ast)
+    fn get_pattern_ast(&self) -> Option<Cow<PatternAst<L>>> {
+        Some(Cow::Borrowed(&self.ast))
     }
 
     fn apply_one(
@@ -285,13 +286,13 @@ where
         egraph: &mut EGraph<L, A>,
         _: Id,
         subst: &Subst,
-    ) -> (Vec<Id>, Option<PatternAst<L>>) {
+    ) -> (Vec<Id>, Option<Cow<PatternAst<L>>>) {
         let ast = self.ast.as_ref();
         let mut id_buf = vec![0.into(); ast.len()];
         let id = apply_pat(&mut id_buf, ast, egraph, subst);
         let ast_option;
         if cfg!(feature = "explanation-generation") {
-            ast_option = Some(self.ast.clone());
+            ast_option = Some(Cow::Borrowed(&self.ast));
         } else {
             ast_option = None;
         }
@@ -318,8 +319,8 @@ where
                     egraph,
                     mat.eclass,
                     vec![id],
-                    mat.ast.as_ref(),
-                    Some(&self.ast),
+                    mat.ast.clone(),
+                    Some(Cow::Borrowed(&self.ast)),
                     subst,
                     rule_name.clone(),
                 );
@@ -360,6 +361,7 @@ fn apply_pat<L: Language, A: Analysis<L>>(
 mod tests {
 
     use crate::{SymbolLang as S, *};
+    use std::borrow::Cow;
 
     type EGraph = crate::EGraph<S, ()>;
 
@@ -379,8 +381,8 @@ mod tests {
         egraph.union_with_justification(
             plus,
             plus2,
-            &"(+ x y)".parse().unwrap(),
-            &"(+ z w)".parse().unwrap(),
+            Cow::Owned("(+ x y)".parse().unwrap()),
+            Cow::Owned("(+ z w)".parse().unwrap()),
             &Default::default(),
             "union_plus".to_string(),
         );

@@ -2,6 +2,7 @@ use crate::{
     util::pretty_print, Analysis, ENodeOrVar, HashMap, HashSet, Id, Language, PatternAst, RecExpr,
     Rewrite, Subst, UnionFind, Var,
 };
+use std::borrow::Cow;
 use std::fmt::{self, Debug, Display, Formatter};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -543,11 +544,12 @@ impl<L: Language> FlatTerm<L> {
 
     /// Rewrite the FlatTerm by matching the lhs and substituting the rhs.
     /// The lhs must be guaranteed to match.
-    pub fn rewrite(&self, lhs: &PatternAst<L>, rhs: &PatternAst<L>) -> FlatTerm<L> {
-        let lhs_nodes = lhs.as_ref();
+    pub fn rewrite(&self, lhs: Cow<PatternAst<L>>, rhs: Cow<PatternAst<L>>) -> FlatTerm<L> {
+        let lhs_nodes = lhs.as_ref().as_ref();
+        let rhs_nodes = rhs.as_ref().as_ref();
         let mut bindings = Default::default();
         self.make_bindings(lhs_nodes, lhs_nodes.len() - 1, &mut bindings);
-        FlatTerm::from_pattern(rhs.as_ref(), rhs.as_ref().len() - 1, &bindings)
+        FlatTerm::from_pattern(rhs_nodes, rhs_nodes.len() - 1, &bindings)
     }
 
     /// Checks if this term or any child has a [`forward_rule`](FlatTerm::forward_rule).
@@ -698,8 +700,8 @@ impl<L: Language> Explain<L> {
             .iter()
             .map(|node| ENodeOrVar::ENode(node.clone()))
             .collect();
-        let pattern = PatternAst::from(nodes);
-        self.add_match(None, &pattern, &Default::default())
+        let pattern = Cow::Owned(PatternAst::from(nodes));
+        self.add_match(None, pattern, &Default::default())
     }
 
     // add_match uses the memo in order to re-discover matches
@@ -708,10 +710,10 @@ impl<L: Language> Explain<L> {
     pub(crate) fn add_match(
         &mut self,
         eclass: Option<Id>,
-        pattern: &PatternAst<L>,
+        pattern: Cow<PatternAst<L>>,
         subst: &Subst,
     ) -> Id {
-        let nodes = pattern.as_ref();
+        let nodes = pattern.as_ref().as_ref();
         let mut new_ids = Vec::with_capacity(nodes.len());
         let mut match_ids = Vec::with_capacity(nodes.len());
         for node in nodes {
@@ -813,11 +815,11 @@ impl<L: Language> Explain<L> {
     pub fn explain_matches(
         &mut self,
         left: &RecExpr<L>,
-        right: &PatternAst<L>,
+        right: Cow<PatternAst<L>>,
         subst: &Subst,
     ) -> Explanation<L> {
         let left_added = self.add_expr(left);
-        let right_added = self.add_match(None, &right, &subst);
+        let right_added = self.add_match(None, right, &subst);
         let mut cache = Default::default();
         Explanation::new(self.explain_enodes(left_added, right_added, &mut cache))
     }

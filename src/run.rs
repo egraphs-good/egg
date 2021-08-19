@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::fmt::{self, Debug, Formatter};
 
 use log::*;
@@ -406,7 +407,7 @@ where
     pub fn explain_matches(
         &mut self,
         left: &RecExpr<L>,
-        right: &PatternAst<L>,
+        right: Cow<PatternAst<L>>,
         subst: &Subst,
     ) -> Explanation<L> {
         self.egraph.explain.explain_matches(left, right, subst)
@@ -605,12 +606,12 @@ where
     ///
     /// Default implementation just calls
     /// [`Rewrite::search`](Rewrite::search()).
-    fn search_rewrite(
+    fn search_rewrite<'a>(
         &mut self,
         iteration: usize,
         egraph: &EGraph<L, N>,
-        rewrite: &Rewrite<L, N>,
-    ) -> Vec<SearchMatches<L>> {
+        rewrite: &'a Rewrite<L, N>,
+    ) -> Vec<SearchMatches<'a, L>> {
         rewrite.search(egraph)
     }
 
@@ -785,12 +786,12 @@ where
         }
     }
 
-    fn search_rewrite(
+    fn search_rewrite<'a>(
         &mut self,
         iteration: usize,
         egraph: &EGraph<L, N>,
-        rewrite: &Rewrite<L, N>,
-    ) -> Vec<SearchMatches<L>> {
+        rewrite: &'a Rewrite<L, N>,
+    ) -> Vec<SearchMatches<'a, L>> {
         let stats = self.rule_stats(rewrite.name());
 
         if iteration < stats.banned_until {

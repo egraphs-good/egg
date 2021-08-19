@@ -1,5 +1,6 @@
 use egg::{rewrite as rw, *};
 use fxhash::FxHashSet as HashSet;
+use std::borrow::Cow;
 
 define_language! {
     enum Lambda {
@@ -97,13 +98,13 @@ impl Analysis<Lambda> for LambdaAnalysis {
 
     fn modify(egraph: &mut EGraph, id: Id) {
         if let Some(c) = egraph[id].data.constant.clone() {
-            let added = egraph.add_instantiation(&c.1, &Default::default());
+            let added = egraph.add_instantiation(Cow::Borrowed(&c.1), &Default::default());
             let const_id = egraph.add(c.0.clone());
             egraph.union_with_justification(
                 const_id,
                 added,
-                &c.0.to_string().parse().unwrap(),
-                &c.1,
+                Cow::Owned(c.0.to_string().parse().unwrap()),
+                Cow::Borrowed(&c.1),
                 &Default::default(),
                 "analysis".to_string(),
             );
@@ -174,7 +175,7 @@ impl Applier<Lambda, LambdaAnalysis> for CaptureAvoid {
         egraph: &mut EGraph,
         eclass: Id,
         subst: &Subst,
-    ) -> (Vec<Id>, Option<PatternAst<Lambda>>) {
+    ) -> (Vec<Id>, Option<Cow<PatternAst<Lambda>>>) {
         let e = subst[self.e];
         let v2 = subst[self.v2];
         let v2_free_in_e = egraph[e].data.free.contains(&v2);
@@ -182,15 +183,16 @@ impl Applier<Lambda, LambdaAnalysis> for CaptureAvoid {
             let mut subst = subst.clone();
             let sym = Lambda::Symbol(format!("_{}", eclass).into());
             subst.insert(self.fresh, egraph.add(sym));
-            let ast = Some(
-                format!(
-                    "(lam _{} (let ?v1 ?e (let ?v2 (var _{}) ?body)))",
-                    eclass, eclass
-                )
-                .parse()
-                .unwrap(),
-            );
-            (self.if_free.apply_one(egraph, eclass, &subst).0, ast)
+            let ast = format!(
+                "(lam _{} (let ?v1 ?e (let ?v2 (var _{}) ?body)))",
+                eclass, eclass
+            )
+            .parse()
+            .unwrap();
+            (
+                self.if_free.apply_one(egraph, eclass, &subst).0,
+                Some(Cow::Owned(ast)),
+            )
         } else {
             self.if_not_free.apply_one(egraph, eclass, &subst)
         }
