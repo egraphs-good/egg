@@ -309,7 +309,7 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
             if egraph.strategy != Strategy::EMatch {
                 let var_map = q.vars(&egraph.db);
 
-                let vars: Vec<(Var, usize)> = var_map
+                let mut vars: Vec<(Var, usize)> = var_map
                     .iter()
                     .enumerate()
                     .filter_map(|(i, vori)| match vori {
@@ -317,6 +317,7 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
                         VarOrId::Id(_) => None,
                     })
                     .collect();
+                vars.sort_by_key(|(_v, i)| *i);
 
                 let root = self.ast.as_ref().len() - 1;
                 let root_expr = VarOrId::Id(root.into());
@@ -331,7 +332,8 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
                     |tuple| {
                         let vec = vars.iter().map(|(v, i)| (*v, tuple[*i])).collect();
                         let subst = Subst { vec };
-                        let root = egraph.find(tuple[root_index]);
+                        let root = tuple[root_index];
+                        debug_assert_eq!(root, egraph.find(root));
                         map.entry(root).or_default().push(subst);
                         limit -= 1;
                         if limit == 0 {
