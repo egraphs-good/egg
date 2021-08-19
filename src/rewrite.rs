@@ -564,9 +564,7 @@ mod tests {
 
         println!("Add the needed equality");
         let two_ispow2 = egraph.add(S::new("is-power2", vec![y]));
-        egraph.union_with_justification(
-            two_ispow2,
-            true_id,
+        egraph.union_instantiations(
             Cow::Owned("(is-power2 2)".parse().unwrap()),
             Cow::Owned("TRUE".parse().unwrap()),
             &Default::default(),

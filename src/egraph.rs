@@ -225,7 +225,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     }
 
     /// Adds a [`Pattern`] and a substitution to the [`EGraph`].
-    pub fn add_instantiation(&mut self, pat: Cow<PatternAst<L>>, subst: &Subst) -> Id {
+    pub fn add_instantiation(&mut self, pat: &PatternAst<L>, subst: &Subst) -> Id {
         let nodes = pat.as_ref().as_ref();
         let mut new_ids = Vec::with_capacity(nodes.len());
         for node in nodes {
@@ -365,17 +365,26 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         equiv_eclasses
     }
 
-    /// Given two patterns which match eclasses id1 and id2 respectively,
-    /// marks the two eclasses for unioning.
-    /// Since unions happen when [`rebuild`](EGraph::rebuild) is called,
-    /// it is important to first add both expressions to the egraph
-    /// in the [`modify`](Analysis::modify) function.
-    ///
-    /// The two patterns must match the eclasses corresponding to the ids.
-    /// The ids need not be canonical.
+    /// Given two patterns and a substitution, add the patterns
+    /// and mark them for unioning.
+    /// The unions are performed when [`rebuild`](EGraph::rebuild) is called.
+    /// When the "explanation-generation" feature is enabled, use
+    /// this function instead of [`union`](EGraph::union).
     ///
     /// The returned `bool` indicates whether a union is necessary.
-    pub fn union_with_justification(
+    pub fn union_instantiations(
+        &mut self,
+        from_pat: Cow<PatternAst<L>>,
+        to_pat: Cow<PatternAst<L>>,
+        subst: &Subst,
+        rule_name: impl Into<Arc<String>>,
+    ) -> bool {
+        let id1 = self.add_instantiation(from_pat.as_ref(), subst);
+        let id2 = self.add_instantiation(to_pat.as_ref(), subst);
+        self.union_with_justification(id1, id2, from_pat, to_pat, subst, rule_name)
+    }
+
+    pub(crate) fn union_with_justification(
         &mut self,
         id1: Id,
         id2: Id,
@@ -414,7 +423,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// Both results are canonical.
     ///
     /// When "explanation-generation" is enabled, this function is not available.
-    /// Instead, use [`union_with_justification`](EGraph::union_with_justification).
+    /// Instead, use [`union_instantiations`](EGraph::union_instantiations).
     /// See [`explain_equivalence`](Runner::explain_equivalence) for a more detailed
     /// explanation of the feature.
     ///
@@ -762,9 +771,7 @@ mod tests {
 
         let y = egraph.add(S::leaf("y"));
 
-        egraph.union_with_justification(
-            x,
-            y,
+        egraph.union_instantiations(
             Cow::Owned("x".parse().unwrap()),
             Cow::Owned("y".parse().unwrap()),
             &Default::default(),

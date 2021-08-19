@@ -102,7 +102,7 @@ impl<L: Language + Display> Explanation<L> {
     /// or "(Rewrite<= rule-name expression)".
     /// "Rewrite=>" indicates that the previous term is rewritten to the current term
     /// and "Rewrite<=" indicates that the current term is rewritten to the previous term.
-    /// The name of the rule or the reason provided to [`union_with_justification`](super::EGraph::union_with_justification).
+    /// The name of the rule or the reason provided to [`union_instantiations`](super::EGraph::union_instantiations).
     ///
     /// Example explanation:
     /// ```text
@@ -136,7 +136,7 @@ impl<L: Language + Display> Explanation<L> {
     /// or "(Rewrite<= rule-name expression)".
     /// "Rewrite=>" indicates that the previous term is rewritten to the current term
     /// and "Rewrite<=" indicates that the current term is rewritten to the previous term.
-    /// The name of the rule or the reason provided to [`union_with_justification`](super::EGraph::union_with_justification).
+    /// The name of the rule or the reason provided to [`union_instantiations`](super::EGraph::union_instantiations).
     ///
     /// Example explanation:
     /// ```text
@@ -372,7 +372,7 @@ impl<L: Language> TreeTerm<L> {
 /// When [`backward_rule`](FlatTerm::backward_rule) is provided, the previous FlatTerm is given by applying
 /// the rule to this FlatTerm.
 /// Rules are either the string of the name of the rule or the reason provided to
-/// [`union_with_justification`](super::EGraph::union_with_justification).
+/// [`union_instantiations`](super::EGraph::union_instantiations).
 ///
 #[derive(Debug, Clone, Eq)]
 pub struct FlatTerm<L: Language> {
@@ -735,7 +735,7 @@ impl<L: Language> Explain<L> {
                         match_ids.push(*existing_id);
                     } else {
                         let congruent_id = *self.memo.get(&node).unwrap_or_else(|| {
-                            panic!("Pattern did not exist for substitution!\n Did you forget to add the expression during the analysis modify function?");
+                            panic!("Internal error! Pattern did not exist for substitution.");
                         });
 
                         let congruent_class = self.find(congruent_id);

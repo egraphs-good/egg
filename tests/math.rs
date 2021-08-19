@@ -94,11 +94,7 @@ impl Analysis<Math> for ConstantFold {
     fn modify(egraph: &mut EGraph, id: Id) {
         let class = egraph[id].clone();
         if let Some((c, pat)) = class.data {
-            let added = egraph.add(Math::Constant(c));
-            let pattern_added = egraph.add_instantiation(Cow::Borrowed(&pat), &Default::default());
-            egraph.union_with_justification(
-                pattern_added,
-                added,
+            egraph.union_instantiations(
                 Cow::Borrowed(&pat),
                 Cow::Owned(format!("{}", c).parse().unwrap()),
                 &Default::default(),

@@ -378,9 +378,7 @@ mod tests {
         let w = egraph.add(S::leaf("w"));
         let plus2 = egraph.add(S::new("+", vec![z, w]));
 
-        egraph.union_with_justification(
-            plus,
-            plus2,
+        egraph.union_instantiations(
             Cow::Owned("(+ x y)".parse().unwrap()),
             Cow::Owned("(+ z w)".parse().unwrap()),
             &Default::default(),
