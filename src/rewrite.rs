@@ -322,7 +322,7 @@ where
         let mut unioned = vec![];
         for application_id in application_ids {
             let did_something;
-            #[cfg(feature = "explanation-generation")]
+            #[cfg(feature = "explanations")]
             {
                 did_something = egraph.union_with_justification(
                     eclass,
@@ -333,7 +333,7 @@ where
                     rule_name.clone(),
                 );
             }
-            #[cfg(not(feature = "explanation-generation"))]
+            #[cfg(not(feature = "explanations"))]
             {
                 did_something = egraph.union(eclass, application_id);
             }
@@ -354,7 +354,7 @@ where
     ///
     /// This should return a list of [`Id`]s of things you'd like to
     /// be unioned with `eclass`. There can be zero, one, or many.
-    /// When explanation-generation mode is enabled, a [`PatternAst`] matching
+    /// When explanations mode is enabled, a [`PatternAst`] matching
     /// the application is also required in order to justify the application.
     ///
     /// [`apply_matches`]: Applier::apply_matches()

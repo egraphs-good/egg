@@ -388,17 +388,15 @@ where
         self
     }
 
-    /// When the feature "explanation-generation" is enabled, this function
+    /// When the feature "explanations" is enabled, this function
     /// produces an [`Explanation`] describing why two expressions are equivalent.
     ///
     /// The [`Explanation`] can be used in it's default tree form or in a less compact
     /// flattened form. Each of these also has a s-expression string representation,
     /// given by [`get_flat_string`](Explanation::get_flat_string) and [`get_string`](Explanation::get_string).
     pub fn explain_equivalence(&mut self, left: &RecExpr<L>, right: &RecExpr<L>) -> Explanation<L> {
-        if cfg!(not(feature = "explanation-generation")) {
-            panic!(
-                "Can't call explain_equivalence without explanation-generation feature enabled."
-            );
+        if cfg!(not(feature = "explanations")) {
+            panic!("Can't call explain_equivalence without explanations feature enabled.");
         }
         self.egraph.explain.explain_equivalence(left, right)
     }

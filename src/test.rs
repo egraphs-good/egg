@@ -75,12 +75,13 @@ pub fn test_runner<L, A>(
         runner.print_report();
         runner.egraph.check_goals(id, &goals);
 
-        if cfg!(feature = "explanation-generation") {
+        if cfg!(feature = "explanations") {
             for goal in goals {
                 let matches = goal.search_eclass(&runner.egraph, id).unwrap();
                 let subst = matches.substs[0].clone();
                 let mut explained =
                     runner.explain_matches(&start, Cow::Borrowed(&goal.ast), &subst);
+                println!("{}", explained);
                 explained.check_proof(rules);
             }
         }

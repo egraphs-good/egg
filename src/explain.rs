@@ -69,7 +69,8 @@ pub struct Explanation<L: Language> {
 
 impl<L: Language + Display> Display for Explanation<L> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let s = self.to_strings().join("\n");
+        let mut s = "".to_string();
+        pretty_print(&mut s, &self.get_sexp_with_let(), 100, 0);
         f.write_str(&s)
     }
 }
@@ -80,11 +81,6 @@ impl<L: Language + Display> Explanation<L> {
         self.get_flat_strings().join("\n")
     }
 
-    /// Get the tree form of the explanation as a string.
-    pub fn get_string(&self) -> String {
-        self.to_strings().join("\n")
-    }
-
     /// Get each term in the explanation as a string.
     pub fn get_flat_strings(&mut self) -> Vec<String> {
         self.make_flat_explanation()
@@ -93,7 +89,7 @@ impl<L: Language + Display> Explanation<L> {
             .collect()
     }
 
-    /// Get each tree term in the explanation as an s-expression.
+    /// Get each the tree-style explanation as an s-expression.
     ///
     /// The s-expression format mirrors the format of each [`TreeTerm`].
     /// When a child contains an explanation, the explanation is wrapped with
@@ -121,11 +117,73 @@ impl<L: Language + Display> Explanation<L> {
     ///      (Rewrite=> cancel-sub 0)))
     /// (Rewrite=> constant_fold 1)
     /// ```
-    pub fn get_sexps(&mut self) -> Vec<Sexp> {
-        self.explanation_trees
-            .iter()
-            .map(|e| e.get_sexp())
-            .collect()
+    pub fn get_sexp(&self) -> Sexp {
+        let mut items = vec![Sexp::String("Explanation".to_string())];
+        for e in self.explanation_trees.iter() {
+            items.push(e.get_sexp());
+        }
+
+        Sexp::List(items)
+    }
+
+    /// Get the tree-style explanation as an s-expression with let binding
+    /// to enable sharing of subproofs.
+    ///
+    /// TODO more docs
+    pub fn get_sexp_with_let(&self) -> Sexp {
+        let mut shared: HashSet<*const TreeTerm<L>> = Default::default();
+        let mut to_let_bind = vec![];
+        for term in &self.explanation_trees {
+            self.find_to_let_bind(term.clone(), &mut shared, &mut to_let_bind);
+        }
+
+        let mut bindings: HashMap<*const TreeTerm<L>, Sexp> = Default::default();
+        let mut generated_bindings: Vec<(Sexp, Sexp)> = Default::default();
+        for to_bind in to_let_bind {
+            if let None = bindings.get(&(&*to_bind as *const TreeTerm<L>)) {
+                let name = Sexp::String("v_".to_string() + &generated_bindings.len().to_string());
+                let ast = to_bind.get_sexp_with_bindings(&bindings);
+                generated_bindings.push((name.clone(), ast));
+                bindings.insert(&*to_bind as *const TreeTerm<L>, name);
+            }
+        }
+
+        let mut items = vec![Sexp::String("Explanation".to_string())];
+        for e in self.explanation_trees.iter() {
+            if let Some(existing) = bindings.get(&(&**e as *const TreeTerm<L>)) {
+                items.push(existing.clone());
+            } else {
+                items.push(e.get_sexp_with_bindings(&bindings));
+            }
+        }
+
+        let mut result = Sexp::List(items);
+
+        for (name, expr) in generated_bindings.into_iter().rev() {
+            let let_expr = Sexp::List(vec![name, expr]);
+            result = Sexp::List(vec![Sexp::String("let".to_string()), let_expr, result]);
+        }
+
+        result
+    }
+
+    fn find_to_let_bind(
+        &self,
+        term: Rc<TreeTerm<L>>,
+        shared: &mut HashSet<*const TreeTerm<L>>,
+        to_let_bind: &mut Vec<Rc<TreeTerm<L>>>,
+    ) {
+        for proof in &term.child_proofs {
+            for child in proof {
+                self.find_to_let_bind(child.clone(), shared, to_let_bind);
+            }
+        }
+
+        if !term.child_proofs.is_empty() {
+            if !shared.insert(&*term as *const TreeTerm<L>) {
+                to_let_bind.push(term);
+            }
+        }
     }
 
     /// Get each flattened term in the explanation as an s-expression.
@@ -151,14 +209,6 @@ impl<L: Language + Display> Explanation<L> {
         self.make_flat_explanation()
             .iter()
             .map(|e| e.get_sexp())
-            .collect()
-    }
-
-    /// Get each explanation tree as a string.
-    pub fn to_strings(&self) -> Vec<String> {
-        self.explanation_trees
-            .iter()
-            .map(|e| e.to_string())
             .collect()
     }
 }
@@ -222,7 +272,6 @@ impl<L: Language> Explanation<L> {
         if is_forward && next.forward_rule.is_some() {
             let rule_name = next.forward_rule.as_ref().unwrap();
             if let Some(rule) = table.get(rule_name) {
-                println!("Checking {} forward", rule_name);
                 Explanation::check_rewrite(current, next, rule)
             } else {
                 // give up when the rule is not provided
@@ -231,7 +280,6 @@ impl<L: Language> Explanation<L> {
         } else if !is_forward && next.backward_rule.is_some() {
             let rule_name = next.backward_rule.as_ref().unwrap();
             if let Some(rule) = table.get(rule_name) {
-                println!("Checking {} backward", rule_name);
                 Explanation::check_rewrite(next, current, rule)
             } else {
                 true
@@ -489,8 +537,15 @@ impl<L: Language + Display> Display for TreeTerm<L> {
 
 impl<L: Language + Display> TreeTerm<L> {
     /// Convert this TreeTerm to an S-expression.
-    /// See [`get_sexps`](Explanation::to_strings) for the format of these expressions.
+    /// See [`get_sexp`](Explanation::get_sexp) for the format of these expressions.
     pub fn get_sexp(&self) -> Sexp {
+        self.get_sexp_with_bindings(&Default::default())
+    }
+
+    pub(crate) fn get_sexp_with_bindings(
+        &self,
+        bindings: &HashMap<*const TreeTerm<L>, Sexp>,
+    ) -> Sexp {
         let op = Sexp::String(self.node.to_string());
         let mut expr = if self.node.is_leaf() {
             op
@@ -499,11 +554,22 @@ impl<L: Language + Display> TreeTerm<L> {
             for child in &self.child_proofs {
                 assert!(!child.is_empty());
                 if child.len() == 1 {
-                    vec.push(child[0].get_sexp());
+                    if let Some(existing) = bindings.get(&(&*child[0] as *const TreeTerm<L>)) {
+                        vec.push(existing.clone());
+                    } else {
+                        vec.push(child[0].get_sexp_with_bindings(bindings));
+                    }
                 } else {
                     let mut child_expressions = vec![Sexp::String("Explanation".to_string())];
                     for child_explanation in child.iter() {
-                        child_expressions.push(child_explanation.get_sexp());
+                        if let Some(existing) =
+                            bindings.get(&(&**child_explanation as *const TreeTerm<L>))
+                        {
+                            child_expressions.push(existing.clone());
+                        } else {
+                            child_expressions
+                                .push(child_explanation.get_sexp_with_bindings(bindings));
+                        }
                     }
                     vec.push(Sexp::List(child_expressions));
                 }

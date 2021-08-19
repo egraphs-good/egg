@@ -254,7 +254,7 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
             None
         } else {
             let ast;
-            if cfg!(feature = "explanation-generation") {
+            if cfg!(feature = "explanations") {
                 ast = Some(Cow::Borrowed(&self.ast));
             } else {
                 ast = None;
@@ -291,7 +291,7 @@ where
         let mut id_buf = vec![0.into(); ast.len()];
         let id = apply_pat(&mut id_buf, ast, egraph, subst);
         let ast_option;
-        if cfg!(feature = "explanation-generation") {
+        if cfg!(feature = "explanations") {
             ast_option = Some(Cow::Borrowed(&self.ast));
         } else {
             ast_option = None;

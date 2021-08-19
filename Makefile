@@ -5,7 +5,7 @@ test:
 	cargo build --release
 	cargo test --release
 	# don't run examples in proof-production mode
-	cargo test --lib --bins --tests --benches --release --features "explanation-generation"
+	cargo test --lib --bins --tests --benches --release --features "explanations"
 
 .PHONY: nits
 nits:
@@ -16,7 +16,7 @@ nits:
 	cargo deadlinks
 
 	cargo clippy --tests
-	cargo clippy --tests --features "explanation-generation"
+	cargo clippy --tests --features "explanations"
 	cargo clippy --tests --features "serde-1"
 	cargo clippy --tests --features "reports"
 
@@ -26,4 +26,4 @@ bench:
 
 .PHONY: bench_explanations
 bench_explanations:
-	cargo bench --features "explanation-generation" | ./scripts/filter-iai-output.py
+	cargo bench --features "explanations" | ./scripts/filter-iai-output.py

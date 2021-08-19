@@ -306,11 +306,11 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     pub fn add(&mut self, mut enode: L) -> Id {
         self.lookup(&mut enode).unwrap_or_else(|| {
             let id;
-            #[cfg(feature = "explanation-generation")]
+            #[cfg(feature = "explanations")]
             {
                 id = self.explain.add(enode.clone());
             }
-            #[cfg(not(feature = "explanation-generation"))]
+            #[cfg(not(feature = "explanations"))]
             {
                 id = self.explain.make_set();
             }
@@ -368,7 +368,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// Given two patterns and a substitution, add the patterns
     /// and mark them for unioning.
     /// The unions are performed when [`rebuild`](EGraph::rebuild) is called.
-    /// When the "explanation-generation" feature is enabled, use
+    /// When the "explanations" feature is enabled, use
     /// this function instead of [`union`](EGraph::union).
     ///
     /// The returned `bool` indicates whether a union is necessary.
@@ -393,12 +393,12 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         subst: &Subst,
         rule_name: impl Into<Arc<String>>,
     ) -> bool {
-        #[cfg(not(feature = "explanation-generation"))]
+        #[cfg(not(feature = "explanations"))]
         {
             return self.union(id1, id2);
         }
 
-        #[cfg(feature = "explanation-generation")]
+        #[cfg(feature = "explanations")]
         {
             if self.find_mut(id1) == self.find_mut(id2) {
                 false
@@ -422,13 +422,13 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// so it's `false` if they were already equivalent.
     /// Both results are canonical.
     ///
-    /// When "explanation-generation" is enabled, this function is not available.
+    /// When "explanations" is enabled, this function is not available.
     /// Instead, use [`union_instantiations`](EGraph::union_instantiations).
     /// See [`explain_equivalence`](Runner::explain_equivalence) for a more detailed
     /// explanation of the feature.
     ///
     /// You must call [`rebuild`](EGraph::rebuild) to observe any effect.
-    #[cfg(not(feature = "explanation-generation"))]
+    #[cfg(not(feature = "explanations"))]
     pub fn union(&mut self, id1: Id, id2: Id) -> bool {
         if self.find_mut(id1) == self.find_mut(id2) {
             false
@@ -630,7 +630,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                     node.update_children(|id| self.find_mut(id));
                     if let Some(memo_class) = self.explain.memo.insert(node, class) {
                         let mut reason = None;
-                        #[cfg(feature = "explanation-generation")]
+                        #[cfg(feature = "explanations")]
                         {
                             reason = Some(Justification::Congruence);
                         }
