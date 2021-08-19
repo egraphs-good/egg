@@ -70,7 +70,7 @@ pub struct Explanation<L: Language> {
 impl<L: Language + Display> Display for Explanation<L> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let mut s = "".to_string();
-        pretty_print(&mut s, &self.get_sexp_with_let(), 100, 0);
+        pretty_print(&mut s, &self.get_sexp(), 100, 0);
         f.write_str(&s)
     }
 }
@@ -79,6 +79,11 @@ impl<L: Language + Display> Explanation<L> {
     /// Get the flattened explanation as a string.
     pub fn get_flat_string(&mut self) -> String {
         self.get_flat_strings().join("\n")
+    }
+
+    /// Get the tree-style explanation as a string.
+    pub fn get_string(&self) -> String {
+        self.to_string()
     }
 
     /// Get each term in the explanation as a string.
@@ -100,6 +105,7 @@ impl<L: Language + Display> Explanation<L> {
     /// and "Rewrite<=" indicates that the current term is rewritten to the previous term.
     /// The name of the rule or the reason provided to [`union_instantiations`](super::EGraph::union_instantiations).
     ///
+    /// The following example shows that `(+ 1 (- a (* (- 2 1) a))) = 1`
     /// Example explanation:
     /// ```text
     /// (+ 1 (- a (* (- 2 1) a)))
@@ -129,7 +135,34 @@ impl<L: Language + Display> Explanation<L> {
     /// Get the tree-style explanation as an s-expression with let binding
     /// to enable sharing of subproofs.
     ///
-    /// TODO more docs
+    /// The following explanation shows that `(+ x (+ x (+ x x))) = (* 4 x)`.
+    /// Steps such as factoring are shared via the let bindings.
+    /// Example explanation:
+    ///
+    /// ```text
+    /// (let
+    ///     (v_0 (Rewrite=> mul-one (* x 1)))
+    ///     (let
+    ///       (v_1 (+ (Explanation x v_0) (Explanation x v_0)))
+    ///       (let
+    ///         (v_2 (+ 1 1))
+    ///         (let
+    ///           (v_3 (Rewrite=> factor (* x v_2)))
+    ///           (Explanation
+    ///             (+ x (+ x (+ x x)))
+    ///             (Rewrite=> assoc-add (+ (+ x x) (+ x x)))
+    ///             (+ (Explanation (+ x x) v_1 v_3) (Explanation (+ x x) v_1 v_3))
+    ///             (Rewrite=> factor (* x (+ (+ 1 1) (+ 1 1))))
+    ///             (Rewrite=> comm-mul (* (+ (+ 1 1) (+ 1 1)) x))
+    ///             (*
+    ///               (Explanation
+    ///                 (+ (+ 1 1) (+ 1 1))
+    ///                 (+
+    ///                   (Explanation (+ 1 1) (Rewrite=> constant_fold 2))
+    ///                   (Explanation (+ 1 1) (Rewrite=> constant_fold 2)))
+    ///                 (Rewrite=> constant_fold 4))
+    ///               x))))))
+    /// ```
     pub fn get_sexp_with_let(&self) -> Sexp {
         let mut shared: HashSet<*const TreeTerm<L>> = Default::default();
         let mut to_let_bind = vec![];
