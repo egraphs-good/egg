@@ -101,7 +101,7 @@ impl Analysis<Math> for ConstantFold {
                 &pat,
                 &format!("{}", c).parse().unwrap(),
                 &Default::default(),
-                "constant_fold",
+                "constant_fold".to_string(),
             );
             // to not prune, comment this out
             egraph[id].nodes.retain(|n| n.is_leaf());

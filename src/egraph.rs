@@ -1,4 +1,5 @@
 use crate::*;
+use std::sync::Arc;
 use std::{
     borrow::BorrowMut,
     fmt::{self, Debug, Display},
@@ -48,7 +49,7 @@ pub struct EGraph<L: Language, N: Analysis<L>> {
     pub analysis: N,
     /// The `Explain` used to explain equivalences in this `EGraph`.
     pub explain: Explain<L>,
-    to_union: Vec<(Id, Id, Option<String>)>,
+    to_union: Vec<(Id, Id, Option<Arc<String>>)>,
     pending: Vec<(L, Id)>,
     analysis_pending: IndexSet<(L, Id)>,
     classes: HashMap<Id, EClass<L, N::Data>>,
@@ -379,7 +380,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         from_pat: &PatternAst<L>,
         to_pat: &PatternAst<L>,
         subst: &Subst,
-        rule_name: &str,
+        rule_name: impl Into<Arc<String>>,
     ) -> bool {
         #[cfg(not(feature = "explanation-generation"))]
         {
@@ -394,7 +395,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                 let left_added = self.explain.add_match(Some(id1), from_pat, subst);
                 let right_added = self.explain.add_match(Some(id2), to_pat, subst);
                 self.to_union
-                    .push((left_added, right_added, Some(rule_name.to_string())));
+                    .push((left_added, right_added, Some(rule_name.into())));
                 true
             }
         }
@@ -764,7 +765,7 @@ mod tests {
             &"x".parse().unwrap(),
             &"y".parse().unwrap(),
             &Default::default(),
-            &"union x and y",
+            "union x and y".to_string(),
         );
         egraph.rebuild();
 

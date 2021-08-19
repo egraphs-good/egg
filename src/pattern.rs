@@ -1,7 +1,7 @@
 use fmt::Formatter;
 use log::*;
 use std::fmt::{self, Display};
-use std::{convert::TryFrom, error::Error, str::FromStr};
+use std::{convert::TryFrom, error::Error, str::FromStr, sync::Arc};
 
 use thiserror::Error;
 
@@ -306,7 +306,7 @@ where
         &self,
         egraph: &mut EGraph<L, A>,
         matches: &[SearchMatches<L>],
-        rule_name: &str,
+        rule_name: Arc<String>,
     ) -> Vec<Id> {
         let mut added = vec![];
         let ast = self.ast.as_ref();
@@ -321,7 +321,7 @@ where
                     mat.ast.as_ref(),
                     Some(&self.ast),
                     subst,
-                    rule_name,
+                    rule_name.clone(),
                 );
                 if !to.is_empty() {
                     added.push(to[0])
@@ -382,7 +382,7 @@ mod tests {
             &"(+ x y)".parse().unwrap(),
             &"(+ z w)".parse().unwrap(),
             &Default::default(),
-            &"union_plus",
+            "union_plus".to_string(),
         );
         egraph.rebuild();
 

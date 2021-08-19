@@ -4,11 +4,12 @@ use crate::{
 };
 use std::fmt::{self, Debug, Display, Formatter};
 use std::rc::Rc;
+use std::sync::Arc;
 use symbolic_expressions::Sexp;
 
 #[derive(Debug, Clone)]
 pub(crate) enum Justification {
-    Rule(String),
+    Rule(Arc<String>),
     Congruence,
 }
 
@@ -214,7 +215,7 @@ impl<L: Language> Explanation<L> {
         &self,
         current: &FlatTerm<L>,
         next: &FlatTerm<L>,
-        table: &HashMap<String, &Rewrite<L, N>>,
+        table: &HashMap<Arc<String>, &Rewrite<L, N>>,
         is_forward: bool,
     ) -> bool {
         if is_forward && next.forward_rule.is_some() {
@@ -280,9 +281,9 @@ pub struct TreeTerm<L: Language> {
     /// A node representing this TreeTerm's operator. The children of the node should be ignored.
     pub node: L,
     /// A rule rewritting this TreeTerm's initial term back to the last TreeTerm's final term.
-    pub backward_rule: Option<String>,
+    pub backward_rule: Option<Arc<String>>,
     /// A rule rewriting the last TreeTerm's final term to this TreeTerm's initial term.
-    pub forward_rule: Option<String>,
+    pub forward_rule: Option<Arc<String>>,
     /// A list of child proofs, each transforming the initial term to the final term for that child.
     pub child_proofs: Vec<ExplanationTrees<L>>,
 }
@@ -378,9 +379,9 @@ pub struct FlatTerm<L: Language> {
     /// The children of the node should be ignored.
     pub node: L,
     /// A rule rewriting this FlatTerm back to the last FlatTerm.
-    pub backward_rule: Option<String>,
+    pub backward_rule: Option<Arc<String>>,
     /// A rule rewriting the last FlatTerm to this FlatTerm.
-    pub forward_rule: Option<String>,
+    pub forward_rule: Option<Arc<String>>,
     /// The children of this FlatTerm.
     pub children: FlatExplanation<L>,
 }
@@ -459,7 +460,7 @@ impl<L: Language + Display> FlatTerm<L> {
         if let Some(rule_name) = &self.backward_rule {
             expr = Sexp::List(vec![
                 Sexp::String("Rewrite<=".to_string()),
-                Sexp::String(rule_name.clone()),
+                Sexp::String((*rule_name).to_string()),
                 expr,
             ]);
         }
@@ -467,7 +468,7 @@ impl<L: Language + Display> FlatTerm<L> {
         if let Some(rule_name) = &self.forward_rule {
             expr = Sexp::List(vec![
                 Sexp::String("Rewrite=>".to_string()),
-                Sexp::String(rule_name.clone()),
+                Sexp::String((*rule_name).to_string()),
                 expr,
             ]);
         }
@@ -512,7 +513,7 @@ impl<L: Language + Display> TreeTerm<L> {
         if let Some(rule_name) = &self.backward_rule {
             expr = Sexp::List(vec![
                 Sexp::String("Rewrite<=".to_string()),
-                Sexp::String(rule_name.clone()),
+                Sexp::String((*rule_name).to_string()),
                 expr,
             ]);
         }
@@ -520,7 +521,7 @@ impl<L: Language + Display> TreeTerm<L> {
         if let Some(rule_name) = &self.forward_rule {
             expr = Sexp::List(vec![
                 Sexp::String("Rewrite=>".to_string()),
-                Sexp::String(rule_name.clone()),
+                Sexp::String((*rule_name).to_string()),
                 expr,
             ]);
         }
@@ -631,8 +632,8 @@ impl<L: Language> Explain<L> {
 
     fn make_rule_table<'a, N: Analysis<L>>(
         rules: &[&'a Rewrite<L, N>],
-    ) -> HashMap<String, &'a Rewrite<L, N>> {
-        let mut table: HashMap<String, &Rewrite<L, N>> = Default::default();
+    ) -> HashMap<Arc<String>, &'a Rewrite<L, N>> {
+        let mut table: HashMap<Arc<String>, &'a Rewrite<L, N>> = Default::default();
         for r in rules {
             table.insert(r.name.clone(), r);
         }

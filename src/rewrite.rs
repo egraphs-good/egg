@@ -16,7 +16,7 @@ use crate::*;
 #[non_exhaustive]
 pub struct Rewrite<L, N> {
     /// The name of the rewrite.
-    pub name: String, // TODO make this an Arc
+    pub name: Arc<String>, // TODO make this an Arc
     /// The searcher (left-hand side) of the rewrite.
     pub searcher: Arc<dyn Searcher<L, N> + Sync + Send>,
     /// The applier (right-hand side) of the rewrite.
@@ -60,7 +60,7 @@ impl<L: Language, N: Analysis<L>> Rewrite<L, N> {
     /// [`rewrite!`] macro instead.
     ///
     pub fn new(
-        name: impl Into<String>,
+        name: impl Into<Arc<String>>,
         searcher: impl Searcher<L, N> + Send + Sync + 'static,
         applier: impl Applier<L, N> + Send + Sync + 'static,
     ) -> Result<Self, String> {
@@ -93,7 +93,8 @@ impl<L: Language, N: Analysis<L>> Rewrite<L, N> {
     ///
     /// [`apply_matches`]: Applier::apply_matches()
     pub fn apply(&self, egraph: &mut EGraph<L, N>, matches: &[SearchMatches<L>]) -> Vec<Id> {
-        self.applier.apply_matches(egraph, matches, &self.name)
+        self.applier
+            .apply_matches(egraph, matches, self.name.clone())
     }
 
     /// This `run` is for testing use only. You should use things
@@ -276,7 +277,7 @@ where
         &self,
         egraph: &mut EGraph<L, N>,
         matches: &[SearchMatches<L>],
-        rule_name: &str,
+        rule_name: Arc<String>,
     ) -> Vec<Id> {
         let mut added = vec![];
         for mat in matches {
@@ -289,7 +290,7 @@ where
                     mat.ast.as_ref(),
                     app_ast.as_ref(),
                     subst,
-                    rule_name,
+                    rule_name.clone(),
                 );
                 added.extend(unions)
             }
@@ -314,7 +315,7 @@ where
         searcher_ast: Option<&PatternAst<L>>,
         applier_ast: Option<&PatternAst<L>>,
         subst: &Subst,
-        rule_name: &str,
+        rule_name: Arc<String>,
     ) -> Vec<Id> {
         let mut unioned = vec![];
         for application_id in application_ids {
@@ -327,7 +328,7 @@ where
                     searcher_ast.unwrap(),
                     applier_ast.unwrap(),
                     subst,
-                    rule_name,
+                    rule_name.clone(),
                 );
             }
             #[cfg(not(feature = "explanation-generation"))]
@@ -411,7 +412,7 @@ where
         searcher_ast: Option<&PatternAst<L>>,
         applier_ast: Option<&PatternAst<L>>,
         subst: &Subst,
-        rule_name: &str,
+        rule_name: Arc<String>,
     ) -> Vec<Id> {
         self.applier.union_results(
             egraph,
@@ -566,7 +567,7 @@ mod tests {
             &"(is-power2 2)".parse().unwrap(),
             &"TRUE".parse().unwrap(),
             &Default::default(),
-            "direct-union",
+            "direct-union".to_string(),
         );
 
         println!("Should fire now");

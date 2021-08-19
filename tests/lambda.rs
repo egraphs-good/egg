@@ -105,7 +105,7 @@ impl Analysis<Lambda> for LambdaAnalysis {
                 &c.0.to_string().parse().unwrap(),
                 &c.1,
                 &Default::default(),
-                "analysis",
+                "analysis".to_string(),
             );
         }
     }
