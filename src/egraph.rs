@@ -1,7 +1,7 @@
 use crate::*;
 use std::sync::Arc;
 use std::{
-    borrow::{BorrowMut, Cow},
+    borrow::BorrowMut,
     fmt::{self, Debug, Display},
 };
 
@@ -49,7 +49,7 @@ pub struct EGraph<L: Language, N: Analysis<L>> {
     pub analysis: N,
     /// Enables explanations.
     /// This is false by default.
-    pub explanations_enabled: bool,
+    pub(crate) explanations_enabled: bool,
     /// The `Explain` used to explain equivalences in this `EGraph`.
     pub(crate) explain: Explain<L>, // TODO make an option
     to_union: Vec<(Id, Id, Option<Arc<String>>)>, // TODO make this Arc<str>
@@ -144,6 +144,30 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// Returns the number of eclasses in the egraph.
     pub fn number_of_classes(&self) -> usize {
         self.classes.len()
+    }
+
+    /// Enable explanations for this `EGraph`.
+    /// This allows the egraph to explain why two expressions are
+    /// equivalent with the [`explain_equivalence`](EGraph::explain_equivalence) function.
+    pub fn with_explanations_enabled(mut self) -> Self {
+        if self.total_size() > 0 {
+            panic!("Need to set explanations enabled before adding any expressions to the egraph.");
+        }
+        self.explanations_enabled = true;
+        self
+    }
+
+    /// When explanations are enabled, this function
+    /// produces an [`Explanation`] describing why two expressions are equivalent.
+    ///
+    /// The [`Explanation`] can be used in it's default tree form or in a less compact
+    /// flattened form. Each of these also has a s-expression string representation,
+    /// given by [`get_flat_string`](Explanation::get_flat_string) and [`get_string`](Explanation::get_string).
+    pub fn explain_equivalence(&mut self, left: &RecExpr<L>, right: &RecExpr<L>) -> Explanation<L> {
+        if !self.explanations_enabled {
+            panic!("Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations.");
+        }
+        self.explain.explain_equivalence(left, right)
     }
 
     /// Canonicalizes an eclass id.
@@ -316,6 +340,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             if self.explanations_enabled {
                 id = self.explain.add(enode.clone());
             } else {
+                println!("bad");
                 id = self.explain.make_set();
             }
             log::trace!("  ...adding to {}", id);
@@ -379,13 +404,13 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// and returned Id represents the eclass of the left pattern.
     pub fn union_instantiations(
         &mut self,
-        from_pat: Cow<PatternAst<L>>,
-        to_pat: Cow<PatternAst<L>>,
+        from_pat: &PatternAst<L>,
+        to_pat: &PatternAst<L>,
         subst: &Subst,
         rule_name: impl Into<Arc<String>>,
     ) -> (Id, bool) {
-        let id1 = self.add_instantiation(from_pat.as_ref(), subst);
-        let id2 = self.add_instantiation(to_pat.as_ref(), subst);
+        let id1 = self.add_instantiation(from_pat, subst);
+        let id2 = self.add_instantiation(to_pat, subst);
         (
             id1,
             self.union_with_justification(id1, id2, from_pat, to_pat, subst, rule_name),
@@ -396,8 +421,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         &mut self,
         id1: Id,
         id2: Id,
-        from_pat: Cow<PatternAst<L>>,
-        to_pat: Cow<PatternAst<L>>,
+        from_pat: &PatternAst<L>,
+        to_pat: &PatternAst<L>,
         subst: &Subst,
         rule_name: impl Into<Arc<String>>,
     ) -> bool {
@@ -765,7 +790,6 @@ impl<'a, L: Language, N: Analysis<L>> Debug for EGraphDump<'a, L, N> {
 mod tests {
 
     use crate::*;
-    use std::borrow::Cow;
 
     #[test]
     fn simple_add() {
@@ -778,11 +802,9 @@ mod tests {
         let x2 = egraph.add(S::leaf("x"));
         let _plus = egraph.add(S::new("+", vec![x, x2]));
 
-        let y = egraph.add(S::leaf("y"));
-
         egraph.union_instantiations(
-            Cow::Owned("x".parse().unwrap()),
-            Cow::Owned("y".parse().unwrap()),
+            &"x".parse().unwrap(),
+            &"y".parse().unwrap(),
             &Default::default(),
             "union x and y".to_string(),
         );

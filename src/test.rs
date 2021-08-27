@@ -3,7 +3,6 @@
 These are not considered part of the public api.
 */
 
-use std::borrow::Cow;
 use std::fmt::Display;
 
 use crate::*;
@@ -38,13 +37,7 @@ pub fn test_runner<L, A>(
     L: Language + Display + 'static,
     A: Analysis<L> + Default,
 {
-    let mut runner = runner.unwrap_or_default().with_expr(&start);
-
-    // NOTE this is a bit of hack, we rely on the fact that the
-    // initial root is the last expr added by the runner. We can't
-    // use egraph.find_expr(start) because it may have been pruned
-    // away
-    let id = runner.egraph.find(*runner.roots.last().unwrap());
+    let mut runner = runner.unwrap_or_default();
 
     if let Some(lim) = env_var("EGG_NODE_LIMIT") {
         runner = runner.with_node_limit(lim)
@@ -60,6 +53,14 @@ pub fn test_runner<L, A>(
             runner = runner.with_explanations_enabled();
         }
     }
+
+    runner = runner.with_expr(&start);
+    // NOTE this is a bit of hack, we rely on the fact that the
+    // initial root is the last expr added by the runner. We can't
+    // use egraph.find_expr(start) because it may have been pruned
+    // away
+    let id = runner.egraph.find(*runner.roots.last().unwrap());
+
 
     if check_fn.is_none() {
         let goals = goals.to_vec();
@@ -80,12 +81,11 @@ pub fn test_runner<L, A>(
         runner.print_report();
         runner.egraph.check_goals(id, &goals);
 
-        if cfg!(feature = "explanations") {
+        if runner.egraph.explanations_enabled {
             for goal in goals {
                 let matches = goal.search_eclass(&runner.egraph, id).unwrap();
                 let subst = matches.substs[0].clone();
-                let mut explained =
-                    runner.explain_matches(&start, Cow::Borrowed(&goal.ast), &subst);
+                let mut explained = runner.explain_matches(&start, &goal.ast, &subst);
                 println!("{}", explained);
                 explained.check_proof(rules);
             }

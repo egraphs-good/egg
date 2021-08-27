@@ -224,8 +224,8 @@ pub struct SearchMatches<'a, L: Language> {
 }
 
 impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
-    fn get_pattern_ast(&self) -> Option<Cow<PatternAst<L>>> {
-        Some(Cow::Borrowed(&self.ast))
+    fn get_pattern_ast(&self) -> Option<&PatternAst<L>> {
+        Some(&self.ast)
     }
 
     fn search(&self, egraph: &EGraph<L, A>) -> Vec<SearchMatches<L>> {
@@ -272,8 +272,8 @@ where
     L: Language,
     A: Analysis<L>,
 {
-    fn get_pattern_ast(&self) -> Option<Cow<PatternAst<L>>> {
-        Some(Cow::Borrowed(&self.ast))
+    fn get_pattern_ast(&self) -> Option<&PatternAst<L>> {
+        Some(&self.ast)
     }
 
     fn apply_one(
@@ -281,7 +281,7 @@ where
         egraph: &mut EGraph<L, A>,
         eclass: Id,
         subst: &Subst,
-        searcher_ast: Option<Cow<PatternAst<L>>>,
+        searcher_ast: Option<&PatternAst<L>>,
         rule_name: Arc<String>,
     ) -> Vec<Id> {
         let ast = self.ast.as_ref();
@@ -289,7 +289,7 @@ where
         let id = apply_pat(&mut id_buf, ast, egraph, subst);
         if let Some(ast) = searcher_ast {
             let (from, did_something) =
-                egraph.union_instantiations(ast, Cow::Borrowed(&self.ast), subst, rule_name);
+                egraph.union_instantiations(ast, &self.ast, subst, rule_name);
             if did_something {
                 vec![from]
             } else {
@@ -337,7 +337,6 @@ pub(crate) fn apply_pat<L: Language, A: Analysis<L>>(
 mod tests {
 
     use crate::{SymbolLang as S, *};
-    use std::borrow::Cow;
 
     type EGraph = crate::EGraph<S, ()>;
 
@@ -346,17 +345,9 @@ mod tests {
         crate::init_logger();
         let mut egraph = EGraph::default();
 
-        let x = egraph.add(S::leaf("x"));
-        let y = egraph.add(S::leaf("y"));
-        let plus = egraph.add(S::new("+", vec![x, y]));
-
-        let z = egraph.add(S::leaf("z"));
-        let w = egraph.add(S::leaf("w"));
-        let plus2 = egraph.add(S::new("+", vec![z, w]));
-
-        egraph.union_instantiations(
-            Cow::Owned("(+ x y)".parse().unwrap()),
-            Cow::Owned("(+ z w)".parse().unwrap()),
+        let (plus_id, _) = egraph.union_instantiations(
+            &"(+ x y)".parse().unwrap(),
+            &"(+ z w)".parse().unwrap(),
             &Default::default(),
             "union_plus".to_string(),
         );
@@ -387,7 +378,7 @@ mod tests {
         use crate::extract::{AstSize, Extractor};
 
         let ext = Extractor::new(&egraph, AstSize);
-        let (_, best) = ext.find_best(plus);
+        let (_, best) = ext.find_best(plus_id);
         eprintln!("Best: {:#?}", best);
     }
 }

@@ -1,6 +1,5 @@
 use egg::{rewrite as rw, *};
 use fxhash::FxHashSet as HashSet;
-use std::borrow::Cow;
 use std::sync::Arc;
 
 define_language! {
@@ -100,8 +99,8 @@ impl Analysis<Lambda> for LambdaAnalysis {
     fn modify(egraph: &mut EGraph, id: Id) {
         if let Some(c) = egraph[id].data.constant.clone() {
             egraph.union_instantiations(
-                Cow::Owned(c.0.to_string().parse().unwrap()),
-                Cow::Borrowed(&c.1),
+                &c.0.to_string().parse().unwrap(),
+                &c.1,
                 &Default::default(),
                 "analysis".to_string(),
             );
@@ -172,7 +171,7 @@ impl Applier<Lambda, LambdaAnalysis> for CaptureAvoid {
         egraph: &mut EGraph,
         eclass: Id,
         subst: &Subst,
-        searcher_ast: Option<Cow<PatternAst<Lambda>>>,
+        searcher_ast: Option<&PatternAst<Lambda>>,
         rule_name: Arc<String>,
     ) -> Vec<Id> {
         let e = subst[self.e];
@@ -281,7 +280,6 @@ egg::test_fn! {
 }
 
 egg::test_fn! {
-    #[cfg(not(feature = "explanations"))]
     #[cfg(not(debug_assertions))]
     lambda_function_repeat, rules(),
     runner = Runner::default()

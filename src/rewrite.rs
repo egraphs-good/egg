@@ -1,5 +1,4 @@
 use pattern::apply_pat;
-use std::borrow::Cow;
 use std::fmt::{self, Debug, Display};
 use std::{any::Any, sync::Arc};
 
@@ -151,7 +150,7 @@ where
     }
 
     /// For patterns, return the ast directly as a reference
-    fn get_pattern_ast(&self) -> Option<Cow<PatternAst<L>>> {
+    fn get_pattern_ast(&self) -> Option<&PatternAst<L>> {
         None
     }
 
@@ -175,7 +174,6 @@ where
 /// # Example
 /// ```
 /// use egg::{rewrite as rw, *};
-/// use std::borrow::Cow;
 /// use std::sync::Arc;
 ///
 /// define_language! {
@@ -230,7 +228,7 @@ where
 ///
 /// impl Applier<Math, MinSize> for Funky {
 ///
-///     fn apply_one(&self, egraph: &mut EGraph, matched_id: Id, subst: &Subst, searcher_pattern: Option<Cow<PatternAst<Math>>>, rule_name: Arc<String>) -> Vec<Id> {
+///     fn apply_one(&self, egraph: &mut EGraph, matched_id: Id, subst: &Subst, searcher_pattern: Option<&PatternAst<Math>>, rule_name: Arc<String>) -> Vec<Id> {
 ///         let a: Id = subst[self.a];
 ///         // In a custom Applier, you can inspect the analysis data,
 ///         // which is powerful combination!
@@ -289,7 +287,7 @@ where
                     egraph,
                     mat.eclass,
                     subst,
-                    mat.ast.clone(),
+                    mat.ast.as_ref().map(|cow| cow.as_ref()),
                     rule_name.clone(),
                 );
                 added.extend(ids)
@@ -299,7 +297,7 @@ where
     }
 
     /// For patterns, get the ast directly as a reference.
-    fn get_pattern_ast(&self) -> Option<Cow<PatternAst<L>>> {
+    fn get_pattern_ast(&self) -> Option<&PatternAst<L>> {
         None
     }
 
@@ -320,7 +318,7 @@ where
         egraph: &mut EGraph<L, N>,
         eclass: Id,
         subst: &Subst,
-        searcher_ast: Option<Cow<PatternAst<L>>>,
+        searcher_ast: Option<&PatternAst<L>>,
         rule_name: Arc<String>,
     ) -> Vec<Id>;
 
@@ -370,7 +368,7 @@ where
         egraph: &mut EGraph<L, N>,
         eclass: Id,
         subst: &Subst,
-        searcher_ast: Option<Cow<PatternAst<L>>>,
+        searcher_ast: Option<&PatternAst<L>>,
         rule_name: Arc<String>,
     ) -> Vec<Id> {
         if self.condition.check(egraph, eclass, subst) {
@@ -485,7 +483,6 @@ where
 mod tests {
 
     use crate::{SymbolLang as S, *};
-    use std::borrow::Cow;
     use std::str::FromStr;
     use std::sync::Arc;
 
@@ -501,7 +498,7 @@ mod tests {
         let mul = egraph.add(S::new("*", vec![x, y]));
 
         let true_pat = Pattern::from_str("TRUE").unwrap();
-        let true_id = egraph.add(S::leaf("TRUE"));
+        egraph.add(S::leaf("TRUE"));
 
         let pow2b = Pattern::from_str("(is-power2 ?b)").unwrap();
         let mul_to_shift = rewrite!(
@@ -516,10 +513,9 @@ mod tests {
         assert!(apps.is_empty());
 
         println!("Add the needed equality");
-        let two_ispow2 = egraph.add(S::new("is-power2", vec![y]));
         egraph.union_instantiations(
-            Cow::Owned("(is-power2 2)".parse().unwrap()),
-            Cow::Owned("TRUE".parse().unwrap()),
+            &"(is-power2 2)".parse().unwrap(),
+            &"TRUE".parse().unwrap(),
             &Default::default(),
             "direct-union".to_string(),
         );
@@ -555,7 +551,7 @@ mod tests {
                 egraph: &mut EGraph,
                 eclass: Id,
                 subst: &Subst,
-                searcher_ast: Option<Cow<PatternAst<SymbolLang>>>,
+                searcher_ast: Option<&PatternAst<SymbolLang>>,
                 rule_name: Arc<String>,
             ) -> Vec<Id> {
                 let a: Var = "?a".parse().unwrap();
@@ -566,7 +562,7 @@ mod tests {
                 if let Some(ast) = searcher_ast {
                     let (id, did_something) = egraph.union_instantiations(
                         ast,
-                        Cow::Owned(PatternAst::from_str(&s).unwrap()),
+                        &PatternAst::from_str(&s).unwrap(),
                         subst,
                         rule_name,
                     );

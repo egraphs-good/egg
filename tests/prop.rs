@@ -1,5 +1,4 @@
 use egg::*;
-use std::borrow::Cow;
 
 define_language! {
     enum Prop {
@@ -49,8 +48,8 @@ impl Analysis<Prop> for ConstantFold {
     fn modify(egraph: &mut EGraph, id: Id) {
         if let Some(c) = egraph[id].data.clone() {
             egraph.union_instantiations(
-                Cow::Borrowed(&c.1),
-                Cow::Owned(c.0.to_string().parse().unwrap()),
+                &c.1,
+                &c.0.to_string().parse().unwrap(),
                 &Default::default(),
                 "analysis".to_string(),
             );

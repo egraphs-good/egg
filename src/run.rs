@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::fmt::{self, Debug, Formatter};
 
 use log::*;
@@ -388,31 +387,24 @@ where
         self
     }
 
-    /// Enable explanations for this `Runner`.
-    /// This allows
+    /// Enable explanations for this runner's egraph.
+    /// This allows the runner to explain why two expressions are
+    /// equivalent with the [`explain_equivalence`](Runner::explain_equivalence) function.
     pub fn with_explanations_enabled(mut self) -> Self {
-        self.egraph.explanations_enabled = true;
+        self.egraph = self.egraph.with_explanations_enabled();
         self
     }
 
-    /// When the feature "explanations" is enabled, this function
-    /// produces an [`Explanation`] describing why two expressions are equivalent.
-    ///
-    /// The [`Explanation`] can be used in it's default tree form or in a less compact
-    /// flattened form. Each of these also has a s-expression string representation,
-    /// given by [`get_flat_string`](Explanation::get_flat_string) and [`get_string`](Explanation::get_string).
+    /// Calls [`EGraph::explain_equivalence`](EGraph::explain_equivalence()).
     pub fn explain_equivalence(&mut self, left: &RecExpr<L>, right: &RecExpr<L>) -> Explanation<L> {
-        if cfg!(not(feature = "explanations")) {
-            panic!("Can't call explain_equivalence without explanations feature enabled.");
-        }
-        self.egraph.explain.explain_equivalence(left, right)
+        self.egraph.explain_equivalence(left, right)
     }
 
     /// Get an explanation for why two expressions are equivalent.
     pub fn explain_matches(
         &mut self,
         left: &RecExpr<L>,
-        right: Cow<PatternAst<L>>,
+        right: &PatternAst<L>,
         subst: &Subst,
     ) -> Explanation<L> {
         self.egraph.explain.explain_matches(left, right, subst)

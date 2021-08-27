@@ -2,7 +2,6 @@ use crate::{
     util::pretty_print, Analysis, ENodeOrVar, HashMap, HashSet, Id, Language, PatternAst, RecExpr,
     Rewrite, Subst, UnionFind, Var,
 };
-use std::borrow::Cow;
 use std::fmt::{self, Debug, Display, Formatter};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -643,7 +642,7 @@ impl<L: Language> FlatTerm<L> {
 
     /// Rewrite the FlatTerm by matching the lhs and substituting the rhs.
     /// The lhs must be guaranteed to match.
-    pub fn rewrite(&self, lhs: Cow<PatternAst<L>>, rhs: Cow<PatternAst<L>>) -> FlatTerm<L> {
+    pub fn rewrite(&self, lhs: &PatternAst<L>, rhs: &PatternAst<L>) -> FlatTerm<L> {
         let lhs_nodes = lhs.as_ref().as_ref();
         let rhs_nodes = rhs.as_ref().as_ref();
         let mut bindings = Default::default();
@@ -799,8 +798,8 @@ impl<L: Language> Explain<L> {
             .iter()
             .map(|node| ENodeOrVar::ENode(node.clone()))
             .collect();
-        let pattern = Cow::Owned(PatternAst::from(nodes));
-        self.add_match(None, pattern, &Default::default())
+        let pattern = PatternAst::from(nodes);
+        self.add_match(None, &pattern, &Default::default())
     }
 
     // add_match uses the memo in order to re-discover matches
@@ -809,7 +808,7 @@ impl<L: Language> Explain<L> {
     pub(crate) fn add_match(
         &mut self,
         eclass: Option<Id>,
-        pattern: Cow<PatternAst<L>>,
+        pattern: &PatternAst<L>,
         subst: &Subst,
     ) -> Id {
         let nodes = pattern.as_ref().as_ref();
@@ -914,7 +913,7 @@ impl<L: Language> Explain<L> {
     pub fn explain_matches(
         &mut self,
         left: &RecExpr<L>,
-        right: Cow<PatternAst<L>>,
+        right: &PatternAst<L>,
         subst: &Subst,
     ) -> Explanation<L> {
         let left_added = self.add_expr(left);
