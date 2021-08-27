@@ -1,6 +1,7 @@
 use egg::{rewrite as rw, *};
 use fxhash::FxHashSet as HashSet;
 use std::borrow::Cow;
+use std::sync::Arc;
 
 define_language! {
     enum Lambda {
@@ -171,7 +172,9 @@ impl Applier<Lambda, LambdaAnalysis> for CaptureAvoid {
         egraph: &mut EGraph,
         eclass: Id,
         subst: &Subst,
-    ) -> (Vec<Id>, Option<Cow<PatternAst<Lambda>>>) {
+        searcher_ast: Option<Cow<PatternAst<Lambda>>>,
+        rule_name: Arc<String>,
+    ) -> Vec<Id> {
         let e = subst[self.e];
         let v2 = subst[self.v2];
         let v2_free_in_e = egraph[e].data.free.contains(&v2);
@@ -179,18 +182,11 @@ impl Applier<Lambda, LambdaAnalysis> for CaptureAvoid {
             let mut subst = subst.clone();
             let sym = Lambda::Symbol(format!("_{}", eclass).into());
             subst.insert(self.fresh, egraph.add(sym));
-            let ast = format!(
-                "(lam _{} (let ?v1 ?e (let ?v2 (var _{}) ?body)))",
-                eclass, eclass
-            )
-            .parse()
-            .unwrap();
-            (
-                self.if_free.apply_one(egraph, eclass, &subst).0,
-                Some(Cow::Owned(ast)),
-            )
+            self.if_free
+                .apply_one(egraph, eclass, &subst, searcher_ast, rule_name)
         } else {
-            self.if_not_free.apply_one(egraph, eclass, &subst)
+            self.if_not_free
+                .apply_one(egraph, eclass, &subst, searcher_ast, rule_name)
         }
     }
 }

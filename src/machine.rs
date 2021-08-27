@@ -1,6 +1,5 @@
 use crate::util::HashSet;
 use crate::{Analysis, EClass, EGraph, ENodeOrVar, Id, Language, PatternAst, RecExpr, Subst, Var};
-use std::borrow::Cow;
 use std::cmp::Ordering;
 
 struct Machine {

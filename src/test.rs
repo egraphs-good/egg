@@ -55,6 +55,11 @@ pub fn test_runner<L, A>(
     if let Some(lim) = env_var("EGG_TIME_LIMIT") {
         runner = runner.with_time_limit(std::time::Duration::from_secs(lim))
     }
+    if let Some(is_enabled) = env_var("EGG_TEST_EXPLANATIONS") {
+        if is_enabled {
+            runner = runner.with_explanations_enabled();
+        }
+    }
 
     if check_fn.is_none() {
         let goals = goals.to_vec();

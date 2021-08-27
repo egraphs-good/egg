@@ -47,14 +47,20 @@ and
 pub struct EGraph<L: Language, N: Analysis<L>> {
     /// The `Analysis` given when creating this `EGraph`.
     pub analysis: N,
+    /// Enables explanations.
+    /// This is false by default.
+    pub explanations_enabled: bool,
     /// The `Explain` used to explain equivalences in this `EGraph`.
-    pub explain: Explain<L>,
-    to_union: Vec<(Id, Id, Option<Arc<String>>)>,
+    pub(crate) explain: Explain<L>, // TODO make an option
+    to_union: Vec<(Id, Id, Option<Arc<String>>)>, // TODO make this Arc<str>
     pending: Vec<(L, Id)>,
     analysis_pending: IndexSet<(L, Id)>,
     classes: HashMap<Id, EClass<L, N::Data>>,
     pub(crate) classes_by_op: HashMap<std::mem::Discriminant<L>, HashSet<Id>>,
 }
+
+// TODO change soem Cow to refs
+// TODO add major change to changelog
 
 impl<L: Language, N: Analysis<L> + Default> Default for EGraph<L, N> {
     fn default() -> Self {
@@ -83,6 +89,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             pending: Default::default(),
             analysis_pending: Default::default(),
             classes_by_op: Default::default(),
+            explanations_enabled: false,
         }
     }
 
@@ -306,12 +313,9 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     pub fn add(&mut self, mut enode: L) -> Id {
         self.lookup(&mut enode).unwrap_or_else(|| {
             let id;
-            #[cfg(feature = "explanations")]
-            {
+            if self.explanations_enabled {
                 id = self.explain.add(enode.clone());
-            }
-            #[cfg(not(feature = "explanations"))]
-            {
+            } else {
                 id = self.explain.make_set();
             }
             log::trace!("  ...adding to {}", id);
@@ -368,20 +372,24 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// Given two patterns and a substitution, add the patterns
     /// and mark them for unioning.
     /// The unions are performed when [`rebuild`](EGraph::rebuild) is called.
-    /// When the "explanations" feature is enabled, use
+    /// When explanations are enabled [`with_explanations_enabled`](Runner::with_explanations_enabled), use
     /// this function instead of [`union`](EGraph::union).
     ///
-    /// The returned `bool` indicates whether a union is necessary.
+    /// The returned `bool` indicates whether a union is necessary,
+    /// and returned Id represents the eclass of the left pattern.
     pub fn union_instantiations(
         &mut self,
         from_pat: Cow<PatternAst<L>>,
         to_pat: Cow<PatternAst<L>>,
         subst: &Subst,
         rule_name: impl Into<Arc<String>>,
-    ) -> bool {
+    ) -> (Id, bool) {
         let id1 = self.add_instantiation(from_pat.as_ref(), subst);
         let id2 = self.add_instantiation(to_pat.as_ref(), subst);
-        self.union_with_justification(id1, id2, from_pat, to_pat, subst, rule_name)
+        (
+            id1,
+            self.union_with_justification(id1, id2, from_pat, to_pat, subst, rule_name),
+        )
     }
 
     pub(crate) fn union_with_justification(
@@ -393,13 +401,9 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         subst: &Subst,
         rule_name: impl Into<Arc<String>>,
     ) -> bool {
-        #[cfg(not(feature = "explanations"))]
-        {
+        if !self.explanations_enabled {
             return self.union(id1, id2);
-        }
-
-        #[cfg(feature = "explanations")]
-        {
+        } else {
             if self.find_mut(id1) == self.find_mut(id2) {
                 false
             } else {
@@ -422,14 +426,17 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// so it's `false` if they were already equivalent.
     /// Both results are canonical.
     ///
-    /// When "explanations" is enabled, this function is not available.
+    /// When explanations are enabled, this function is not available.
     /// Instead, use [`union_instantiations`](EGraph::union_instantiations).
     /// See [`explain_equivalence`](Runner::explain_equivalence) for a more detailed
     /// explanation of the feature.
     ///
     /// You must call [`rebuild`](EGraph::rebuild) to observe any effect.
-    #[cfg(not(feature = "explanations"))]
+    ///
     pub fn union(&mut self, id1: Id, id2: Id) -> bool {
+        if self.explanations_enabled {
+            panic!("Use union_instantiations when explanation mode is enabled.");
+        }
         if self.find_mut(id1) == self.find_mut(id2) {
             false
         } else {
@@ -454,6 +461,9 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         N::pre_union(self, id1, id2);
 
         // make id1 the new root
+        if !self.explanations_enabled {
+            assert!(rule.is_none());
+        }
         self.explain.union(enode_id1, enode_id2, id1, id2, rule);
 
         assert_ne!(id1, id2);
@@ -630,8 +640,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                     node.update_children(|id| self.find_mut(id));
                     if let Some(memo_class) = self.explain.memo.insert(node, class) {
                         let mut reason = None;
-                        #[cfg(feature = "explanations")]
-                        {
+                        if self.explanations_enabled {
                             reason = Some(Justification::Congruence);
                         }
                         let did_something = self.perform_union(memo_class, class, reason);

@@ -388,6 +388,13 @@ where
         self
     }
 
+    /// Enable explanations for this `Runner`.
+    /// This allows
+    pub fn with_explanations_enabled(mut self) -> Self {
+        self.egraph.explanations_enabled = true;
+        self
+    }
+
     /// When the feature "explanations" is enabled, this function
     /// produces an [`Explanation`] describing why two expressions are equivalent.
     ///

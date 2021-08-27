@@ -5,7 +5,8 @@ test:
 	cargo build --release
 	cargo test --release
 	# don't run examples in proof-production mode
-	cargo test --lib --bins --tests --benches --release --features "explanations"
+	EGG_TEST_EXPLANATIONS=1 && cargo test --lib --bins --tests --benches --release
+	
 
 .PHONY: nits
 nits:
@@ -16,7 +17,7 @@ nits:
 	cargo deadlinks
 
 	cargo clippy --tests
-	cargo clippy --tests --features "explanations"
+	EGG_TEST_EXPLANATIONS=1 && cargo clippy --tests
 	cargo clippy --tests --features "serde-1"
 	cargo clippy --tests --features "reports"
 

@@ -1,3 +1,4 @@
+use pattern::apply_pat;
 use std::borrow::Cow;
 use std::fmt::{self, Debug, Display};
 use std::{any::Any, sync::Arc};
@@ -175,6 +176,7 @@ where
 /// ```
 /// use egg::{rewrite as rw, *};
 /// use std::borrow::Cow;
+/// use std::sync::Arc;
 ///
 /// define_language! {
 ///     enum Math {
@@ -228,14 +230,14 @@ where
 ///
 /// impl Applier<Math, MinSize> for Funky {
 ///
-///     fn apply_one(&self, egraph: &mut EGraph, matched_id: Id, subst: &Subst) -> (Vec<Id>, Option<Cow<PatternAst<Math>>>) {
+///     fn apply_one(&self, egraph: &mut EGraph, matched_id: Id, subst: &Subst, searcher_pattern: Option<Cow<PatternAst<Math>>>, rule_name: Arc<String>) -> Vec<Id> {
 ///         let a: Id = subst[self.a];
 ///         // In a custom Applier, you can inspect the analysis data,
 ///         // which is powerful combination!
 ///         let size_of_a = egraph[a].data;
 ///         if size_of_a > 50 {
 ///             println!("Too big! Not doing anything");
-///             (vec![], None)
+///             vec![]
 ///         } else {
 ///             // we're going to manually add:
 ///             // (+ (+ ?a 0) (* (+ ?b 0) (+ ?c 0)))
@@ -252,7 +254,7 @@ where
 ///             // NOTE: we just return the id according to what we
 ///             // want unified with matched_id. The `apply_matches`
 ///             // method actually does the union, _not_ `apply_one`.
-///             (vec![a0b0c0], Some(Cow::Owned("(+ (+ ?a 0) (* (+ ?b 0) (+ ?c 0)))".parse().unwrap())))
+///             vec![a0b0c0]
 ///         }
 ///     }
 /// }
@@ -267,10 +269,9 @@ where
 {
     /// Apply many substititions.
     ///
-    /// This method should call [`apply_one`] for each match,
-    /// then call [`union_results`](Applier::union_results) to combine the results.
+    /// This method should call [`apply_one`] for each match.
     ///
-    /// It returns the ids resulting from the calls to [`union_results`](Applier::union_results).
+    /// It returns the ids resulting from the calls to [`apply_one`].
     /// The default implementation does this and should suffice for
     /// most use cases.
     ///
@@ -284,17 +285,14 @@ where
         let mut added = vec![];
         for mat in matches {
             for subst in &mat.substs {
-                let (ids, app_ast) = self.apply_one(egraph, mat.eclass, subst);
-                let unions = self.union_results(
+                let ids = self.apply_one(
                     egraph,
                     mat.eclass,
-                    ids,
-                    mat.ast.clone(),
-                    app_ast,
                     subst,
+                    mat.ast.clone(),
                     rule_name.clone(),
                 );
-                added.extend(unions)
+                added.extend(ids)
             }
         }
         added
@@ -305,57 +303,16 @@ where
         None
     }
 
-    /// Unions the eclasses after a match has been applied.
-    ///
-    /// This should return a list of [`Id`]s of eclasses which
-    /// had unions applied to them.
-    fn union_results(
-        &self,
-        egraph: &mut EGraph<L, N>,
-        eclass: Id,
-        application_ids: Vec<Id>,
-        searcher_ast: Option<Cow<PatternAst<L>>>,
-        applier_ast: Option<Cow<PatternAst<L>>>,
-        subst: &Subst,
-        rule_name: Arc<String>,
-    ) -> Vec<Id> {
-        let mut unioned = vec![];
-        for application_id in application_ids {
-            let did_something;
-            #[cfg(feature = "explanations")]
-            {
-                did_something = egraph.union_with_justification(
-                    eclass,
-                    application_id,
-                    searcher_ast.as_ref().unwrap().clone(),
-                    applier_ast.as_ref().unwrap().clone(),
-                    subst,
-                    rule_name.clone(),
-                );
-            }
-            #[cfg(not(feature = "explanations"))]
-            {
-                did_something = egraph.union(eclass, application_id);
-            }
-            if did_something {
-                unioned.push(eclass);
-            }
-        }
-        unioned
-    }
-
     /// Apply a single substitition.
     ///
-    /// An [`Applier`] should only add things to the egraph here,
-    /// _not_ union them with the id `eclass`.
-    /// That is the responsibility of the [`union_results`](Applier::union_results) method.
+    /// An [`Applier`] should add things and union them in the egraph.
     /// The `eclass` parameter allows the implementer to inspect the
     /// eclass where the match was found if they need to.
     ///
-    /// This should return a list of [`Id`]s of things you'd like to
-    /// be unioned with `eclass`. There can be zero, one, or many.
-    /// When explanations mode is enabled, a [`PatternAst`] matching
-    /// the application is also required in order to justify the application.
+    /// This should return a list of [`Id`]s of eclasses that
+    /// were changed. There can be zero, one, or many.
+    /// When explanations mode is enabled, a [`PatternAst`] for
+    /// the searcher is provided.
     ///
     /// [`apply_matches`]: Applier::apply_matches()
     fn apply_one(
@@ -363,7 +320,9 @@ where
         egraph: &mut EGraph<L, N>,
         eclass: Id,
         subst: &Subst,
-    ) -> (Vec<Id>, Option<Cow<PatternAst<L>>>);
+        searcher_ast: Option<Cow<PatternAst<L>>>,
+        rule_name: Arc<String>,
+    ) -> Vec<Id>;
 
     /// Returns a list of variables that this Applier assumes are bound.
     ///
@@ -406,37 +365,19 @@ where
     A: Applier<L, N>,
     N: Analysis<L>,
 {
-    fn union_results(
-        &self,
-        egraph: &mut EGraph<L, N>,
-        eclass: Id,
-        application_ids: Vec<Id>,
-        searcher_ast: Option<Cow<PatternAst<L>>>,
-        applier_ast: Option<Cow<PatternAst<L>>>,
-        subst: &Subst,
-        rule_name: Arc<String>,
-    ) -> Vec<Id> {
-        self.applier.union_results(
-            egraph,
-            eclass,
-            application_ids,
-            searcher_ast,
-            applier_ast,
-            subst,
-            rule_name,
-        )
-    }
-
     fn apply_one(
         &self,
         egraph: &mut EGraph<L, N>,
         eclass: Id,
         subst: &Subst,
-    ) -> (Vec<Id>, Option<Cow<PatternAst<L>>>) {
+        searcher_ast: Option<Cow<PatternAst<L>>>,
+        rule_name: Arc<String>,
+    ) -> Vec<Id> {
         if self.condition.check(egraph, eclass, subst) {
-            self.applier.apply_one(egraph, eclass, subst)
+            self.applier
+                .apply_one(egraph, eclass, subst, searcher_ast, rule_name)
         } else {
-            (vec![], None)
+            vec![]
         }
     }
 
@@ -492,39 +433,50 @@ where
 
 /// A [`Condition`] that checks if two terms are equivalent.
 ///
-/// This condition adds its two [`Applier`]s to the egraph and passes
+/// This condition adds its two [`Pattern`] to the egraph and passes
 /// if and only if they are equivalent (in the same eclass).
 ///
 #[derive(Debug)]
-pub struct ConditionEqual<A1, A2>(pub A1, pub A2);
+pub struct ConditionEqual<L> {
+    p1: Pattern<L>,
+    p2: Pattern<L>,
+}
 
-impl<L: FromOp> ConditionEqual<Pattern<L>, Pattern<L>> {
+impl<L: Language> ConditionEqual<L> {
+    /// Create a new [`ConditionEqual`] condition given two patterns.
+    pub fn new(p1: Pattern<L>, p2: Pattern<L>) -> Self {
+        ConditionEqual { p1, p2 }
+    }
+}
+
+impl<L: FromOp> ConditionEqual<L> {
     /// Create a ConditionEqual by parsing two pattern strings.
     ///
     /// This panics if the parsing fails.
     pub fn parse(a1: &str, a2: &str) -> Self {
-        Self(a1.parse().unwrap(), a2.parse().unwrap())
+        Self {
+            p1: a1.parse().unwrap(),
+            p2: a2.parse().unwrap(),
+        }
     }
 }
 
-impl<L, N, A1, A2> Condition<L, N> for ConditionEqual<A1, A2>
+impl<L, N> Condition<L, N> for ConditionEqual<L>
 where
     L: Language,
     N: Analysis<L>,
-    A1: Applier<L, N>,
-    A2: Applier<L, N>,
 {
-    fn check(&self, egraph: &mut EGraph<L, N>, eclass: Id, subst: &Subst) -> bool {
-        let (a1, _) = self.0.apply_one(egraph, eclass, subst);
-        let (a2, _) = self.1.apply_one(egraph, eclass, subst);
-        assert_eq!(a1.len(), 1);
-        assert_eq!(a2.len(), 1);
-        a1[0] == a2[0]
+    fn check(&self, egraph: &mut EGraph<L, N>, _eclass: Id, subst: &Subst) -> bool {
+        let mut id_buf_1 = vec![0.into(); self.p1.ast.as_ref().len()];
+        let mut id_buf_2 = vec![0.into(); self.p2.ast.as_ref().len()];
+        let a1 = apply_pat(&mut id_buf_1, self.p1.ast.as_ref(), egraph, subst);
+        let a2 = apply_pat(&mut id_buf_2, self.p2.ast.as_ref(), egraph, subst);
+        a1 == a2
     }
 
     fn vars(&self) -> Vec<Var> {
-        let mut vars = self.0.vars();
-        vars.extend(self.1.vars());
+        let mut vars = self.p1.vars();
+        vars.extend(self.p2.vars());
         vars
     }
 }
@@ -535,6 +487,7 @@ mod tests {
     use crate::{SymbolLang as S, *};
     use std::borrow::Cow;
     use std::str::FromStr;
+    use std::sync::Arc;
 
     type EGraph = crate::EGraph<S, ()>;
 
@@ -554,7 +507,7 @@ mod tests {
         let mul_to_shift = rewrite!(
             "mul_to_shift";
             "(* ?a ?b)" => "(>> ?a (log2 ?b))"
-            if ConditionEqual(pow2b, true_pat)
+            if ConditionEqual::new(pow2b, true_pat)
         );
 
         println!("rewrite shouldn't do anything yet");
@@ -600,18 +553,36 @@ mod tests {
             fn apply_one(
                 &self,
                 egraph: &mut EGraph,
-                _eclass: Id,
+                eclass: Id,
                 subst: &Subst,
-            ) -> (Vec<Id>, Option<Cow<PatternAst<SymbolLang>>>) {
+                searcher_ast: Option<Cow<PatternAst<SymbolLang>>>,
+                rule_name: Arc<String>,
+            ) -> Vec<Id> {
                 let a: Var = "?a".parse().unwrap();
                 let b: Var = "?b".parse().unwrap();
                 let a = get(&egraph, subst[a]);
                 let b = get(&egraph, subst[b]);
                 let s = format!("{}{}", a, b);
-                (
-                    vec![egraph.add(S::leaf(&s))],
-                    Some(Cow::Owned(PatternAst::from_str(&s).unwrap())),
-                )
+                if let Some(ast) = searcher_ast {
+                    let (id, did_something) = egraph.union_instantiations(
+                        ast,
+                        Cow::Owned(PatternAst::from_str(&s).unwrap()),
+                        subst,
+                        rule_name,
+                    );
+                    if did_something {
+                        vec![id]
+                    } else {
+                        vec![]
+                    }
+                } else {
+                    let added = egraph.add(S::leaf(&s));
+                    if egraph.union(added, eclass) {
+                        vec![eclass]
+                    } else {
+                        vec![]
+                    }
+                }
             }
         }
 

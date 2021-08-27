@@ -253,12 +253,7 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
         if substs.is_empty() {
             None
         } else {
-            let ast;
-            if cfg!(feature = "explanations") {
-                ast = Some(Cow::Borrowed(&self.ast));
-            } else {
-                ast = None;
-            }
+            let ast = Some(Cow::Borrowed(&self.ast));
             Some(SearchMatches {
                 eclass,
                 substs,
@@ -284,56 +279,37 @@ where
     fn apply_one(
         &self,
         egraph: &mut EGraph<L, A>,
-        _: Id,
+        eclass: Id,
         subst: &Subst,
-    ) -> (Vec<Id>, Option<Cow<PatternAst<L>>>) {
+        searcher_ast: Option<Cow<PatternAst<L>>>,
+        rule_name: Arc<String>,
+    ) -> Vec<Id> {
         let ast = self.ast.as_ref();
         let mut id_buf = vec![0.into(); ast.len()];
         let id = apply_pat(&mut id_buf, ast, egraph, subst);
-        let ast_option;
-        if cfg!(feature = "explanations") {
-            ast_option = Some(Cow::Borrowed(&self.ast));
+        if let Some(ast) = searcher_ast {
+            let (from, did_something) =
+                egraph.union_instantiations(ast, Cow::Borrowed(&self.ast), subst, rule_name);
+            if did_something {
+                vec![from]
+            } else {
+                vec![]
+            }
         } else {
-            ast_option = None;
+            if egraph.union(eclass, id) {
+                vec![eclass]
+            } else {
+                vec![]
+            }
         }
-        (vec![id], ast_option)
     }
 
     fn vars(&self) -> Vec<Var> {
         Pattern::vars(self)
     }
-
-    fn apply_matches(
-        &self,
-        egraph: &mut EGraph<L, A>,
-        matches: &[SearchMatches<L>],
-        rule_name: Arc<String>,
-    ) -> Vec<Id> {
-        let mut added = vec![];
-        let ast = self.ast.as_ref();
-        let mut id_buf = vec![0.into(); ast.len()];
-        for mat in matches {
-            for subst in &mat.substs {
-                let id = apply_pat(&mut id_buf, ast, egraph, subst);
-                let to = self.union_results(
-                    egraph,
-                    mat.eclass,
-                    vec![id],
-                    mat.ast.clone(),
-                    Some(Cow::Borrowed(&self.ast)),
-                    subst,
-                    rule_name.clone(),
-                );
-                if !to.is_empty() {
-                    added.push(to[0])
-                }
-            }
-        }
-        added
-    }
 }
 
-fn apply_pat<L: Language, A: Analysis<L>>(
+pub(crate) fn apply_pat<L: Language, A: Analysis<L>>(
     ids: &mut [Id],
     pat: &[ENodeOrVar<L>],
     egraph: &mut EGraph<L, A>,

@@ -70,7 +70,7 @@ pub struct Explanation<L: Language> {
 impl<L: Language + Display> Display for Explanation<L> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let mut s = "".to_string();
-        pretty_print(&mut s, &self.get_sexp(), 100, 0);
+        pretty_print(&mut s, &self.get_sexp(), 100, 0).unwrap();
         f.write_str(&s)
     }
 }

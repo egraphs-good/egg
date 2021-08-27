@@ -1,8 +1,6 @@
 #[allow(unused_imports)]
 use crate::*;
 
-use std::sync::Arc;
-
 /** A macro to easily create a [`Language`].
 
 `define_language` derives `Debug`, `PartialEq`, `Eq`, `PartialOrd`, `Ord`,
@@ -229,6 +227,7 @@ the outermost, and the last condition being the innermost.
 ```
 # use egg::*;
 use std::borrow::Cow;
+use std::sync::Arc;
 define_language! {
     enum SimpleLanguage {
         Num(i32),
@@ -264,7 +263,7 @@ rules.extend(vec![
 #[derive(Debug)]
 struct MySillyApplier(&'static str);
 impl Applier<SimpleLanguage, ()> for MySillyApplier {
-    fn apply_one(&self, _: &mut EGraph, _: Id, _: &Subst) -> (Vec<Id>, Option<Cow<PatternAst<SimpleLanguage>>>) {
+    fn apply_one(&self, _: &mut EGraph, _: Id, _: &Subst, _: Option<Cow<PatternAst<SimpleLanguage>>>, _: Arc<String>) -> Vec<Id> {
         panic!()
     }
 }
@@ -368,7 +367,7 @@ mod tests {
     fn rewrite_conditional_panic() {
         let x: Pattern<Simple> = "?x".parse().unwrap();
         let _: Rewrite<Simple, ()> = rewrite!(
-            "bad"; "?a" => "?a" if ConditionEqual(x.clone(), x)
+            "bad"; "?a" => "?a" if ConditionEqual::new(x.clone(), x)
         );
     }
 }
