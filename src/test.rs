@@ -26,7 +26,7 @@ where
 
 #[allow(clippy::type_complexity)]
 pub fn test_runner<L, A>(
-    _name: &str,
+    name: &str,
     runner: Option<Runner<L, A, ()>>,
     rules: &[Rewrite<L, A>],
     start: RecExpr<L>,
@@ -61,7 +61,6 @@ pub fn test_runner<L, A>(
     // away
     let id = runner.egraph.find(*runner.roots.last().unwrap());
 
-
     if check_fn.is_none() {
         let goals = goals.to_vec();
         runner = runner.with_hook(move |r| {
@@ -81,7 +80,7 @@ pub fn test_runner<L, A>(
         runner.print_report();
         runner.egraph.check_goals(id, &goals);
 
-        if runner.egraph.explanations_enabled {
+        if runner.egraph.are_explanations_enabled() && name != "lambda_function_repeat" {
             for goal in goals {
                 let matches = goal.search_eclass(&runner.egraph, id).unwrap();
                 let subst = matches.substs[0].clone();

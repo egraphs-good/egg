@@ -400,14 +400,14 @@ where
         self.egraph.explain_equivalence(left, right)
     }
 
-    /// Get an explanation for why two expressions are equivalent.
+    /// Get an explanation for why an expression matches a pattern.
     pub fn explain_matches(
         &mut self,
         left: &RecExpr<L>,
         right: &PatternAst<L>,
         subst: &Subst,
     ) -> Explanation<L> {
-        self.egraph.explain.explain_matches(left, right, subst)
+        self.egraph.explain_matches(left, right, subst)
     }
 
     #[rustfmt::skip]
@@ -501,7 +501,9 @@ where
 
         let rebuild_time = Instant::now();
         let n_rebuilds = self.egraph.rebuild();
-        debug_assert!(self.egraph.check_each_explain(rules));
+        if self.egraph.are_explanations_enabled() {
+            debug_assert!(self.egraph.check_each_explain(rules));
+        }
 
         let rebuild_time = rebuild_time.elapsed().as_secs_f64();
         info!("Rebuild time: {}", rebuild_time);

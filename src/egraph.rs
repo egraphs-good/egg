@@ -47,11 +47,10 @@ and
 pub struct EGraph<L: Language, N: Analysis<L>> {
     /// The `Analysis` given when creating this `EGraph`.
     pub analysis: N,
-    /// Enables explanations.
-    /// This is false by default.
-    pub(crate) explanations_enabled: bool,
     /// The `Explain` used to explain equivalences in this `EGraph`.
-    pub(crate) explain: Explain<L>, // TODO make an option
+    pub(crate) explain: Option<Explain<L>>,
+    unionfind: UnionFind,
+    memo: HashMap<L, Id>,
     to_union: Vec<(Id, Id, Option<Arc<String>>)>, // TODO make this Arc<str>
     pending: Vec<(L, Id)>,
     analysis_pending: IndexSet<(L, Id)>,
@@ -59,7 +58,6 @@ pub struct EGraph<L: Language, N: Analysis<L>> {
     pub(crate) classes_by_op: HashMap<std::mem::Discriminant<L>, HashSet<Id>>,
 }
 
-// TODO change soem Cow to refs
 // TODO add major change to changelog
 
 impl<L: Language, N: Analysis<L> + Default> Default for EGraph<L, N> {
@@ -72,7 +70,7 @@ impl<L: Language, N: Analysis<L> + Default> Default for EGraph<L, N> {
 impl<L: Language, N: Analysis<L>> Debug for EGraph<L, N> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("EGraph")
-            .field("memo", &self.explain.memo)
+            .field("memo", &self.memo)
             .field("classes", &self.classes)
             .finish()
     }
@@ -85,11 +83,12 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             analysis,
             to_union: Default::default(),
             classes: Default::default(),
-            explain: Default::default(),
+            unionfind: Default::default(),
+            explain: None,
             pending: Default::default(),
+            memo: Default::default(),
             analysis_pending: Default::default(),
             classes_by_op: Default::default(),
-            explanations_enabled: false,
         }
     }
 
@@ -113,7 +112,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// assert!(!egraph.is_empty());
     /// ```
     pub fn is_empty(&self) -> bool {
-        self.explain.memo.is_empty()
+        self.memo.is_empty()
     }
 
     /// Returns the number of enodes in the `EGraph`.
@@ -133,7 +132,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// assert_eq!(egraph.number_of_classes(), 1);
     /// ```
     pub fn total_size(&self) -> usize {
-        self.explain.memo.len()
+        self.memo.len()
     }
 
     /// Iterates over the classes, returning the total number of nodes.
@@ -153,8 +152,13 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         if self.total_size() > 0 {
             panic!("Need to set explanations enabled before adding any expressions to the egraph.");
         }
-        self.explanations_enabled = true;
+        self.explain = Some(Explain::new());
         self
+    }
+
+    /// Check if explanations are enabled.
+    pub fn are_explanations_enabled(&self) -> bool {
+        self.explain.is_some()
     }
 
     /// When explanations are enabled, this function
@@ -164,10 +168,25 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// flattened form. Each of these also has a s-expression string representation,
     /// given by [`get_flat_string`](Explanation::get_flat_string) and [`get_string`](Explanation::get_string).
     pub fn explain_equivalence(&mut self, left: &RecExpr<L>, right: &RecExpr<L>) -> Explanation<L> {
-        if !self.explanations_enabled {
+        if let Some(explain) = &mut self.explain {
+            explain.explain_equivalence(left, right, &self.memo, &mut self.unionfind)
+        } else {
+            panic!("Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations.")
+        }
+    }
+
+    /// Get an explanation for why an expression matches a pattern.
+    pub fn explain_matches(
+        &mut self,
+        left: &RecExpr<L>,
+        right: &PatternAst<L>,
+        subst: &Subst,
+    ) -> Explanation<L> {
+        if let Some(explain) = &mut self.explain {
+            explain.explain_matches(left, right, subst, &self.memo, &mut self.unionfind)
+        } else {
             panic!("Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations.");
         }
-        self.explain.explain_equivalence(left, right)
     }
 
     /// Canonicalizes an eclass id.
@@ -188,13 +207,13 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// assert_eq!(egraph.find(x), egraph.find(y));
     /// ```
     pub fn find(&self, id: Id) -> Id {
-        self.explain.find(id)
+        self.unionfind.find(id)
     }
 
     /// This is private, but internals should use this whenever
     /// possible because it does path compression.
     fn find_mut(&mut self, id: Id) -> Id {
-        self.explain.find_mut(id)
+        self.unionfind.find_mut(id)
     }
 
     /// Creates a [`Dot`] to visualize this egraph. See [`Dot`].
@@ -305,7 +324,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     {
         let enode = enode.borrow_mut();
         enode.update_children(|id| self.find(id));
-        let id = self.explain.memo.get(enode);
+        let id = self.memo.get(enode);
         id.map(|&id| self.find(id))
     }
 
@@ -336,12 +355,9 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// [`add`]: EGraph::add()
     pub fn add(&mut self, mut enode: L) -> Id {
         self.lookup(&mut enode).unwrap_or_else(|| {
-            let id;
-            if self.explanations_enabled {
-                id = self.explain.add(enode.clone());
-            } else {
-                println!("bad");
-                id = self.explain.make_set();
+            let id = self.unionfind.make_set();
+            if let Some(explain) = &mut self.explain {
+                explain.add(enode.clone(), id);
             }
             log::trace!("  ...adding to {}", id);
             let class = EClass {
@@ -361,7 +377,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             self.pending.push((enode.clone(), id));
 
             self.classes.insert(id, class);
-            assert!(self.explain.memo.insert(enode, id).is_none());
+            assert!(self.memo.insert(enode, id).is_none());
 
             N::modify(self, id);
             id
@@ -426,18 +442,19 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         subst: &Subst,
         rule_name: impl Into<Arc<String>>,
     ) -> bool {
-        if !self.explanations_enabled {
-            return self.union(id1, id2);
-        } else {
-            if self.find_mut(id1) == self.find_mut(id2) {
+        if let Some(explain) = &mut self.explain {
+            if self.unionfind.find_mut(id1) == self.unionfind.find_mut(id2) {
                 false
             } else {
-                let left_added = self.explain.add_match(Some(id1), from_pat, subst);
-                let right_added = self.explain.add_match(Some(id2), to_pat, subst);
+                let left_added =
+                    explain.add_match(from_pat, subst, &self.memo, &mut self.unionfind);
+                let right_added = explain.add_match(to_pat, subst, &self.memo, &mut self.unionfind);
                 self.to_union
                     .push((left_added, right_added, Some(rule_name.into())));
                 true
             }
+        } else {
+            self.union(id1, id2)
         }
     }
 
@@ -459,7 +476,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// You must call [`rebuild`](EGraph::rebuild) to observe any effect.
     ///
     pub fn union(&mut self, id1: Id, id2: Id) -> bool {
-        if self.explanations_enabled {
+        if self.explain.is_some() {
             panic!("Use union_instantiations when explanation mode is enabled.");
         }
         if self.find_mut(id1) == self.find_mut(id2) {
@@ -486,10 +503,12 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         N::pre_union(self, id1, id2);
 
         // make id1 the new root
-        if !self.explanations_enabled {
+        if let Some(explain) = &mut self.explain {
+            explain.union(enode_id1, enode_id2, rule.unwrap());
+        } else {
             assert!(rule.is_none());
         }
-        self.explain.union(enode_id1, enode_id2, id1, id2, rule);
+        self.unionfind.union(id1, id2);
 
         assert_ne!(id1, id2);
         let class2 = self.classes.remove(&id2).unwrap();
@@ -560,8 +579,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         classes_by_op.values_mut().for_each(|ids| ids.clear());
 
         let mut trimmed = 0;
+        let uf = &mut self.unionfind;
 
-        let uf = &mut self.explain;
         for class in self.classes.values_mut() {
             let old_len = class.len();
             class
@@ -629,7 +648,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             assert_eq!(e, self.find(e));
             assert_eq!(
                 Some(e),
-                self.explain.memo.get(n).map(|id| self.find(*id)),
+                self.memo.get(n).map(|id| self.find(*id)),
                 "Entry for {:?} at {} in test_memo was incorrect",
                 n,
                 e
@@ -663,9 +682,9 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
                 while let Some((mut node, class)) = self.pending.pop() {
                     node.update_children(|id| self.find_mut(id));
-                    if let Some(memo_class) = self.explain.memo.insert(node, class) {
+                    if let Some(memo_class) = self.memo.insert(node, class) {
                         let mut reason = None;
-                        if self.explanations_enabled {
+                        if self.explain.is_some() {
                             reason = Some(Justification::Congruence);
                         }
                         let did_something = self.perform_union(memo_class, class, reason);
@@ -736,7 +755,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// assert_eq!(egraph.find(ax), egraph.find(ay));
     /// ```
     pub fn rebuild(&mut self) -> usize {
-        let old_hc_size = self.explain.memo.len();
+        let old_hc_size = self.memo.len();
         let old_n_eclasses = self.number_of_classes();
 
         let start = Instant::now();
@@ -756,7 +775,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             elapsed.subsec_millis(),
             old_hc_size,
             old_n_eclasses,
-            self.explain.memo.len(),
+            self.memo.len(),
             self.number_of_classes(),
             n_unions,
             trimmed_nodes,
@@ -767,7 +786,11 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     }
 
     pub(crate) fn check_each_explain(&self, rules: &[&Rewrite<L, N>]) -> bool {
-        self.explain.check_each_explain(rules)
+        if let Some(explain) = &self.explain {
+            explain.check_each_explain(rules)
+        } else {
+            panic!("Can't check explain when explanations are off");
+        }
     }
 }
 

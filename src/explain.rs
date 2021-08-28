@@ -24,10 +24,7 @@ struct ExplainNode<L: Language> {
 
 #[derive(Debug, Clone)]
 pub struct Explain<L: Language> {
-    unionfind: UnionFind,
     explainfind: Vec<ExplainNode<L>>,
-    // a map from updated enodes to their original enode ids
-    pub memo: HashMap<L, Id>,
     uncanon_memo: HashMap<L, Id>,
 }
 
@@ -768,15 +765,12 @@ impl<L: Language> Explain<L> {
 
     pub fn new() -> Self {
         Explain {
-            unionfind: Default::default(),
             explainfind: vec![],
-            memo: Default::default(),
             uncanon_memo: Default::default(),
         }
     }
 
-    pub fn add(&mut self, node: L) -> Id {
-        let set = self.unionfind.make_set();
+    pub fn add(&mut self, node: L, set: Id) -> Id {
         self.uncanon_memo.insert(node.clone(), set);
         self.explainfind.push(ExplainNode {
             node,
@@ -788,18 +782,19 @@ impl<L: Language> Explain<L> {
         set
     }
 
-    pub fn make_set(&mut self) -> Id {
-        self.unionfind.make_set()
-    }
-
-    fn add_expr(&mut self, expr: &RecExpr<L>) -> Id {
+    fn add_expr(
+        &mut self,
+        expr: &RecExpr<L>,
+        memo: &HashMap<L, Id>,
+        unionfind: &mut UnionFind,
+    ) -> Id {
         let nodes: Vec<ENodeOrVar<L>> = expr
             .as_ref()
             .iter()
             .map(|node| ENodeOrVar::ENode(node.clone()))
             .collect();
         let pattern = PatternAst::from(nodes);
-        self.add_match(None, &pattern, &Default::default())
+        self.add_match(&pattern, &Default::default(), memo, unionfind)
     }
 
     // add_match uses the memo in order to re-discover matches
@@ -807,9 +802,10 @@ impl<L: Language> Explain<L> {
     // This requires that congruence has been restored and the memo is up to date.
     pub(crate) fn add_match(
         &mut self,
-        eclass: Option<Id>,
         pattern: &PatternAst<L>,
         subst: &Subst,
+        memo: &HashMap<L, Id>,
+        unionfind: &mut UnionFind,
     ) -> Id {
         let nodes = pattern.as_ref().as_ref();
         let mut new_ids = Vec::with_capacity(nodes.len());
@@ -817,8 +813,8 @@ impl<L: Language> Explain<L> {
         for node in nodes {
             match node {
                 ENodeOrVar::Var(var) => {
-                    let bottom_id = self.find(subst[*var]);
-                    new_ids.push(self.find(bottom_id));
+                    let bottom_id = unionfind.find(subst[*var]);
+                    new_ids.push(unionfind.find(bottom_id));
                     match_ids.push(bottom_id);
                 }
                 ENodeOrVar::ENode(pattern_node) => {
@@ -829,51 +825,35 @@ impl<L: Language> Explain<L> {
                         .clone()
                         .map_children(|i| match_ids[usize::from(i)]);
                     if let Some(existing_id) = self.uncanon_memo.get(&new_congruent_node) {
-                        new_ids.push(self.find(*existing_id));
+                        new_ids.push(unionfind.find(*existing_id));
                         match_ids.push(*existing_id);
                     } else {
-                        let congruent_id = *self.memo.get(&node).unwrap_or_else(|| {
+                        let congruent_id = *memo.get(&node).unwrap_or_else(|| {
                             panic!("Internal error! Pattern did not exist for substitution.");
                         });
 
-                        let congruent_class = self.find(congruent_id);
+                        let congruent_class = unionfind.find(congruent_id);
 
                         new_ids.push(congruent_class);
                         assert!(
                             node == self.explainfind[usize::from(congruent_id)]
                                 .node
                                 .clone()
-                                .map_children(|id| self.find(id))
+                                .map_children(|id| unionfind.find(id))
                         );
 
-                        let new_congruent_id = self.add(new_congruent_node);
+                        let new_congruent_id = self.add(new_congruent_node, unionfind.make_set());
                         match_ids.push(new_congruent_id);
                         // make the congruent_id we found the leader
-                        self.union(
-                            new_congruent_id,
-                            congruent_id,
-                            congruent_class,
-                            new_congruent_id,
-                            Some(Justification::Congruence),
-                        );
+                        unionfind.union(congruent_class, new_congruent_id);
+                        self.union(new_congruent_id, congruent_id, Justification::Congruence);
                     }
                 }
             }
         }
 
         let last_id = *match_ids.last().unwrap();
-        if let Some(eclass_id) = eclass {
-            assert_eq!(self.find(last_id), self.find(eclass_id));
-        }
         last_id
-    }
-
-    pub fn find(&self, current: Id) -> Id {
-        self.unionfind.find(current)
-    }
-
-    pub fn find_mut(&mut self, current: Id) -> Id {
-        self.unionfind.find_mut(current)
     }
 
     // reverse edges recursively to make this node the leader
@@ -889,42 +869,36 @@ impl<L: Language> Explain<L> {
         }
     }
 
-    pub(crate) fn union(
-        &mut self,
-        node1: Id,
-        node2: Id,
-        canon_id1: Id,
-        canon_id2: Id,
-        justification_maybe: Option<Justification>,
-    ) -> Id {
-        assert_ne!(self.find(node1), self.find(node2));
-        if let Some(justification) = justification_maybe {
-            self.make_leader(node1);
-            self.explainfind[usize::from(node1)].next = node2;
-            self.explainfind[usize::from(node1)].justification = justification;
-            self.explainfind[usize::from(node1)].is_rewrite_forward = true;
-            self.unionfind.union(canon_id1, canon_id2)
-        } else {
-            // Act like a normal union find when the rule is not provided.
-            self.unionfind.union(canon_id1, canon_id2)
-        }
+    pub(crate) fn union(&mut self, node1: Id, node2: Id, justification: Justification) {
+        self.make_leader(node1);
+        self.explainfind[usize::from(node1)].next = node2;
+        self.explainfind[usize::from(node1)].justification = justification;
+        self.explainfind[usize::from(node1)].is_rewrite_forward = true;
     }
 
-    pub fn explain_matches(
+    pub(crate) fn explain_matches(
         &mut self,
         left: &RecExpr<L>,
         right: &PatternAst<L>,
         subst: &Subst,
+        memo: &HashMap<L, Id>,
+        unionfind: &mut UnionFind,
     ) -> Explanation<L> {
-        let left_added = self.add_expr(left);
-        let right_added = self.add_match(None, right, &subst);
+        let left_added = self.add_expr(left, memo, unionfind);
+        let right_added = self.add_match(right, &subst, memo, unionfind);
         let mut cache = Default::default();
         Explanation::new(self.explain_enodes(left_added, right_added, &mut cache))
     }
 
-    pub fn explain_equivalence(&mut self, left: &RecExpr<L>, right: &RecExpr<L>) -> Explanation<L> {
-        let left_added = self.add_expr(left);
-        let right_added = self.add_expr(right);
+    pub(crate) fn explain_equivalence(
+        &mut self,
+        left: &RecExpr<L>,
+        right: &RecExpr<L>,
+        memo: &HashMap<L, Id>,
+        unionfind: &mut UnionFind,
+    ) -> Explanation<L> {
+        let left_added = self.add_expr(left, memo, unionfind);
+        let right_added = self.add_expr(right, memo, unionfind);
         let mut cache = Default::default();
         Explanation::new(self.explain_enodes(left_added, right_added, &mut cache))
     }
@@ -974,8 +948,6 @@ impl<L: Language> Explain<L> {
         right: Id,
         cache: &mut ExplainCache<L>,
     ) -> ExplanationTrees<L> {
-        assert!(self.find(left) == self.find(right));
-
         let mut proof = vec![Rc::new(self.node_to_explanation(left))];
         let ancestor = self.common_ancestor(left, right);
         let left_nodes = self.get_nodes(left, ancestor);
