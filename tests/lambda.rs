@@ -172,7 +172,7 @@ impl Applier<Lambda, LambdaAnalysis> for CaptureAvoid {
         eclass: Id,
         subst: &Subst,
         searcher_ast: Option<&PatternAst<Lambda>>,
-        rule_name: Arc<String>,
+        rule_name: Arc<str>,
     ) -> Vec<Id> {
         let e = subst[self.e];
         let v2 = subst[self.v2];

@@ -9,7 +9,7 @@ use symbolic_expressions::Sexp;
 
 #[derive(Debug, Clone)]
 pub(crate) enum Justification {
-    Rule(Arc<String>),
+    Rule(Arc<str>),
     Congruence,
 }
 
@@ -169,7 +169,7 @@ impl<L: Language + Display> Explanation<L> {
         let mut bindings: HashMap<*const TreeTerm<L>, Sexp> = Default::default();
         let mut generated_bindings: Vec<(Sexp, Sexp)> = Default::default();
         for to_bind in to_let_bind {
-            if let None = bindings.get(&(&*to_bind as *const TreeTerm<L>)) {
+            if bindings.get(&(&*to_bind as *const TreeTerm<L>)).is_none() {
                 let name = Sexp::String("v_".to_string() + &generated_bindings.len().to_string());
                 let ast = to_bind.get_sexp_with_bindings(&bindings);
                 generated_bindings.push((name.clone(), ast));
@@ -208,10 +208,8 @@ impl<L: Language + Display> Explanation<L> {
             }
         }
 
-        if !term.child_proofs.is_empty() {
-            if !shared.insert(&*term as *const TreeTerm<L>) {
-                to_let_bind.push(term);
-            }
+        if !term.child_proofs.is_empty() && !shared.insert(&*term as *const TreeTerm<L>) {
+            to_let_bind.push(term);
         }
     }
 
@@ -295,7 +293,7 @@ impl<L: Language> Explanation<L> {
         &self,
         current: &FlatTerm<L>,
         next: &FlatTerm<L>,
-        table: &HashMap<Arc<String>, &Rewrite<L, N>>,
+        table: &HashMap<Arc<str>, &Rewrite<L, N>>,
         is_forward: bool,
     ) -> bool {
         if is_forward && next.forward_rule.is_some() {
@@ -359,9 +357,9 @@ pub struct TreeTerm<L: Language> {
     /// A node representing this TreeTerm's operator. The children of the node should be ignored.
     pub node: L,
     /// A rule rewritting this TreeTerm's initial term back to the last TreeTerm's final term.
-    pub backward_rule: Option<Arc<String>>,
+    pub backward_rule: Option<Arc<str>>,
     /// A rule rewriting the last TreeTerm's final term to this TreeTerm's initial term.
-    pub forward_rule: Option<Arc<String>>,
+    pub forward_rule: Option<Arc<str>>,
     /// A list of child proofs, each transforming the initial term to the final term for that child.
     pub child_proofs: Vec<ExplanationTrees<L>>,
 }
@@ -457,9 +455,9 @@ pub struct FlatTerm<L: Language> {
     /// The children of the node should be ignored.
     pub node: L,
     /// A rule rewriting this FlatTerm back to the last FlatTerm.
-    pub backward_rule: Option<Arc<String>>,
+    pub backward_rule: Option<Arc<str>>,
     /// A rule rewriting the last FlatTerm to this FlatTerm.
-    pub forward_rule: Option<Arc<String>>,
+    pub forward_rule: Option<Arc<str>>,
     /// The children of this FlatTerm.
     pub children: FlatExplanation<L>,
 }
@@ -729,8 +727,8 @@ impl<L: Language> Explain<L> {
 
     fn make_rule_table<'a, N: Analysis<L>>(
         rules: &[&'a Rewrite<L, N>],
-    ) -> HashMap<Arc<String>, &'a Rewrite<L, N>> {
-        let mut table: HashMap<Arc<String>, &'a Rewrite<L, N>> = Default::default();
+    ) -> HashMap<Arc<str>, &'a Rewrite<L, N>> {
+        let mut table: HashMap<Arc<str>, &'a Rewrite<L, N>> = Default::default();
         for r in rules {
             table.insert(r.name.clone(), r);
         }

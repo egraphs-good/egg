@@ -51,7 +51,7 @@ pub struct EGraph<L: Language, N: Analysis<L>> {
     pub(crate) explain: Option<Explain<L>>,
     unionfind: UnionFind,
     memo: HashMap<L, Id>,
-    to_union: Vec<(Id, Id, Option<Arc<String>>)>, // TODO make this Arc<str>
+    to_union: Vec<(Id, Id, Option<Arc<str>>)>,
     pending: Vec<(L, Id)>,
     analysis_pending: IndexSet<(L, Id)>,
     classes: HashMap<Id, EClass<L, N::Data>>,
@@ -149,6 +149,9 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// This allows the egraph to explain why two expressions are
     /// equivalent with the [`explain_equivalence`](EGraph::explain_equivalence) function.
     pub fn with_explanations_enabled(mut self) -> Self {
+        if self.explain.is_some() {
+            return self;
+        }
         if self.total_size() > 0 {
             panic!("Need to set explanations enabled before adding any expressions to the egraph.");
         }
@@ -423,7 +426,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         from_pat: &PatternAst<L>,
         to_pat: &PatternAst<L>,
         subst: &Subst,
-        rule_name: impl Into<Arc<String>>,
+        rule_name: impl Into<Arc<str>>,
     ) -> (Id, bool) {
         let id1 = self.add_instantiation(from_pat, subst);
         let id2 = self.add_instantiation(to_pat, subst);
@@ -440,7 +443,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         from_pat: &PatternAst<L>,
         to_pat: &PatternAst<L>,
         subst: &Subst,
-        rule_name: impl Into<Arc<String>>,
+        rule_name: impl Into<Arc<str>>,
     ) -> bool {
         if let Some(explain) = &mut self.explain {
             if self.unionfind.find_mut(id1) == self.unionfind.find_mut(id2) {

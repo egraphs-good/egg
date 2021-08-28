@@ -282,7 +282,7 @@ where
         eclass: Id,
         subst: &Subst,
         searcher_ast: Option<&PatternAst<L>>,
-        rule_name: Arc<String>,
+        rule_name: Arc<str>,
     ) -> Vec<Id> {
         let ast = self.ast.as_ref();
         let mut id_buf = vec![0.into(); ast.len()];
@@ -295,12 +295,10 @@ where
             } else {
                 vec![]
             }
+        } else if egraph.union(eclass, id) {
+            vec![eclass]
         } else {
-            if egraph.union(eclass, id) {
-                vec![eclass]
-            } else {
-                vec![]
-            }
+            vec![]
         }
     }
 

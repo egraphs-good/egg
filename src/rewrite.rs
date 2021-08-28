@@ -17,7 +17,7 @@ use crate::*;
 #[non_exhaustive]
 pub struct Rewrite<L, N> {
     /// The name of the rewrite.
-    pub name: Arc<String>, // TODO make this an Arc
+    pub name: Arc<str>, // TODO make this an Arc
     /// The searcher (left-hand side) of the rewrite.
     pub searcher: Arc<dyn Searcher<L, N> + Sync + Send>,
     /// The applier (right-hand side) of the rewrite.
@@ -61,7 +61,7 @@ impl<L: Language, N: Analysis<L>> Rewrite<L, N> {
     /// [`rewrite!`] macro instead.
     ///
     pub fn new(
-        name: impl Into<Arc<String>>,
+        name: impl Into<Arc<str>>,
         searcher: impl Searcher<L, N> + Send + Sync + 'static,
         applier: impl Applier<L, N> + Send + Sync + 'static,
     ) -> Result<Self, String> {
@@ -228,7 +228,7 @@ where
 ///
 /// impl Applier<Math, MinSize> for Funky {
 ///
-///     fn apply_one(&self, egraph: &mut EGraph, matched_id: Id, subst: &Subst, searcher_pattern: Option<&PatternAst<Math>>, rule_name: Arc<String>) -> Vec<Id> {
+///     fn apply_one(&self, egraph: &mut EGraph, matched_id: Id, subst: &Subst, searcher_pattern: Option<&PatternAst<Math>>, rule_name: Arc<str>) -> Vec<Id> {
 ///         let a: Id = subst[self.a];
 ///         // In a custom Applier, you can inspect the analysis data,
 ///         // which is powerful combination!
@@ -278,7 +278,7 @@ where
         &self,
         egraph: &mut EGraph<L, N>,
         matches: &[SearchMatches<L>],
-        rule_name: Arc<String>,
+        rule_name: Arc<str>,
     ) -> Vec<Id> {
         let mut added = vec![];
         for mat in matches {
@@ -319,7 +319,7 @@ where
         eclass: Id,
         subst: &Subst,
         searcher_ast: Option<&PatternAst<L>>,
-        rule_name: Arc<String>,
+        rule_name: Arc<str>,
     ) -> Vec<Id>;
 
     /// Returns a list of variables that this Applier assumes are bound.
@@ -369,7 +369,7 @@ where
         eclass: Id,
         subst: &Subst,
         searcher_ast: Option<&PatternAst<L>>,
-        rule_name: Arc<String>,
+        rule_name: Arc<str>,
     ) -> Vec<Id> {
         if self.condition.check(egraph, eclass, subst) {
             self.applier
@@ -552,7 +552,7 @@ mod tests {
                 eclass: Id,
                 subst: &Subst,
                 searcher_ast: Option<&PatternAst<SymbolLang>>,
-                rule_name: Arc<String>,
+                rule_name: Arc<str>,
             ) -> Vec<Id> {
                 let a: Var = "?a".parse().unwrap();
                 let b: Var = "?b".parse().unwrap();
