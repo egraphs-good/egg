@@ -58,8 +58,6 @@ pub struct EGraph<L: Language, N: Analysis<L>> {
     pub(crate) classes_by_op: HashMap<std::mem::Discriminant<L>, HashSet<Id>>,
 }
 
-// TODO add major change to changelog
-
 impl<L: Language, N: Analysis<L> + Default> Default for EGraph<L, N> {
     fn default() -> Self {
         Self::new(N::default())
