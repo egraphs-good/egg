@@ -106,7 +106,7 @@ impl Analysis<Lambda> for LambdaAnalysis {
                     "analysis".to_string(),
                 );
             } else {
-                let const_id = egraph.add(c);
+                let const_id = egraph.add(c.0);
                 egraph.union(id, const_id);
             }
         }
