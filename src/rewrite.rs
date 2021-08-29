@@ -282,20 +282,14 @@ where
     ) -> Vec<Id> {
         let mut added = vec![];
         for mat in matches {
+            let ast;
+            if egraph.are_explanations_enabled() {
+                ast = mat.ast.as_ref().map(|cow| cow.as_ref());
+            } else {
+                ast = None;
+            }
             for subst in &mat.substs {
-                let ast;
-                if egraph.are_explanations_enabled() {
-                    ast = mat.ast.as_ref().map(|cow| cow.as_ref());
-                } else {
-                    ast = None;
-                }
-                let ids = self.apply_one(
-                    egraph,
-                    mat.eclass,
-                    subst,
-                    ast,
-                    rule_name.clone(),
-                );
+                let ids = self.apply_one(egraph, mat.eclass, subst, ast, rule_name.clone());
                 added.extend(ids)
             }
         }

@@ -276,6 +276,42 @@ where
         Some(&self.ast)
     }
 
+    fn apply_matches(
+        &self,
+        egraph: &mut EGraph<L, A>,
+        matches: &[SearchMatches<L>],
+        rule_name: Arc<str>,
+    ) -> Vec<Id> {
+        let mut added = vec![];
+        let ast = self.ast.as_ref();
+        let mut id_buf = vec![0.into(); ast.len()];
+        for mat in matches {
+            let sast = mat.ast.as_ref().map(|cow| cow.as_ref());
+            for subst in &mat.substs {
+                let did_something;
+                let id;
+                if egraph.are_explanations_enabled() {
+                    let (id_temp, did_something_temp) = egraph.union_instantiations(
+                        sast.unwrap(),
+                        &self.ast,
+                        subst,
+                        rule_name.clone(),
+                    );
+                    did_something = did_something_temp;
+                    id = id_temp;
+                } else {
+                    id = apply_pat(&mut id_buf, ast, egraph, subst);
+                    did_something = egraph.union(id, mat.eclass);
+                }
+
+                if did_something {
+                    added.push(id)
+                }
+            }
+        }
+        added
+    }
+
     fn apply_one(
         &self,
         egraph: &mut EGraph<L, A>,
@@ -287,7 +323,7 @@ where
         let ast = self.ast.as_ref();
         let mut id_buf = vec![0.into(); ast.len()];
         let id = apply_pat(&mut id_buf, ast, egraph, subst);
-        
+
         if let Some(ast) = searcher_ast {
             let (from, did_something) =
                 egraph.union_instantiations(ast, &self.ast, subst, rule_name);

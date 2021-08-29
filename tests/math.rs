@@ -106,9 +106,9 @@ impl Analysis<Math> for ConstantFold {
             }
             // to not prune, comment this out
             egraph[id].nodes.retain(|n| n.is_leaf());
-    
+
             #[cfg(debug_assertions)]
-            egraph[id].assert_unique_leaves();       
+            egraph[id].assert_unique_leaves();
         }
     }
 }
