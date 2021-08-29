@@ -287,6 +287,7 @@ where
         let ast = self.ast.as_ref();
         let mut id_buf = vec![0.into(); ast.len()];
         let id = apply_pat(&mut id_buf, ast, egraph, subst);
+        
         if let Some(ast) = searcher_ast {
             let (from, did_something) =
                 egraph.union_instantiations(ast, &self.ast, subst, rule_name);

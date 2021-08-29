@@ -93,17 +93,22 @@ impl Analysis<Math> for ConstantFold {
     fn modify(egraph: &mut EGraph, id: Id) {
         let class = egraph[id].clone();
         if let Some((c, pat)) = class.data {
-            egraph.union_instantiations(
-                &pat,
-                &format!("{}", c).parse().unwrap(),
-                &Default::default(),
-                "constant_fold".to_string(),
-            );
+            if egraph.are_explanations_enabled() {
+                egraph.union_instantiations(
+                    &pat,
+                    &format!("{}", c).parse().unwrap(),
+                    &Default::default(),
+                    "constant_fold".to_string(),
+                );
+            } else {
+                let added = egraph.add(Math::Constant(c));
+                egraph.union(id, added);
+            }
             // to not prune, comment this out
             egraph[id].nodes.retain(|n| n.is_leaf());
-
+    
             #[cfg(debug_assertions)]
-            egraph[id].assert_unique_leaves();
+            egraph[id].assert_unique_leaves();       
         }
     }
 }
