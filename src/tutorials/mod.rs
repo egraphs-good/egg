@@ -23,3 +23,4 @@ The tutorials are a work-in-progress with more to be added soon.
 
 pub mod _01_background;
 pub mod _02_getting_started;
+pub mod _03_explanations;
