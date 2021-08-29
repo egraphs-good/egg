@@ -55,6 +55,9 @@ pub fn test_runner<L, A>(
             // in case we enabled it in order to add expressions
             runner = runner.with_explanations_disabled();
         }
+    } else {
+        // in case we enabled it in order to add expressions
+        runner = runner.with_explanations_disabled();
     }
 
     runner = runner.with_expr(&start);
