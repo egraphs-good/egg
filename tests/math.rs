@@ -284,7 +284,7 @@ egg::test_fn! {
         .with_time_limit(std::time::Duration::from_secs(10))
         .with_iter_limit(60)
         .with_node_limit(100_000)
-        .with_explanations_enabled() // enable explanations before adding expr
+        .with_explanations_enabled()
         // HACK this needs to "see" the end expression
         .with_expr(&"(* x (- (* 3 x) 14))".parse().unwrap()),
     "(d x (- (pow x 3) (* 7 (pow x 2))))"

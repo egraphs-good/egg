@@ -157,6 +157,12 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         self
     }
 
+    /// Disable explanations for this `EGraph`.
+    pub fn with_explanations_disabled(mut self) -> Self {
+        self.explain = None;
+        self
+    }
+
     /// Check if explanations are enabled.
     pub fn are_explanations_enabled(&self) -> bool {
         self.explain.is_some()

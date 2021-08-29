@@ -395,6 +395,12 @@ where
         self
     }
 
+    /// Disable explanations for this runner's egraph.
+    pub fn with_explanations_disabled(mut self) -> Self {
+        self.egraph = self.egraph.with_explanations_disabled();
+        self
+    }
+
     /// Calls [`EGraph::explain_equivalence`](EGraph::explain_equivalence()).
     pub fn explain_equivalence(&mut self, left: &RecExpr<L>, right: &RecExpr<L>) -> Explanation<L> {
         self.egraph.explain_equivalence(left, right)

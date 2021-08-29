@@ -51,6 +51,9 @@ pub fn test_runner<L, A>(
     if let Some(is_enabled) = env_var("EGG_TEST_EXPLANATIONS") {
         if is_enabled {
             runner = runner.with_explanations_enabled();
+        } else {
+            // in case we enabled it in order to add expressions
+            runner = runner.with_explanations_disabled();
         }
     }
 
