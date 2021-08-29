@@ -503,12 +503,12 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
         N::pre_union(self, id1, id2);
 
-        // make id1 the new root
         if let Some(explain) = &mut self.explain {
             explain.union(enode_id1, enode_id2, rule.unwrap());
         } else {
             assert!(rule.is_none());
         }
+        // make id1 the new root
         self.unionfind.union(id1, id2);
 
         assert_ne!(id1, id2);
@@ -696,9 +696,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             assert!(self.pending.is_empty());
             assert!(self.to_union.is_empty());
 
-            let mut analysis_pending = Default::default();
-            std::mem::swap(&mut self.analysis_pending, &mut analysis_pending);
-            for (node, class_id) in analysis_pending {
+            while let Some((node, class_id)) = self.analysis_pending.pop() {
                 let class_id = self.find_mut(class_id);
                 let node_data = N::make(self, &node);
                 let class = self.classes.get_mut(&class_id).unwrap();
