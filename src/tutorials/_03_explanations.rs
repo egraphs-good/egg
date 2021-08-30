@@ -103,15 +103,15 @@ In addition, the string format supports let bindings in order to allow sharing o
 
 ```text
 (let
-(v_0 (- 2 1))
-(let
-  (v_1 (- 2 (Explanation v_0 (Rewrite=> constant_fold 1))))
-  (Explanation
-    (* (- 2 (- 2 1)) (- 2 (- 2 1)))
-    (*
-      (Explanation (- 2 (- 2 1)) v_1 (Rewrite=> constant_fold 1))
-      (Explanation (- 2 (- 2 1)) v_1 (Rewrite=> constant_fold 1)))
-    (Rewrite=> constant_fold 1))))
+  (v_0 (- 2 1))
+  (let
+    (v_1 (- 2 (Explanation v_0 (Rewrite=> constant_fold 1))))
+    (Explanation
+      (* (- 2 (- 2 1)) (- 2 (- 2 1)))
+      (*
+        (Explanation (- 2 (- 2 1)) v_1 (Rewrite=> constant_fold 1))
+        (Explanation (- 2 (- 2 1)) v_1 (Rewrite=> constant_fold 1)))
+      (Rewrite=> constant_fold 1))))
 ```
 As you can see, the let binding allows for sharing the term `v_1`.
 There are other duplicate expressions that could be let bound, but are not because
@@ -123,12 +123,12 @@ For proof sharing, each `Rc<TreeTerm>` in the [`TreeExplanation`] can be checked
   equality with other terms.
 
 
-
 [`EGraph`]: super::super::EGraph
 [`Runner`]: super::super::Runner
 [`Explanation`]: super::super::Explanation
 [`TreeExplanation`]: super::super::TreeExplanation
 [`FlatExplanation`]: super::super::FlatExplanation
+[`TreeTerm`]: super::super::TreeTerm
 [`with_explanations_enabled`]: super::super::Runner::with_explanations_enabled
 
 */
