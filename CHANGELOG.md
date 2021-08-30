@@ -11,7 +11,7 @@
   to justify the union.
   Calling `explain_equivalence` returns an `Explanation`
   which has both a `FlatExplanation` form and a
-  `ExplanationTrees` form.
+  `TreeExplanation` form.
 - The `BackoffScheduler` is now more flexible.
 - `EGraph::pre_union` allows inspection of unions, which can be useful for debugging.
 - The dot printer is now more flexible.

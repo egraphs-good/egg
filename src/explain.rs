@@ -31,14 +31,14 @@ pub struct Explain<L: Language> {
 /// Explanation trees are the compact representation showing
 /// how one term can be rewritten to another.
 ///
-/// Each [`TreeTerm`] has child [`ExplanationTrees`]
+/// Each [`TreeTerm`] has child [`TreeExplanation`]
 /// justifying a transformation from the initial child to the final child term.
 /// Children [`TreeTerm`] can be shared, thus re-using explanations.
 /// This sharing can be checked via Rc pointer equality.
 ///
 /// See [`TreeTerm`] for more deatils on how to
 /// interpret each term.
-pub type ExplanationTrees<L> = Vec<Rc<TreeTerm<L>>>;
+pub type TreeExplanation<L> = Vec<Rc<TreeTerm<L>>>;
 
 /// FlatExplanation are the simpler, expanded representation
 /// showing one term being rewritten to another.
@@ -59,7 +59,7 @@ See [`Explanation`] for more details.
 **/
 pub struct Explanation<L: Language> {
     /// The tree representation of the explanation.
-    pub explanation_trees: ExplanationTrees<L>,
+    pub explanation_trees: TreeExplanation<L>,
     flat_explanation: Option<FlatExplanation<L>>,
 }
 
@@ -80,6 +80,14 @@ impl<L: Language + Display> Explanation<L> {
     /// Get the tree-style explanation as a string.
     pub fn get_string(&self) -> String {
         self.to_string()
+    }
+
+    /// Get the tree-style explanation with let binding as a string.
+    /// See [`get_sexp_with_let`](Explanation::get_sexp_with_let) for the format of these strings.
+    pub fn get_string_with_let(&self) -> String {
+        let mut s = "".to_string();
+        pretty_print(&mut s, &self.get_sexp_with_let(), 100, 0).unwrap();
+        s
     }
 
     /// Get each term in the explanation as a string.
@@ -242,7 +250,7 @@ impl<L: Language + Display> Explanation<L> {
 
 impl<L: Language> Explanation<L> {
     /// Construct a new explanation given its tree representation.
-    pub fn new(explanation_trees: ExplanationTrees<L>) -> Explanation<L> {
+    pub fn new(explanation_trees: TreeExplanation<L>) -> Explanation<L> {
         Explanation {
             explanation_trees,
             flat_explanation: None,
@@ -361,12 +369,12 @@ pub struct TreeTerm<L: Language> {
     /// A rule rewriting the last TreeTerm's final term to this TreeTerm's initial term.
     pub forward_rule: Option<Arc<str>>,
     /// A list of child proofs, each transforming the initial term to the final term for that child.
-    pub child_proofs: Vec<ExplanationTrees<L>>,
+    pub child_proofs: Vec<TreeExplanation<L>>,
 }
 
 impl<L: Language> TreeTerm<L> {
     /// Construct a new TreeTerm given its node and child_proofs.
-    pub fn new(node: L, child_proofs: Vec<ExplanationTrees<L>>) -> TreeTerm<L> {
+    pub fn new(node: L, child_proofs: Vec<TreeExplanation<L>>) -> TreeTerm<L> {
         TreeTerm {
             node,
             backward_rule: None,
@@ -945,7 +953,7 @@ impl<L: Language> Explain<L> {
         left: Id,
         right: Id,
         cache: &mut ExplainCache<L>,
-    ) -> ExplanationTrees<L> {
+    ) -> TreeExplanation<L> {
         let mut proof = vec![Rc::new(self.node_to_explanation(left))];
         let ancestor = self.common_ancestor(left, right);
         let left_nodes = self.get_nodes(left, ancestor);
