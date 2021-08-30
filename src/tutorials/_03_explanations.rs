@@ -19,7 +19,7 @@ use egg::{*, rewrite as rw};
 let rules: &[Rewrite<SymbolLang, ()>] = &[
     rw!("div-one"; "?x" => "(/ ?x 1)"),
     rw!("unsafe-invert-division"; "(/ ?a ?b)" => "(/ 1 (/ ?b ?a))"),
-    rw!("simplify-frac"; "(/ ?a (/ ?b ?c))" => "(/ (* ?a ?c) (* (/ ?b ?c) ?c)"),
+    rw!("simplify-frac"; "(/ ?a (/ ?b ?c))" => "(/ (* ?a ?c) (* (/ ?b ?c) ?c))"),
     rw!("cancel-denominator"; "(* (/ ?a ?b) ?b)" => "?a"),
     rw!("times-zero"; "(* ?a 0)" => "0"),
 ];
@@ -34,16 +34,8 @@ The output of the program is a series of s-expressions annotated
   with the rewrite being performed:
 ```text
 0
-(Rewrite=> (/ 0 1) div-one)
-(/ 1 (/ 1 0)) unsafe-invert-div
-(/ (* 1 0) (* (/ 1 0) 0)) simplify-frac
-(* (* 1 0) 1) cancel-div
-
-
-
-(Rewrite=> (/ 0 (/ 1 0)) unsafe-mult-to-div)
-(Rewrite=> (* 0 (/ 1 0)) 
-(Rewrite=> 1 cancel-div)
+(Rewrite<= times-zero (* (/ 1 0) 0))
+(Rewrite=> cancel-denominator 1)
 ```
 At each step, the part of the term being rewritten is annotated
   with the rule being applied.
