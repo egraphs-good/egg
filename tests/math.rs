@@ -244,7 +244,7 @@ egg::test_fn! {math_powers, rules(), "(* (pow 2 x) (pow 2 y))" => "(pow 2 (+ x y
 
 egg::test_fn! {
     math_simplify_const, rules(),
-    "(* (- 2 (- 2 1)) (- 2 (- 2 1)))" => "1"
+    "(+ 1 (- a (* (- 2 1) a)))" => "1"
 }
 
 egg::test_fn! {
