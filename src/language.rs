@@ -468,6 +468,26 @@ impl<L: FromOp> FromStr for RecExpr<L> {
     }
 }
 
+/// Result of [`Analysis::merge`] indicating which of the inputs
+/// are different from the merged result.
+///
+/// The fields correspond to whether the `a` and `b` inputs to [`Analysis::merge`]
+/// were changed in any way by the merge.
+///
+/// In both cases the result may be coservative -- they may indicate `true` even
+/// when there is no difference between the input and the result.
+pub struct DidMerge(pub bool, pub bool);
+
+impl BitOr for DidMerge {
+    type Output = DidMerge;
+
+    fn bitor(mut self, rhs: Self) -> Self::Output {
+        self.0 |= rhs.0;
+        self.1 |= rhs.1;
+        self
+    }
+}
+
 /** Arbitrary data associated with an [`EClass`].
 
 `egg` allows you to associate arbitrary data with each eclass.
@@ -545,27 +565,6 @@ assert_eq!(runner.egraph.find(runner.roots[0]), runner.egraph.find(just_foo));
 [`math.rs`]: https://github.com/egraphs-good/egg/blob/main/tests/math.rs
 [`prop.rs`]: https://github.com/egraphs-good/egg/blob/main/tests/prop.rs
 */
-
-/// Result of [`Analysis::merge`] indicating which of the inputs
-/// are different from the merged result.
-///
-/// The fields correspond to whether the `a` and `b` inputs to [`Analysis::merge`]
-/// were changed in any way by the merge.
-///
-/// In both cases the result may be coservative -- they may indicate `true` even
-/// when there is no difference between the input and the result.
-pub struct DidMerge(pub bool, pub bool);
-
-impl BitOr for DidMerge {
-    type Output = DidMerge;
-
-    fn bitor(mut self, rhs: Self) -> Self::Output {
-        self.0 |= rhs.0;
-        self.1 |= rhs.1;
-        self
-    }
-}
-
 pub trait Analysis<L: Language>: Sized {
     /// The per-[`EClass`] data for this analysis.
     type Data: Debug;
