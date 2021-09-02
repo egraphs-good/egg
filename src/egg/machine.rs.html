@@ -507,7 +507,7 @@
         <span class="ident">compiler</span>.<span class="ident">go</span>()
     }
 
-    <span class="kw">fn</span> <span class="ident">get_ground_locs</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">is_ground</span>: <span class="kw-2">&amp;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Reg</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">get_ground_locs</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">is_ground</span>: <span class="kw-2">&amp;</span>[<span class="ident">bool</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Reg</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ground_locs</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Reg</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[<span class="prelude-val">None</span>; <span class="self">self</span>.<span class="ident">pattern</span>.<span class="ident">len</span>()];
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="self">self</span>.<span class="ident">pattern</span>.<span class="ident">len</span>() {
             <span class="kw">if</span> <span class="kw">let</span> <span class="ident">ENodeOrVar</span>::<span class="ident">ENode</span>(<span class="ident">node</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">pattern</span>[<span class="ident">i</span>] {
@@ -529,7 +529,7 @@
             }
         }
         <span class="kw">if</span> <span class="kw-2">*</span><span class="ident">is_ground</span>.<span class="ident">last</span>().<span class="ident">unwrap</span>() {
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw">_</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">pattern</span>.<span class="ident">last</span>() {
+            <span class="kw">if</span> <span class="self">self</span>.<span class="ident">pattern</span>.<span class="ident">last</span>().<span class="ident">is_some</span>() {
                 <span class="kw-2">*</span><span class="ident">ground_locs</span>.<span class="ident">last_mut</span>().<span class="ident">unwrap</span>() <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">out</span>);
                 <span class="self">self</span>.<span class="ident">out</span>.<span class="number">0</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
             } <span class="kw">else</span> {
@@ -652,7 +652,7 @@
 
         <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">machine</span>.<span class="ident">reg</span>.<span class="ident">len</span>(), <span class="number">0</span>);
         <span class="kw">for</span> <span class="ident">expr</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">ground_terms</span> {
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">id</span>) <span class="op">=</span> <span class="ident">egraph</span>.<span class="ident">lookup_expr</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">expr</span>.<span class="ident">clone</span>()) {
+            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">id</span>) <span class="op">=</span> <span class="ident">egraph</span>.<span class="ident">lookup_expr</span>(<span class="kw-2">&amp;</span><span class="ident">expr</span>.<span class="ident">clone</span>()) {
                 <span class="ident">machine</span>.<span class="ident">reg</span>.<span class="ident">push</span>(<span class="ident">id</span>)
             } <span class="kw">else</span> {
                 <span class="kw">return</span> <span class="macro">vec</span><span class="macro">!</span>[];
@@ -660,7 +660,7 @@
         }
         <span class="ident">machine</span>.<span class="ident">reg</span>.<span class="ident">push</span>(<span class="ident">eclass</span>);
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">substs</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">matches</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
         <span class="ident">machine</span>.<span class="ident">run</span>(
             <span class="ident">egraph</span>,
             <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">instructions</span>,
@@ -672,12 +672,12 @@
                     <span class="comment">// HACK we are reusing Ids here, this is bad</span>
                     .<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">v</span>, <span class="ident">reg_id</span>)<span class="op">|</span> (<span class="kw-2">*</span><span class="ident">v</span>, <span class="ident">machine</span>.<span class="ident">reg</span>(<span class="ident">Reg</span>(<span class="ident">usize</span>::<span class="ident">from</span>(<span class="kw-2">*</span><span class="ident">reg_id</span>) <span class="kw">as</span> <span class="ident">u32</span>))))
                     .<span class="ident">collect</span>();
-                <span class="ident">substs</span>.<span class="ident">push</span>(<span class="ident">Subst</span> { <span class="ident">vec</span>: <span class="ident">subst_vec</span> })
+                <span class="ident">matches</span>.<span class="ident">push</span>(<span class="ident">Subst</span> { <span class="ident">vec</span>: <span class="ident">subst_vec</span> });
             },
         );
 
-        <span class="ident">log</span>::<span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;Ran program, found {:?}&quot;</span>, <span class="ident">substs</span>);
-        <span class="ident">substs</span>
+        <span class="ident">log</span>::<span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;Ran program, found {:?}&quot;</span>, <span class="ident">matches</span>);
+        <span class="ident">matches</span>
     }
 }
 </pre></div>

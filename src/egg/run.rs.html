@@ -832,6 +832,38 @@
 <span id="829">829</span>
 <span id="830">830</span>
 <span id="831">831</span>
+<span id="832">832</span>
+<span id="833">833</span>
+<span id="834">834</span>
+<span id="835">835</span>
+<span id="836">836</span>
+<span id="837">837</span>
+<span id="838">838</span>
+<span id="839">839</span>
+<span id="840">840</span>
+<span id="841">841</span>
+<span id="842">842</span>
+<span id="843">843</span>
+<span id="844">844</span>
+<span id="845">845</span>
+<span id="846">846</span>
+<span id="847">847</span>
+<span id="848">848</span>
+<span id="849">849</span>
+<span id="850">850</span>
+<span id="851">851</span>
+<span id="852">852</span>
+<span id="853">853</span>
+<span id="854">854</span>
+<span id="855">855</span>
+<span id="856">856</span>
+<span id="857">857</span>
+<span id="858">858</span>
+<span id="859">859</span>
+<span id="860">860</span>
+<span id="861">861</span>
+<span id="862">862</span>
+<span id="863">863</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fmt</span>::{<span class="self">self</span>, <span class="ident">Debug</span>, <span class="ident">Formatter</span>};
 
@@ -1222,6 +1254,35 @@ println!(
         <span class="self">self</span>
     }
 
+    <span class="doccomment">/// Enable explanations for this runner&#39;s egraph.</span>
+    <span class="doccomment">/// This allows the runner to explain why two expressions are</span>
+    <span class="doccomment">/// equivalent with the [`explain_equivalence`](Runner::explain_equivalence) function.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">with_explanations_enabled</span>(<span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+        <span class="self">self</span>.<span class="ident">egraph</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">egraph</span>.<span class="ident">with_explanations_enabled</span>();
+        <span class="self">self</span>
+    }
+
+    <span class="doccomment">/// Disable explanations for this runner&#39;s egraph.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">with_explanations_disabled</span>(<span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+        <span class="self">self</span>.<span class="ident">egraph</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">egraph</span>.<span class="ident">with_explanations_disabled</span>();
+        <span class="self">self</span>
+    }
+
+    <span class="doccomment">/// Calls [`EGraph::explain_equivalence`](EGraph::explain_equivalence()).</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">explain_equivalence</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">left</span>: <span class="kw-2">&amp;</span><span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>, <span class="ident">right</span>: <span class="kw-2">&amp;</span><span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Explanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">egraph</span>.<span class="ident">explain_equivalence</span>(<span class="ident">left</span>, <span class="ident">right</span>)
+    }
+
+    <span class="doccomment">/// Get an explanation for why an expression matches a pattern.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">explain_matches</span>(
+        <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
+        <span class="ident">left</span>: <span class="kw-2">&amp;</span><span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
+        <span class="ident">right</span>: <span class="kw-2">&amp;</span><span class="ident">PatternAst</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
+        <span class="ident">subst</span>: <span class="kw-2">&amp;</span><span class="ident">Subst</span>,
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Explanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">egraph</span>.<span class="ident">explain_matches</span>(<span class="ident">left</span>, <span class="ident">right</span>, <span class="ident">subst</span>)
+    }
+
     <span class="attribute">#[<span class="ident">rustfmt</span>::<span class="ident">skip</span>]</span>
     <span class="doccomment">/// Prints some information about a runners run.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">print_report</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) {
@@ -1313,6 +1374,9 @@ println!(
 
         <span class="kw">let</span> <span class="ident">rebuild_time</span> <span class="op">=</span> <span class="ident">Instant</span>::<span class="ident">now</span>();
         <span class="kw">let</span> <span class="ident">n_rebuilds</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">egraph</span>.<span class="ident">rebuild</span>();
+        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">egraph</span>.<span class="ident">are_explanations_enabled</span>() {
+            <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">egraph</span>.<span class="ident">check_each_explain</span>(<span class="ident">rules</span>));
+        }
 
         <span class="kw">let</span> <span class="ident">rebuild_time</span> <span class="op">=</span> <span class="ident">rebuild_time</span>.<span class="ident">elapsed</span>().<span class="ident">as_secs_f64</span>();
         <span class="macro">info</span><span class="macro">!</span>(<span class="string">&quot;Rebuild time: {}&quot;</span>, <span class="ident">rebuild_time</span>);
@@ -1414,12 +1478,12 @@ the [`EGraph`] and dominating how much time is spent while running the
     <span class="doccomment">///</span>
     <span class="doccomment">/// Default implementation just calls</span>
     <span class="doccomment">/// [`Rewrite::search`](Rewrite::search()).</span>
-    <span class="kw">fn</span> <span class="ident">search_rewrite</span>(
+    <span class="kw">fn</span> <span class="ident">search_rewrite</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">iteration</span>: <span class="ident">usize</span>,
         <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>,
-        <span class="ident">rewrite</span>: <span class="kw-2">&amp;</span><span class="ident">Rewrite</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">SearchMatches</span><span class="op">&gt;</span> {
+        <span class="ident">rewrite</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Rewrite</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>,
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">SearchMatches</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="ident">rewrite</span>.<span class="ident">search</span>(<span class="ident">egraph</span>)
     }
 
@@ -1434,7 +1498,7 @@ the [`EGraph`] and dominating how much time is spent while running the
         <span class="ident">iteration</span>: <span class="ident">usize</span>,
         <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>,
         <span class="ident">rewrite</span>: <span class="kw-2">&amp;</span><span class="ident">Rewrite</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>,
-        <span class="ident">matches</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">SearchMatches</span><span class="op">&gt;</span>,
+        <span class="ident">matches</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">SearchMatches</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
         <span class="ident">rewrite</span>.<span class="ident">apply</span>(<span class="ident">egraph</span>, <span class="kw-2">&amp;</span><span class="ident">matches</span>).<span class="ident">len</span>()
     }
@@ -1594,12 +1658,12 @@ the [`EGraph`] and dominating how much time is spent while running the
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">search_rewrite</span>(
+    <span class="kw">fn</span> <span class="ident">search_rewrite</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">iteration</span>: <span class="ident">usize</span>,
         <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>,
-        <span class="ident">rewrite</span>: <span class="kw-2">&amp;</span><span class="ident">Rewrite</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">SearchMatches</span><span class="op">&gt;</span> {
+        <span class="ident">rewrite</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Rewrite</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>,
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">SearchMatches</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">stats</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">rule_stats</span>(<span class="ident">rewrite</span>.<span class="ident">name</span>());
 
         <span class="kw">if</span> <span class="ident">iteration</span> <span class="op">&lt;</span> <span class="ident">stats</span>.<span class="ident">banned_until</span> {

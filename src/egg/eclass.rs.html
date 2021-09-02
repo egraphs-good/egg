@@ -58,6 +58,7 @@
 <span id="55">55</span>
 <span id="56">56</span>
 <span id="57">57</span>
+<span id="58">58</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Debug</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">iter</span>::<span class="ident">ExactSizeIterator</span>;
@@ -74,6 +75,7 @@
     <span class="kw">pub</span> <span class="ident">nodes</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
     <span class="doccomment">/// The analysis data associated with this eclass.</span>
     <span class="kw">pub</span> <span class="ident">data</span>: <span class="ident">D</span>,
+    <span class="doccomment">/// The parent enodes and their original Ids.</span>
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">parents</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">L</span>, <span class="ident">Id</span>)<span class="op">&gt;</span>,
 }
 

@@ -97,6 +97,8 @@
 <span id="94">94</span>
 <span id="95">95</span>
 <span id="96">96</span>
+<span id="97">97</span>
+<span id="98">98</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="attribute">#![<span class="ident">warn</span>(<span class="ident">missing_docs</span>)]</span>
 <span class="doccomment">/*!
@@ -133,6 +135,7 @@ for less or more logging.
 <span class="kw">mod</span> <span class="ident">dot</span>;
 <span class="kw">mod</span> <span class="ident">eclass</span>;
 <span class="kw">mod</span> <span class="ident">egraph</span>;
+<span class="kw">mod</span> <span class="ident">explain</span>;
 <span class="kw">mod</span> <span class="ident">extract</span>;
 <span class="kw">mod</span> <span class="ident">language</span>;
 <span class="kw">mod</span> <span class="ident">machine</span>;
@@ -172,12 +175,13 @@ for less or more logging.
     }
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use</span> <span class="ident">unionfind</span>::<span class="ident">UnionFind</span>;
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use</span> {<span class="ident">explain</span>::<span class="ident">Explain</span>, <span class="ident">explain</span>::<span class="ident">Justification</span>, <span class="ident">unionfind</span>::<span class="ident">UnionFind</span>};
 
 <span class="kw">pub</span> <span class="kw">use</span> {
     <span class="ident">dot</span>::<span class="ident">Dot</span>,
     <span class="ident">eclass</span>::<span class="ident">EClass</span>,
     <span class="ident">egraph</span>::<span class="ident">EGraph</span>,
+    <span class="ident">explain</span>::{<span class="ident">Explanation</span>, <span class="ident">FlatExplanation</span>, <span class="ident">FlatTerm</span>, <span class="ident">TreeExplanation</span>, <span class="ident">TreeTerm</span>},
     <span class="ident">extract</span>::<span class="kw-2">*</span>,
     <span class="ident">language</span>::<span class="kw-2">*</span>,
     <span class="ident">pattern</span>::{<span class="ident">ENodeOrVar</span>, <span class="ident">Pattern</span>, <span class="ident">PatternAst</span>, <span class="ident">SearchMatches</span>},

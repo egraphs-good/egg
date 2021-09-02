@@ -372,6 +372,8 @@
 <span id="369">369</span>
 <span id="370">370</span>
 <span id="371">371</span>
+<span id="372">372</span>
+<span id="373">373</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">unused_imports</span>)]</span>
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="kw-2">*</span>;
@@ -601,6 +603,8 @@ the outermost, and the last condition being the innermost.
 # Example
 ```
 # use egg::*;
+use std::borrow::Cow;
+use std::sync::Arc;
 define_language! {
     enum SimpleLanguage {
         Num(i32),
@@ -636,7 +640,7 @@ rules.extend(vec![
 #[derive(Debug)]
 struct MySillyApplier(&amp;&#39;static str);
 impl Applier&lt;SimpleLanguage, ()&gt; for MySillyApplier {
-    fn apply_one(&amp;self, _: &amp;mut EGraph, _: Id, _: &amp;Subst) -&gt; Vec&lt;Id&gt; {
+    fn apply_one(&amp;self, _: &amp;mut EGraph, _: Id, _: &amp;Subst, _: Option&lt;&amp;PatternAst&lt;SimpleLanguage&gt;&gt;, _: Arc&lt;str&gt;) -&gt; Vec&lt;Id&gt; {
         panic!()
     }
 }
@@ -661,7 +665,7 @@ fn is_not_zero(var: &amp;&#39;static str) -&gt; impl Fn(&amp;mut EGraph, Id, &am
         <span class="kw">let</span> <span class="ident">searcher</span> <span class="op">=</span> <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro">__rewrite</span><span class="macro">!</span>(@<span class="macro-nonterminal">parse</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">lhs</span>);
         <span class="kw">let</span> <span class="ident">core_applier</span> <span class="op">=</span> <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro">__rewrite</span><span class="macro">!</span>(@<span class="macro-nonterminal">parse</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">rhs</span>);
         <span class="kw">let</span> <span class="ident">applier</span> <span class="op">=</span> <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro">__rewrite</span><span class="macro">!</span>(@<span class="macro-nonterminal">applier</span> <span class="ident">core_applier</span>; $(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">cond</span>,)<span class="kw-2">*</span>);
-        <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">Rewrite</span>::<span class="ident">new</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">name</span>, <span class="ident">searcher</span>, <span class="ident">applier</span>).<span class="ident">unwrap</span>()
+        <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">Rewrite</span>::<span class="ident">new</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">name</span>.<span class="ident">to_string</span>(), <span class="ident">searcher</span>, <span class="ident">applier</span>).<span class="ident">unwrap</span>()
     }};
     (
         <span class="macro-nonterminal">$</span><span class="macro-nonterminal">name</span>:<span class="ident">expr</span>;
@@ -740,7 +744,7 @@ fn is_not_zero(var: &amp;&#39;static str) -&gt; impl Fn(&amp;mut EGraph, Id, &am
     <span class="kw">fn</span> <span class="ident">rewrite_conditional_panic</span>() {
         <span class="kw">let</span> <span class="ident">x</span>: <span class="ident">Pattern</span><span class="op">&lt;</span><span class="ident">Simple</span><span class="op">&gt;</span> <span class="op">=</span> <span class="string">&quot;?x&quot;</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="kw">_</span>: <span class="ident">Rewrite</span><span class="op">&lt;</span><span class="ident">Simple</span>, ()<span class="op">&gt;</span> <span class="op">=</span> <span class="macro">rewrite</span><span class="macro">!</span>(
-            <span class="string">&quot;bad&quot;</span>; <span class="string">&quot;?a&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="string">&quot;?a&quot;</span> <span class="kw">if</span> <span class="ident">ConditionEqual</span>(<span class="ident">x</span>.<span class="ident">clone</span>(), <span class="ident">x</span>)
+            <span class="string">&quot;bad&quot;</span>; <span class="string">&quot;?a&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="string">&quot;?a&quot;</span> <span class="kw">if</span> <span class="ident">ConditionEqual</span>::<span class="ident">new</span>(<span class="ident">x</span>.<span class="ident">clone</span>(), <span class="ident">x</span>)
         );
     }
 }

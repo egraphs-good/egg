@@ -1,0 +1,275 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/tutorials/_03_explanations.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>_03_explanations.rs - source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../../ayu.css" disabled ><script id="default-settings"></script><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="icon" type="image/svg+xml" href="../../../favicon.svg">
+<link rel="alternate icon" type="image/png" href="../../../favicon-16x16.png">
+<link rel="alternate icon" type="image/png" href="../../../favicon-32x32.png"><style type="text/css">#crate-search{background-image:url("../../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../../egg/index.html'><div class='logo-container rust-logo'><img src='../../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu"><img src="../../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices" role="menu"></div></div><script src="../../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" class="help-button">?</button>
+                <a id="settings-menu" href="../../../settings.html"><img src="../../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
+<span id="2">  2</span>
+<span id="3">  3</span>
+<span id="4">  4</span>
+<span id="5">  5</span>
+<span id="6">  6</span>
+<span id="7">  7</span>
+<span id="8">  8</span>
+<span id="9">  9</span>
+<span id="10"> 10</span>
+<span id="11"> 11</span>
+<span id="12"> 12</span>
+<span id="13"> 13</span>
+<span id="14"> 14</span>
+<span id="15"> 15</span>
+<span id="16"> 16</span>
+<span id="17"> 17</span>
+<span id="18"> 18</span>
+<span id="19"> 19</span>
+<span id="20"> 20</span>
+<span id="21"> 21</span>
+<span id="22"> 22</span>
+<span id="23"> 23</span>
+<span id="24"> 24</span>
+<span id="25"> 25</span>
+<span id="26"> 26</span>
+<span id="27"> 27</span>
+<span id="28"> 28</span>
+<span id="29"> 29</span>
+<span id="30"> 30</span>
+<span id="31"> 31</span>
+<span id="32"> 32</span>
+<span id="33"> 33</span>
+<span id="34"> 34</span>
+<span id="35"> 35</span>
+<span id="36"> 36</span>
+<span id="37"> 37</span>
+<span id="38"> 38</span>
+<span id="39"> 39</span>
+<span id="40"> 40</span>
+<span id="41"> 41</span>
+<span id="42"> 42</span>
+<span id="43"> 43</span>
+<span id="44"> 44</span>
+<span id="45"> 45</span>
+<span id="46"> 46</span>
+<span id="47"> 47</span>
+<span id="48"> 48</span>
+<span id="49"> 49</span>
+<span id="50"> 50</span>
+<span id="51"> 51</span>
+<span id="52"> 52</span>
+<span id="53"> 53</span>
+<span id="54"> 54</span>
+<span id="55"> 55</span>
+<span id="56"> 56</span>
+<span id="57"> 57</span>
+<span id="58"> 58</span>
+<span id="59"> 59</span>
+<span id="60"> 60</span>
+<span id="61"> 61</span>
+<span id="62"> 62</span>
+<span id="63"> 63</span>
+<span id="64"> 64</span>
+<span id="65"> 65</span>
+<span id="66"> 66</span>
+<span id="67"> 67</span>
+<span id="68"> 68</span>
+<span id="69"> 69</span>
+<span id="70"> 70</span>
+<span id="71"> 71</span>
+<span id="72"> 72</span>
+<span id="73"> 73</span>
+<span id="74"> 74</span>
+<span id="75"> 75</span>
+<span id="76"> 76</span>
+<span id="77"> 77</span>
+<span id="78"> 78</span>
+<span id="79"> 79</span>
+<span id="80"> 80</span>
+<span id="81"> 81</span>
+<span id="82"> 82</span>
+<span id="83"> 83</span>
+<span id="84"> 84</span>
+<span id="85"> 85</span>
+<span id="86"> 86</span>
+<span id="87"> 87</span>
+<span id="88"> 88</span>
+<span id="89"> 89</span>
+<span id="90"> 90</span>
+<span id="91"> 91</span>
+<span id="92"> 92</span>
+<span id="93"> 93</span>
+<span id="94"> 94</span>
+<span id="95"> 95</span>
+<span id="96"> 96</span>
+<span id="97"> 97</span>
+<span id="98"> 98</span>
+<span id="99"> 99</span>
+<span id="100">100</span>
+<span id="101">101</span>
+<span id="102">102</span>
+<span id="103">103</span>
+<span id="104">104</span>
+<span id="105">105</span>
+<span id="106">106</span>
+<span id="107">107</span>
+<span id="108">108</span>
+<span id="109">109</span>
+<span id="110">110</span>
+<span id="111">111</span>
+<span id="112">112</span>
+<span id="113">113</span>
+<span id="114">114</span>
+<span id="115">115</span>
+<span id="116">116</span>
+<span id="117">117</span>
+<span id="118">118</span>
+<span id="119">119</span>
+<span id="120">120</span>
+<span id="121">121</span>
+<span id="122">122</span>
+<span id="123">123</span>
+<span id="124">124</span>
+<span id="125">125</span>
+<span id="126">126</span>
+<span id="127">127</span>
+<span id="128">128</span>
+<span id="129">129</span>
+<span id="130">130</span>
+<span id="131">131</span>
+<span id="132">132</span>
+<span id="133">133</span>
+<span id="134">134</span>
+</pre><div class="example-wrap"><pre class="rust ">
+<span class="comment">// -*- mode: markdown;  markdown-fontify-code-block-default-mode: rustic-mode; evil-shift-width: 2; -*-</span>
+<span class="doccomment">/*!
+
+# Explanations
+
+It&#39;s often useful to know exactly why two terms are equivalent in
+  the egraph.
+For example, if you are trying to debug incorrect rules,
+  it would be useful to have a trace of rewrites showing how an example
+  given bad equivalence was found.
+`egg` uses an algorithm adapted from
+  [Proof-Producing Congruence Closure](https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.76.1716&amp;rep=rep1&amp;type=pdf)
+  in order to generate such [`Explanation`]s between two given terms.
+
+Consider this program, which prints a [`FlatExplanation`] showing how
+  `(/ (* (/ 2 3) (/ 3 2)) 1)` can be simplified to `1`:
+```
+use egg::{*, rewrite as rw};
+let rules: &amp;[Rewrite&lt;SymbolLang, ()&gt;] = &amp;[
+    rw!(&quot;div-one&quot;; &quot;?x&quot; =&gt; &quot;(/ ?x 1)&quot;),
+    rw!(&quot;unsafe-invert-division&quot;; &quot;(/ ?a ?b)&quot; =&gt; &quot;(/ 1 (/ ?b ?a))&quot;),
+    rw!(&quot;simplify-frac&quot;; &quot;(/ ?a (/ ?b ?c))&quot; =&gt; &quot;(/ (* ?a ?c) (* (/ ?b ?c) ?c))&quot;),
+    rw!(&quot;cancel-denominator&quot;; &quot;(* (/ ?a ?b) ?b)&quot; =&gt; &quot;?a&quot;),
+    rw!(&quot;times-zero&quot;; &quot;(* ?a 0)&quot; =&gt; &quot;0&quot;),
+];
+
+let start = &quot;(/ (* (/ 2 3) (/ 3 2)) 1)&quot;.parse().unwrap();
+let end = &quot;1&quot;.parse().unwrap();
+let mut runner = Runner::default().with_explanations_enabled().with_expr(&amp;start).run(rules);
+
+println!(&quot;{}&quot;, runner.explain_equivalence(&amp;start, &amp;end).get_flat_string());
+```
+
+The output of the program is a series of s-expressions annotated
+  with the rewrite being performed:
+```text
+(/ (* (/ 2 3) (/ 3 2)) 1)
+(Rewrite&lt;= div-one (* (/ 2 3) (/ 3 2)))
+(* (Rewrite=&gt; unsafe-invert-division (/ 1 (/ 3 2))) (/ 3 2))
+(Rewrite=&gt; cancel-denominator 1)
+```
+At each step, the part of the term being rewritten is annotated
+  with the rule being applied.
+Each term besides the first term has exactly one rewrite annotation.
+`Rewrite=&gt;` indicates that the previous term is rewritten to the current term
+  and `Rewrite&lt;=` indicates that the current term is rewritten to the previous term.
+
+It turns out that these rules can easily lead to undesirable results in the egraph.
+For example, with just `0` as the starting term, the egraph finds that `0` is equivalent
+  to `1` within a few iterations.
+Here&#39;s the flattened explanation that `egg` generates:
+```text
+0
+(Rewrite&lt;= times-zero (* (/ 1 0) 0))
+(Rewrite=&gt; cancel-denominator 1)
+```
+
+This tells you how the egraph got from `0` to `1`, but it&#39;s not clear why.
+In fact, normally the rules `times-zero` and `cancel-denominator` are perfectly
+  reasonable.
+However, in the presence of a division by zero, they lead to arbitrary unions in the egraph.
+So the true problem is the presense of the term `(/ 1 0)`.
+For these kinds of questions, `egg` provides the TODO function which can be used to get an explanation
+  of why a term exists in the egraph in the first place.
+
+TODO implement the existance explanation function
+
+# Explanation Trees
+
+So far we have looked at the [`FlatExplanation`] represenation of explanations because
+  they are the most human-readable.
+But explanations can also be used for automatic testing or translation validation of egraph results,
+  so the flat representation is not always necessary.
+In fact, the flattened representation misses the opportunity to share parts of the explanation
+  among several different terms.
+Egraphs tend to generate explanations with a large amount of duplication of explanations
+  from one term to another, making explanation-sharing very important.
+To solve this problem, `egg` provides the [`TreeExplanation`] representation.
+
+Here&#39;s an example [`TreeExplanation`] in string form:
+```text
+(+ 1 (- a (* (- 2 1) a)))
+ (+
+    1
+    (Explanation
+      (- a (* (- 2 1) a))
+      (-
+        a
+        (Explanation
+          (* (- 2 1) a)
+          (* (Explanation (- 2 1) (Rewrite=&gt; constant_fold 1)) a)
+          (Rewrite=&gt; comm-mul (* a 1))
+          (Rewrite&lt;= mul-one a)))
+      (Rewrite=&gt; cancel-sub 0)))
+ (Rewrite=&gt; constant_fold 1)
+```
+
+The big difference between [`FlatExplanation`] and [`TreeExplanation`] is that now
+  children of terms can contain explanations themselves.
+So a [`TreeTerm`] can have have each of their children be rewritten from an initial term
+  to a final term, making the representation more compact.
+In addition, the string format supports let bindings in order to allow sharing of explantions:
+
+```text
+(let
+  (v_0 (- 2 1))
+  (let
+    (v_1 (- 2 (Explanation v_0 (Rewrite=&gt; constant_fold 1))))
+    (Explanation
+      (* (- 2 (- 2 1)) (- 2 (- 2 1)))
+      (*
+        (Explanation (- 2 (- 2 1)) v_1 (Rewrite=&gt; constant_fold 1))
+        (Explanation (- 2 (- 2 1)) v_1 (Rewrite=&gt; constant_fold 1)))
+      (Rewrite=&gt; constant_fold 1))))
+```
+As you can see, the let binding allows for sharing the term `v_1`.
+There are other duplicate expressions that could be let bound, but are not because
+  `egg` only binds shared sub-terms found during the explanation generation process.
+
+Besides the string forms, [`TreeExplanation`] and [`FlatExplanation`] encode the same information
+  as Rust objects.
+For proof sharing, each `Rc&lt;TreeTerm&gt;` in the [`TreeExplanation`] can be checked for pointer
+  equality with other terms.
+
+
+[`EGraph`]: super::super::EGraph
+[`Runner`]: super::super::Runner
+[`Explanation`]: super::super::Explanation
+[`TreeExplanation`]: super::super::TreeExplanation
+[`FlatExplanation`]: super::super::FlatExplanation
+[`TreeTerm`]: super::super::TreeTerm
+[`with_explanations_enabled`]: super::super::Runner::with_explanations_enabled
+
+*/</span>
+</pre></div>
+</section><section id="search" class="content hidden"></section><section class="footer"></section><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="egg"></div>
+    <script src="../../../main.js"></script><script src="../../../source-script.js"></script><script src="../../../source-files.js"></script><script defer src="../../../search-index.js"></script></body></html>
