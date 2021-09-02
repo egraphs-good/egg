@@ -12,9 +12,11 @@ printed_headers = False
 ratios = []
 
 for line in fileinput.input():
-    if match := BENCH_NAME.match(line):
+    match = BENCH_NAME.match(line)
+    if match:
         name = match[1]
-    if match := EST_CYCLES.match(line):
+    match = EST_CYCLES.match(line)
+    if match:
         if not printed_headers:
             printed_headers = True
             print(f'{"name":25} {"cycles":>10} {"diff":>10}')

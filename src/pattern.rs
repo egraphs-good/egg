@@ -1,7 +1,8 @@
 use fmt::Formatter;
 use log::*;
+use std::borrow::Cow;
 use std::fmt::{self, Display};
-use std::{convert::TryFrom, error::Error, str::FromStr};
+use std::{convert::TryFrom, error::Error, str::FromStr, sync::Arc};
 
 use thiserror::Error;
 
@@ -213,15 +214,21 @@ impl<L: Language + Display> Display for Pattern<L> {
 /// many matches were found total.
 ///
 #[derive(Debug)]
-pub struct SearchMatches {
+pub struct SearchMatches<'a, L: Language> {
     /// The eclass id that these matches were found in.
     pub eclass: Id,
-    /// The matches themselves.
+    /// The substitutions for each match.
     pub substs: Vec<Subst>,
+    /// Optionally, an ast for the matches used in proof production.
+    pub ast: Option<Cow<'a, PatternAst<L>>>,
 }
 
 impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
-    fn search(&self, egraph: &EGraph<L, A>) -> Vec<SearchMatches> {
+    fn get_pattern_ast(&self) -> Option<&PatternAst<L>> {
+        Some(&self.ast)
+    }
+
+    fn search(&self, egraph: &EGraph<L, A>) -> Vec<SearchMatches<L>> {
         match self.ast.as_ref().last().unwrap() {
             ENodeOrVar::ENode(e) => {
                 #[allow(clippy::mem_discriminant_non_enum)]
@@ -241,12 +248,17 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
         }
     }
 
-    fn search_eclass(&self, egraph: &EGraph<L, A>, eclass: Id) -> Option<SearchMatches> {
+    fn search_eclass(&self, egraph: &EGraph<L, A>, eclass: Id) -> Option<SearchMatches<L>> {
         let substs = self.program.run(egraph, eclass);
         if substs.is_empty() {
             None
         } else {
-            Some(SearchMatches { eclass, substs })
+            let ast = Some(Cow::Borrowed(&self.ast));
+            Some(SearchMatches {
+                eclass,
+                substs,
+                ast,
+            })
         }
     }
 
@@ -260,35 +272,79 @@ where
     L: Language,
     A: Analysis<L>,
 {
-    fn apply_one(&self, egraph: &mut EGraph<L, A>, _: Id, subst: &Subst) -> Vec<Id> {
-        let ast = self.ast.as_ref();
-        let mut id_buf = vec![0.into(); ast.len()];
-        let id = apply_pat(&mut id_buf, ast, egraph, subst);
-        vec![id]
+    fn get_pattern_ast(&self) -> Option<&PatternAst<L>> {
+        Some(&self.ast)
     }
 
-    fn vars(&self) -> Vec<Var> {
-        Pattern::vars(self)
-    }
-
-    fn apply_matches(&self, egraph: &mut EGraph<L, A>, matches: &[SearchMatches]) -> Vec<Id> {
+    fn apply_matches(
+        &self,
+        egraph: &mut EGraph<L, A>,
+        matches: &[SearchMatches<L>],
+        rule_name: Arc<str>,
+    ) -> Vec<Id> {
         let mut added = vec![];
         let ast = self.ast.as_ref();
         let mut id_buf = vec![0.into(); ast.len()];
         for mat in matches {
+            let sast = mat.ast.as_ref().map(|cow| cow.as_ref());
             for subst in &mat.substs {
-                let id = apply_pat(&mut id_buf, ast, egraph, subst);
-                let (to, did_something) = egraph.union(id, mat.eclass);
+                let did_something;
+                let id;
+                if egraph.are_explanations_enabled() {
+                    let (id_temp, did_something_temp) = egraph.union_instantiations(
+                        sast.unwrap(),
+                        &self.ast,
+                        subst,
+                        rule_name.clone(),
+                    );
+                    did_something = did_something_temp;
+                    id = id_temp;
+                } else {
+                    id = apply_pat(&mut id_buf, ast, egraph, subst);
+                    did_something = egraph.union(id, mat.eclass);
+                }
+
                 if did_something {
-                    added.push(to)
+                    added.push(id)
                 }
             }
         }
         added
     }
+
+    fn apply_one(
+        &self,
+        egraph: &mut EGraph<L, A>,
+        eclass: Id,
+        subst: &Subst,
+        searcher_ast: Option<&PatternAst<L>>,
+        rule_name: Arc<str>,
+    ) -> Vec<Id> {
+        let ast = self.ast.as_ref();
+        let mut id_buf = vec![0.into(); ast.len()];
+        let id = apply_pat(&mut id_buf, ast, egraph, subst);
+
+        if let Some(ast) = searcher_ast {
+            let (from, did_something) =
+                egraph.union_instantiations(ast, &self.ast, subst, rule_name);
+            if did_something {
+                vec![from]
+            } else {
+                vec![]
+            }
+        } else if egraph.union(eclass, id) {
+            vec![eclass]
+        } else {
+            vec![]
+        }
+    }
+
+    fn vars(&self) -> Vec<Var> {
+        Pattern::vars(self)
+    }
 }
 
-fn apply_pat<L: Language, A: Analysis<L>>(
+pub(crate) fn apply_pat<L: Language, A: Analysis<L>>(
     ids: &mut [Id],
     pat: &[ENodeOrVar<L>],
     egraph: &mut EGraph<L, A>,
@@ -324,15 +380,12 @@ mod tests {
         crate::init_logger();
         let mut egraph = EGraph::default();
 
-        let x = egraph.add(S::leaf("x"));
-        let y = egraph.add(S::leaf("y"));
-        let plus = egraph.add(S::new("+", vec![x, y]));
-
-        let z = egraph.add(S::leaf("z"));
-        let w = egraph.add(S::leaf("w"));
-        let plus2 = egraph.add(S::new("+", vec![z, w]));
-
-        egraph.union(plus, plus2);
+        let (plus_id, _) = egraph.union_instantiations(
+            &"(+ x y)".parse().unwrap(),
+            &"(+ z w)".parse().unwrap(),
+            &Default::default(),
+            "union_plus".to_string(),
+        );
         egraph.rebuild();
 
         let commute_plus = rewrite!(
@@ -360,7 +413,7 @@ mod tests {
         use crate::extract::{AstSize, Extractor};
 
         let ext = Extractor::new(&egraph, AstSize);
-        let (_, best) = ext.find_best(plus);
+        let (_, best) = ext.find_best(plus_id);
         eprintln!("Best: {:#?}", best);
     }
 }

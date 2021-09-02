@@ -1,5 +1,6 @@
 use egg::{rewrite as rw, *};
 use fxhash::FxHashSet as HashSet;
+use std::sync::Arc;
 
 define_language! {
     enum Lambda {
@@ -39,15 +40,22 @@ struct LambdaAnalysis;
 #[derive(Debug)]
 struct Data {
     free: HashSet<Id>,
-    constant: Option<Lambda>,
+    constant: Option<(Lambda, PatternAst<Lambda>)>,
 }
 
-fn eval(egraph: &EGraph, enode: &Lambda) -> Option<Lambda> {
-    let x = |i: &Id| egraph[*i].data.constant.clone();
+fn eval(egraph: &EGraph, enode: &Lambda) -> Option<(Lambda, PatternAst<Lambda>)> {
+    let x = |i: &Id| egraph[*i].data.constant.as_ref().map(|c| &c.0);
     match enode {
-        Lambda::Num(_) | Lambda::Bool(_) => Some(enode.clone()),
-        Lambda::Add([a, b]) => Some(Lambda::Num(x(a)?.num()? + x(b)?.num()?)),
-        Lambda::Eq([a, b]) => Some(Lambda::Bool(x(a)? == x(b)?)),
+        Lambda::Num(n) => Some((enode.clone(), format!("{}", n).parse().unwrap())),
+        Lambda::Bool(b) => Some((enode.clone(), format!("{}", b).parse().unwrap())),
+        Lambda::Add([a, b]) => Some((
+            Lambda::Num(x(a)?.num()? + x(b)?.num()?),
+            format!("(+ {} {})", x(a)?, x(b)?).parse().unwrap(),
+        )),
+        Lambda::Eq([a, b]) => Some((
+            Lambda::Bool(x(a)? == x(b)?),
+            format!("(= {} {})", x(a)?, x(b)?).parse().unwrap(),
+        )),
         _ => None,
     }
 }
@@ -90,8 +98,17 @@ impl Analysis<Lambda> for LambdaAnalysis {
 
     fn modify(egraph: &mut EGraph, id: Id) {
         if let Some(c) = egraph[id].data.constant.clone() {
-            let const_id = egraph.add(c);
-            egraph.union(id, const_id);
+            if egraph.are_explanations_enabled() {
+                egraph.union_instantiations(
+                    &c.0.to_string().parse().unwrap(),
+                    &c.1,
+                    &Default::default(),
+                    "analysis".to_string(),
+                );
+            } else {
+                let const_id = egraph.add(c.0);
+                egraph.union(id, const_id);
+            }
         }
     }
 }
@@ -154,7 +171,14 @@ struct CaptureAvoid {
 }
 
 impl Applier<Lambda, LambdaAnalysis> for CaptureAvoid {
-    fn apply_one(&self, egraph: &mut EGraph, eclass: Id, subst: &Subst) -> Vec<Id> {
+    fn apply_one(
+        &self,
+        egraph: &mut EGraph,
+        eclass: Id,
+        subst: &Subst,
+        searcher_ast: Option<&PatternAst<Lambda>>,
+        rule_name: Arc<str>,
+    ) -> Vec<Id> {
         let e = subst[self.e];
         let v2 = subst[self.v2];
         let v2_free_in_e = egraph[e].data.free.contains(&v2);
@@ -162,9 +186,11 @@ impl Applier<Lambda, LambdaAnalysis> for CaptureAvoid {
             let mut subst = subst.clone();
             let sym = Lambda::Symbol(format!("_{}", eclass).into());
             subst.insert(self.fresh, egraph.add(sym));
-            self.if_free.apply_one(egraph, eclass, &subst)
+            self.if_free
+                .apply_one(egraph, eclass, &subst, searcher_ast, rule_name)
         } else {
-            self.if_not_free.apply_one(egraph, eclass, &subst)
+            self.if_not_free
+                .apply_one(egraph, eclass, &subst, searcher_ast, rule_name)
         }
     }
 }

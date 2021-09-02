@@ -17,28 +17,42 @@ type Rewrite = egg::Rewrite<Prop, ConstantFold>;
 #[derive(Default)]
 struct ConstantFold;
 impl Analysis<Prop> for ConstantFold {
-    type Data = Option<bool>;
+    type Data = Option<(bool, PatternAst<Prop>)>;
     fn merge(&self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
         merge_max(to, from)
     }
+
     fn make(egraph: &EGraph, enode: &Prop) -> Self::Data {
-        let x = |i: &Id| egraph[*i].data;
+        let x = |i: &Id| egraph[*i].data.as_ref().map(|c| c.0);
         let result = match enode {
-            Prop::Bool(c) => Some(*c),
+            Prop::Bool(c) => Some((*c, c.to_string().parse().unwrap())),
             Prop::Symbol(_) => None,
-            Prop::And([a, b]) => Some(x(a)? && x(b)?),
-            Prop::Not(a) => Some(!x(a)?),
-            Prop::Or([a, b]) => Some(x(a)? || x(b)?),
-            Prop::Implies([a, b]) => Some(x(a)? || !x(b)?),
+            Prop::And([a, b]) => Some((
+                x(a)? && x(b)?,
+                format!("(& {} {})", x(a)?, x(b)?).parse().unwrap(),
+            )),
+            Prop::Not(a) => Some((!x(a)?, format!("(~ {})", x(a)?).parse().unwrap())),
+            Prop::Or([a, b]) => Some((
+                x(a)? || x(b)?,
+                format!("(| {} {})", x(a)?, x(b)?).parse().unwrap(),
+            )),
+            Prop::Implies([a, b]) => Some((
+                x(a)? || !x(b)?,
+                format!("(-> {} {})", x(a)?, x(b)?).parse().unwrap(),
+            )),
         };
         println!("Make: {:?} -> {:?}", enode, result);
         result
     }
+
     fn modify(egraph: &mut EGraph, id: Id) {
-        println!("Modifying {}", id);
-        if let Some(c) = egraph[id].data {
-            let const_id = egraph.add(Prop::Bool(c));
-            egraph.union(id, const_id);
+        if let Some(c) = egraph[id].data.clone() {
+            egraph.union_instantiations(
+                &c.1,
+                &c.0.to_string().parse().unwrap(),
+                &Default::default(),
+                "analysis".to_string(),
+            );
         }
     }
 }

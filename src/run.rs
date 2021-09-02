@@ -387,6 +387,35 @@ where
         self
     }
 
+    /// Enable explanations for this runner's egraph.
+    /// This allows the runner to explain why two expressions are
+    /// equivalent with the [`explain_equivalence`](Runner::explain_equivalence) function.
+    pub fn with_explanations_enabled(mut self) -> Self {
+        self.egraph = self.egraph.with_explanations_enabled();
+        self
+    }
+
+    /// Disable explanations for this runner's egraph.
+    pub fn with_explanations_disabled(mut self) -> Self {
+        self.egraph = self.egraph.with_explanations_disabled();
+        self
+    }
+
+    /// Calls [`EGraph::explain_equivalence`](EGraph::explain_equivalence()).
+    pub fn explain_equivalence(&mut self, left: &RecExpr<L>, right: &RecExpr<L>) -> Explanation<L> {
+        self.egraph.explain_equivalence(left, right)
+    }
+
+    /// Get an explanation for why an expression matches a pattern.
+    pub fn explain_matches(
+        &mut self,
+        left: &RecExpr<L>,
+        right: &PatternAst<L>,
+        subst: &Subst,
+    ) -> Explanation<L> {
+        self.egraph.explain_matches(left, right, subst)
+    }
+
     #[rustfmt::skip]
     /// Prints some information about a runners run.
     pub fn print_report(&self) {
@@ -478,6 +507,9 @@ where
 
         let rebuild_time = Instant::now();
         let n_rebuilds = self.egraph.rebuild();
+        if self.egraph.are_explanations_enabled() {
+            debug_assert!(self.egraph.check_each_explain(rules));
+        }
 
         let rebuild_time = rebuild_time.elapsed().as_secs_f64();
         info!("Rebuild time: {}", rebuild_time);
@@ -579,12 +611,12 @@ where
     ///
     /// Default implementation just calls
     /// [`Rewrite::search`](Rewrite::search()).
-    fn search_rewrite(
+    fn search_rewrite<'a>(
         &mut self,
         iteration: usize,
         egraph: &EGraph<L, N>,
-        rewrite: &Rewrite<L, N>,
-    ) -> Vec<SearchMatches> {
+        rewrite: &'a Rewrite<L, N>,
+    ) -> Vec<SearchMatches<'a, L>> {
         rewrite.search(egraph)
     }
 
@@ -599,7 +631,7 @@ where
         iteration: usize,
         egraph: &mut EGraph<L, N>,
         rewrite: &Rewrite<L, N>,
-        matches: Vec<SearchMatches>,
+        matches: Vec<SearchMatches<L>>,
     ) -> usize {
         rewrite.apply(egraph, &matches).len()
     }
@@ -759,12 +791,12 @@ where
         }
     }
 
-    fn search_rewrite(
+    fn search_rewrite<'a>(
         &mut self,
         iteration: usize,
         egraph: &EGraph<L, N>,
-        rewrite: &Rewrite<L, N>,
-    ) -> Vec<SearchMatches> {
+        rewrite: &'a Rewrite<L, N>,
+    ) -> Vec<SearchMatches<'a, L>> {
         let stats = self.rule_stats(rewrite.name());
 
         if iteration < stats.banned_until {

@@ -164,7 +164,7 @@ impl<'a, L: Language> Compiler<'a, L> {
         compiler.go()
     }
 
-    fn get_ground_locs(&mut self, is_ground: &Vec<bool>) -> Vec<Option<Reg>> {
+    fn get_ground_locs(&mut self, is_ground: &[bool]) -> Vec<Option<Reg>> {
         let mut ground_locs: Vec<Option<Reg>> = vec![None; self.pattern.len()];
         for i in 0..self.pattern.len() {
             if let ENodeOrVar::ENode(node) = &self.pattern[i] {
@@ -186,7 +186,7 @@ impl<'a, L: Language> Compiler<'a, L> {
             }
         }
         if *is_ground.last().unwrap() {
-            if let Some(_) = self.pattern.last() {
+            if self.pattern.last().is_some() {
                 *ground_locs.last_mut().unwrap() = Some(self.out);
                 self.out.0 += 1;
             } else {
@@ -309,7 +309,7 @@ impl<L: Language> Program<L> {
 
         assert_eq!(machine.reg.len(), 0);
         for expr in &self.ground_terms {
-            if let Some(id) = egraph.lookup_expr(&mut expr.clone()) {
+            if let Some(id) = egraph.lookup_expr(&expr.clone()) {
                 machine.reg.push(id)
             } else {
                 return vec![];
@@ -317,7 +317,7 @@ impl<L: Language> Program<L> {
         }
         machine.reg.push(eclass);
 
-        let mut substs = Vec::new();
+        let mut matches = Vec::new();
         machine.run(
             egraph,
             &self.instructions,
@@ -329,11 +329,11 @@ impl<L: Language> Program<L> {
                     // HACK we are reusing Ids here, this is bad
                     .map(|(v, reg_id)| (*v, machine.reg(Reg(usize::from(*reg_id) as u32))))
                     .collect();
-                substs.push(Subst { vec: subst_vec })
+                matches.push(Subst { vec: subst_vec });
             },
         );
 
-        log::trace!("Ran program, found {:?}", substs);
-        substs
+        log::trace!("Ran program, found {:?}", matches);
+        matches
     }
 }

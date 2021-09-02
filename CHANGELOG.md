@@ -5,11 +5,23 @@
 ## [Unreleased] - ReleaseDate
 
 ### Added
+- The egraph now has an `EGraph::with_explanations_enabled` mode that allows for
+  explaining why two terms are equivalent in the egraph.
+  In explanations mode, all unions must be done through `union_instantiations` in order
+  to justify the union.
+  Calling `explain_equivalence` returns an `Explanation`
+  which has both a `FlatExplanation` form and a
+  `TreeExplanation` form.
 - The `BackoffScheduler` is now more flexible.
 - `EGraph::pre_union` allows inspection of unions, which can be useful for debugging.
 - The dot printer is now more flexible.
 
 ### Changed
+- All unions are now delayed until rebuilding, so `EGraph::rebuild` be called to observe effects.
+- The `apply_one` function on appliers now needs to perform unions.
+- The congruence closure algorithm now keeps the egraph congruent before
+  doing any analysis (calling `make`). It does this by interleaving rebuilding
+  and doing analysis.
 - `EGraph::add_expr` now proceeds linearly through the given `RecExpr`, which
   should be faster and include _all_ e-nodes from the expression.
 - `Rewrite` now has public `searcher` and `applier` fields and no `long_name`.

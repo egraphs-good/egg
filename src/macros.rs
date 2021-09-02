@@ -226,6 +226,8 @@ the outermost, and the last condition being the innermost.
 # Example
 ```
 # use egg::*;
+use std::borrow::Cow;
+use std::sync::Arc;
 define_language! {
     enum SimpleLanguage {
         Num(i32),
@@ -261,7 +263,7 @@ rules.extend(vec![
 #[derive(Debug)]
 struct MySillyApplier(&'static str);
 impl Applier<SimpleLanguage, ()> for MySillyApplier {
-    fn apply_one(&self, _: &mut EGraph, _: Id, _: &Subst) -> Vec<Id> {
+    fn apply_one(&self, _: &mut EGraph, _: Id, _: &Subst, _: Option<&PatternAst<SimpleLanguage>>, _: Arc<str>) -> Vec<Id> {
         panic!()
     }
 }
@@ -286,7 +288,7 @@ macro_rules! rewrite {
         let searcher = $crate::__rewrite!(@parse $lhs);
         let core_applier = $crate::__rewrite!(@parse $rhs);
         let applier = $crate::__rewrite!(@applier core_applier; $($cond,)*);
-        $crate::Rewrite::new($name, searcher, applier).unwrap()
+        $crate::Rewrite::new($name.to_string(), searcher, applier).unwrap()
     }};
     (
         $name:expr;
@@ -365,7 +367,7 @@ mod tests {
     fn rewrite_conditional_panic() {
         let x: Pattern<Simple> = "?x".parse().unwrap();
         let _: Rewrite<Simple, ()> = rewrite!(
-            "bad"; "?a" => "?a" if ConditionEqual(x.clone(), x)
+            "bad"; "?a" => "?a" if ConditionEqual::new(x.clone(), x)
         );
     }
 }

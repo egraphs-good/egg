@@ -48,22 +48,34 @@ impl egg::CostFunction<Math> for MathCostFn {
 #[derive(Default)]
 pub struct ConstantFold;
 impl Analysis<Math> for ConstantFold {
-    type Data = Option<Constant>;
+    type Data = Option<(Constant, PatternAst<Math>)>;
 
     fn make(egraph: &EGraph, enode: &Math) -> Self::Data {
-        let x = |i: &Id| egraph[*i].data;
+        let x = |i: &Id| egraph[*i].data.as_ref().map(|d| d.0);
         Some(match enode {
-            Math::Constant(c) => *c,
-            Math::Add([a, b]) => x(a)? + x(b)?,
-            Math::Sub([a, b]) => x(a)? - x(b)?,
-            Math::Mul([a, b]) => x(a)? * x(b)?,
-            Math::Div([a, b]) if x(b) != Some(0.0.into()) => x(a)? / x(b)?,
+            Math::Constant(c) => (*c, format!("{}", c).parse().unwrap()),
+            Math::Add([a, b]) => (
+                x(a)? + x(b)?,
+                format!("(+ {} {})", x(a)?, x(b)?).parse().unwrap(),
+            ),
+            Math::Sub([a, b]) => (
+                x(a)? - x(b)?,
+                format!("(- {} {})", x(a)?, x(b)?).parse().unwrap(),
+            ),
+            Math::Mul([a, b]) => (
+                x(a)? * x(b)?,
+                format!("(* {} {})", x(a)?, x(b)?).parse().unwrap(),
+            ),
+            Math::Div([a, b]) if x(b) != Some(0.0.into()) => (
+                x(a)? / x(b)?,
+                format!("(/ {} {})", x(a)?, x(b)?).parse().unwrap(),
+            ),
             _ => return None,
         })
     }
 
     fn merge(&self, a: &mut Self::Data, b: Self::Data) -> DidMerge {
-        match (a.as_mut(), b) {
+        match (a.as_mut(), &b) {
             (None, None) => DidMerge(false, false),
             (None, Some(_)) => {
                 *a = b;
@@ -79,18 +91,22 @@ impl Analysis<Math> for ConstantFold {
     }
 
     fn modify(egraph: &mut EGraph, id: Id) {
-        let class = &mut egraph[id];
-        if let Some(c) = class.data {
-            let added = egraph.add(Math::Constant(c));
-            let (id, _did_something) = egraph.union(id, added);
+        let class = egraph[id].clone();
+        if let Some((c, pat)) = class.data {
+            if egraph.are_explanations_enabled() {
+                egraph.union_instantiations(
+                    &pat,
+                    &format!("{}", c).parse().unwrap(),
+                    &Default::default(),
+                    "constant_fold".to_string(),
+                );
+            } else {
+                let added = egraph.add(Math::Constant(c));
+                egraph.union(id, added);
+            }
             // to not prune, comment this out
             egraph[id].nodes.retain(|n| n.is_leaf());
 
-            assert!(
-                !egraph[id].nodes.is_empty(),
-                "empty eclass! {:#?}",
-                egraph[id]
-            );
             #[cfg(debug_assertions)]
             egraph[id].assert_unique_leaves();
         }
@@ -128,8 +144,8 @@ fn is_sym(var: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
 fn is_not_zero(var: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let var = var.parse().unwrap();
     move |egraph, _, subst| {
-        if let Some(n) = egraph[subst[var]].data {
-            *n != 0.0
+        if let Some(n) = &egraph[subst[var]].data {
+            *(n.0) != 0.0
         } else {
             true
         }
@@ -268,6 +284,7 @@ egg::test_fn! {
         .with_time_limit(std::time::Duration::from_secs(10))
         .with_iter_limit(60)
         .with_node_limit(100_000)
+        .with_explanations_enabled()
         // HACK this needs to "see" the end expression
         .with_expr(&"(* x (- (* 3 x) 14))".parse().unwrap()),
     "(d x (- (pow x 3) (* 7 (pow x 2))))"

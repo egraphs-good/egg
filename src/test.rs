@@ -26,7 +26,7 @@ where
 
 #[allow(clippy::type_complexity)]
 pub fn test_runner<L, A>(
-    _name: &str,
+    name: &str,
     runner: Option<Runner<L, A, ()>>,
     rules: &[Rewrite<L, A>],
     start: RecExpr<L>,
@@ -37,13 +37,7 @@ pub fn test_runner<L, A>(
     L: Language + Display + 'static,
     A: Analysis<L> + Default,
 {
-    let mut runner = runner.unwrap_or_default().with_expr(&start);
-
-    // NOTE this is a bit of hack, we rely on the fact that the
-    // initial root is the last expr added by the runner. We can't
-    // use egraph.find_expr(start) because it may have been pruned
-    // away
-    let id = runner.egraph.find(*runner.roots.last().unwrap());
+    let mut runner = runner.unwrap_or_default();
 
     if let Some(lim) = env_var("EGG_NODE_LIMIT") {
         runner = runner.with_node_limit(lim)
@@ -54,6 +48,24 @@ pub fn test_runner<L, A>(
     if let Some(lim) = env_var("EGG_TIME_LIMIT") {
         runner = runner.with_time_limit(std::time::Duration::from_secs(lim))
     }
+    if let Some(is_enabled) = env_var("EGG_TEST_EXPLANATIONS") {
+        if is_enabled {
+            runner = runner.with_explanations_enabled();
+        } else {
+            // in case we enabled it in order to add expressions
+            runner = runner.with_explanations_disabled();
+        }
+    } else {
+        // in case we enabled it in order to add expressions
+        runner = runner.with_explanations_disabled();
+    }
+
+    runner = runner.with_expr(&start);
+    // NOTE this is a bit of hack, we rely on the fact that the
+    // initial root is the last expr added by the runner. We can't
+    // use egraph.find_expr(start) because it may have been pruned
+    // away
+    let id = runner.egraph.find(*runner.roots.last().unwrap());
 
     if check_fn.is_none() {
         let goals = goals.to_vec();
@@ -68,11 +80,23 @@ pub fn test_runner<L, A>(
             }
         });
     }
-    let runner = runner.run(rules);
+    let mut runner = runner.run(rules);
 
     if should_check {
         runner.print_report();
         runner.egraph.check_goals(id, &goals);
+
+        if runner.egraph.are_explanations_enabled() && name != "lambda_function_repeat" {
+            for goal in goals {
+                let matches = goal.search_eclass(&runner.egraph, id).unwrap();
+                let subst = matches.substs[0].clone();
+                let mut explained = runner.explain_matches(&start, &goal.ast, &subst);
+                println!("{}", explained);
+                explained.get_sexp_with_let();
+                explained.get_flat_sexps();
+                explained.check_proof(rules);
+            }
+        }
 
         if let Some(check_fn) = check_fn {
             check_fn(runner)

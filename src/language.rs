@@ -397,37 +397,10 @@ impl<L: Language + Display> RecExpr<L> {
     /// ".trim());
     /// ```
     pub fn pretty(&self, width: usize) -> String {
-        use std::fmt::{Result, Write};
         let sexp = self.to_sexp(self.nodes.len() - 1);
 
-        fn pp(buf: &mut String, sexp: &Sexp, width: usize, level: usize) -> Result {
-            if let Sexp::List(list) = sexp {
-                let indent = sexp.to_string().len() > width;
-                write!(buf, "(")?;
-
-                for (i, val) in list.iter().enumerate() {
-                    if indent && i > 0 {
-                        writeln!(buf)?;
-                        for _ in 0..level {
-                            write!(buf, "  ")?;
-                        }
-                    }
-                    pp(buf, val, width, level + 1)?;
-                    if !indent && i < list.len() - 1 {
-                        write!(buf, " ")?;
-                    }
-                }
-
-                write!(buf, ")")?;
-                Ok(())
-            } else {
-                // I don't care about quotes
-                write!(buf, "{}", sexp.to_string().trim_matches('"'))
-            }
-        }
-
         let mut buf = String::new();
-        pp(&mut buf, &sexp, width, 1).unwrap();
+        pretty_print(&mut buf, &sexp, width, 1).unwrap();
         buf
     }
 }
@@ -492,6 +465,26 @@ impl<L: FromOp> FromStr for RecExpr<L> {
         let sexp = symbolic_expressions::parser::parse_str(s.trim()).map_err(BadSexp)?;
         parse_sexp_into(&sexp, &mut expr)?;
         Ok(expr)
+    }
+}
+
+/// Result of [`Analysis::merge`] indicating which of the inputs
+/// are different from the merged result.
+///
+/// The fields correspond to whether the `a` and `b` inputs to [`Analysis::merge`]
+/// were changed in any way by the merge.
+///
+/// In both cases the result may be coservative -- they may indicate `true` even
+/// when there is no difference between the input and the result.
+pub struct DidMerge(pub bool, pub bool);
+
+impl BitOr for DidMerge {
+    type Output = DidMerge;
+
+    fn bitor(mut self, rhs: Self) -> Self::Output {
+        self.0 |= rhs.0;
+        self.1 |= rhs.1;
+        self
     }
 }
 
@@ -572,27 +565,6 @@ assert_eq!(runner.egraph.find(runner.roots[0]), runner.egraph.find(just_foo));
 [`math.rs`]: https://github.com/egraphs-good/egg/blob/main/tests/math.rs
 [`prop.rs`]: https://github.com/egraphs-good/egg/blob/main/tests/prop.rs
 */
-
-/// Result of [`Analysis::merge`] indicating which of the inputs
-/// are different from the merged result.
-///
-/// The fields correspond to whether the `a` and `b` inputs to [`Analysis::merge`]
-/// were changed in any way by the merge.
-///
-/// In both cases the result may be coservative -- they may indicate `true` even
-/// when there is no difference between the input and the result.
-pub struct DidMerge(pub bool, pub bool);
-
-impl BitOr for DidMerge {
-    type Output = DidMerge;
-
-    fn bitor(mut self, rhs: Self) -> Self::Output {
-        self.0 |= rhs.0;
-        self.1 |= rhs.1;
-        self
-    }
-}
-
 pub trait Analysis<L: Language>: Sized {
     /// The per-[`EClass`] data for this analysis.
     type Data: Debug;

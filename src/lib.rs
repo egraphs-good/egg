@@ -33,6 +33,7 @@ pub mod tutorials;
 mod dot;
 mod eclass;
 mod egraph;
+mod explain;
 mod extract;
 mod language;
 mod machine;
@@ -72,12 +73,13 @@ impl std::fmt::Display for Id {
     }
 }
 
-pub(crate) use unionfind::UnionFind;
+pub(crate) use {explain::Explain, explain::Justification, unionfind::UnionFind};
 
 pub use {
     dot::Dot,
     eclass::EClass,
     egraph::EGraph,
+    explain::{Explanation, FlatExplanation, FlatTerm, TreeExplanation, TreeTerm},
     extract::*,
     language::*,
     pattern::{ENodeOrVar, Pattern, PatternAst, SearchMatches},
