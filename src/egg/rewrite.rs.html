@@ -594,6 +594,8 @@
 <span id="591">591</span>
 <span id="592">592</span>
 <span id="593">593</span>
+<span id="594">594</span>
+<span id="595">595</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">pattern</span>::<span class="ident">apply_pat</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fmt</span>::{<span class="self">self</span>, <span class="ident">Debug</span>, <span class="ident">Display</span>};
@@ -846,10 +848,12 @@
 <span class="doccomment">///             let c0 = egraph.add(Math::Add([c, zero]));</span>
 <span class="doccomment">///             let b0c0 = egraph.add(Math::Mul([b0, c0]));</span>
 <span class="doccomment">///             let a0b0c0 = egraph.add(Math::Add([a0, b0c0]));</span>
-<span class="doccomment">///             // NOTE: we just return the id according to what we</span>
-<span class="doccomment">///             // want unified with matched_id. The `apply_matches`</span>
-<span class="doccomment">///             // method actually does the union, _not_ `apply_one`.</span>
-<span class="doccomment">///             vec![a0b0c0]</span>
+<span class="doccomment">///             // Don&#39;t forget to union the new node with the matched node!</span>
+<span class="doccomment">///             if egraph.union(matched_id, a0b0c0) {</span>
+<span class="doccomment">///                 vec![a0b0c0]</span>
+<span class="doccomment">///             } else {</span>
+<span class="doccomment">///                 vec![]</span>
+<span class="doccomment">///             }</span>
 <span class="doccomment">///         }</span>
 <span class="doccomment">///     }</span>
 <span class="doccomment">/// }</span>
@@ -900,9 +904,9 @@
 
     <span class="doccomment">/// Apply a single substitition.</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// An [`Applier`] should add things and union them in the egraph.</span>
-    <span class="doccomment">/// The `eclass` parameter allows the implementer to inspect the</span>
-    <span class="doccomment">/// eclass where the match was found if they need to.</span>
+    <span class="doccomment">/// An [`Applier`] should add things and union them with `eclass`.</span>
+    <span class="doccomment">/// Appliers can also inspect the eclass if necessary using the</span>
+    <span class="doccomment">/// `eclass` parameter.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// This should return a list of [`Id`]s of eclasses that</span>
     <span class="doccomment">/// were changed. There can be zero, one, or many.</span>
