@@ -249,10 +249,12 @@ where
 ///             let c0 = egraph.add(Math::Add([c, zero]));
 ///             let b0c0 = egraph.add(Math::Mul([b0, c0]));
 ///             let a0b0c0 = egraph.add(Math::Add([a0, b0c0]));
-///             // NOTE: we just return the id according to what we
-///             // want unified with matched_id. The `apply_matches`
-///             // method actually does the union, _not_ `apply_one`.
-///             vec![a0b0c0]
+///             // Don't forget to union the new node with the matched node!
+///             if egraph.union(matched_id, a0b0c0) {
+///                 vec![a0b0c0]
+///             } else {
+///                 vec![]
+///             }
 ///         }
 ///     }
 /// }
@@ -303,9 +305,9 @@ where
 
     /// Apply a single substitition.
     ///
-    /// An [`Applier`] should add things and union them in the egraph.
-    /// The `eclass` parameter allows the implementer to inspect the
-    /// eclass where the match was found if they need to.
+    /// An [`Applier`] should add things and union them with `eclass`.
+    /// Appliers can also inspect the eclass if necessary using the
+    /// `eclass` parameter.
     ///
     /// This should return a list of [`Id`]s of eclasses that
     /// were changed. There can be zero, one, or many.
