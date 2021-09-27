@@ -72,6 +72,13 @@ pub struct EGraph<L: Language, N: Analysis<L>> {
     #[cfg_attr(feature = "serde-1", serde(skip))]
     #[cfg_attr(feature = "serde-1", serde(default = "default_classes_by_op"))]
     pub(crate) classes_by_op: HashMap<std::mem::Discriminant<L>, HashSet<Id>>,
+    /// Whether or not reading operation are allowed on this e-graph.
+    /// Mutating operations will set this to `false`, and
+    /// [`EGraph::rebuild`] will set it to true.
+    /// Reading operations require this to be `true`.
+    /// Only manually set it if you know what you're doing.
+    #[cfg_attr(feature = "serde-1", serde(skip))]
+    pub clean: bool,
 }
 
 #[cfg(feature = "serde-1")]
@@ -103,6 +110,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             to_union: Default::default(),
             classes: Default::default(),
             unionfind: Default::default(),
+            clean: false,
             explain: None,
             pending: Default::default(),
             memo: Default::default(),
@@ -408,6 +416,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             assert!(self.memo.insert(enode, id).is_none());
 
             N::modify(self, id);
+
+            self.clean = false;
             id
         })
     }
@@ -470,6 +480,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         subst: &Subst,
         rule_name: impl Into<Symbol>,
     ) -> bool {
+        self.clean = false;
         if let Some(explain) = &mut self.explain {
             if self.unionfind.find_mut(id1) == self.unionfind.find_mut(id2) {
                 false
@@ -504,6 +515,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// You must call [`rebuild`](EGraph::rebuild) to observe any effect.
     ///
     pub fn union(&mut self, id1: Id, id2: Id) -> bool {
+        self.clean = false;
         if self.explain.is_some() {
             panic!("Use union_instantiations when explanation mode is enabled.");
         }
@@ -757,6 +769,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// invariants before any query operations, otherwise the results
     /// may be stale or incorrect.
     ///
+    /// This will set [`EGraph::clean`] to `true`.
+    ///
     /// # Example
     /// ```
     /// use egg::{*, SymbolLang as S};
@@ -808,6 +822,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         );
 
         debug_assert!(self.check_memo());
+        self.clean = true;
         n_unions
     }
 

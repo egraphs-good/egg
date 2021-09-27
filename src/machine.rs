@@ -307,6 +307,7 @@ impl<L: Language> Program<L> {
     {
         let mut machine = Machine::default();
 
+        assert!(egraph.clean, "Tried to search a dirty e-graph!");
         assert_eq!(machine.reg.len(), 0);
         for expr in &self.ground_terms {
             if let Some(id) = egraph.lookup_expr(&expr.clone()) {
