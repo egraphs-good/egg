@@ -2,7 +2,7 @@ use fmt::Formatter;
 use log::*;
 use std::borrow::Cow;
 use std::fmt::{self, Display};
-use std::{convert::TryFrom, error::Error, str::FromStr, sync::Arc};
+use std::{convert::TryFrom, error::Error, str::FromStr};
 
 use thiserror::Error;
 
@@ -280,7 +280,7 @@ where
         &self,
         egraph: &mut EGraph<L, A>,
         matches: &[SearchMatches<L>],
-        rule_name: Arc<str>,
+        rule_name: Symbol,
     ) -> Vec<Id> {
         let mut added = vec![];
         let ast = self.ast.as_ref();
@@ -291,12 +291,8 @@ where
                 let did_something;
                 let id;
                 if egraph.are_explanations_enabled() {
-                    let (id_temp, did_something_temp) = egraph.union_instantiations(
-                        sast.unwrap(),
-                        &self.ast,
-                        subst,
-                        rule_name.clone(),
-                    );
+                    let (id_temp, did_something_temp) =
+                        egraph.union_instantiations(sast.unwrap(), &self.ast, subst, rule_name);
                     did_something = did_something_temp;
                     id = id_temp;
                 } else {
@@ -318,7 +314,7 @@ where
         eclass: Id,
         subst: &Subst,
         searcher_ast: Option<&PatternAst<L>>,
-        rule_name: Arc<str>,
+        rule_name: Symbol,
     ) -> Vec<Id> {
         let ast = self.ast.as_ref();
         let mut id_buf = vec![0.into(); ast.len()];

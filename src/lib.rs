@@ -47,6 +47,7 @@ mod util;
 /// A key to identify [`EClass`]es within an
 /// [`EGraph`].
 #[derive(Clone, Copy, Default, Ord, PartialOrd, Eq, PartialEq, Hash)]
+#[cfg_attr(feature = "serde-1", derive(serde::Serialize, serde::Deserialize))]
 pub struct Id(u32);
 
 impl From<usize> for Id {

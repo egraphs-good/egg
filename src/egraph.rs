@@ -1,9 +1,11 @@
 use crate::*;
-use std::sync::Arc;
 use std::{
     borrow::BorrowMut,
     fmt::{self, Debug, Display},
 };
+
+#[cfg(feature = "serde-1")]
+use ::serde::{Deserialize, Serialize};
 
 use log::*;
 
@@ -34,6 +36,10 @@ You can use the `egraph[id]` syntax to get an [`EClass`] from an [`Id`], because
 and
 [`IndexMut`](struct.EGraph.html#impl-IndexMut<Id>).
 
+Enabling the `serde-1` feature on this crate will allow you to
+de/serialize [`EGraph`]s using [`serde`](https://serde.rs/).
+You must call [`EGraph::rebuild`] after deserializing an e-graph!
+
 [`add`]: EGraph::add()
 [`union`]: EGraph::union()
 [`rebuild`]: EGraph::rebuild()
@@ -44,6 +50,7 @@ and
 [sound]: https://itinerarium.github.io/phoneme-synthesis/?w=/'igraf/
 **/
 #[derive(Clone)]
+#[cfg_attr(feature = "serde-1", derive(Serialize, Deserialize))]
 pub struct EGraph<L: Language, N: Analysis<L>> {
     /// The `Analysis` given when creating this `EGraph`.
     pub analysis: N,
@@ -51,11 +58,25 @@ pub struct EGraph<L: Language, N: Analysis<L>> {
     pub(crate) explain: Option<Explain<L>>,
     unionfind: UnionFind,
     memo: HashMap<L, Id>,
-    to_union: Vec<(Id, Id, Option<Arc<str>>)>,
+    to_union: Vec<(Id, Id, Option<Symbol>)>,
     pending: Vec<(L, Id)>,
     analysis_pending: IndexSet<(L, Id)>,
+    #[cfg_attr(
+        feature = "serde-1",
+        serde(bound(
+            serialize = "N::Data: Serialize",
+            deserialize = "N::Data: for<'a> Deserialize<'a>",
+        ))
+    )]
     classes: HashMap<Id, EClass<L, N::Data>>,
+    #[cfg_attr(feature = "serde-1", serde(skip))]
+    #[cfg_attr(feature = "serde-1", serde(default = "default_classes_by_op"))]
     pub(crate) classes_by_op: HashMap<std::mem::Discriminant<L>, HashSet<Id>>,
+}
+
+#[cfg(feature = "serde-1")]
+fn default_classes_by_op<K>() -> HashMap<K, HashSet<Id>> {
+    HashMap::default()
 }
 
 impl<L: Language, N: Analysis<L> + Default> Default for EGraph<L, N> {
@@ -430,7 +451,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         from_pat: &PatternAst<L>,
         to_pat: &PatternAst<L>,
         subst: &Subst,
-        rule_name: impl Into<Arc<str>>,
+        rule_name: impl Into<Symbol>,
     ) -> (Id, bool) {
         let id1 = self.add_instantiation(from_pat, subst);
         let id2 = self.add_instantiation(to_pat, subst);
@@ -447,7 +468,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         from_pat: &PatternAst<L>,
         to_pat: &PatternAst<L>,
         subst: &Subst,
-        rule_name: impl Into<Arc<str>>,
+        rule_name: impl Into<Symbol>,
     ) -> bool {
         if let Some(explain) = &mut self.explain {
             if self.unionfind.find_mut(id1) == self.unionfind.find_mut(id2) {
@@ -817,7 +838,7 @@ impl<'a, L: Language, N: Analysis<L>> Debug for EGraphDump<'a, L, N> {
 #[cfg(test)]
 mod tests {
 
-    use crate::*;
+    use super::*;
 
     #[test]
     fn simple_add() {
@@ -839,5 +860,16 @@ mod tests {
         egraph.rebuild();
 
         egraph.dot().to_dot("target/foo.dot").unwrap();
+    }
+
+    #[cfg(feature = "serde-1")]
+    #[test]
+    fn test_serde() {
+        fn ser(_: &impl Serialize) {}
+        fn de<'a>(_: &impl Deserialize<'a>) {}
+
+        let egraph = EGraph::<SymbolLang, ()>::default();
+        ser(&egraph);
+        de(&egraph);
     }
 }

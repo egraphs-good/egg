@@ -91,6 +91,8 @@ static STRINGS: Lazy<Mutex<IndexSet<&'static str>>> = Lazy::new(Default::default
 /// ```
 ///
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde-1", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde-1", serde(from = "&str", into = "&'static str"))]
 pub struct Symbol(u32);
 
 impl Symbol {
@@ -122,6 +124,12 @@ fn intern(s: &str) -> Symbol {
 impl<S: AsRef<str>> From<S> for Symbol {
     fn from(s: S) -> Self {
         intern(s.as_ref())
+    }
+}
+
+impl From<Symbol> for &'static str {
+    fn from(s: Symbol) -> Self {
+        s.as_str()
     }
 }
 

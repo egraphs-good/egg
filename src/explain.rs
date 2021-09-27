@@ -1,19 +1,22 @@
+use crate::Symbol;
 use crate::{
     util::pretty_print, Analysis, ENodeOrVar, HashMap, HashSet, Id, Language, PatternAst, RecExpr,
     Rewrite, Subst, UnionFind, Var,
 };
 use std::fmt::{self, Debug, Display, Formatter};
 use std::rc::Rc;
-use std::sync::Arc;
+
 use symbolic_expressions::Sexp;
 
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde-1", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) enum Justification {
-    Rule(Arc<str>),
+    Rule(Symbol),
     Congruence,
 }
 
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde-1", derive(serde::Serialize, serde::Deserialize))]
 struct ExplainNode<L: Language> {
     node: L,
     next: Id,
@@ -23,6 +26,7 @@ struct ExplainNode<L: Language> {
 }
 
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde-1", derive(serde::Serialize, serde::Deserialize))]
 pub struct Explain<L: Language> {
     explainfind: Vec<ExplainNode<L>>,
     uncanon_memo: HashMap<L, Id>,
@@ -301,7 +305,7 @@ impl<L: Language> Explanation<L> {
         &self,
         current: &FlatTerm<L>,
         next: &FlatTerm<L>,
-        table: &HashMap<Arc<str>, &Rewrite<L, N>>,
+        table: &HashMap<Symbol, &Rewrite<L, N>>,
         is_forward: bool,
     ) -> bool {
         if is_forward && next.forward_rule.is_some() {
@@ -365,9 +369,9 @@ pub struct TreeTerm<L: Language> {
     /// A node representing this TreeTerm's operator. The children of the node should be ignored.
     pub node: L,
     /// A rule rewritting this TreeTerm's initial term back to the last TreeTerm's final term.
-    pub backward_rule: Option<Arc<str>>,
+    pub backward_rule: Option<Symbol>,
     /// A rule rewriting the last TreeTerm's final term to this TreeTerm's initial term.
-    pub forward_rule: Option<Arc<str>>,
+    pub forward_rule: Option<Symbol>,
     /// A list of child proofs, each transforming the initial term to the final term for that child.
     pub child_proofs: Vec<TreeExplanation<L>>,
 }
@@ -437,8 +441,8 @@ impl<L: Language> TreeTerm<L> {
             representative_terms[i] = child_proof.last().unwrap().remove_rewrites();
         }
 
-        proof[0].backward_rule = self.backward_rule.clone();
-        proof[0].forward_rule = self.forward_rule.clone();
+        proof[0].backward_rule = self.backward_rule;
+        proof[0].forward_rule = self.forward_rule;
 
         proof
     }
@@ -463,9 +467,9 @@ pub struct FlatTerm<L: Language> {
     /// The children of the node should be ignored.
     pub node: L,
     /// A rule rewriting this FlatTerm back to the last FlatTerm.
-    pub backward_rule: Option<Arc<str>>,
+    pub backward_rule: Option<Symbol>,
     /// A rule rewriting the last FlatTerm to this FlatTerm.
-    pub forward_rule: Option<Arc<str>>,
+    pub forward_rule: Option<Symbol>,
     /// The children of this FlatTerm.
     pub children: FlatExplanation<L>,
 }
@@ -506,12 +510,12 @@ impl<L: Language> FlatTerm<L> {
     fn combine_rewrites(&mut self, other: &FlatTerm<L>) {
         if other.forward_rule.is_some() {
             assert!(self.forward_rule.is_none());
-            self.forward_rule = other.forward_rule.clone();
+            self.forward_rule = other.forward_rule;
         }
 
         if other.backward_rule.is_some() {
             assert!(self.backward_rule.is_none());
-            self.backward_rule = other.backward_rule.clone();
+            self.backward_rule = other.backward_rule;
         }
 
         for (left, right) in self.children.iter_mut().zip(other.children.iter()) {
@@ -735,10 +739,10 @@ impl<L: Language> Explain<L> {
 
     fn make_rule_table<'a, N: Analysis<L>>(
         rules: &[&'a Rewrite<L, N>],
-    ) -> HashMap<Arc<str>, &'a Rewrite<L, N>> {
-        let mut table: HashMap<Arc<str>, &'a Rewrite<L, N>> = Default::default();
+    ) -> HashMap<Symbol, &'a Rewrite<L, N>> {
+        let mut table: HashMap<Symbol, &'a Rewrite<L, N>> = Default::default();
         for r in rules {
-            table.insert(r.name.clone(), r);
+            table.insert(r.name, r);
         }
         table
     }
@@ -995,9 +999,9 @@ impl<L: Language> Explain<L> {
             Justification::Rule(name) => {
                 let mut rewritten = self.node_to_explanation(next);
                 if rule_direction {
-                    rewritten.forward_rule = Some(name.clone());
+                    rewritten.forward_rule = Some(*name);
                 } else {
-                    rewritten.backward_rule = Some(name.clone());
+                    rewritten.backward_rule = Some(*name);
                 }
 
                 Rc::new(rewritten)

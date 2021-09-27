@@ -243,7 +243,7 @@ pub struct Iteration<IterData> {
     pub egraph_classes: usize,
     /// A map from rule name to number of times it was _newly_ applied
     /// in this iteration.
-    pub applied: IndexMap<String, usize>,
+    pub applied: IndexMap<Symbol, usize>,
     /// Seconds spent running hooks.
     pub hook_time: f64,
     /// Seconds spent searching in this iteration.
@@ -487,16 +487,16 @@ where
         result = result.and_then(|_| {
             rules.iter().zip(matches).try_for_each(|(rw, ms)| {
                 let total_matches: usize = ms.iter().map(|m| m.substs.len()).sum();
-                debug!("Applying {} {} times", rw.name(), total_matches);
+                debug!("Applying {} {} times", rw.name, total_matches);
 
                 let actually_matched = self.scheduler.apply_rewrite(i, &mut self.egraph, rw, ms);
                 if actually_matched > 0 {
-                    if let Some(count) = applied.get_mut(rw.name()) {
+                    if let Some(count) = applied.get_mut(&rw.name) {
                         *count += actually_matched;
                     } else {
-                        applied.insert(rw.name().to_owned(), actually_matched);
+                        applied.insert(rw.name.to_owned(), actually_matched);
                     }
-                    debug!("Applied {} {} times", rw.name(), actually_matched);
+                    debug!("Applied {} {} times", rw.name, actually_matched);
                 }
                 self.check_limits()
             })
@@ -569,7 +569,7 @@ where
 fn check_rules<L, N>(rules: &[&Rewrite<L, N>]) {
     let mut name_counts = IndexMap::default();
     for rw in rules {
-        *name_counts.entry(rw.name()).or_default() += 1
+        *name_counts.entry(rw.name).or_default() += 1
     }
 
     name_counts.retain(|_, count: &mut usize| *count > 1);
@@ -674,7 +674,7 @@ where
 pub struct BackoffScheduler {
     default_match_limit: usize,
     default_ban_length: usize,
-    stats: IndexMap<String, RuleStats>,
+    stats: IndexMap<Symbol, RuleStats>,
 }
 
 #[derive(Debug)]
@@ -701,11 +701,11 @@ impl BackoffScheduler {
         self
     }
 
-    fn rule_stats(&mut self, name: &str) -> &mut RuleStats {
-        if self.stats.contains_key(name) {
-            &mut self.stats[name]
+    fn rule_stats(&mut self, name: Symbol) -> &mut RuleStats {
+        if self.stats.contains_key(&name) {
+            &mut self.stats[&name]
         } else {
-            self.stats.entry(name.to_owned()).or_insert(RuleStats {
+            self.stats.entry(name).or_insert(RuleStats {
                 times_applied: 0,
                 banned_until: 0,
                 times_banned: 0,
@@ -716,20 +716,20 @@ impl BackoffScheduler {
     }
 
     /// Never ban a particular rule.
-    pub fn do_not_ban(mut self, name: &str) -> Self {
-        self.rule_stats(name).match_limit = usize::MAX;
+    pub fn do_not_ban(mut self, name: impl Into<Symbol>) -> Self {
+        self.rule_stats(name.into()).match_limit = usize::MAX;
         self
     }
 
     /// Set the initial match limit for a rule.
-    pub fn rule_match_limit(mut self, name: &str, limit: usize) -> Self {
-        self.rule_stats(name).match_limit = limit;
+    pub fn rule_match_limit(mut self, name: impl Into<Symbol>, limit: usize) -> Self {
+        self.rule_stats(name.into()).match_limit = limit;
         self
     }
 
     /// Set the initial ban length for a rule.
-    pub fn rule_ban_length(mut self, name: &str, length: usize) -> Self {
-        self.rule_stats(name).ban_length = length;
+    pub fn rule_ban_length(mut self, name: impl Into<Symbol>, length: usize) -> Self {
+        self.rule_stats(name.into()).ban_length = length;
         self
     }
 }
@@ -797,15 +797,12 @@ where
         egraph: &EGraph<L, N>,
         rewrite: &'a Rewrite<L, N>,
     ) -> Vec<SearchMatches<'a, L>> {
-        let stats = self.rule_stats(rewrite.name());
+        let stats = self.rule_stats(rewrite.name);
 
         if iteration < stats.banned_until {
             debug!(
                 "Skipping {} ({}-{}), banned until {}...",
-                rewrite.name(),
-                stats.times_applied,
-                stats.times_banned,
-                stats.banned_until,
+                rewrite.name, stats.times_applied, stats.times_banned, stats.banned_until,
             );
             return vec![];
         }
@@ -819,7 +816,7 @@ where
             stats.banned_until = iteration + ban_length;
             info!(
                 "Banning {} ({}-{}) for {} iters: {} < {}",
-                rewrite.name(),
+                rewrite.name,
                 stats.times_applied,
                 stats.times_banned,
                 ban_length,

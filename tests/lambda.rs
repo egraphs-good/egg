@@ -1,6 +1,5 @@
 use egg::{rewrite as rw, *};
 use fxhash::FxHashSet as HashSet;
-use std::sync::Arc;
 
 define_language! {
     enum Lambda {
@@ -177,7 +176,7 @@ impl Applier<Lambda, LambdaAnalysis> for CaptureAvoid {
         eclass: Id,
         subst: &Subst,
         searcher_ast: Option<&PatternAst<Lambda>>,
-        rule_name: Arc<str>,
+        rule_name: Symbol,
     ) -> Vec<Id> {
         let e = subst[self.e];
         let v2 = subst[self.v2];

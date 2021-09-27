@@ -13,3 +13,4 @@ default.nix
 TODO.md
 flamegraph.svg
 perf.data*
+.vscode/settings.json

@@ -17,7 +17,7 @@ use crate::*;
 #[non_exhaustive]
 pub struct Rewrite<L, N> {
     /// The name of the rewrite.
-    pub name: Arc<str>,
+    pub name: Symbol,
     /// The searcher (left-hand side) of the rewrite.
     pub searcher: Arc<dyn Searcher<L, N> + Sync + Send>,
     /// The applier (right-hand side) of the rewrite.
@@ -49,19 +49,12 @@ where
     }
 }
 
-impl<L, N> Rewrite<L, N> {
-    /// Returns the name of the rewrite.
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-}
-
 impl<L: Language, N: Analysis<L>> Rewrite<L, N> {
     /// Create a new [`Rewrite`]. You typically want to use the
     /// [`rewrite!`] macro instead.
     ///
     pub fn new(
-        name: impl Into<Arc<str>>,
+        name: impl Into<Symbol>,
         searcher: impl Searcher<L, N> + Send + Sync + 'static,
         applier: impl Applier<L, N> + Send + Sync + 'static,
     ) -> Result<Self, String> {
@@ -94,8 +87,7 @@ impl<L: Language, N: Analysis<L>> Rewrite<L, N> {
     ///
     /// [`apply_matches`]: Applier::apply_matches()
     pub fn apply(&self, egraph: &mut EGraph<L, N>, matches: &[SearchMatches<L>]) -> Vec<Id> {
-        self.applier
-            .apply_matches(egraph, matches, self.name.clone())
+        self.applier.apply_matches(egraph, matches, self.name)
     }
 
     /// This `run` is for testing use only. You should use things
@@ -228,7 +220,7 @@ where
 ///
 /// impl Applier<Math, MinSize> for Funky {
 ///
-///     fn apply_one(&self, egraph: &mut EGraph, matched_id: Id, subst: &Subst, searcher_pattern: Option<&PatternAst<Math>>, rule_name: Arc<str>) -> Vec<Id> {
+///     fn apply_one(&self, egraph: &mut EGraph, matched_id: Id, subst: &Subst, searcher_pattern: Option<&PatternAst<Math>>, rule_name: Symbol) -> Vec<Id> {
 ///         let a: Id = subst[self.a];
 ///         // In a custom Applier, you can inspect the analysis data,
 ///         // which is powerful combination!
@@ -280,7 +272,7 @@ where
         &self,
         egraph: &mut EGraph<L, N>,
         matches: &[SearchMatches<L>],
-        rule_name: Arc<str>,
+        rule_name: Symbol,
     ) -> Vec<Id> {
         let mut added = vec![];
         for mat in matches {
@@ -291,7 +283,7 @@ where
                 ast = None;
             }
             for subst in &mat.substs {
-                let ids = self.apply_one(egraph, mat.eclass, subst, ast, rule_name.clone());
+                let ids = self.apply_one(egraph, mat.eclass, subst, ast, rule_name);
                 added.extend(ids)
             }
         }
@@ -321,7 +313,7 @@ where
         eclass: Id,
         subst: &Subst,
         searcher_ast: Option<&PatternAst<L>>,
-        rule_name: Arc<str>,
+        rule_name: Symbol,
     ) -> Vec<Id>;
 
     /// Returns a list of variables that this Applier assumes are bound.
@@ -371,7 +363,7 @@ where
         eclass: Id,
         subst: &Subst,
         searcher_ast: Option<&PatternAst<L>>,
-        rule_name: Arc<str>,
+        rule_name: Symbol,
     ) -> Vec<Id> {
         if self.condition.check(egraph, eclass, subst) {
             self.applier
@@ -486,7 +478,6 @@ mod tests {
 
     use crate::{SymbolLang as S, *};
     use std::str::FromStr;
-    use std::sync::Arc;
 
     type EGraph = crate::EGraph<S, ()>;
 
@@ -554,7 +545,7 @@ mod tests {
                 eclass: Id,
                 subst: &Subst,
                 searcher_ast: Option<&PatternAst<SymbolLang>>,
-                rule_name: Arc<str>,
+                rule_name: Symbol,
             ) -> Vec<Id> {
                 let a: Var = "?a".parse().unwrap();
                 let b: Var = "?b".parse().unwrap();

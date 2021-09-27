@@ -651,6 +651,7 @@ pub fn merge_min<T: Ord>(to: &mut T, from: T) -> DidMerge {
 }
 /// A simple language used for testing.
 #[derive(Debug, Hash, PartialEq, Eq, Clone, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde-1", derive(serde::Serialize, serde::Deserialize))]
 pub struct SymbolLang {
     /// The operator for an enode
     pub op: Symbol,
