@@ -844,13 +844,47 @@
 <span id="841">841</span>
 <span id="842">842</span>
 <span id="843">843</span>
+<span id="844">844</span>
+<span id="845">845</span>
+<span id="846">846</span>
+<span id="847">847</span>
+<span id="848">848</span>
+<span id="849">849</span>
+<span id="850">850</span>
+<span id="851">851</span>
+<span id="852">852</span>
+<span id="853">853</span>
+<span id="854">854</span>
+<span id="855">855</span>
+<span id="856">856</span>
+<span id="857">857</span>
+<span id="858">858</span>
+<span id="859">859</span>
+<span id="860">860</span>
+<span id="861">861</span>
+<span id="862">862</span>
+<span id="863">863</span>
+<span id="864">864</span>
+<span id="865">865</span>
+<span id="866">866</span>
+<span id="867">867</span>
+<span id="868">868</span>
+<span id="869">869</span>
+<span id="870">870</span>
+<span id="871">871</span>
+<span id="872">872</span>
+<span id="873">873</span>
+<span id="874">874</span>
+<span id="875">875</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="kw-2">*</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 <span class="kw">use</span> <span class="ident">std</span>::{
     <span class="ident">borrow</span>::<span class="ident">BorrowMut</span>,
     <span class="ident">fmt</span>::{<span class="self">self</span>, <span class="ident">Debug</span>, <span class="ident">Display</span>},
 };
+
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde-1&quot;</span>)]</span>
+<span class="kw">use</span> ::<span class="ident">serde</span>::{<span class="ident">Deserialize</span>, <span class="ident">Serialize</span>};
 
 <span class="kw">use</span> <span class="ident">log</span>::<span class="kw-2">*</span>;
 
@@ -881,6 +915,10 @@ You can use the `egraph[id]` syntax to get an [`EClass`] from an [`Id`], because
 and
 [`IndexMut`](struct.EGraph.html#impl-IndexMut&lt;Id&gt;).
 
+Enabling the `serde-1` feature on this crate will allow you to
+de/serialize [`EGraph`]s using [`serde`](https://serde.rs/).
+You must call [`EGraph::rebuild`] after deserializing an e-graph!
+
 [`add`]: EGraph::add()
 [`union`]: EGraph::union()
 [`rebuild`]: EGraph::rebuild()
@@ -891,6 +929,7 @@ and
 [sound]: https://itinerarium.github.io/phoneme-synthesis/?w=/&#39;igraf/
 **/</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
+<span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde-1&quot;</span>, <span class="ident">derive</span>(<span class="ident">Serialize</span>, <span class="ident">Deserialize</span>))]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span>, <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> {
     <span class="doccomment">/// The `Analysis` given when creating this `EGraph`.</span>
     <span class="kw">pub</span> <span class="ident">analysis</span>: <span class="ident">N</span>,
@@ -898,11 +937,25 @@ and
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">explain</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Explain</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">unionfind</span>: <span class="ident">UnionFind</span>,
     <span class="ident">memo</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">Id</span><span class="op">&gt;</span>,
-    <span class="ident">to_union</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">Id</span>, <span class="ident">Id</span>, <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">str</span><span class="op">&gt;</span><span class="op">&gt;</span>)<span class="op">&gt;</span>,
+    <span class="ident">to_union</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">Id</span>, <span class="ident">Id</span>, <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Symbol</span><span class="op">&gt;</span>)<span class="op">&gt;</span>,
     <span class="ident">pending</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">L</span>, <span class="ident">Id</span>)<span class="op">&gt;</span>,
     <span class="ident">analysis_pending</span>: <span class="ident">IndexSet</span><span class="op">&lt;</span>(<span class="ident">L</span>, <span class="ident">Id</span>)<span class="op">&gt;</span>,
+    <span class="attribute">#[<span class="ident">cfg_attr</span>(
+        <span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde-1&quot;</span>,
+        <span class="ident">serde</span>(<span class="ident">bound</span>(
+            <span class="ident">serialize</span> <span class="op">=</span> <span class="string">&quot;N::Data: Serialize&quot;</span>,
+            <span class="ident">deserialize</span> <span class="op">=</span> <span class="string">&quot;N::Data: for&lt;&#39;a&gt; Deserialize&lt;&#39;a&gt;&quot;</span>,
+        ))
+    )]</span>
     <span class="ident">classes</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">Id</span>, <span class="ident">EClass</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span>::<span class="ident">Data</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde-1&quot;</span>, <span class="ident">serde</span>(<span class="ident">skip</span>))]</span>
+    <span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde-1&quot;</span>, <span class="ident">serde</span>(<span class="ident">default</span> <span class="op">=</span> <span class="string">&quot;default_classes_by_op&quot;</span>))]</span>
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">classes_by_op</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">Discriminant</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>, <span class="ident">HashSet</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+}
+
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde-1&quot;</span>)]</span>
+<span class="kw">fn</span> <span class="ident">default_classes_by_op</span><span class="op">&lt;</span><span class="ident">K</span><span class="op">&gt;</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">K</span>, <span class="ident">HashSet</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="ident">HashMap</span>::<span class="ident">default</span>()
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span>, <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Default</span><span class="op">&gt;</span> <span class="ident">Default</span> <span class="kw">for</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span> {
@@ -1277,7 +1330,7 @@ and
         <span class="ident">from_pat</span>: <span class="kw-2">&amp;</span><span class="ident">PatternAst</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
         <span class="ident">to_pat</span>: <span class="kw-2">&amp;</span><span class="ident">PatternAst</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
         <span class="ident">subst</span>: <span class="kw-2">&amp;</span><span class="ident">Subst</span>,
-        <span class="ident">rule_name</span>: <span class="kw">impl</span> <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">str</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">rule_name</span>: <span class="kw">impl</span> <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">Symbol</span><span class="op">&gt;</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> (<span class="ident">Id</span>, <span class="ident">bool</span>) {
         <span class="kw">let</span> <span class="ident">id1</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">add_instantiation</span>(<span class="ident">from_pat</span>, <span class="ident">subst</span>);
         <span class="kw">let</span> <span class="ident">id2</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">add_instantiation</span>(<span class="ident">to_pat</span>, <span class="ident">subst</span>);
@@ -1294,7 +1347,7 @@ and
         <span class="ident">from_pat</span>: <span class="kw-2">&amp;</span><span class="ident">PatternAst</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
         <span class="ident">to_pat</span>: <span class="kw-2">&amp;</span><span class="ident">PatternAst</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
         <span class="ident">subst</span>: <span class="kw-2">&amp;</span><span class="ident">Subst</span>,
-        <span class="ident">rule_name</span>: <span class="kw">impl</span> <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">str</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">rule_name</span>: <span class="kw">impl</span> <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">Symbol</span><span class="op">&gt;</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">explain</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">explain</span> {
             <span class="kw">if</span> <span class="self">self</span>.<span class="ident">unionfind</span>.<span class="ident">find_mut</span>(<span class="ident">id1</span>) <span class="op">=</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">unionfind</span>.<span class="ident">find_mut</span>(<span class="ident">id2</span>) {
@@ -1664,7 +1717,7 @@ and
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="kw">mod</span> <span class="ident">tests</span> {
 
-    <span class="kw">use</span> <span class="kw">crate</span>::<span class="kw-2">*</span>;
+    <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">simple_add</span>() {
@@ -1686,6 +1739,17 @@ and
         <span class="ident">egraph</span>.<span class="ident">rebuild</span>();
 
         <span class="ident">egraph</span>.<span class="ident">dot</span>().<span class="ident">to_dot</span>(<span class="string">&quot;target/foo.dot&quot;</span>).<span class="ident">unwrap</span>();
+    }
+
+    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde-1&quot;</span>)]</span>
+    <span class="attribute">#[<span class="ident">test</span>]</span>
+    <span class="kw">fn</span> <span class="ident">test_serde</span>() {
+        <span class="kw">fn</span> <span class="ident">ser</span>(<span class="kw">_</span>: <span class="kw-2">&amp;</span><span class="kw">impl</span> <span class="ident">Serialize</span>) {}
+        <span class="kw">fn</span> <span class="ident">de</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>(<span class="kw">_</span>: <span class="kw-2">&amp;</span><span class="kw">impl</span> <span class="ident">Deserialize</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>) {}
+
+        <span class="kw">let</span> <span class="ident">egraph</span> <span class="op">=</span> <span class="ident">EGraph</span>::<span class="op">&lt;</span><span class="ident">SymbolLang</span>, ()<span class="op">&gt;</span>::<span class="ident">default</span>();
+        <span class="ident">ser</span>(<span class="kw-2">&amp;</span><span class="ident">egraph</span>);
+        <span class="ident">de</span>(<span class="kw-2">&amp;</span><span class="ident">egraph</span>);
     }
 }
 </pre></div>

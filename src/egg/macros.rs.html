@@ -640,7 +640,7 @@ rules.extend(vec![
 #[derive(Debug)]
 struct MySillyApplier(&amp;&#39;static str);
 impl Applier&lt;SimpleLanguage, ()&gt; for MySillyApplier {
-    fn apply_one(&amp;self, _: &amp;mut EGraph, _: Id, _: &amp;Subst, _: Option&lt;&amp;PatternAst&lt;SimpleLanguage&gt;&gt;, _: Arc&lt;str&gt;) -&gt; Vec&lt;Id&gt; {
+    fn apply_one(&amp;self, _: &amp;mut EGraph, _: Id, _: &amp;Subst, _: Option&lt;&amp;PatternAst&lt;SimpleLanguage&gt;&gt;, _: Symbol) -&gt; Vec&lt;Id&gt; {
         panic!()
     }
 }

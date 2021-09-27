@@ -704,6 +704,7 @@
 <span id="701">701</span>
 <span id="702">702</span>
 <span id="703">703</span>
+<span id="704">704</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">ops</span>::{<span class="ident">BitOr</span>, <span class="ident">Index</span>, <span class="ident">IndexMut</span>};
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">cmp</span>::<span class="ident">Ordering</span>, <span class="ident">convert</span>::<span class="ident">TryFrom</span>};
@@ -1358,6 +1359,7 @@ assert_eq!(runner.egraph.find(runner.roots[0]), runner.egraph.find(just_foo));
 }
 <span class="doccomment">/// A simple language used for testing.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Hash</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>, <span class="ident">Clone</span>, <span class="ident">PartialOrd</span>, <span class="ident">Ord</span>)]</span>
+<span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde-1&quot;</span>, <span class="ident">derive</span>(<span class="ident">serde</span>::<span class="ident">Serialize</span>, <span class="ident">serde</span>::<span class="ident">Deserialize</span>))]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">SymbolLang</span> {
     <span class="doccomment">/// The operator for an enode</span>
     <span class="kw">pub</span> <span class="ident">op</span>: <span class="ident">Symbol</span>,
