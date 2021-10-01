@@ -26,9 +26,9 @@ hashbrown = { version = "0.11", default-features = false, features = ["inline-mo
 thiserror = "1"
 
 [dependencies.qry]
-# git = "https://github.com/mwillsey/qry"
-# rev = "1bd8dee7cf3b0388ceb23031b03db4362f06f850"
-path = "../qry"
+git = "https://github.com/mwillsey/qry"
+rev = "11c92ff715d0593c0ca86c2b533b9ef8a249bd2c"
+# path = "../qry"
 
 
 [[bench]]
