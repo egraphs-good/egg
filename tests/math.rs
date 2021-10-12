@@ -328,3 +328,28 @@ fn assoc_mul_saturates() {
 
     assert!(matches!(runner.stop_reason, Some(StopReason::Saturated)));
 }
+
+#[cfg(feature = "good_lp")]
+#[test]
+fn math_lp_extract() {
+    let expr: RecExpr<Math> = "(pow (+ x (+ x x)) (+ x x))".parse().unwrap();
+
+    let runner: Runner<Math, ConstantFold> = Runner::default()
+        .with_iter_limit(3)
+        .with_expr(&expr)
+        .run(&rules());
+    let root = runner.roots[0];
+
+    let ext = Extractor::new(&runner.egraph, AstSize);
+    let (_, best) = ext.find_best(root);
+
+    let ext = LpExtractor::new(&runner.egraph, AstSize);
+    let (lp_best, _) = ext.solve(&[root], good_lp::default_solver);
+
+    println!("input   [{}] {}", expr.as_ref().len(), expr);
+    println!("normal  [{}] {}", best.as_ref().len(), best);
+    println!("ilp cse [{}] {}", lp_best.as_ref().len(), lp_best);
+
+    assert_ne!(best, lp_best);
+    assert_eq!(lp_best.as_ref().len(), 4);
+}
