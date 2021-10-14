@@ -340,11 +340,8 @@ fn math_lp_extract() {
         .run(&rules());
     let root = runner.roots[0];
 
-    let ext = Extractor::new(&runner.egraph, AstSize);
-    let (_, best) = ext.find_best(root);
-
-    let ext = LpExtractor::new(&runner.egraph, AstSize);
-    let (lp_best, _) = ext.solve(&[root], good_lp::default_solver);
+    let best = Extractor::new(&runner.egraph, AstSize).find_best(root).1;
+    let lp_best = LpExtractor::new(&runner.egraph, AstSize).solve(root);
 
     println!("input   [{}] {}", expr.as_ref().len(), expr);
     println!("normal  [{}] {}", best.as_ref().len(), best);
