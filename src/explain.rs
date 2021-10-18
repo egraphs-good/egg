@@ -1,7 +1,7 @@
 use crate::Symbol;
 use crate::{
-    util::pretty_print, Analysis, ENodeOrVar, HashMap, HashSet, Id, Language, PatternAst, RecExpr,
-    Rewrite, Subst, UnionFind, Var,
+    util::pretty_print, Analysis, EClass, ENodeOrVar, HashMap, HashSet, Id, Language, PatternAst,
+    RecExpr, Rewrite, Subst, UnionFind, Var,
 };
 use std::fmt::{self, Debug, Display, Formatter};
 use std::rc::Rc;
@@ -17,12 +17,21 @@ pub(crate) enum Justification {
 
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde-1", derive(serde::Serialize, serde::Deserialize))]
-struct ExplainNode<L: Language> {
-    node: L,
+struct Connection {
     next: Id,
-    current: Id,
     justification: Justification,
     is_rewrite_forward: bool,
+}
+
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde-1", derive(serde::Serialize, serde::Deserialize))]
+struct ExplainNode<L: Language> {
+    node: L,
+    // neighbors includes parent connections
+    neighbors: Vec<Connection>,
+    parent_connection: Connection,
+    current: Id,
+    parent: Id,
 }
 
 #[derive(Debug, Clone)]
@@ -30,6 +39,12 @@ struct ExplainNode<L: Language> {
 pub struct Explain<L: Language> {
     explainfind: Vec<ExplainNode<L>>,
     uncanon_memo: HashMap<L, Id>,
+    // For a given pair of enodes in the same eclass,
+    // stores the length of the shortest explanation
+    // and the index of the neighbor for retrieving
+    // the explanation.
+    shortest_explanation_memo: HashMap<(Id, Id), (usize, Id)>,
+    shortest_explanations_calculated: bool,
 }
 
 /// Explanation trees are the compact representation showing
@@ -751,12 +766,14 @@ impl<L: Language> Explain<L> {
         let rule_table = Explain::make_rule_table(rules);
         for i in 0..self.explainfind.len() {
             let explain_node = &self.explainfind[i];
-            if explain_node.next != Id::from(i) {
+            if explain_node.parent != Id::from(i) {
                 let mut current_explanation = self.node_to_flat_explanation(Id::from(i));
-                let mut next_explanation = self.node_to_flat_explanation(explain_node.next);
-                if let Justification::Rule(rule_name) = &explain_node.justification {
+                let mut next_explanation = self.node_to_flat_explanation(explain_node.parent);
+                if let Justification::Rule(rule_name) =
+                    &explain_node.parent_connection.justification
+                {
                     if let Some(rule) = rule_table.get(rule_name) {
-                        if !explain_node.is_rewrite_forward {
+                        if !explain_node.parent_connection.is_rewrite_forward {
                             std::mem::swap(&mut current_explanation, &mut next_explanation);
                         }
                         if !Explanation::check_rewrite(
@@ -777,6 +794,8 @@ impl<L: Language> Explain<L> {
         Explain {
             explainfind: vec![],
             uncanon_memo: Default::default(),
+            shortest_explanation_memo: Default::default(),
+            shortest_explanations_calculated: false,
         }
     }
 
@@ -784,10 +803,14 @@ impl<L: Language> Explain<L> {
         self.uncanon_memo.insert(node.clone(), set);
         self.explainfind.push(ExplainNode {
             node,
-            justification: Justification::Congruence,
-            next: set,
+            neighbors: vec![],
+            parent_connection: Connection {
+                justification: Justification::Congruence,
+                is_rewrite_forward: false,
+                next: Id::from(0),
+            },
+            parent: set,
             current: set,
-            is_rewrite_forward: false,
         });
         set
     }
@@ -868,47 +891,71 @@ impl<L: Language> Explain<L> {
 
     // reverse edges recursively to make this node the leader
     fn make_leader(&mut self, node: Id) {
-        let next = self.explainfind[usize::from(node)].next;
+        let next = self.explainfind[usize::from(node)].parent;
         if next != node {
             self.make_leader(next);
-            self.explainfind[usize::from(next)].justification =
-                self.explainfind[usize::from(node)].justification.clone();
-            self.explainfind[usize::from(next)].is_rewrite_forward =
-                !self.explainfind[usize::from(node)].is_rewrite_forward;
-            self.explainfind[usize::from(next)].next = node;
+            let mut pconnection = self.explainfind[usize::from(node)]
+                .parent_connection
+                .clone();
+            pconnection.is_rewrite_forward = !pconnection.is_rewrite_forward;
+            self.explainfind[usize::from(next)].parent_connection = pconnection;
+            self.explainfind[usize::from(next)].parent = node;
         }
     }
 
     pub(crate) fn union(&mut self, node1: Id, node2: Id, justification: Justification) {
         self.make_leader(node1);
-        self.explainfind[usize::from(node1)].next = node2;
-        self.explainfind[usize::from(node1)].justification = justification;
-        self.explainfind[usize::from(node1)].is_rewrite_forward = true;
+        self.explainfind[usize::from(node1)].parent = node2;
+        let pconnection = Connection {
+            justification: justification.clone(),
+            is_rewrite_forward: true,
+            next: node2,
+        };
+        let other_pconnection = Connection {
+            justification,
+            is_rewrite_forward: false,
+            next: node1,
+        };
+        self.explainfind[usize::from(node1)]
+            .neighbors
+            .push(pconnection.clone());
+        self.explainfind[usize::from(node2)]
+            .neighbors
+            .push(other_pconnection);
+        self.explainfind[usize::from(node1)].parent_connection = pconnection;
     }
 
-    pub(crate) fn explain_matches(
+    pub(crate) fn explain_matches<N: Analysis<L>>(
         &mut self,
         left: &RecExpr<L>,
         right: &PatternAst<L>,
         subst: &Subst,
         memo: &HashMap<L, Id>,
         unionfind: &mut UnionFind,
+        classes: &HashMap<Id, EClass<L, N::Data>>,
     ) -> Explanation<L> {
         let left_added = self.add_expr(left, memo, unionfind);
         let right_added = self.add_match(right, &subst, memo, unionfind);
+        self.calculate_shortest_explanations::<N>(classes);
+        println!("Length of proof is {}", self.shortest_explanation_memo.get(&(left_added, right_added)).unwrap().0);
         let mut cache = Default::default();
-        Explanation::new(self.explain_enodes(left_added, right_added, &mut cache))
+        let mut res = Explanation::new(self.explain_enodes(left_added, right_added, &mut cache));
+        println!("Other length is {}", res.make_flat_explanation().len());
+        res
     }
 
-    pub(crate) fn explain_equivalence(
+    pub(crate) fn explain_equivalence<N: Analysis<L>>(
         &mut self,
         left: &RecExpr<L>,
         right: &RecExpr<L>,
         memo: &HashMap<L, Id>,
         unionfind: &mut UnionFind,
+        classes: &HashMap<Id, EClass<L, N::Data>>,
     ) -> Explanation<L> {
         let left_added = self.add_expr(left, memo, unionfind);
         let right_added = self.add_expr(right, memo, unionfind);
+        self.calculate_shortest_explanations::<N>(classes);
+        println!("Length of proof is {}", self.shortest_explanation_memo.get(&(left_added, right_added)).unwrap().0);
         let mut cache = Default::default();
         Explanation::new(self.explain_enodes(left_added, right_added, &mut cache))
     }
@@ -927,8 +974,8 @@ impl<L: Language> Explain<L> {
                 return right;
             }
 
-            let next_left = self.explainfind[usize::from(left)].next;
-            let next_right = self.explainfind[usize::from(right)].next;
+            let next_left = self.explainfind[usize::from(left)].parent;
+            let next_right = self.explainfind[usize::from(right)].parent;
             assert!(next_left != left || next_right != right);
             left = next_left;
             right = next_right;
@@ -942,7 +989,7 @@ impl<L: Language> Explain<L> {
 
         let mut nodes = vec![];
         loop {
-            let next = self.explainfind[usize::from(node)].next;
+            let next = self.explainfind[usize::from(node)].parent;
             nodes.push(&self.explainfind[usize::from(node)]);
             if next == ancestor {
                 return nodes;
@@ -968,15 +1015,21 @@ impl<L: Language> Explain<L> {
             .chain(right_nodes.iter().rev())
             .enumerate()
         {
-            let mut direction = node.is_rewrite_forward;
-            let mut next = node.next;
+            let mut direction = node.parent_connection.is_rewrite_forward;
+            let mut next = node.parent;
             let mut current = node.current;
             if i >= left_nodes.len() {
                 direction = !direction;
                 std::mem::swap(&mut next, &mut current);
             }
 
-            proof.push(self.explain_adjacent(current, next, direction, &node.justification, cache));
+            proof.push(self.explain_adjacent(
+                current,
+                next,
+                direction,
+                &node.parent_connection.justification,
+                cache,
+            ));
         }
         proof
     }
@@ -1027,5 +1080,122 @@ impl<L: Language> Explain<L> {
         cache.insert(fingerprint, term.clone());
 
         term
+    }
+
+    fn find_all_enodes(&self, eclass: Id) -> HashSet<Id> {
+        let mut enodes = HashSet::default();
+        let mut todo = vec![eclass];
+
+        while todo.len() > 0 {
+            let current = todo.pop().unwrap();
+            if enodes.insert(current) {
+                for neighbor in &self.explainfind[usize::from(current)].neighbors {
+                    todo.push(neighbor.next);
+                }
+            }
+        }
+        enodes
+    }
+
+    // Run Floyd-Warshall to find all pairs shortest paths for this eclass.
+    // When child lengths are absent, they are considered
+    // to be the largest usize length.
+    fn shortest_explanations_eclass(&mut self, eclass: Id) -> bool {
+        let enodes = self.find_all_enodes(eclass);
+        let mut did_anything = false;
+
+        for enode in &enodes {
+            self.shortest_explanation_memo.insert((*enode, *enode), (0, *enode));
+        }
+
+        // initialize adjascent nodes with their shortest paths
+        for enode in &enodes {
+            for neighbor in &self.explainfind[usize::from(*enode)].neighbors {
+                let next = neighbor.next;
+                let old = match self.shortest_explanation_memo.get(&(*enode, next)) {
+                    Some((v, _)) => *v,
+                    None => usize::MAX,
+                };
+                let current_cost = match neighbor.justification {
+                    Justification::Rule(_) => 1,
+                    Justification::Congruence => {
+                        let mut cost = 0;
+                        let current_node = &self.explainfind[usize::from(*enode)].node;
+                        let next_node = &self.explainfind[usize::from(next)].node;
+                        for (left_child, right_child) in current_node
+                            .children()
+                            .iter()
+                            .zip(next_node.children().iter())
+                        {
+                            if let Some((child_cost, _)) = self
+                                .shortest_explanation_memo
+                                .get(&(*left_child, *right_child))
+                            {
+                                cost += *child_cost;
+                            } else {
+                                cost = usize::MAX;
+                                break;
+                            }
+                        }
+                        cost
+                    }
+                };
+
+                if current_cost < old {
+                    self.shortest_explanation_memo
+                        .insert((*enode, next), (current_cost, next));
+                    did_anything = true;
+                }
+            }
+        }
+
+        // updates shortest paths based on all possible intermediates
+        for intermediate in &enodes {
+            for start in &enodes {
+                for end in &enodes {
+                    let start_to_intermediate =
+                        match self.shortest_explanation_memo.get(&(*start, *intermediate)) {
+                            Some(pair) => pair.clone(),
+                            None => continue,
+                        };
+                    let intermediate_to_end =
+                        match self.shortest_explanation_memo.get(&(*intermediate, *end)) {
+                            Some((v, _)) => *v,
+                            None => continue,
+                        };
+                    let old = self
+                        .shortest_explanation_memo
+                        .get(&(*start, *end))
+                        .unwrap_or(&(usize::MAX, Id::from(0)))
+                        .0;
+                    let new = start_to_intermediate.0 + intermediate_to_end;
+                    if new < old {
+                        self.shortest_explanation_memo
+                            .insert((*start, *end), (new, start_to_intermediate.1));
+                        did_anything = true;
+                    }
+                }
+            }
+        }
+
+        did_anything
+    }
+
+    pub(crate) fn calculate_shortest_explanations<N: Analysis<L>>(
+        &mut self,
+        classes: &HashMap<Id, EClass<L, N::Data>>,
+    ) {
+        let mut did_something = true;
+        while did_something {
+            did_something = false;
+
+            for eclass in classes.keys() {
+                if self.shortest_explanations_eclass(*eclass) {
+                    did_something = true;
+                }
+            }
+        }
+
+        self.shortest_explanations_calculated = true;
     }
 }

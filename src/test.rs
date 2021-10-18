@@ -87,11 +87,11 @@ pub fn test_runner<L, A>(
         runner.egraph.check_goals(id, &goals);
 
         if runner.egraph.are_explanations_enabled() && name != "lambda_function_repeat" {
+            println!("Checking explanations!");
             for goal in goals {
                 let matches = goal.search_eclass(&runner.egraph, id).unwrap();
                 let subst = matches.substs[0].clone();
                 let mut explained = runner.explain_matches(&start, &goal.ast, &subst);
-                println!("{}", explained);
                 explained.get_sexp_with_let();
                 explained.get_flat_sexps();
                 explained.check_proof(rules);

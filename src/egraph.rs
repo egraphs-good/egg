@@ -205,7 +205,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// given by [`get_flat_string`](Explanation::get_flat_string) and [`get_string`](Explanation::get_string).
     pub fn explain_equivalence(&mut self, left: &RecExpr<L>, right: &RecExpr<L>) -> Explanation<L> {
         if let Some(explain) = &mut self.explain {
-            explain.explain_equivalence(left, right, &self.memo, &mut self.unionfind)
+            explain.explain_equivalence::<N>(left, right, &self.memo, &mut self.unionfind, &self.classes)
         } else {
             panic!("Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations.")
         }
@@ -219,7 +219,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         subst: &Subst,
     ) -> Explanation<L> {
         if let Some(explain) = &mut self.explain {
-            explain.explain_matches(left, right, subst, &self.memo, &mut self.unionfind)
+            explain.explain_matches::<N>(left, right, subst, &self.memo, &mut self.unionfind, &self.classes)
         } else {
             panic!("Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations.");
         }
