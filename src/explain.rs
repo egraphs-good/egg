@@ -903,6 +903,27 @@ impl<L: Language> Explain<L> {
         }
     }
 
+    pub(crate) fn alternate_rewrite(&mut self, node1: Id, node2: Id, justification: Justification) {
+        let lconnection = Connection {
+            justification: justification.clone(),
+            is_rewrite_forward: true,
+            next: node2,
+        };
+
+        let rconnection = Connection {
+            justification: justification,
+            is_rewrite_forward: false,
+            next: node1,
+        };
+
+        self.explainfind[usize::from(node1)]
+            .neighbors
+            .push(lconnection);
+        self.explainfind[usize::from(node2)]
+            .neighbors
+            .push(rconnection);
+    }
+
     pub(crate) fn union(&mut self, node1: Id, node2: Id, justification: Justification) {
         self.make_leader(node1);
         self.explainfind[usize::from(node1)].parent = node2;
@@ -936,8 +957,14 @@ impl<L: Language> Explain<L> {
     ) -> Explanation<L> {
         let left_added = self.add_expr(left, memo, unionfind);
         let right_added = self.add_match(right, &subst, memo, unionfind);
-        self.calculate_shortest_explanations::<N>(classes);
-        println!("Length of proof is {}", self.shortest_explanation_memo.get(&(left_added, right_added)).unwrap().0);
+        self.calculate_shortest_explanations::<N>(classes, &unionfind);
+        println!(
+            "Length of proof is {}",
+            self.shortest_explanation_memo
+                .get(&(left_added, right_added))
+                .unwrap()
+                .0
+        );
         let mut cache = Default::default();
         let mut res = Explanation::new(self.explain_enodes(left_added, right_added, &mut cache));
         println!("Other length is {}", res.make_flat_explanation().len());
@@ -954,8 +981,14 @@ impl<L: Language> Explain<L> {
     ) -> Explanation<L> {
         let left_added = self.add_expr(left, memo, unionfind);
         let right_added = self.add_expr(right, memo, unionfind);
-        self.calculate_shortest_explanations::<N>(classes);
-        println!("Length of proof is {}", self.shortest_explanation_memo.get(&(left_added, right_added)).unwrap().0);
+        self.calculate_shortest_explanations::<N>(classes, &unionfind);
+        println!(
+            "Length of proof is {}",
+            self.shortest_explanation_memo
+                .get(&(left_added, right_added))
+                .unwrap()
+                .0
+        );
         let mut cache = Default::default();
         Explanation::new(self.explain_enodes(left_added, right_added, &mut cache))
     }
@@ -1100,15 +1133,64 @@ impl<L: Language> Explain<L> {
     // Run Floyd-Warshall to find all pairs shortest paths for this eclass.
     // When child lengths are absent, they are considered
     // to be the largest usize length.
-    fn shortest_explanations_eclass(&mut self, eclass: Id) -> bool {
+    fn shortest_explanations_eclass(&mut self, eclass: Id, unionfind: &UnionFind) -> bool {
         let enodes = self.find_all_enodes(eclass);
         let mut did_anything = false;
 
+        // distance to self is zero
         for enode in &enodes {
-            self.shortest_explanation_memo.insert((*enode, *enode), (0, *enode));
+            self.shortest_explanation_memo
+                .insert((*enode, *enode), (0, *enode));
         }
 
-        // initialize adjascent nodes with their shortest paths
+        // distance to congruent nodes is the sum of distances between children
+        let mut cannon_enodes: HashMap<L, Vec<Id>> = Default::default();
+        for enode in &enodes {
+            let cannon = self.explainfind[usize::from(*enode)]
+                .node
+                .clone()
+                .map_children(|child| unionfind.find(child));
+            if let Some(others) = cannon_enodes.get_mut(&cannon) {
+                for other in others.iter() {
+                    let mut cost = 0;
+                    let current_node = &self.explainfind[usize::from(*enode)].node;
+                    let next_node = &self.explainfind[usize::from(*other)].node;
+                    for (left_child, right_child) in current_node
+                        .children()
+                        .iter()
+                        .zip(next_node.children().iter())
+                    {
+                        if let Some((child_cost, _)) = self
+                            .shortest_explanation_memo
+                            .get(&(*left_child, *right_child))
+                        {
+                            cost += *child_cost;
+                        } else {
+                            cost = usize::MAX;
+                            break;
+                        }
+                    }
+
+                    let old = match self.shortest_explanation_memo.get(&(*enode, *other)) {
+                        Some((v, _)) => *v,
+                        None => usize::MAX,
+                    };
+
+                    if cost < old {
+                        self.shortest_explanation_memo
+                            .insert((*enode, *other), (cost, *other));
+                        self.shortest_explanation_memo
+                            .insert((*other, *enode), (cost, *enode));
+                        did_anything = true;
+                    }
+                }
+                others.push(*enode);
+            } else {
+                cannon_enodes.insert(cannon, vec![*enode]);
+            }
+        }
+
+        // distance to a node via a direct rewrite is 1
         for enode in &enodes {
             for neighbor in &self.explainfind[usize::from(*enode)].neighbors {
                 let next = neighbor.next;
@@ -1118,27 +1200,7 @@ impl<L: Language> Explain<L> {
                 };
                 let current_cost = match neighbor.justification {
                     Justification::Rule(_) => 1,
-                    Justification::Congruence => {
-                        let mut cost = 0;
-                        let current_node = &self.explainfind[usize::from(*enode)].node;
-                        let next_node = &self.explainfind[usize::from(next)].node;
-                        for (left_child, right_child) in current_node
-                            .children()
-                            .iter()
-                            .zip(next_node.children().iter())
-                        {
-                            if let Some((child_cost, _)) = self
-                                .shortest_explanation_memo
-                                .get(&(*left_child, *right_child))
-                            {
-                                cost += *child_cost;
-                            } else {
-                                cost = usize::MAX;
-                                break;
-                            }
-                        }
-                        cost
-                    }
+                    Justification::Congruence => continue, // congruence handled in above loop
                 };
 
                 if current_cost < old {
@@ -1184,13 +1246,14 @@ impl<L: Language> Explain<L> {
     pub(crate) fn calculate_shortest_explanations<N: Analysis<L>>(
         &mut self,
         classes: &HashMap<Id, EClass<L, N::Data>>,
+        unionfind: &UnionFind,
     ) {
         let mut did_something = true;
         while did_something {
             did_something = false;
 
             for eclass in classes.keys() {
-                if self.shortest_explanations_eclass(*eclass) {
+                if self.shortest_explanations_eclass(*eclass, unionfind) {
                     did_something = true;
                 }
             }

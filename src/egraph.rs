@@ -205,7 +205,13 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// given by [`get_flat_string`](Explanation::get_flat_string) and [`get_string`](Explanation::get_string).
     pub fn explain_equivalence(&mut self, left: &RecExpr<L>, right: &RecExpr<L>) -> Explanation<L> {
         if let Some(explain) = &mut self.explain {
-            explain.explain_equivalence::<N>(left, right, &self.memo, &mut self.unionfind, &self.classes)
+            explain.explain_equivalence::<N>(
+                left,
+                right,
+                &self.memo,
+                &mut self.unionfind,
+                &self.classes,
+            )
         } else {
             panic!("Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations.")
         }
@@ -219,7 +225,14 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         subst: &Subst,
     ) -> Explanation<L> {
         if let Some(explain) = &mut self.explain {
-            explain.explain_matches::<N>(left, right, subst, &self.memo, &mut self.unionfind, &self.classes)
+            explain.explain_matches::<N>(
+                left,
+                right,
+                subst,
+                &self.memo,
+                &mut self.unionfind,
+                &self.classes,
+            )
         } else {
             panic!("Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations.");
         }
@@ -482,12 +495,16 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     ) -> bool {
         self.clean = false;
         if let Some(explain) = &mut self.explain {
+            let left_added = explain.add_match(from_pat, subst, &self.memo, &mut self.unionfind);
+            let right_added = explain.add_match(to_pat, subst, &self.memo, &mut self.unionfind);
             if self.unionfind.find_mut(id1) == self.unionfind.find_mut(id2) {
+                explain.alternate_rewrite(
+                    left_added,
+                    right_added,
+                    Justification::Rule(rule_name.into()),
+                );
                 false
             } else {
-                let left_added =
-                    explain.add_match(from_pat, subst, &self.memo, &mut self.unionfind);
-                let right_added = explain.add_match(to_pat, subst, &self.memo, &mut self.unionfind);
                 self.to_union
                     .push((left_added, right_added, Some(rule_name.into())));
                 true
