@@ -402,8 +402,8 @@ where
     }
 
     /// Calls [`EGraph::explain_equivalence`](EGraph::explain_equivalence()).
-    pub fn explain_equivalence(&mut self, left: &RecExpr<L>, right: &RecExpr<L>) -> Explanation<L> {
-        self.egraph.explain_equivalence(left, right)
+    pub fn explain_equivalence(&mut self, left: &RecExpr<L>, right: &RecExpr<L>, calculate_shortest: bool) -> Explanation<L> {
+        self.egraph.explain_equivalence(left, right, calculate_shortest)
     }
 
     /// Get an explanation for why an expression matches a pattern.
@@ -412,8 +412,9 @@ where
         left: &RecExpr<L>,
         right: &PatternAst<L>,
         subst: &Subst,
+        calculate_shortest: bool
     ) -> Explanation<L> {
-        self.egraph.explain_matches(left, right, subst)
+        self.egraph.explain_matches(left, right, subst, calculate_shortest)
     }
 
     #[rustfmt::skip]

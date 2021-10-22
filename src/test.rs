@@ -87,14 +87,18 @@ pub fn test_runner<L, A>(
         runner.egraph.check_goals(id, &goals);
 
         if runner.egraph.are_explanations_enabled() && name != "lambda_function_repeat" {
-            println!("Checking explanations!");
             for goal in goals {
                 let matches = goal.search_eclass(&runner.egraph, id).unwrap();
                 let subst = matches.substs[0].clone();
-                let mut explained = runner.explain_matches(&start, &goal.ast, &subst);
+                let mut explained = runner.explain_matches(&start, &goal.ast, &subst, false);
                 explained.get_sexp_with_let();
                 explained.get_flat_sexps();
                 explained.check_proof(rules);
+
+                let mut explained_short = runner.explain_matches(&start, &goal.ast, &subst, true);
+                explained_short.get_sexp_with_let();
+                explained_short.get_flat_sexps();
+                explained_short.check_proof(rules);
             }
         }
 
