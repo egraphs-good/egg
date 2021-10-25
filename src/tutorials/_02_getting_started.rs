@@ -162,7 +162,7 @@ let runner = Runner::default().with_expr(&start).run(rules);
 
 // Extractors can take a user-defined cost function,
 // we'll use the egg-provided AstSize for now
-let mut extractor = Extractor::new(&runner.egraph, AstSize);
+let extractor = Extractor::new(&runner.egraph, AstSize);
 
 // We want to extract the best expression represented in the
 // same e-class as our initial expression, not from the whole e-graph.
