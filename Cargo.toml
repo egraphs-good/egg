@@ -17,13 +17,16 @@ smallvec = { version = "1", features = ["union", "const_generics"] }
 indexmap = "1"
 instant = "0.1"
 once_cell = "1"
-# for the serde-1 feature
-serde = { version = "1", features = ["derive"], optional = true }
-# for the reports feature
-serde_json = { version = "1", optional = true }
 fxhash = "0.2"
 hashbrown = { version = "0.11", default-features = false, features = ["inline-more"] }
 thiserror = "1"
+
+# for the serde-1 feature
+serde = { version = "1", features = ["derive"], optional = true }
+vectorize = { version = "0.2", optional = true }
+
+# for the reports feature
+serde_json = { version = "1", optional = true }
 
 [[bench]]
 name = "bench_tests"
@@ -41,5 +44,5 @@ features = ["threadpool"]
 
 [features]
 wasm-bindgen = [ "instant/wasm-bindgen" ]
-serde-1 = [ "serde", "indexmap/serde-1", "hashbrown/serde" ]
+serde-1 = [ "serde", "indexmap/serde-1", "hashbrown/serde", "vectorize" ]
 reports = [ "serde-1", "serde_json" ]

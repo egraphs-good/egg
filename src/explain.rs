@@ -29,6 +29,7 @@ struct ExplainNode<L: Language> {
 #[cfg_attr(feature = "serde-1", derive(serde::Serialize, serde::Deserialize))]
 pub struct Explain<L: Language> {
     explainfind: Vec<ExplainNode<L>>,
+    #[cfg_attr(feature = "serde-1", serde(with = "vectorize"))]
     uncanon_memo: HashMap<L, Id>,
 }
 

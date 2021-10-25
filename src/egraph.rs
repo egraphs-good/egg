@@ -57,6 +57,7 @@ pub struct EGraph<L: Language, N: Analysis<L>> {
     /// The `Explain` used to explain equivalences in this `EGraph`.
     pub(crate) explain: Option<Explain<L>>,
     unionfind: UnionFind,
+    #[cfg_attr(feature = "serde-1", serde(with = "vectorize"))]
     memo: HashMap<L, Id>,
     to_union: Vec<(Id, Id, Option<Symbol>)>,
     pending: Vec<(L, Id)>,
@@ -877,14 +878,18 @@ mod tests {
         egraph.dot().to_dot("target/foo.dot").unwrap();
     }
 
-    #[cfg(feature = "serde-1")]
+    #[cfg(all(feature = "serde-1", feature = "serde_json"))]
     #[test]
     fn test_serde() {
         fn ser(_: &impl Serialize) {}
         fn de<'a>(_: &impl Deserialize<'a>) {}
 
-        let egraph = EGraph::<SymbolLang, ()>::default();
+        let mut egraph = EGraph::<SymbolLang, ()>::default();
+        egraph.add_expr(&"(foo bar baz)".parse().unwrap());
         ser(&egraph);
         de(&egraph);
+
+        let json_rep = serde_json::to_string_pretty(&egraph).unwrap();
+        println!("{}", json_rep);
     }
 }
