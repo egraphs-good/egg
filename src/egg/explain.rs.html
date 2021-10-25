@@ -1032,6 +1032,7 @@
 <span id="1029">1029</span>
 <span id="1030">1030</span>
 <span id="1031">1031</span>
+<span id="1032">1032</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">Symbol</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::{
@@ -1064,6 +1065,7 @@
 <span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde-1&quot;</span>, <span class="ident">derive</span>(<span class="ident">serde</span>::<span class="ident">Serialize</span>, <span class="ident">serde</span>::<span class="ident">Deserialize</span>))]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Explain</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span> {
     <span class="ident">explainfind</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">ExplainNode</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde-1&quot;</span>, <span class="ident">serde</span>(<span class="ident">with</span> <span class="op">=</span> <span class="string">&quot;vectorize&quot;</span>))]</span>
     <span class="ident">uncanon_memo</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">Id</span><span class="op">&gt;</span>,
 }
 
