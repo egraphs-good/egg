@@ -141,6 +141,7 @@ where
             for (node, &node_var) in self.egraph[id].iter().zip(&class_vars.nodes) {
                 let node_active: Expression = node_var.into();
                 for child in node.children() {
+                    let child = &egraph.find(*child);
                     // choosing a node implies choosing each child
                     model.add_constraint(node_active.clone().leq(self.vars[child].active));
                     // choosing a node also implies this node must be ordered before its children
@@ -154,7 +155,7 @@ where
         }
 
         for root in roots {
-            let root = &self.vars[root];
+            let root = &self.vars[&egraph.find(*root)];
             model.add_constraint(Expression::from(root.active).eq(1));
             model.add_constraint(Expression::from(root.order).eq(0));
         }
@@ -187,7 +188,7 @@ where
             })
             .collect();
 
-        let root_idxs = roots.iter().map(|root| ids[root]).collect();
+        let root_idxs = roots.iter().map(|root| ids[&egraph.find(*root)]).collect();
 
         (nodes.into(), root_idxs)
     }
