@@ -132,7 +132,7 @@ Finally, we can use an <a href="../../../egg/struct.Extractor.html"><code>Extrac
 
 <span class="comment">// Extractors can take a user-defined cost function,</span>
 <span class="comment">// we&#39;ll use the egg-provided AstSize for now</span>
-<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">extractor</span> <span class="op">=</span> <span class="ident">Extractor</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="ident">runner</span>.<span class="ident">egraph</span>, <span class="ident">AstSize</span>);
+<span class="kw">let</span> <span class="ident">extractor</span> <span class="op">=</span> <span class="ident">Extractor</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="ident">runner</span>.<span class="ident">egraph</span>, <span class="ident">AstSize</span>);
 
 <span class="comment">// We want to extract the best expression represented in the</span>
 <span class="comment">// same e-class as our initial expression, not from the whole e-graph.</span>
