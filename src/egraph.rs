@@ -203,10 +203,15 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// The [`Explanation`] can be used in it's default tree form or in a less compact
     /// flattened form. Each of these also has a s-expression string representation,
     /// given by [`get_flat_string`](Explanation::get_flat_string) and [`get_string`](Explanation::get_string).
-    /// 
+    ///
     /// The calculate_shortest flag enables a slow algorithm that finds the shortest explanation.
     /// This is useful for debugging or for performing slow translation validation.
-    pub fn explain_equivalence(&mut self, left: &RecExpr<L>, right: &RecExpr<L>, calculate_shortest: bool) -> Explanation<L> {
+    pub fn explain_equivalence(
+        &mut self,
+        left: &RecExpr<L>,
+        right: &RecExpr<L>,
+        optimize_iters: usize,
+    ) -> Explanation<L> {
         if let Some(explain) = &mut self.explain {
             explain.explain_equivalence::<N>(
                 left,
@@ -214,7 +219,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                 &self.memo,
                 &mut self.unionfind,
                 &self.classes,
-                calculate_shortest,
+                optimize_iters,
             )
         } else {
             panic!("Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations.")
@@ -227,7 +232,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         left: &RecExpr<L>,
         right: &PatternAst<L>,
         subst: &Subst,
-        calculate_shortest: bool,
+        optimize_iters: usize,
     ) -> Explanation<L> {
         if let Some(explain) = &mut self.explain {
             explain.explain_matches::<N>(
@@ -237,7 +242,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                 &self.memo,
                 &mut self.unionfind,
                 &self.classes,
-                calculate_shortest,
+                optimize_iters,
             )
         } else {
             panic!("Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations.");

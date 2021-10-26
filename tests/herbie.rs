@@ -19,7 +19,7 @@ pub type Runner = egg::Runner<Math, ConstantFold, IterData>;
 pub type TRunner = egg::Runner<Math, ConstantFold, ()>;
 pub type Iteration = egg::Iteration<IterData>;
 
-use std::fs::{OpenOptions, File};
+use std::fs::{File, OpenOptions};
 use std::io::Write;
 
 pub struct IterData {
@@ -115,27 +115,27 @@ impl Analysis<Math> for ConstantFold {
                 Math::Mul([_p, a, b]) => x(a)? * x(b)?,
                 Math::Div([_p, a, b]) => {
                     if x(b)?.is_zero() {
-                        return None
+                        return None;
                     } else {
                         x(a)? / x(b)?
                     }
-                },
+                }
                 Math::Neg([_p, a]) => -x(a)?.clone(),
                 Math::Pow([_p, a, b]) => {
                     if is_zero(a) {
                         if x(b)?.is_positive() {
                             Ratio::new(BigInt::from(0), BigInt::from(1))
                         } else {
-                            return None
+                            return None;
                         }
                     } else if is_zero(b) {
                         Ratio::new(BigInt::from(1), BigInt::from(1))
                     } else if x(b)?.is_integer() {
                         Pow::pow(x(a)?, x(b)?.to_integer())
                     } else {
-                        return None
+                        return None;
                     }
-                },
+                }
                 Math::Sqrt([_p, a]) => {
                     let a = x(a)?;
                     if *a.numer() > BigInt::from(0) && *a.denom() > BigInt::from(0) {
@@ -145,26 +145,24 @@ impl Analysis<Math> for ConstantFold {
                         if is_perfect {
                             Ratio::new(s1, s2)
                         } else {
-                            return None
+                            return None;
                         }
                     } else {
-                        return None
+                        return None;
                     }
                 }
                 Math::Log([_p, a]) => {
                     if x(a)? == Ratio::new(BigInt::from(1), BigInt::from(1)) {
                         Ratio::new(BigInt::from(0), BigInt::from(1))
                     } else {
-                        return None
+                        return None;
                     }
                 }
                 Math::Cbrt([_p, a]) => {
-                    println!("here");
                     if x(a)? == Ratio::new(BigInt::from(1), BigInt::from(1)) {
-                        println!("here2");
                         Ratio::new(BigInt::from(1), BigInt::from(1))
                     } else {
-                        return None
+                        return None;
                     }
                 }
                 Math::Fabs([_p, a]) => x(a)?.clone().abs(),
@@ -172,7 +170,7 @@ impl Analysis<Math> for ConstantFold {
                 Math::Ceil([_p, a]) => x(a)?.ceil(),
                 Math::Round([_p, a]) => x(a)?.round(),
 
-                _ => return None
+                _ => return None,
             },
             {
                 let mut pattern: PatternAst<Math> = Default::default();
@@ -182,7 +180,9 @@ impl Analysis<Math> for ConstantFold {
                     if let Some(constant) = x(&child) {
                         pattern.add(ENodeOrVar::ENode(Math::Constant(constant)));
                     } else {
-                        let var = ("?".to_string() + &var_counter.to_string()).parse().unwrap();
+                        let var = ("?".to_string() + &var_counter.to_string())
+                            .parse()
+                            .unwrap();
                         pattern.add(ENodeOrVar::Var(var));
                         subst.insert(var, child);
                         var_counter += 1;
@@ -197,7 +197,8 @@ impl Analysis<Math> for ConstantFold {
                 });
                 pattern.add(ENodeOrVar::ENode(head));
                 (pattern, subst)
-            }))
+            },
+        ))
     }
 
     fn merge(&self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
@@ -222,7 +223,12 @@ impl Analysis<Math> for ConstantFold {
     fn modify(egraph: &mut EGraph, class_id: Id) {
         let class = &mut egraph[class_id];
         if let Some((c, (pat, subst))) = class.data.clone() {
-            egraph.union_instantiations(&pat, &format!("{}", c).parse().unwrap(), &subst, "metadata-eval".to_string());
+            egraph.union_instantiations(
+                &pat,
+                &format!("{}", c).parse().unwrap(),
+                &subst,
+                "metadata-eval".to_string(),
+            );
 
             if egraph.analysis.prune {
                 egraph[class_id].nodes.retain(|n| n.is_leaf())
@@ -451,7 +457,7 @@ pub fn math_rules() -> Vec<Rewrite> {
 
 fn check_proof_exists(r: &mut Runner, rules: Vec<Rewrite>, left: &str, right: &str) {
     let start = Instant::now();
-    r.explain_equivalence(&left.parse().unwrap(), &right.parse().unwrap(), false);
+    r.explain_equivalence(&left.parse().unwrap(), &right.parse().unwrap(), 0);
     let duration = start.elapsed().as_secs_f64();
     println!("Time elapsed: {}", duration);
 }
@@ -463,6 +469,7 @@ fn herbie_prove_numerics() {
             .parse()
             .unwrap();
     let mut runner = Runner::new(Default::default())
+        .with_explanations_enabled()
         .with_expr(&start)
         .with_node_limit(5000)
         .with_iter_limit(100_000_000) // should never hit
@@ -489,6 +496,7 @@ fn herbie_prove_2() {
             .parse()
             .unwrap();
     let mut runner = Runner::new(Default::default())
+        .with_explanations_enabled()
         .with_expr(&start)
         .with_node_limit(5000)
         .with_iter_limit(100_000_000) // should never hit
@@ -514,6 +522,7 @@ fn herbie_prove_neg() {
             .parse()
             .unwrap();
     let mut runner = Runner::new(Default::default())
+        .with_explanations_enabled()
         .with_expr(&start)
         .with_node_limit(5000)
         .with_iter_limit(100_000_000) // should never hit
@@ -538,6 +547,7 @@ fn herbie_prove_small() {
         .parse()
         .unwrap();
     let mut runner = Runner::new(Default::default())
+        .with_explanations_enabled()
         .with_expr(&start)
         .with_node_limit(5000)
         .with_iter_limit(100_000_000) // should never hit
@@ -564,6 +574,7 @@ fn herbie_prove_long() {
         .parse()
         .unwrap();
     let mut runner = Runner::new(Default::default())
+        .with_explanations_enabled()
         .with_expr(&start)
         .with_node_limit(5000)
         .with_iter_limit(100_000_000) // should never hit
@@ -591,6 +602,7 @@ fn herbie_prove_demo() {
         .parse()
         .unwrap();
     let mut runner = Runner::new(Default::default())
+        .with_explanations_enabled()
         .with_expr(&start)
         .with_node_limit(5000)
         .with_iter_limit(100_000_000) // should never hit
@@ -618,6 +630,7 @@ fn herbie_prove_cbrt() {
         .parse()
         .unwrap();
     let mut runner = Runner::new(Default::default())
+        .with_explanations_enabled()
         .with_expr(&start)
         .with_node_limit(5000)
         .with_iter_limit(100_000_000) // should never hit
@@ -659,11 +672,11 @@ fn herbie_benchmark_proof(runner: &mut Runner, proof: &Sexp, output: &mut File) 
     let start_parsed: egg::RecExpr<_> = unwrap_sexp_string(&pair[0]).parse().unwrap();
     let end_parsed: egg::RecExpr<_> = unwrap_sexp_string(&pair[1]).parse().unwrap();
     let start_normal = Instant::now();
-    runner.explain_equivalence(&start_parsed, &end_parsed, false);
+    runner.explain_equivalence(&start_parsed, &end_parsed, 0);
     let duration_normal = start_normal.elapsed().as_millis();
     println!("duration {}", duration_normal);
     let start_slow = Instant::now();
-    runner.explain_equivalence(&start_parsed, &end_parsed, true);
+    runner.explain_equivalence(&start_parsed, &end_parsed, 3);
     let duration_slow = start_slow.elapsed().as_millis();
     writeln!(output, "({} {} {})", proof, duration_normal, duration_slow).unwrap();
     output.flush().unwrap();
@@ -714,7 +727,12 @@ fn herbie_benchmark_file(file: &Path, output: &mut File) {
 #[cfg(feature = "reports")]
 #[test]
 fn herbie_benchmark() {
-    let mut output_file = OpenOptions::new().create(true).write(true).truncate(true).open("foo.txt").unwrap();
+    let mut output_file = OpenOptions::new()
+        .create(true)
+        .write(true)
+        .truncate(true)
+        .open("foo.txt")
+        .unwrap();
     let paths = fs::read_dir("../herbie/reports/egg-proof-examples").unwrap();
 
     for path in paths {

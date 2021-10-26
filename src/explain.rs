@@ -766,7 +766,8 @@ impl<L: Language> Explain<L> {
             let explain_node = &self.explainfind[i];
             if explain_node.parent_connection.next != Id::from(i) {
                 let mut current_explanation = self.node_to_flat_explanation(Id::from(i));
-                let mut next_explanation = self.node_to_flat_explanation(explain_node.parent_connection.next);
+                let mut next_explanation =
+                    self.node_to_flat_explanation(explain_node.parent_connection.next);
                 if let Justification::Rule(rule_name) =
                     &explain_node.parent_connection.justification
                 {
@@ -959,13 +960,11 @@ impl<L: Language> Explain<L> {
         memo: &HashMap<L, Id>,
         unionfind: &mut UnionFind,
         classes: &HashMap<Id, EClass<L, N::Data>>,
-        calculate_shortest: bool
+        optimize_iters: usize,
     ) -> Explanation<L> {
         let left_added = self.add_expr(left, memo, unionfind);
         let right_added = self.add_match(right, &subst, memo, unionfind);
-        if calculate_shortest {
-            self.calculate_shortest_explanations::<N>(classes, &unionfind);
-        }
+        self.calculate_shortest_explanations::<N>(classes, &unionfind, optimize_iters);
         let mut cache = Default::default();
         Explanation::new(self.explain_enodes(left_added, right_added, &mut cache))
     }
@@ -977,13 +976,11 @@ impl<L: Language> Explain<L> {
         memo: &HashMap<L, Id>,
         unionfind: &mut UnionFind,
         classes: &HashMap<Id, EClass<L, N::Data>>,
-        calculate_shortest: bool
+        optimize_iters: usize,
     ) -> Explanation<L> {
         let left_added = self.add_expr(left, memo, unionfind);
         let right_added = self.add_expr(right, memo, unionfind);
-        if calculate_shortest {
-            self.calculate_shortest_explanations::<N>(classes, &unionfind);
-        }
+        self.calculate_shortest_explanations::<N>(classes, &unionfind, optimize_iters);
         let mut cache = Default::default();
         Explanation::new(self.explain_enodes(left_added, right_added, &mut cache))
     }
@@ -1018,13 +1015,24 @@ impl<L: Language> Explain<L> {
         let mut nodes = vec![];
         loop {
             let next = self.explainfind[usize::from(node)].parent_connection.next;
-            nodes.push(self.explainfind[usize::from(node)].parent_connection.clone());
+            nodes.push(
+                self.explainfind[usize::from(node)]
+                    .parent_connection
+                    .clone(),
+            );
             if next == ancestor {
                 return nodes;
             }
             assert!(next != node);
             node = next;
         }
+    }
+
+    fn get_path_unoptimized(&self, left: Id, right: Id) -> (Vec<Connection>, Vec<Connection>) {
+        let ancestor = self.common_ancestor(left, right);
+        let left_connections = self.get_connections(left, ancestor);
+        let right_connections = self.get_connections(right, ancestor);
+        (left_connections, right_connections)
     }
 
     fn get_path(&self, mut left: Id, right: Id) -> (Vec<Connection>, Vec<Connection>) {
@@ -1049,7 +1057,7 @@ impl<L: Language> Explain<L> {
                         justification: Justification::Congruence,
                         current: left,
                         next: *next,
-                        is_rewrite_forward: true, 
+                        is_rewrite_forward: true,
                     });
                 }
                 left = *next;
@@ -1058,9 +1066,8 @@ impl<L: Language> Explain<L> {
             }
         }
 
-        let ancestor = self.common_ancestor(left, right);
-        left_connections.extend(self.get_connections(left, ancestor));
-        let right_connections = self.get_connections(right, ancestor);
+        let (restleft, right_connections) = self.get_path_unoptimized(left, right);
+        left_connections.extend(restleft);
         (left_connections, right_connections)
     }
 
@@ -1168,12 +1175,6 @@ impl<L: Language> Explain<L> {
         let enodes = self.find_all_enodes(eclass);
         let mut did_anything = false;
 
-        // distance to self is zero
-        for enode in &enodes {
-            self.shortest_explanation_memo
-                .insert((*enode, *enode), (0, *enode));
-        }
-
         // distance to congruent nodes is the sum of distances between children
         let mut cannon_enodes: HashMap<L, Vec<Id>> = Default::default();
         for enode in &enodes {
@@ -1221,27 +1222,6 @@ impl<L: Language> Explain<L> {
             }
         }
 
-        // distance to a node via a direct rewrite is 1
-        for enode in &enodes {
-            for neighbor in &self.explainfind[usize::from(*enode)].neighbors {
-                let next = neighbor.next;
-                let old = match self.shortest_explanation_memo.get(&(*enode, next)) {
-                    Some((v, _)) => *v,
-                    None => usize::MAX,
-                };
-                let current_cost = match neighbor.justification {
-                    Justification::Rule(_) => 1,
-                    Justification::Congruence => continue, // congruence handled in above loop
-                };
-
-                if current_cost < old {
-                    self.shortest_explanation_memo
-                        .insert((*enode, next), (current_cost, next));
-                    did_anything = true;
-                }
-            }
-        }
-
         // updates shortest paths based on all possible intermediates
         for intermediate in &enodes {
             for start in &enodes {
@@ -1274,19 +1254,132 @@ impl<L: Language> Explain<L> {
         did_anything
     }
 
-    pub(crate) fn calculate_shortest_explanations<N: Analysis<L>>(
+    // recursively initialize the size of the explanations between left and right
+    // using unoptimized explanation generation (get_path_unoptimized)
+    fn initialize_explanation_between(&mut self, left: Id, right: Id) -> usize {
+        if let Some((calculated, _)) = self.shortest_explanation_memo.get(&(left, right)) {
+            return *calculated;
+        }
+
+        let (left_connections, right_connections) = self.get_path_unoptimized(left, right);
+        let mut positions = vec![left];
+        let mut costs = vec![0];
+
+        for (i, connection) in left_connections
+            .iter()
+            .chain(right_connections.iter().rev())
+            .enumerate()
+        {
+            let mut next = connection.next;
+            let mut current = connection.current;
+            if i >= left_connections.len() {
+                std::mem::swap(&mut next, &mut current);
+            }
+            positions.push(next);
+
+            let cost = if let Some((calculated, _)) =
+                self.shortest_explanation_memo.get(&(current, next))
+            {
+                *calculated
+            } else {
+                match connection.justification {
+                    Justification::Rule(_) => 1,
+                    Justification::Congruence => {
+                        let current_node = self.explainfind[usize::from(current)].node.clone();
+                        let next_node = self.explainfind[usize::from(next)].node.clone();
+                        let mut tempcost = 0;
+                        for (left_child, right_child) in current_node
+                            .children()
+                            .iter()
+                            .zip(next_node.children().iter())
+                        {
+                            tempcost +=
+                                self.initialize_explanation_between(*left_child, *right_child);
+                        }
+                        tempcost
+                    }
+                }
+            };
+
+            costs.push(cost);
+        }
+
+        for i in 0..positions.len() {
+            let mut sum = 0;
+            for j in i + 1..positions.len() {
+                sum += costs[j];
+                self.shortest_explanation_memo
+                    .insert((positions[i], positions[j]), (sum, positions[i + 1]));
+                self.shortest_explanation_memo
+                    .insert((positions[j], positions[i]), (sum, positions[j - 1]));
+            }
+        }
+
+        costs.iter().sum()
+    }
+
+    fn initialize_explanation_lengths<N: Analysis<L>>(
+        &mut self,
+        classes: &HashMap<Id, EClass<L, N::Data>>,
+    ) {
+        for eclass in classes.keys() {
+            let enodes = self.find_all_enodes(*eclass);
+            // distance to self is zero
+            for enode in &enodes {
+                self.shortest_explanation_memo
+                    .insert((*enode, *enode), (0, *enode));
+            }
+            // distance to a node via a direct rewrite is 1
+            for enode in &enodes {
+                for neighbor in &self.explainfind[usize::from(*enode)].neighbors {
+                    let next = neighbor.next;
+                    let old = match self.shortest_explanation_memo.get(&(*enode, next)) {
+                        Some((v, _)) => *v,
+                        None => usize::MAX,
+                    };
+                    let current_cost = match neighbor.justification {
+                        Justification::Rule(_) => 1,
+                        Justification::Congruence => continue, // congruence handled by initialization
+                    };
+
+                    if current_cost < old {
+                        self.shortest_explanation_memo
+                            .insert((*enode, next), (current_cost, next));
+                    }
+                }
+            }
+
+            // now find all distances based on unoptimized explanations
+            for enode1 in &enodes {
+                for enode2 in &enodes {
+                    self.initialize_explanation_between(*enode1, *enode2);
+                }
+            }
+        }
+    }
+
+    fn calculate_shortest_explanations<N: Analysis<L>>(
         &mut self,
         classes: &HashMap<Id, EClass<L, N::Data>>,
         unionfind: &UnionFind,
+        iters: usize,
     ) {
-        let mut did_something = true;
-        while did_something {
-            did_something = false;
+        if iters == 0 {
+            return;
+        }
+        self.initialize_explanation_lengths::<N>(classes);
+
+        for _i in 0..iters {
+            let mut did_something = false;
 
             for eclass in classes.keys() {
                 if self.shortest_explanations_eclass(*eclass, unionfind) {
                     did_something = true;
                 }
+            }
+
+            if !did_something {
+                break;
             }
         }
     }

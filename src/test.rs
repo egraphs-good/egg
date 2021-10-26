@@ -90,14 +90,13 @@ pub fn test_runner<L, A>(
             for goal in goals {
                 let matches = goal.search_eclass(&runner.egraph, id).unwrap();
                 let subst = matches.substs[0].clone();
-                let mut explained = runner.explain_matches(&start, &goal.ast, &subst, false);
+                let mut explained = runner.explain_matches(&start, &goal.ast, &subst, 0);
                 explained.get_sexp_with_let();
-                explained.get_flat_sexps();
                 explained.check_proof(rules);
 
-                let mut explained_short = runner.explain_matches(&start, &goal.ast, &subst, true);
+                let mut explained_short = runner.explain_matches(&start, &goal.ast, &subst, 1);
                 explained_short.get_sexp_with_let();
-                explained_short.get_flat_sexps();
+                println!("Unoptimized {} Optimized {}", explained.get_flat_sexps().len(), explained_short.get_flat_sexps().len());
                 explained_short.check_proof(rules);
             }
         }
