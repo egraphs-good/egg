@@ -25,6 +25,11 @@ fxhash = "0.2"
 hashbrown = { version = "0.11", default-features = false, features = ["inline-more"] }
 thiserror = "1"
 
+num-rational = "0.3.0"
+num-bigint = "0.3.0"
+num-traits = "0.2.12"
+
+
 [[bench]]
 name = "bench_tests"
 harness = false
