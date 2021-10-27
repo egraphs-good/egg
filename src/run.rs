@@ -407,8 +407,9 @@ where
         left: &RecExpr<L>,
         right: &RecExpr<L>,
         optimize_iters: usize,
+        greedy_search: bool,
     ) -> Explanation<L> {
-        self.egraph.explain_equivalence(left, right, optimize_iters)
+        self.egraph.explain_equivalence(left, right, optimize_iters, greedy_search)
     }
 
     /// Get an explanation for why an expression matches a pattern.
@@ -418,9 +419,10 @@ where
         right: &PatternAst<L>,
         subst: &Subst,
         optimize_iters: usize,
+        greedy_search: bool,
     ) -> Explanation<L> {
         self.egraph
-            .explain_matches(left, right, subst, optimize_iters)
+            .explain_matches(left, right, subst, optimize_iters, greedy_search)
     }
 
     #[rustfmt::skip]

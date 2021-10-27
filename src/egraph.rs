@@ -211,6 +211,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         left: &RecExpr<L>,
         right: &RecExpr<L>,
         optimize_iters: usize,
+        greedy_search: bool,
     ) -> Explanation<L> {
         if let Some(explain) = &mut self.explain {
             explain.explain_equivalence::<N>(
@@ -220,6 +221,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                 &mut self.unionfind,
                 &self.classes,
                 optimize_iters,
+                greedy_search,
             )
         } else {
             panic!("Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations.")
@@ -233,6 +235,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         right: &PatternAst<L>,
         subst: &Subst,
         optimize_iters: usize,
+        greedy_search: bool,
     ) -> Explanation<L> {
         if let Some(explain) = &mut self.explain {
             explain.explain_matches::<N>(
@@ -243,6 +246,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                 &mut self.unionfind,
                 &self.classes,
                 optimize_iters,
+                greedy_search,
             )
         } else {
             panic!("Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations.");

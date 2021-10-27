@@ -7,15 +7,16 @@ use std::fmt::{self, Debug, Display, Formatter};
 use std::rc::Rc;
 
 use symbolic_expressions::Sexp;
+use priority_queue::PriorityQueue;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 #[cfg_attr(feature = "serde-1", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) enum Justification {
     Rule(Symbol),
     Congruence,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 #[cfg_attr(feature = "serde-1", derive(serde::Serialize, serde::Deserialize))]
 struct Connection {
     next: Id,
@@ -961,10 +962,11 @@ impl<L: Language> Explain<L> {
         unionfind: &mut UnionFind,
         classes: &HashMap<Id, EClass<L, N::Data>>,
         optimize_iters: usize,
+        greedy_search: bool,
     ) -> Explanation<L> {
         let left_added = self.add_expr(left, memo, unionfind);
         let right_added = self.add_match(right, &subst, memo, unionfind);
-        self.calculate_shortest_explanations::<N>(classes, &unionfind, optimize_iters);
+        self.calculate_shortest_explanations::<N>(left_added, right_added, classes, &unionfind, optimize_iters, greedy_search);
         let mut cache = Default::default();
         Explanation::new(self.explain_enodes(left_added, right_added, &mut cache))
     }
@@ -977,10 +979,11 @@ impl<L: Language> Explain<L> {
         unionfind: &mut UnionFind,
         classes: &HashMap<Id, EClass<L, N::Data>>,
         optimize_iters: usize,
+        greedy_search: bool,
     ) -> Explanation<L> {
         let left_added = self.add_expr(left, memo, unionfind);
         let right_added = self.add_expr(right, memo, unionfind);
-        self.calculate_shortest_explanations::<N>(classes, &unionfind, optimize_iters);
+        self.calculate_shortest_explanations::<N>(left_added, right_added, classes, &unionfind, optimize_iters, greedy_search);
         let mut cache = Default::default();
         Explanation::new(self.explain_enodes(left_added, right_added, &mut cache))
     }
@@ -1254,14 +1257,7 @@ impl<L: Language> Explain<L> {
         did_anything
     }
 
-    // recursively initialize the size of the explanations between left and right
-    // using unoptimized explanation generation (get_path_unoptimized)
-    fn initialize_explanation_between(&mut self, left: Id, right: Id) -> usize {
-        if let Some((calculated, _)) = self.shortest_explanation_memo.get(&(left, right)) {
-            return *calculated;
-        }
-
-        let (left_connections, right_connections) = self.get_path_unoptimized(left, right);
+    fn populate_path_length(&mut self, left: Id, right: Id, left_connections: &Vec<Connection>, right_connections: &Vec<Connection>) -> usize {
         let mut positions = vec![left];
         let mut costs = vec![0];
 
@@ -1276,6 +1272,57 @@ impl<L: Language> Explain<L> {
                 std::mem::swap(&mut next, &mut current);
             }
             positions.push(next);
+
+            let cost = self.shortest_explanation_memo.get(&(current, next)).unwrap().0;
+
+            costs.push(cost);
+        }
+
+        let mut cost_sum = 0;
+        for i in 0..costs.len() {
+            cost_sum += costs[i];
+            costs[i] = cost_sum;
+        }
+
+        for i in 0..positions.len() {
+            if let Some(_) = self.shortest_explanation_memo.get(&(positions[i], right)) {
+                continue;
+            }
+            for j in (i+1..positions.len()).rev() {
+                let sum = costs[j] - costs[i];
+                if let Some(_) = self.shortest_explanation_memo.get(&(positions[i], positions[j])) {
+                    // if it exists for i to j, we have already computed all of the intermediates
+                    break;
+                }
+                self.shortest_explanation_memo
+                    .insert((positions[i], positions[j]), (sum, positions[i + 1]));
+                self.shortest_explanation_memo
+                    .insert((positions[j], positions[i]), (sum, positions[j - 1]));
+            }
+        }
+
+        costs.iter().sum()
+    }
+
+    // recursively initialize the size of the explanations between left and right
+    // using unoptimized explanation generation (get_path_unoptimized)
+    fn initialize_explanation_between(&mut self, left: Id, right: Id) -> usize {
+        if let Some((calculated, _)) = self.shortest_explanation_memo.get(&(left, right)) {
+            return *calculated;
+        }
+
+        let (left_connections, right_connections) = self.get_path_unoptimized(left, right);
+
+        for (i, connection) in left_connections
+            .iter()
+            .chain(right_connections.iter().rev())
+            .enumerate()
+        {
+            let mut next = connection.next;
+            let mut current = connection.current;
+            if i >= left_connections.len() {
+                std::mem::swap(&mut next, &mut current);
+            }
 
             let cost = if let Some((calculated, _)) =
                 self.shortest_explanation_memo.get(&(current, next))
@@ -1300,22 +1347,12 @@ impl<L: Language> Explain<L> {
                     }
                 }
             };
-
-            costs.push(cost);
+            self.shortest_explanation_memo.insert((current, next), (cost, next));
         }
 
-        for i in 0..positions.len() {
-            let mut sum = 0;
-            for j in i + 1..positions.len() {
-                sum += costs[j];
-                self.shortest_explanation_memo
-                    .insert((positions[i], positions[j]), (sum, positions[i + 1]));
-                self.shortest_explanation_memo
-                    .insert((positions[j], positions[i]), (sum, positions[j - 1]));
-            }
-        }
 
-        costs.iter().sum()
+
+        self.populate_path_length(left, right, &left_connections, &right_connections)
     }
 
     fn initialize_explanation_lengths<N: Analysis<L>>(
@@ -1358,28 +1395,80 @@ impl<L: Language> Explain<L> {
         }
     }
 
+    // TODO add all congruences
+    fn greedy_short_explanations(
+        &mut self,
+        start: Id,
+        end: Id,
+    ) {
+        let mut todo = PriorityQueue::new();
+        todo.push(Connection { current: start, next: start, justification: Justification::Congruence, is_rewrite_forward: true }, usize::MAX);
+
+        let mut last = HashMap::default();
+
+        loop {
+            assert!(todo.len() > 0);
+            let (connection, _) = todo.pop().unwrap();
+            let current = connection.next;
+
+            if let Some(_) = last.get(&current) {
+                continue;
+            } else {
+                last.insert(current, connection);
+            }
+
+            if current == end {
+                break;
+            }
+
+            for neighbor in &self.explainfind[usize::from(current)].neighbors {
+                let neighbor_cost = self.shortest_explanation_memo.get(&(current, neighbor.next)).unwrap().0;
+                todo.push(neighbor.clone(), usize::MAX-neighbor_cost);
+            }
+        }
+
+        let mut connections = vec![];
+        let mut current = end;
+        while current != start {
+            let prev_connection = last.get(&current).unwrap();
+            connections.push(prev_connection.clone());
+            current = prev_connection.current;
+        }
+
+        connections.reverse();
+        self.populate_path_length(start, end, &connections, &vec![]);
+        // TODO now recur on connections which are congruence
+    }
+
     fn calculate_shortest_explanations<N: Analysis<L>>(
         &mut self,
+        start: Id,
+        end: Id,
         classes: &HashMap<Id, EClass<L, N::Data>>,
         unionfind: &UnionFind,
         iters: usize,
+        greedy_search: bool,
     ) {
-        if iters == 0 {
+        if iters == 0 && !greedy_search {
             return;
         }
         self.initialize_explanation_lengths::<N>(classes);
 
-        for _i in 0..iters {
-            let mut did_something = false;
+        if greedy_search {
+            self.greedy_short_explanations(start, end);
+        } else {
+            for _i in 0..iters {
+                let mut did_something = false;
 
-            for eclass in classes.keys() {
-                if self.shortest_explanations_eclass(*eclass, unionfind) {
-                    did_something = true;
+                for eclass in classes.keys() {
+                    if self.shortest_explanations_eclass(*eclass, unionfind) {
+                        did_something = true;
+                    }
                 }
-            }
 
-            if !did_something {
-                break;
+                if !did_something {
+                    break;
+                }
             }
         }
     }
