@@ -95,15 +95,13 @@ pub fn test_runner<L, A>(
                 explained.check_proof(rules);
 
                 let mut explained_short =
-                    runner.explain_matches(&start, &goal.ast, &subst, 1, false);
+                    runner.explain_matches(&start, &goal.ast, &subst, 1, true);
                 explained_short.get_sexp_with_let();
                 println!(
                     "Unoptimized {} Optimized {}",
                     explained.get_flat_sexps().len(),
                     explained_short.get_flat_sexps().len()
                 );
-                println!("Unop {}", explained.get_flat_string());
-                println!("Op {}", explained_short.get_flat_string());
                 explained_short.check_proof(rules);
             }
         }
