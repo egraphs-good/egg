@@ -457,7 +457,7 @@ pub fn math_rules() -> Vec<Rewrite> {
 
 fn check_proof_exists(r: &mut Runner, rules: Vec<Rewrite>, left: &str, right: &str) {
     let start = Instant::now();
-    r.explain_equivalence(&left.parse().unwrap(), &right.parse().unwrap(), 0);
+    r.explain_equivalence(&left.parse().unwrap(), &right.parse().unwrap(), 0, false);
     let duration = start.elapsed().as_secs_f64();
     println!("Time elapsed: {}", duration);
 }
@@ -672,11 +672,11 @@ fn herbie_benchmark_proof(runner: &mut Runner, proof: &Sexp, output: &mut File) 
     let start_parsed: egg::RecExpr<_> = unwrap_sexp_string(&pair[0]).parse().unwrap();
     let end_parsed: egg::RecExpr<_> = unwrap_sexp_string(&pair[1]).parse().unwrap();
     let start_normal = Instant::now();
-    runner.explain_equivalence(&start_parsed, &end_parsed, 0);
+    runner.explain_equivalence(&start_parsed, &end_parsed, 0, false);
     let duration_normal = start_normal.elapsed().as_millis();
     println!("duration {}", duration_normal);
     let start_slow = Instant::now();
-    runner.explain_equivalence(&start_parsed, &end_parsed, 3);
+    runner.explain_equivalence(&start_parsed, &end_parsed, 3, false);
     let duration_slow = start_slow.elapsed().as_millis();
     writeln!(output, "({} {} {})", proof, duration_normal, duration_slow).unwrap();
     output.flush().unwrap();

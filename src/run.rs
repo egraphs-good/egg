@@ -409,7 +409,8 @@ where
         optimize_iters: usize,
         greedy_search: bool,
     ) -> Explanation<L> {
-        self.egraph.explain_equivalence(left, right, optimize_iters, greedy_search)
+        self.egraph
+            .explain_equivalence(left, right, optimize_iters, greedy_search)
     }
 
     /// Get an explanation for why an expression matches a pattern.
