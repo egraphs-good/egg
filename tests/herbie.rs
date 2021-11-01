@@ -52,7 +52,6 @@ define_language! {
     pub enum Math {
 
         // constant-folding operators
-
         "+" = Add([Id; 3]),
         "-" = Sub([Id; 3]),
         "*" = Mul([Id; 3]),
