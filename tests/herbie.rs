@@ -455,15 +455,17 @@ pub fn math_rules() -> Vec<Rewrite> {
 }
 
 fn check_proof_exists(r: &mut Runner, rules: Vec<Rewrite>, left: &str, right: &str) {
-    let start = Instant::now();
     let lexpr = left.parse().unwrap();
     let rexpr = right.parse().unwrap();
     if r.egraph.add_expr(&lexpr) != r.egraph.add_expr(&rexpr) {
         panic!("{} != {}", left, right);
     }
-    r.explain_equivalence(&lexpr, &rexpr, 0, false);
+    let mut explained = r.explain_equivalence(&lexpr, &rexpr, 0, false);
+    let start = Instant::now();
+    let mut explained_short = r.explain_equivalence(&lexpr, &rexpr, 0, true);
     let duration = start.elapsed().as_secs_f64();
     println!("Time elapsed: {}", duration);
+    println!("Unoptimized {} Optimized {}", explained.get_flat_sexps().len(), explained_short.get_flat_sexps().len());
 }
 
 #[test]
