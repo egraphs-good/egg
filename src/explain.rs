@@ -818,7 +818,7 @@ impl<L: Language> Explain<L> {
         set
     }
 
-    fn add_expr(
+    pub(crate) fn add_expr(
         &mut self,
         expr: &RecExpr<L>,
         memo: &HashMap<L, Id>,
@@ -1284,12 +1284,7 @@ impl<L: Language> Explain<L> {
         did_anything
     }
 
-    fn alternate_distance(&mut self, current: Id, next: Id, right: Id, distance: usize) {
-        if let Some((old, _)) = self.shortest_explanation_memo.get(&(current, right)) {
-            if *old <= distance {
-                return;
-            }
-        }
+    fn replace_distance(&mut self, current: Id, next: Id, right: Id, distance: usize) {
         self.shortest_explanation_memo.insert(
             (current, right),
             (
@@ -1316,7 +1311,7 @@ impl<L: Language> Explain<L> {
                 .unwrap()
                 .0;
             let dist = self.distance_between(current, next, distance_memo).0;
-            self.alternate_distance(current, next, right, next_cost+dist);
+            self.replace_distance(current, next, right, next_cost+dist);
         }
     }
 
@@ -1341,7 +1336,7 @@ impl<L: Language> Explain<L> {
         distance_memo.parent_distance[usize::from(right)].0);
 
         // calculate distance to find upper bound
-        let dist = a + b - 2*c;
+        let dist = b + c - 2*a;
 
         let next = self.parent(left);
         return (dist, next);
@@ -1366,6 +1361,9 @@ impl<L: Language> Explain<L> {
                 distance_memo.parent_distance[usize::from(enode)] = (parent_parent, new_dist);
             } else {
                 if ancestor == Id::from(usize::MAX) {
+                    break;
+                }
+                if parent == ancestor {
                     break;
                 }
                 let higher = *distance_memo.common_ancestor.get(&(parent, ancestor)).unwrap();
@@ -1679,3 +1677,65 @@ impl<L: Language> Explain<L> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    use super::super::*;
+
+    #[test]
+    fn simple_explain() {
+        use SymbolLang as S;
+
+        crate::init_logger();
+        let mut egraph = EGraph::<S, ()>::default().with_explanations_enabled();
+
+        let fa = "(f a)".parse().unwrap();
+        let fb = "(f b)".parse().unwrap();
+        egraph.add_expr(&fa);
+        egraph.add_expr(&fb);
+        egraph.add_expr(&"c".parse().unwrap());
+        egraph.add_expr(&"d".parse().unwrap());
+
+        egraph.union_instantiations(
+            &"a".parse().unwrap(),
+            &"c".parse().unwrap(),
+            &Default::default(),
+            "ac".to_string(),
+        );
+
+        egraph.union_instantiations(
+            &"c".parse().unwrap(),
+            &"d".parse().unwrap(),
+            &Default::default(),
+            "cd".to_string(),
+        );
+
+
+        egraph.union_instantiations(
+            &"d".parse().unwrap(),
+            &"b".parse().unwrap(),
+            &Default::default(),
+            "db".to_string(),
+        );
+
+        egraph.rebuild();
+
+        assert_eq!(egraph.explain_equivalence(&fa, &fb, 0, false).get_flat_sexps().len(), 4);
+        assert_eq!(egraph.explain_equivalence(&fa, &fb, 100, false).get_flat_sexps().len(), 4);
+        assert_eq!(egraph.explain_equivalence(&fa, &fb, 0, true).get_flat_sexps().len(), 4);
+
+        egraph.union_instantiations(&"(f a)".parse().unwrap(), &"g".parse().unwrap(), &Default::default(), "fag".to_string());
+        egraph.union_instantiations(&"g".parse().unwrap(), &"(f b)".parse().unwrap(), &Default::default(), "gfb".to_string());
+
+        egraph.rebuild();
+
+        assert_eq!(egraph.explain_equivalence(&fa, &fb, 0, false).get_flat_sexps().len(), 4);
+        assert_eq!(egraph.explain_equivalence(&fa, &fb, 0, true).get_flat_sexps().len(), 3);
+        assert_eq!(egraph.explain_equivalence(&fa, &fb, 100, false).get_flat_sexps().len(), 3);
+        
+
+        egraph.dot().to_dot("target/foo.dot").unwrap();
+    }
+}
+
