@@ -462,10 +462,10 @@ fn check_proof_exists(r: &mut Runner, rules: Vec<Rewrite>, left: &str, right: &s
     }
     let mut explained = r.explain_equivalence(&lexpr, &rexpr, 0, false);
     let start = Instant::now();
-    let mut explained_short = r.explain_equivalence(&lexpr, &rexpr, 0, true);
+    let mut explained_short = r.explain_equivalence(&lexpr, &rexpr, 4, true);
     let duration = start.elapsed().as_secs_f64();
     println!("Time elapsed: {}", duration);
-    println!("Unoptimized {} Optimized {}", explained.get_flat_sexps().len(), explained_short.get_flat_sexps().len());
+    println!("Unoptimized {} Optimized {}", explained.get_string_with_let().len(), explained_short.get_string_with_let().len());
 }
 
 #[test]

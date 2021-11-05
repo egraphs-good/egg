@@ -1082,7 +1082,6 @@ impl<L: Language> Explain<L> {
                 return (left_connections, vec![]);
             }
             if let Some((_, next)) = self.shortest_explanation_memo.get(&(left, right)) {
-                break;
                 let mut found = false;
                 for neighbor in &self.explainfind[usize::from(left)].neighbors {
                     if neighbor.next == *next {
@@ -1451,11 +1450,13 @@ impl<L: Language> Explain<L> {
         unionfind: &UnionFind,
         distance_memo: &mut DistanceMemo,
         eclass_seen_memo: &mut HashSet<Id>,
-        depth: usize
-    ) -> usize {
-        if !eclass_seen_memo.insert(unionfind.find(start)) {
-            return self.cache_distance_between(start, end, distance_memo).0
+        mut fuel: usize
+    ) -> (usize, usize) {
+        let eclass_size = self.find_all_enodes(start).len();
+        if fuel < eclass_size {
+            return (self.cache_distance_between(start, end, distance_memo).0, fuel);
         }
+        fuel -= eclass_size;
 
         let mut todo = PriorityQueue::new();
         todo.push(
@@ -1495,11 +1496,7 @@ impl<L: Language> Explain<L> {
             }
 
             for other in congruence_neighbors[usize::from(current)].iter() {
-                let distance = if depth > 0 {
-                    self.greedy_short_explanations(current, *other, congruence_neighbors, unionfind, distance_memo, eclass_seen_memo, depth.saturating_sub(1))
-                } else {
-                    self.distance_between(current, *other, distance_memo).0
-                };
+                let distance = self.distance_between(current, *other, distance_memo).0;
                 let other_cost = (usize::MAX - cost_so_far)
                     + distance;
                 todo.push(
@@ -1555,15 +1552,17 @@ impl<L: Language> Explain<L> {
                     .iter()
                     .zip(next_node.children().iter())
                 {
-                    cost += self.greedy_short_explanations(
+                    let rec = self.greedy_short_explanations(
                         *left_child,
                         *right_child,
                         congruence_neighbors,
                         unionfind,
                         distance_memo,
                         eclass_seen_memo,
-                        depth.saturating_sub(1),
+                        fuel,
                     );
+                    cost += rec.0;
+                    fuel = rec.1;
                 }
                 greedy_cost += cost;
             } else {
@@ -1571,7 +1570,7 @@ impl<L: Language> Explain<L> {
             }
         }
 
-        greedy_cost
+        (greedy_cost, fuel)
     }
 
     fn tarjan_ocla(
@@ -1663,6 +1662,7 @@ impl<L: Language> Explain<L> {
 
         if greedy_search {
             let mut eclass_seen_memo = HashSet::default();
+            let fuel = iters * self.explainfind.len();
             self.greedy_short_explanations(
                 start,
                 end,
@@ -1670,7 +1670,7 @@ impl<L: Language> Explain<L> {
                 &unionfind,
                 &mut distance_memo,
                 &mut eclass_seen_memo,
-                iters
+                fuel,
             );
         } else {
             for _i in 0..iters {
