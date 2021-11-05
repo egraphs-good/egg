@@ -88,8 +88,7 @@ pub struct Explanation<L: Language> {
 
 impl<L: Language + Display> Display for Explanation<L> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let mut s = "".to_string();
-        pretty_print(&mut s, &self.get_sexp(), 100, 0).unwrap();
+        let s = self.get_sexp().to_string();
         f.write_str(&s)
     }
 }
@@ -1083,6 +1082,7 @@ impl<L: Language> Explain<L> {
                 return (left_connections, vec![]);
             }
             if let Some((_, next)) = self.shortest_explanation_memo.get(&(left, right)) {
+                break;
                 let mut found = false;
                 for neighbor in &self.explainfind[usize::from(left)].neighbors {
                     if neighbor.next == *next {
@@ -1244,7 +1244,7 @@ impl<L: Language> Explain<L> {
                     }
                 }
 
-                let old = self.distance_between(*enode, *other, distance_memo);
+                let old = self.cache_distance_between(*enode, *other, distance_memo);
 
                 if cost < old.0 {
                     self.shortest_explanation_memo
@@ -1270,7 +1270,7 @@ impl<L: Language> Explain<L> {
                             Some((v, _)) => *v,
                             None => continue,
                         };
-                    let old = self.distance_between(*start, *end, distance_memo);
+                    let old = self.cache_distance_between(*start, *end, distance_memo);
                     let new = start_to_intermediate.0 + intermediate_to_end;
                     if new < old.0 {
                         self.shortest_explanation_memo
@@ -1315,6 +1315,14 @@ impl<L: Language> Explain<L> {
         }
     }
 
+
+    fn cache_distance_between(&mut self, left: Id, right: Id, distance_memo: &mut DistanceMemo) -> (usize, Id) {
+        if let Some((dist, next)) = self.shortest_explanation_memo.get(&(left, right)) {
+            (*dist, *next)
+        } else {
+            self.distance_between(left, right, distance_memo)
+        }
+    }
 
     fn distance_between(&mut self, left: Id, right: Id, distance_memo: &mut DistanceMemo) -> (usize, Id) {
         if left == right {
@@ -1440,12 +1448,13 @@ impl<L: Language> Explain<L> {
         start: Id,
         end: Id,
         congruence_neighbors: &Vec<Vec<Id>>,
+        unionfind: &UnionFind,
         distance_memo: &mut DistanceMemo,
-        cache: &mut HashMap<(Id, Id), usize>,
+        eclass_seen_memo: &mut HashSet<Id>,
         depth: usize
     ) -> usize {
-        if let Some(cached) = cache.get(&(start, end)) {
-            return *cached;
+        if !eclass_seen_memo.insert(unionfind.find(start)) {
+            return self.cache_distance_between(start, end, distance_memo).0
         }
 
         let mut todo = PriorityQueue::new();
@@ -1487,7 +1496,7 @@ impl<L: Language> Explain<L> {
 
             for other in congruence_neighbors[usize::from(current)].iter() {
                 let distance = if depth > 0 {
-                    self.greedy_short_explanations(current, *other, congruence_neighbors, distance_memo, cache, depth.saturating_sub(1))
+                    self.greedy_short_explanations(current, *other, congruence_neighbors, unionfind, distance_memo, eclass_seen_memo, depth.saturating_sub(1))
                 } else {
                     self.distance_between(current, *other, distance_memo).0
                 };
@@ -1550,8 +1559,9 @@ impl<L: Language> Explain<L> {
                         *left_child,
                         *right_child,
                         congruence_neighbors,
+                        unionfind,
                         distance_memo,
-                        cache,
+                        eclass_seen_memo,
                         depth.saturating_sub(1),
                     );
                 }
@@ -1561,7 +1571,6 @@ impl<L: Language> Explain<L> {
             }
         }
 
-        cache.insert((start, end), greedy_cost);
         greedy_cost
     }
 
@@ -1625,6 +1634,7 @@ impl<L: Language> Explain<L> {
             self.tarjan_ocla(parent, &children, &mut black_set, &mut unionfind, &mut ancestor, &mut common_ancestor);
         }
 
+        println!("done with tarjan");
         common_ancestor
     }
 
@@ -1652,12 +1662,14 @@ impl<L: Language> Explain<L> {
         };
 
         if greedy_search {
+            let mut eclass_seen_memo = HashSet::default();
             self.greedy_short_explanations(
                 start,
                 end,
                 &congruence_neighbors,
+                &unionfind,
                 &mut distance_memo,
-                &mut HashMap::default(),
+                &mut eclass_seen_memo,
                 iters
             );
         } else {
