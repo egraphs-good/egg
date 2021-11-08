@@ -864,7 +864,7 @@ impl<L: Language> Explain<L> {
                         match_ids.push(*existing_id);
                     } else {
                         let congruent_id = *memo.get(&node).unwrap_or_else(|| {
-                            panic!("Internal error! Pattern did not exist for substitution.");
+                            panic!("Pattern {:?} with substitution {:?} was not present in egraph!", pattern, subst);
                         });
 
                         let congruent_class = unionfind.find(congruent_id);
@@ -1013,6 +1013,9 @@ impl<L: Language> Explain<L> {
     ) -> Explanation<L> {
         let left_added = self.add_expr(left, memo, unionfind);
         let right_added = self.add_expr(right, memo, unionfind);
+        if unionfind.find(left_added) != unionfind.find(right_added) {
+            panic!("Trying to explain_equivalence between terms that are not equal!");
+        }
         self.calculate_shortest_explanations::<N>(
             left_added,
             right_added,
