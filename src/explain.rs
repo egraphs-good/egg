@@ -1636,7 +1636,6 @@ impl<L: Language> Explain<L> {
             self.tarjan_ocla(parent, &children, &mut black_set, &mut unionfind, &mut ancestor, &mut common_ancestor);
         }
 
-        println!("done with tarjan");
         common_ancestor
     }
 
