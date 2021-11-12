@@ -647,15 +647,21 @@ fn herbie_benchmark_proof(runner: &mut Runner, proof: &Sexp, output: &mut File) 
     writeln!(output, "({} {} {} {} {})", proof, duration_normal, duration_slow, normal_len, slow_len).unwrap();
     output.flush().unwrap();
     print!(".");
+    std::io::stdout().flush().unwrap();
 }
 
 #[cfg(feature = "reports")]
-fn herbie_benchmark_example(example: &str, output: &mut File) {
+fn herbie_benchmark_example(example: &str, output: &mut File, skip: &mut usize) {
     let parsed: Sexp = parser::parse_str(example).unwrap();
     let pair = unwrap_sexp_list(&parsed);
     let expressions = &pair[0];
     let proofs = &pair[1];
-    if unwrap_sexp_list(expressions).len() == 0 {
+    let proofs_sexps = unwrap_sexp_list(proofs);
+    if proofs_sexps.len() == 0 {
+        return;
+    }
+    if skip >= &mut proofs_sexps.len() {
+        *skip -= proofs_sexps.len();
         return;
     }
     let mut runner = Runner::new(Default::default())
@@ -677,19 +683,22 @@ fn herbie_benchmark_example(example: &str, output: &mut File) {
 
     runner = runner.run(&math_rules());
 
-    for proof in unwrap_sexp_list(proofs) {
+    for proof in proofs_sexps {
+        if skip > &mut 0 {
+            *skip -= 1;
+            continue;
+        }
         herbie_benchmark_proof(&mut runner, &proof, output);
     }
 }
 
 #[cfg(feature = "reports")]
-fn herbie_benchmark_file(file: &Path, output: &mut File) {
+fn herbie_benchmark_file(file: &Path, output: &mut File, skip: &mut usize) {
     println!("Benchmarking {}", file.display());
     let contents = fs::read_to_string(file).expect("Something went wrong reading the file");
     let split: Vec<&str> = contents.split("\n").collect();
     for example in split {
-        herbie_benchmark_example(example, output);
-        print!(".");
+        herbie_benchmark_example(example, output, skip);
     }
 }
 
@@ -704,9 +713,11 @@ fn herbie_benchmark() {
         .unwrap();
     let paths = fs::read_dir("./herbie/reports/egg-proof-examples").unwrap();
 
+    let mut skip = 0;
+
     for path in paths {
         let path = path.unwrap().path();
-        herbie_benchmark_file(&path, &mut output_file);
+        herbie_benchmark_file(&path, &mut output_file, &mut skip);
     }
 }
 

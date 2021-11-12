@@ -1346,9 +1346,10 @@ impl<L: Language> Explain<L> {
         distance_memo.parent_distance[usize::from(right)].0);
 
         // calculate distance to find upper bound
-        let dist = b + c - 2*a;
+        let dist = b.checked_add(c).unwrap().checked_sub(a.checked_mul(2).unwrap()).unwrap();
 
         let next = self.parent(left);
+        
         return (dist, next);
     }
 
@@ -1499,7 +1500,16 @@ impl<L: Language> Explain<L> {
             }
 
             for other in congruence_neighbors[usize::from(current)].iter() {
-                let distance = self.distance_between(current, *other, distance_memo).0;
+                let mut distance = 0;
+                let current_node = self.explainfind[usize::from(current)].node.clone();
+                let next_node = self.explainfind[usize::from(*other)].node.clone();
+                for (left_child, right_child) in current_node
+                    .children()
+                    .iter()
+                    .zip(next_node.children().iter())
+                {
+                    distance += self.distance_between(*left_child, *right_child, distance_memo).0;
+                }
                 let other_cost = (usize::MAX - cost_so_far)
                     + distance;
                 todo.push(
@@ -1519,6 +1529,7 @@ impl<L: Language> Explain<L> {
         // when we found an equivalent path, avoid cycles by taking the normal route
         let dist = self.distance_between(start, end, distance_memo).0;
         assert!(total_cost <= dist);
+        
         if total_cost == dist {
             let (a_left_connections, a_right_connections) = self.get_path_unoptimized(start, end);
             left_connections = a_left_connections;
