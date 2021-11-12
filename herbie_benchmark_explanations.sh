@@ -11,3 +11,4 @@ cd ..
 
 cargo test herbie_benchmark --release --features reports -- --nocapture
 
+racket eval-results.rkt herbie-bench-results.txt macros.txt

@@ -698,7 +698,9 @@ fn herbie_benchmark_file(file: &Path, output: &mut File, skip: &mut usize) {
     let contents = fs::read_to_string(file).expect("Something went wrong reading the file");
     let split: Vec<&str> = contents.split("\n").collect();
     for example in split {
-        herbie_benchmark_example(example, output, skip);
+        if example != "" {
+            herbie_benchmark_example(example, output, skip);
+        }
     }
 }
 
