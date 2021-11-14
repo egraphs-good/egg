@@ -1,17 +1,11 @@
 use egg::*;
-use std::fs;
-use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
-use symbolic_expressions::{parser, Sexp};
 
 use instant::{Duration, Instant};
 use num_bigint::BigInt;
 use num_rational::Ratio;
 use num_traits::{Pow, Signed, Zero};
 use std::str::FromStr;
-
-use std::fs::{File, OpenOptions};
-use std::io::Write;
 
 pub type Constant = num_rational::BigRational;
 pub type RecExpr = egg::RecExpr<Math>;
@@ -45,7 +39,6 @@ impl IterationData<Math, ConstantFold> for IterData {
         Self { extracted }
     }
 }
-
 
 // operators from FPCore
 define_language! {
@@ -89,7 +82,6 @@ impl Default for ConstantFold {
     }
 }
 
-
 impl Analysis<Math> for ConstantFold {
     type Data = Option<(Constant, (PatternAst<Math>, Subst))>;
     fn make(egraph: &EGraph, enode: &Math) -> Self::Data {
@@ -116,27 +108,27 @@ impl Analysis<Math> for ConstantFold {
                 Math::Mul([_p, a, b]) => x(a)? * x(b)?,
                 Math::Div([_p, a, b]) => {
                     if x(b)?.is_zero() {
-                        return None
+                        return None;
                     } else {
                         x(a)? / x(b)?
                     }
-                },
+                }
                 Math::Neg([_p, a]) => -x(a)?.clone(),
                 Math::Pow([_p, a, b]) => {
                     if is_zero(a) {
                         if x(b)?.is_positive() {
                             Ratio::new(BigInt::from(0), BigInt::from(1))
                         } else {
-                            return None
+                            return None;
                         }
                     } else if is_zero(b) {
                         Ratio::new(BigInt::from(1), BigInt::from(1))
                     } else if x(b)?.is_integer() {
                         Pow::pow(x(a)?, x(b)?.to_integer())
                     } else {
-                        return None
+                        return None;
                     }
-                },
+                }
                 Math::Sqrt([_p, a]) => {
                     let a = x(a)?;
                     if *a.numer() > BigInt::from(0) && *a.denom() > BigInt::from(0) {
@@ -146,24 +138,24 @@ impl Analysis<Math> for ConstantFold {
                         if is_perfect {
                             Ratio::new(s1, s2)
                         } else {
-                            return None
+                            return None;
                         }
                     } else {
-                        return None
+                        return None;
                     }
                 }
                 Math::Log([_p, a]) => {
                     if x(a)? == Ratio::new(BigInt::from(1), BigInt::from(1)) {
                         Ratio::new(BigInt::from(0), BigInt::from(1))
                     } else {
-                        return None
+                        return None;
                     }
                 }
                 Math::Cbrt([_p, a]) => {
                     if x(a)? == Ratio::new(BigInt::from(1), BigInt::from(1)) {
                         Ratio::new(BigInt::from(1), BigInt::from(1))
                     } else {
-                        return None
+                        return None;
                     }
                 }
                 Math::Fabs([_p, a]) => x(a)?.clone().abs(),
@@ -171,7 +163,7 @@ impl Analysis<Math> for ConstantFold {
                 Math::Ceil([_p, a]) => x(a)?.ceil(),
                 Math::Round([_p, a]) => x(a)?.round(),
 
-                _ => return None
+                _ => return None,
             },
             {
                 let mut pattern: PatternAst<Math> = Default::default();
@@ -181,7 +173,9 @@ impl Analysis<Math> for ConstantFold {
                     if let Some(constant) = x(&child) {
                         pattern.add(ENodeOrVar::ENode(Math::Constant(constant)));
                     } else {
-                        let var = ("?".to_string() + &var_counter.to_string()).parse().unwrap();
+                        let var = ("?".to_string() + &var_counter.to_string())
+                            .parse()
+                            .unwrap();
                         pattern.add(ENodeOrVar::Var(var));
                         subst.insert(var, child);
                         var_counter += 1;
@@ -196,7 +190,8 @@ impl Analysis<Math> for ConstantFold {
                 });
                 pattern.add(ENodeOrVar::ENode(head));
                 (pattern, subst)
-            }))
+            },
+        ))
     }
 
     fn merge(&self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
@@ -221,7 +216,12 @@ impl Analysis<Math> for ConstantFold {
     fn modify(egraph: &mut EGraph, class_id: Id) {
         let class = &mut egraph[class_id];
         if let Some((c, (pat, subst))) = class.data.clone() {
-            egraph.union_instantiations(&pat, &format!("{}", c).parse().unwrap(), &subst, "metadata-eval".to_string());
+            egraph.union_instantiations(
+                &pat,
+                &format!("{}", c).parse().unwrap(),
+                &subst,
+                "metadata-eval".to_string(),
+            );
 
             if egraph.analysis.prune {
                 egraph[class_id].nodes.retain(|n| n.is_leaf())
@@ -230,25 +230,27 @@ impl Analysis<Math> for ConstantFold {
     }
 }
 
-
-pub fn mk_rules(tuples: &[(&str, &str, &str)]) -> Vec<Rewrite> {
+pub fn mk_rules(tuples: &[(&str, &str, &str)], replace: &str) -> Vec<Rewrite> {
     tuples
         .iter()
-        .map(|(name, left, right)| {
-            let left = Pattern::from_str(left).unwrap();
-            let right = Pattern::from_str(right).unwrap();
-            Rewrite::new(*name, left, right).unwrap()
+        .filter_map(|(name, left, right)| {
+            let name_replaced = name.replace("binary64", replace);
+            let left_replaced = left.replace("f64", replace);
+            let right_replaced = right.replace("f64", replace);
+            let left = Pattern::from_str(&left_replaced).unwrap();
+            let right = Pattern::from_str(&right_replaced).unwrap();
+            Some(Rewrite::new(name_replaced, left, right).unwrap())
         })
         .collect()
 }
 
-pub fn math_rules() -> Vec<Rewrite> {
+pub fn math_rules(type_str: &str) -> Vec<Rewrite> {
     let mut rules: Vec<Rewrite> = Default::default();
-    let mut add = |name, new_rules| {
-        rules.extend(mk_rules(new_rules));
+    let mut add = |new_rules| {
+        rules.extend(mk_rules(new_rules, type_str));
     };
 
-    add("all-rules",
+    add(
     &[("not-true", "(not real (TRUE real))", "(FALSE real)"),
 ("not-false", "(not real (FALSE real))", "(TRUE real)"),
 ("not-not", "(not real (not real ?a))", "?a"),
@@ -474,7 +476,11 @@ fn check_proof_exists(r: &mut Runner, rules: Vec<Rewrite>, left: &str, right: &s
     let mut explained_short = r.explain_equivalence(&lexpr, &rexpr, 4, true);
     let duration = start.elapsed().as_secs_f64();
     println!("Time elapsed: {}", duration);
-    println!("Unoptimized {} Optimized {}", explained.get_string_with_let().len(), explained_short.get_string_with_let().len());
+    println!(
+        "Unoptimized {} Optimized {}",
+        explained.get_string_with_let().len(),
+        explained_short.get_string_with_let().len()
+    );
 }
 
 #[test]
@@ -498,10 +504,10 @@ fn herbie_prove_numerics() {
         });
     let first = "(+ f64 (neg f64 (neg f64 2)) 0))";
     let second = "-1";
-    runner = runner.run(&math_rules());
+    runner = runner.run(&math_rules("f64"));
     runner.print_report();
     //assert!(runner.egraph.equivs(&first.parse().unwrap(), &second.parse().unwrap()).len() == 1);
-    check_proof_exists(&mut runner, math_rules(), first, second);
+    check_proof_exists(&mut runner, math_rules("f64"), first, second);
 }
 
 #[test]
@@ -525,9 +531,9 @@ fn herbie_prove_2() {
         });
     let first = "2";
     let second = "(+ f64 1 1)";
-    runner = runner.run(&math_rules());
+    runner = runner.run(&math_rules("f64"));
     //assert!(runner.egraph.equivs(&first.parse().unwrap(), &second.parse().unwrap()).len() == 1);
-    check_proof_exists(&mut runner, math_rules(), first, second);
+    check_proof_exists(&mut runner, math_rules("f64"), first, second);
 }
 
 #[test]
@@ -551,9 +557,9 @@ fn herbie_prove_neg() {
         });
     let first = "(neg f64 (neg f64 2)))";
     let second = "(neg f64 (neg f64 (+ f64 1 1))))";
-    runner = runner.run(&math_rules());
+    runner = runner.run(&math_rules("f64"));
     //assert!(runner.egraph.equivs(&first.parse().unwrap(), &second.parse().unwrap()).len() == 1);
-    check_proof_exists(&mut runner, math_rules(), first, second);
+    check_proof_exists(&mut runner, math_rules("f64"), first, second);
 }
 
 #[test]
@@ -574,10 +580,10 @@ fn herbie_prove_long() {
                 Ok(())
             }
         });
-    runner = runner.run(&math_rules());
+    runner = runner.run(&math_rules("f64"));
     check_proof_exists(
         &mut runner,
-        math_rules(),
+        math_rules("f64"),
         "(/ f64 (* f64 (cbrt f64 -1) (cbrt f64 -1)) (pow f64 (* f64 (cbrt f64 h0) (cbrt f64 h0)) 3))",
         "(/ f64 1 (* f64 h0 h0))",
     );
@@ -602,125 +608,137 @@ fn herbie_prove_cbrt() {
                 Ok(())
             }
         });
-    runner = runner.run(&math_rules());
+    runner = runner.run(&math_rules("f64"));
     check_proof_exists(
         &mut runner,
-        math_rules(),
+        math_rules("f64"),
         "(cbrt f64 1)",
         "(cbrt f64 (* f64 1 (* f64 1 1)))",
     );
 }
 
 #[cfg(feature = "reports")]
-fn unwrap_sexp_list<'a>(sexp: &'a Sexp) -> &'a Vec<Sexp> {
-    if let Sexp::List(l) = sexp {
-        return l;
-    } else {
-        panic!("Expected a list, got: {}", sexp);
-    }
-}
+mod proofbench {
+    use std::fs;
+    use std::fs::{File, OpenOptions};
+    use std::io::Write;
+    use std::path::Path;
+    use symbolic_expressions::{parser, Sexp};
 
-#[cfg(feature = "reports")]
-fn unwrap_sexp_string<'a>(sexp: &'a Sexp) -> &'a str {
-    if let Sexp::String(s) = sexp {
-        return s;
-    } else {
-        panic!("Expected a string, got: {}", sexp);
-    }
-}
-
-#[cfg(feature = "reports")]
-fn herbie_benchmark_proof(runner: &mut Runner, proof: &Sexp, output: &mut File) {
-    let pair = unwrap_sexp_list(proof);
-    let start_parsed: egg::RecExpr<_> = unwrap_sexp_string(&pair[0]).parse().unwrap();
-    let end_parsed: egg::RecExpr<_> = unwrap_sexp_string(&pair[1]).parse().unwrap();
-    let start_normal = Instant::now();
-    
-    let mut normal = runner.explain_equivalence(&start_parsed, &end_parsed, 0, false);
-    let duration_normal = start_normal.elapsed().as_millis();
-    
-    let start_slow = Instant::now();
-    let mut slow = runner.explain_equivalence(&start_parsed, &end_parsed, 10, true);
-    let duration_slow = start_slow.elapsed().as_millis();
-    let normal_len = normal.get_flat_sexps().len();
-    let slow_len = slow.get_flat_sexps().len();
-    writeln!(output, "({} {} {} {} {})", proof, duration_normal, duration_slow, normal_len, slow_len).unwrap();
-    output.flush().unwrap();
-    print!(".");
-    std::io::stdout().flush().unwrap();
-}
-
-#[cfg(feature = "reports")]
-fn herbie_benchmark_example(example: &str, output: &mut File, skip: &mut usize) {
-    let parsed: Sexp = parser::parse_str(example).unwrap();
-    let pair = unwrap_sexp_list(&parsed);
-    let expressions = &pair[0];
-    let proofs = &pair[1];
-    let proofs_sexps = unwrap_sexp_list(proofs);
-    if proofs_sexps.len() == 0 {
-        return;
-    }
-    if skip >= &mut proofs_sexps.len() {
-        *skip -= proofs_sexps.len();
-        return;
-    }
-    let mut runner = Runner::new(Default::default())
-        .with_explanations_enabled()
-        .with_node_limit(5000)
-        .with_iter_limit(usize::MAX) // should never hit
-        .with_time_limit(Duration::from_secs(u64::MAX))
-        .with_hook(|r| {
-            if r.egraph.analysis.unsound.load(Ordering::SeqCst) {
-                Err("Unsoundness detected".into())
-            } else {
-                Ok(())
-            }
-        });
-    for expr in unwrap_sexp_list(expressions) {
-        let parsed: egg::RecExpr<_> = unwrap_sexp_string(expr).parse().unwrap();
-        runner = runner.with_expr(&parsed);
-    }
-
-    runner = runner.run(&math_rules());
-
-    for proof in proofs_sexps {
-        if skip > &mut 0 {
-            *skip -= 1;
-            continue;
-        }
-        herbie_benchmark_proof(&mut runner, &proof, output);
-    }
-}
-
-#[cfg(feature = "reports")]
-fn herbie_benchmark_file(file: &Path, output: &mut File, skip: &mut usize) {
-    println!("Benchmarking {}", file.display());
-    let contents = fs::read_to_string(file).expect("Something went wrong reading the file");
-    let split: Vec<&str> = contents.split("\n").collect();
-    for example in split {
-        if example != "" {
-            herbie_benchmark_example(example, output, skip);
+    fn unwrap_sexp_list<'a>(sexp: &'a Sexp) -> &'a Vec<Sexp> {
+        if let Sexp::List(l) = sexp {
+            return l;
+        } else {
+            panic!("Expected a list, got: {}", sexp);
         }
     }
-}
 
-#[cfg(feature = "reports")]
-#[test]
-fn herbie_benchmark() {
-    let mut output_file = OpenOptions::new()
-        .create(true)
-        .write(true)
-        .truncate(true)
-        .open("herbie-bench-results.txt")
+    fn unwrap_sexp_string<'a>(sexp: &'a Sexp) -> &'a str {
+        if let Sexp::String(s) = sexp {
+            return s;
+        } else {
+            panic!("Expected a string, got: {}", sexp);
+        }
+    }
+
+    fn herbie_benchmark_proof(runner: &mut Runner, proof: &Sexp, output: &mut File) {
+        let pair = unwrap_sexp_list(proof);
+        //println!("Doing {} and {}", pair[0], pair[1]);
+        let start_parsed: egg::RecExpr<_> = unwrap_sexp_string(&pair[0]).parse().unwrap();
+        let end_parsed: egg::RecExpr<_> = unwrap_sexp_string(&pair[1]).parse().unwrap();
+        let start_normal = Instant::now();
+
+        let r = runner.egraph.add_expr(&end_parsed);
+        let l = runner.egraph.add_expr(&start_parsed);
+        //assert_eq!(runner.egraph.find(l), runner.egraph.find(r));
+
+        let mut normal = runner.explain_equivalence(&start_parsed, &end_parsed, 0, false);
+        let duration_normal = start_normal.elapsed().as_millis();
+
+        let start_slow = Instant::now();
+        let mut slow = runner.explain_equivalence(&start_parsed, &end_parsed, 10, true);
+        let duration_slow = start_slow.elapsed().as_millis();
+        let normal_len = normal.get_flat_sexps().len();
+        let slow_len = slow.get_flat_sexps().len();
+        writeln!(
+            output,
+            "({} {} {} {} {})",
+            proof, duration_normal, duration_slow, normal_len, slow_len
+        )
         .unwrap();
-    let paths = fs::read_dir("./herbie/reports/egg-proof-examples").unwrap();
+        output.flush().unwrap();
+        print!(".");
+        std::io::stdout().flush().unwrap();
+    }
 
-    let mut skip = 0;
+    fn herbie_benchmark_example(example: &str, output: &mut File, skip: &mut usize) {
+        let is_f64 = example.contains("f64");
+        let parsed: Sexp = parser::parse_str(example).unwrap();
+        let pair = unwrap_sexp_list(&parsed);
+        let expressions = &pair[0];
+        let proofs = &pair[1];
+        let proofs_sexps = unwrap_sexp_list(proofs);
+        if proofs_sexps.len() == 0 {
+            return;
+        }
+        if skip >= &mut proofs_sexps.len() {
+            *skip -= proofs_sexps.len();
+            return;
+        }
+        let mut runner = Runner::new(Default::default())
+            .with_explanations_enabled()
+            .with_node_limit(5000)
+            .with_iter_limit(usize::MAX) // should never hit
+            .with_time_limit(Duration::from_secs(u64::MAX))
+            .with_hook(|r| {
+                if r.egraph.analysis.unsound.load(Ordering::SeqCst) {
+                    Err("Unsoundness detected".into())
+                } else {
+                    Ok(())
+                }
+            });
+        for expr in unwrap_sexp_list(expressions) {
+            let parsed: egg::RecExpr<_> = unwrap_sexp_string(expr).parse().unwrap();
+            runner = runner.with_expr(&parsed);
+        }
 
-    for path in paths {
-        let path = path.unwrap().path();
-        herbie_benchmark_file(&path, &mut output_file, &mut skip);
+        runner = runner.run(&math_rules(if is_f64 { "f64" } else { "f32" }));
+
+        for proof in proofs_sexps {
+            if skip > &mut 0 {
+                *skip -= 1;
+                continue;
+            }
+            herbie_benchmark_proof(&mut runner, &proof, output);
+        }
+    }
+
+    fn herbie_benchmark_file(file: &Path, output: &mut File, skip: &mut usize) {
+        println!("Benchmarking {}", file.display());
+        let contents = fs::read_to_string(file).expect("Something went wrong reading the file");
+        let split: Vec<&str> = contents.split("\n").collect();
+        for example in split {
+            if example != "" {
+                herbie_benchmark_example(example, output, skip);
+            }
+        }
+    }
+
+    #[test]
+    fn herbie_benchmark() {
+        let mut output_file = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .open("herbie-bench-results.txt")
+            .unwrap();
+        let paths = fs::read_dir("./herbie/reports/egg-proof-examples").unwrap();
+
+        let mut skip = 0; // 150 works
+
+        for path in paths {
+            let path = path.unwrap().path();
+            herbie_benchmark_file(&path, &mut output_file, &mut skip);
+        }
     }
 }
-
-//(/ f64 (* f64 (cbrt f64 1) (cbrt f64 1)) (* f64 (cbrt f64 (/ f64 (- f64 h0 h1) (+ f64 h1 h0))) (cbrt f64 (/ f64 (- f64 h0 h1) (+ f64 h1 h0)))))"" ""(/ f64 1 (* f64 (cbrt f64 (/ f64 (- f64 h0 h1) (+ f64 h0 h1))) (cbrt f64 (/ f64 (- f64 h0 h1) (+ f64 h0 h1)))))

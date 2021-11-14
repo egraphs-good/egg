@@ -567,7 +567,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                 if let Some(explain) = &mut self.explain {
                     explain.alternate_rewrite(enode_id1, enode_id2, rule.unwrap());
                 } else {
-                        assert!(rule.is_none());
+                    assert!(rule.is_none());
                 }
             }
             return false;

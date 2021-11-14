@@ -3,10 +3,11 @@ use crate::{
     util::pretty_print, Analysis, EClass, ENodeOrVar, HashMap, HashSet, Id, Language, PatternAst,
     RecExpr, Rewrite, Subst, UnionFind, Var,
 };
+use std::cmp::Ordering;
+use std::collections::BinaryHeap;
 use std::fmt::{self, Debug, Display, Formatter};
 use std::rc::Rc;
 
-use priority_queue::PriorityQueue;
 use symbolic_expressions::Sexp;
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -40,9 +41,11 @@ pub struct Explain<L: Language> {
     explainfind: Vec<ExplainNode<L>>,
     uncanon_memo: HashMap<L, Id>,
     // For a given pair of enodes in the same eclass,
-    // stores the length of the shortest explanation
+    // stores the length of the shortest found explanation
     // and the Id of the neighbor for retrieving
     // the explanation.
+    // Invariant: The distance is always <= the unoptimized distance
+    // That is, less than or equal to the result of `distance_between`
     shortest_explanation_memo: HashMap<(Id, Id), (usize, Id)>,
 }
 
@@ -736,6 +739,34 @@ impl<L: Language> FlatTerm<L> {
     }
 }
 
+// Make sure to use push_increase instead of push when using priority queue
+#[derive(Copy, Clone, Eq, PartialEq)]
+struct HeapState<I> {
+    cost: usize,
+    item: I,
+}
+// The priority queue depends on `Ord`.
+// Explicitly implement the trait so the queue becomes a min-heap
+// instead of a max-heap.
+impl<I: Eq + PartialEq> Ord for HeapState<I> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        // Notice that the we flip the ordering on costs.
+        // In case of a tie we compare positions - this step is necessary
+        // to make implementations of `PartialEq` and `Ord` consistent.
+        other
+            .cost
+            .cmp(&self.cost)
+            .then_with(|| self.cost.cmp(&other.cost))
+    }
+}
+
+// `PartialOrd` needs to be implemented as well.
+impl<I: Eq + PartialEq> PartialOrd for HeapState<I> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 impl<L: Language> Explain<L> {
     fn node_to_explanation(&self, node_id: Id) -> TreeTerm<L> {
         let node = self.explainfind[usize::from(node_id)].node.clone();
@@ -864,7 +895,10 @@ impl<L: Language> Explain<L> {
                         match_ids.push(*existing_id);
                     } else {
                         let congruent_id = *memo.get(&node).unwrap_or_else(|| {
-                            panic!("Pattern {:?} with substitution {:?} was not present in egraph!", pattern, subst);
+                            panic!(
+                                "Pattern {:?} with substitution {:?} was not present in egraph!",
+                                pattern, subst
+                            );
                         });
 
                         let congruent_class = unionfind.find(congruent_id);
@@ -1122,7 +1156,8 @@ impl<L: Language> Explain<L> {
     ) -> TreeExplanation<L> {
         let mut proof = vec![Rc::new(self.node_to_explanation(left))];
 
-        let (left_connections, right_connections) = self.get_path(left, right);
+        // TODO turn on optimization
+        let (left_connections, right_connections) = self.get_path_unoptimized(left, right);
 
         for (i, connection) in left_connections
             .iter()
@@ -1287,13 +1322,8 @@ impl<L: Language> Explain<L> {
     }
 
     fn replace_distance(&mut self, current: Id, next: Id, right: Id, distance: usize) {
-        self.shortest_explanation_memo.insert(
-            (current, right),
-            (
-                distance,
-                next,
-            ),
-        );
+        self.shortest_explanation_memo
+            .insert((current, right), (distance, next));
     }
 
     fn populate_path_length(
@@ -1313,12 +1343,16 @@ impl<L: Language> Explain<L> {
                 .unwrap()
                 .0;
             let dist = self.distance_between(current, next, distance_memo).0;
-            self.replace_distance(current, next, right, next_cost+dist);
+            self.replace_distance(current, next, right, next_cost + dist);
         }
     }
 
-
-    fn cache_distance_between(&mut self, left: Id, right: Id, distance_memo: &mut DistanceMemo) -> (usize, Id) {
+    fn cache_distance_between(
+        &mut self,
+        left: Id,
+        right: Id,
+        distance_memo: &mut DistanceMemo,
+    ) -> (usize, Id) {
         if let Some((dist, next)) = self.shortest_explanation_memo.get(&(left, right)) {
             (*dist, *next)
         } else {
@@ -1326,7 +1360,12 @@ impl<L: Language> Explain<L> {
         }
     }
 
-    fn distance_between(&mut self, left: Id, right: Id, distance_memo: &mut DistanceMemo) -> (usize, Id) {
+    fn distance_between(
+        &mut self,
+        left: Id,
+        right: Id,
+        distance_memo: &mut DistanceMemo,
+    ) -> (usize, Id) {
         if left == right {
             return (0, left);
         }
@@ -1336,20 +1375,30 @@ impl<L: Language> Explain<L> {
         self.calculate_parent_distance(right, ancestor, distance_memo);
 
         // now all three share an ancestor
-        let a = self.calculate_parent_distance(ancestor, Id::from(usize::MAX), distance_memo); 
+        let a = self.calculate_parent_distance(ancestor, Id::from(usize::MAX), distance_memo);
         let b = self.calculate_parent_distance(left, Id::from(usize::MAX), distance_memo);
         let c = self.calculate_parent_distance(right, Id::from(usize::MAX), distance_memo);
 
-        assert!(distance_memo.parent_distance[usize::from(ancestor)].0 ==
-        distance_memo.parent_distance[usize::from(left)].0);
-        assert!(distance_memo.parent_distance[usize::from(ancestor)].0 ==
-        distance_memo.parent_distance[usize::from(right)].0);
+        assert!(
+            distance_memo.parent_distance[usize::from(ancestor)].0
+                == distance_memo.parent_distance[usize::from(left)].0
+        );
+        assert!(
+            distance_memo.parent_distance[usize::from(ancestor)].0
+                == distance_memo.parent_distance[usize::from(right)].0
+        );
 
         // calculate distance to find upper bound
-        let dist = b.checked_add(c).unwrap().checked_sub(a.checked_mul(2).unwrap()).unwrap();
+        let dist = b
+            .checked_add(c)
+            .unwrap()
+            .checked_sub(a.checked_mul(2).unwrap())
+            .unwrap();
 
         let next = self.parent(left);
-        
+
+        //assert_eq!(dist+1, Explanation::new(self.explain_enodes(left, right, &mut Default::default())).make_flat_explanation().len());
+
         return (dist, next);
     }
 
@@ -1377,7 +1426,10 @@ impl<L: Language> Explain<L> {
                 if parent == ancestor {
                     break;
                 }
-                let higher = *distance_memo.common_ancestor.get(&(parent, ancestor)).unwrap();
+                let higher = *distance_memo
+                    .common_ancestor
+                    .get(&(parent, ancestor))
+                    .unwrap();
                 if higher != ancestor {
                     assert!(higher == parent);
                     break;
@@ -1387,15 +1439,14 @@ impl<L: Language> Explain<L> {
                 let connection = &self.explainfind[usize::from(parent)].parent_connection;
                 let current = connection.current;
                 let next = connection.next;
-                let cost = 
-                if let Some((cost, _)) = self.shortest_explanation_memo.get(&(current, next)) {
+                let cost = if let Some((cost, _)) =
+                    self.shortest_explanation_memo.get(&(current, next))
+                {
                     *cost
                 } else {
                     match connection.justification {
                         Justification::Congruence => {
-                            let current_node = self.explainfind[usize::from(current)]
-                                .node
-                                .clone();
+                            let current_node = self.explainfind[usize::from(current)].node.clone();
                             let next_node = self.explainfind[usize::from(next)].node.clone();
                             let mut cost = 0;
                             for (left_child, right_child) in current_node
@@ -1403,8 +1454,9 @@ impl<L: Language> Explain<L> {
                                 .iter()
                                 .zip(next_node.children().iter())
                             {
-                                cost +=
-                                    self.distance_between(*left_child, *right_child, distance_memo).0;
+                                cost += self
+                                    .distance_between(*left_child, *right_child, distance_memo)
+                                    .0;
                             }
                             cost
                         }
@@ -1454,32 +1506,42 @@ impl<L: Language> Explain<L> {
         unionfind: &UnionFind,
         distance_memo: &mut DistanceMemo,
         eclass_seen_memo: &mut HashSet<Id>,
-        mut fuel: usize
+        mut fuel: usize,
     ) -> (usize, usize) {
         let eclass_size = self.find_all_enodes(start).len();
         if fuel < eclass_size {
-            return (self.cache_distance_between(start, end, distance_memo).0, fuel);
+            return (
+                self.cache_distance_between(start, end, distance_memo).0,
+                fuel,
+            );
         }
         fuel -= eclass_size;
 
-        let mut todo = PriorityQueue::new();
-        todo.push(
-            Connection {
+        let mut todo = BinaryHeap::new();
+        todo.push(HeapState {
+            cost: 0,
+            item: Connection {
                 current: start,
                 next: start,
                 justification: Justification::Congruence,
                 is_rewrite_forward: true,
             },
-            usize::MAX,
-        );
+        });
 
         let mut last = HashMap::default();
+        let mut seen = HashSet::default();
         let total_cost;
 
         loop {
             assert!(todo.len() > 0);
-            let (connection, cost_so_far) = todo.pop().unwrap();
+            let state = todo.pop().unwrap();
+            let connection = state.item;
+            let cost_so_far = state.cost;
             let current = connection.next;
+
+            if !seen.insert(current) {
+                continue;
+            }
 
             if let Some(_) = last.get(&current) {
                 continue;
@@ -1488,19 +1550,22 @@ impl<L: Language> Explain<L> {
             }
 
             if current == end {
-                total_cost = usize::MAX - cost_so_far;
+                total_cost = cost_so_far;
                 break;
             }
 
             for neighbor in &self.explainfind[usize::from(current)].neighbors {
                 if let Justification::Rule(_) = neighbor.justification {
-                    let neighbor_cost = (usize::MAX - cost_so_far) + 1;
-                    todo.push(neighbor.clone(), usize::MAX - neighbor_cost);
+                    let neighbor_cost = cost_so_far.checked_add(1).unwrap();
+                    todo.push(HeapState {
+                        item: neighbor.clone(),
+                        cost: neighbor_cost,
+                    });
                 }
             }
 
             for other in congruence_neighbors[usize::from(current)].iter() {
-                let mut distance = 0;
+                let mut distance: usize = 0;
                 let current_node = self.explainfind[usize::from(current)].node.clone();
                 let next_node = self.explainfind[usize::from(*other)].node.clone();
                 for (left_child, right_child) in current_node
@@ -1508,19 +1573,23 @@ impl<L: Language> Explain<L> {
                     .iter()
                     .zip(next_node.children().iter())
                 {
-                    distance += self.distance_between(*left_child, *right_child, distance_memo).0;
+                    distance = distance
+                        .checked_add(
+                            self.distance_between(*left_child, *right_child, distance_memo)
+                                .0,
+                        )
+                        .unwrap();
                 }
-                let other_cost = (usize::MAX - cost_so_far)
-                    + distance;
-                todo.push(
-                    Connection {
+                let other_cost = cost_so_far + distance;
+                todo.push(HeapState {
+                    item: Connection {
                         current: current,
                         next: *other,
                         justification: Justification::Congruence,
                         is_rewrite_forward: true,
                     },
-                    usize::MAX - other_cost,
-                );
+                    cost: other_cost,
+                });
             }
         }
 
@@ -1528,8 +1597,14 @@ impl<L: Language> Explain<L> {
         let mut right_connections = vec![];
         // when we found an equivalent path, avoid cycles by taking the normal route
         let dist = self.distance_between(start, end, distance_memo).0;
-        assert!(total_cost <= dist);
-        
+
+        if total_cost > dist {
+            panic!(
+                "Found cost greater than baseline {} vs {}",
+                total_cost, dist
+            );
+        }
+
         if total_cost == dist {
             let (a_left_connections, a_right_connections) = self.get_path_unoptimized(start, end);
             left_connections = a_left_connections;
@@ -1584,6 +1659,8 @@ impl<L: Language> Explain<L> {
             }
         }
 
+        assert!(greedy_cost <= total_cost);
+
         (greedy_cost, fuel)
     }
 
@@ -1598,7 +1675,14 @@ impl<L: Language> Explain<L> {
     ) {
         ancestor[usize::from(enode)] = enode;
         for child in children[&enode].iter() {
-            self.tarjan_ocla(*child, children, black_set, unionfind, ancestor, common_ancestor);
+            self.tarjan_ocla(
+                *child,
+                children,
+                black_set,
+                unionfind,
+                ancestor,
+                common_ancestor,
+            );
             unionfind.union(enode, *child);
             ancestor[usize::from(unionfind.find(enode))] = enode;
         }
@@ -1644,7 +1728,14 @@ impl<L: Language> Explain<L> {
             while parent != self.parent(parent) {
                 parent = self.parent(parent);
             }
-            self.tarjan_ocla(parent, &children, &mut black_set, &mut unionfind, &mut ancestor, &mut common_ancestor);
+            self.tarjan_ocla(
+                parent,
+                &children,
+                &mut black_set,
+                &mut unionfind,
+                &mut ancestor,
+                &mut common_ancestor,
+            );
         }
 
         common_ancestor
@@ -1689,8 +1780,12 @@ impl<L: Language> Explain<L> {
             for _i in 0..iters {
                 let mut did_something = false;
                 for eclass in classes.keys() {
-                    if self.shortest_explanations_eclass(*eclass, unionfind, &congruence_neighbors, &mut distance_memo)
-                    {
+                    if self.shortest_explanations_eclass(
+                        *eclass,
+                        unionfind,
+                        &congruence_neighbors,
+                        &mut distance_memo,
+                    ) {
                         did_something = true;
                     }
                 }
@@ -1736,7 +1831,6 @@ mod tests {
             "cd".to_string(),
         );
 
-
         egraph.union_instantiations(
             &"d".parse().unwrap(),
             &"b".parse().unwrap(),
@@ -1746,21 +1840,65 @@ mod tests {
 
         egraph.rebuild();
 
-        assert_eq!(egraph.explain_equivalence(&fa, &fb, 0, false).get_flat_sexps().len(), 4);
-        assert_eq!(egraph.explain_equivalence(&fa, &fb, 100, false).get_flat_sexps().len(), 4);
-        assert_eq!(egraph.explain_equivalence(&fa, &fb, 0, true).get_flat_sexps().len(), 4);
+        assert_eq!(
+            egraph
+                .explain_equivalence(&fa, &fb, 0, false)
+                .get_flat_sexps()
+                .len(),
+            4
+        );
+        assert_eq!(
+            egraph
+                .explain_equivalence(&fa, &fb, 100, false)
+                .get_flat_sexps()
+                .len(),
+            4
+        );
+        assert_eq!(
+            egraph
+                .explain_equivalence(&fa, &fb, 0, true)
+                .get_flat_sexps()
+                .len(),
+            4
+        );
 
-        egraph.union_instantiations(&"(f a)".parse().unwrap(), &"g".parse().unwrap(), &Default::default(), "fag".to_string());
-        egraph.union_instantiations(&"g".parse().unwrap(), &"(f b)".parse().unwrap(), &Default::default(), "gfb".to_string());
+        egraph.union_instantiations(
+            &"(f a)".parse().unwrap(),
+            &"g".parse().unwrap(),
+            &Default::default(),
+            "fag".to_string(),
+        );
+        egraph.union_instantiations(
+            &"g".parse().unwrap(),
+            &"(f b)".parse().unwrap(),
+            &Default::default(),
+            "gfb".to_string(),
+        );
 
         egraph.rebuild();
 
-        assert_eq!(egraph.explain_equivalence(&fa, &fb, 0, false).get_flat_sexps().len(), 4);
-        assert_eq!(egraph.explain_equivalence(&fa, &fb, 0, true).get_flat_sexps().len(), 3);
-        assert_eq!(egraph.explain_equivalence(&fa, &fb, 100, false).get_flat_sexps().len(), 3);
-        
+        assert_eq!(
+            egraph
+                .explain_equivalence(&fa, &fb, 0, false)
+                .get_flat_sexps()
+                .len(),
+            4
+        );
+        assert_eq!(
+            egraph
+                .explain_equivalence(&fa, &fb, 0, true)
+                .get_flat_sexps()
+                .len(),
+            3
+        );
+        assert_eq!(
+            egraph
+                .explain_equivalence(&fa, &fb, 100, false)
+                .get_flat_sexps()
+                .len(),
+            3
+        );
 
         egraph.dot().to_dot("target/foo.dot").unwrap();
     }
 }
-
