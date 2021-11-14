@@ -1156,8 +1156,7 @@ impl<L: Language> Explain<L> {
     ) -> TreeExplanation<L> {
         let mut proof = vec![Rc::new(self.node_to_explanation(left))];
 
-        // TODO turn on optimization
-        let (left_connections, right_connections) = self.get_path_unoptimized(left, right);
+        let (left_connections, right_connections) = self.get_path(left, right);
 
         for (i, connection) in left_connections
             .iter()
@@ -1439,12 +1438,7 @@ impl<L: Language> Explain<L> {
                 let connection = &self.explainfind[usize::from(parent)].parent_connection;
                 let current = connection.current;
                 let next = connection.next;
-                let cost = if let Some((cost, _)) =
-                    self.shortest_explanation_memo.get(&(current, next))
-                {
-                    *cost
-                } else {
-                    match connection.justification {
+                let cost = match connection.justification {
                         Justification::Congruence => {
                             let current_node = self.explainfind[usize::from(current)].node.clone();
                             let next_node = self.explainfind[usize::from(next)].node.clone();
@@ -1461,11 +1455,14 @@ impl<L: Language> Explain<L> {
                             cost
                         }
                         Justification::Rule(_) => 1,
-                    }
-                };
+                    };
                 distance_memo.parent_distance[usize::from(parent)] = (self.parent(parent), cost);
             }
         }
+
+
+        //assert_eq!(distance_memo.parent_distance[usize::from(enode)].1+1,
+        //Explanation::new(self.explain_enodes(enode, distance_memo.parent_distance[usize::from(enode)].0, &mut Default::default())).make_flat_explanation().len());
 
         distance_memo.parent_distance[usize::from(enode)].1
     }
@@ -1511,7 +1508,7 @@ impl<L: Language> Explain<L> {
         let eclass_size = self.find_all_enodes(start).len();
         if fuel < eclass_size {
             return (
-                self.cache_distance_between(start, end, distance_memo).0,
+                self.distance_between(start, end, distance_memo).0,
                 fuel,
             );
         }
@@ -1529,7 +1526,6 @@ impl<L: Language> Explain<L> {
         });
 
         let mut last = HashMap::default();
-        let mut seen = HashSet::default();
         let total_cost;
 
         loop {
@@ -1538,10 +1534,6 @@ impl<L: Language> Explain<L> {
             let connection = state.item;
             let cost_so_far = state.cost;
             let current = connection.next;
-
-            if !seen.insert(current) {
-                continue;
-            }
 
             if let Some(_) = last.get(&current) {
                 continue;
@@ -1621,6 +1613,7 @@ impl<L: Language> Explain<L> {
         }
 
         let mut greedy_cost = 0;
+        let mut total_cost_check = 0;
 
         for (i, connection) in left_connections
             .iter()
@@ -1650,15 +1643,20 @@ impl<L: Language> Explain<L> {
                         eclass_seen_memo,
                         fuel,
                     );
+                    assert!(rec.0 <= self.distance_between(*left_child, *right_child, distance_memo).0);
                     cost += rec.0;
+                    total_cost_check += self.distance_between(*left_child, *right_child, distance_memo).0;
                     fuel = rec.1;
                 }
+                
                 greedy_cost += cost;
             } else {
                 greedy_cost += 1;
+                total_cost_check += 1;
             }
         }
 
+        assert_eq!(total_cost, total_cost_check);
         assert!(greedy_cost <= total_cost);
 
         (greedy_cost, fuel)

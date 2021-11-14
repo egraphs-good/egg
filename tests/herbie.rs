@@ -619,6 +619,7 @@ fn herbie_prove_cbrt() {
 
 #[cfg(feature = "reports")]
 mod proofbench {
+    use super::*;
     use std::fs;
     use std::fs::{File, OpenOptions};
     use std::io::Write;
@@ -734,7 +735,7 @@ mod proofbench {
             .unwrap();
         let paths = fs::read_dir("./herbie/reports/egg-proof-examples").unwrap();
 
-        let mut skip = 0; // 150 works
+        let mut skip = 110000 + 3218; // 150 works
 
         for path in paths {
             let path = path.unwrap().path();
