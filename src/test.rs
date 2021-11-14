@@ -95,6 +95,11 @@ pub fn test_runner<L, A>(
                 explained.get_sexp_with_let();
                 explained.get_flat_sexps();
                 explained.check_proof(rules);
+
+                let mut existance = runner.explain_existance_pattern(&goal.ast, &subst);
+                existance.get_sexp_with_let();
+                existance.get_flat_sexps();
+                existance.check_proof(rules);
             }
         }
 
