@@ -1031,7 +1031,12 @@ impl<L: Language> Explain<L> {
             greedy_search,
         );
         let mut cache = Default::default();
-        let res = Explanation::new(self.explain_enodes(left_added, right_added, &mut cache));
+        let res = Explanation::new(self.explain_enodes(
+            left_added,
+            right_added,
+            &mut cache,
+            !greedy_search && optimize_iters == 0,
+        ));
         res
     }
 
@@ -1059,7 +1064,12 @@ impl<L: Language> Explain<L> {
             greedy_search,
         );
         let mut cache = Default::default();
-        Explanation::new(self.explain_enodes(left_added, right_added, &mut cache))
+        Explanation::new(self.explain_enodes(
+            left_added,
+            right_added,
+            &mut cache,
+            !greedy_search && optimize_iters == 0,
+        ))
     }
 
     fn common_ancestor(&self, mut left: Id, mut right: Id) -> Id {
@@ -1153,10 +1163,15 @@ impl<L: Language> Explain<L> {
         left: Id,
         right: Id,
         cache: &mut ExplainCache<L>,
+        use_unoptimized: bool,
     ) -> TreeExplanation<L> {
         let mut proof = vec![Rc::new(self.node_to_explanation(left))];
 
-        let (left_connections, right_connections) = self.get_path(left, right);
+        let (left_connections, right_connections) = if use_unoptimized {
+            self.get_path_unoptimized(left, right)
+        } else {
+            self.get_path(left, right)
+        };
 
         for (i, connection) in left_connections
             .iter()
@@ -1177,6 +1192,7 @@ impl<L: Language> Explain<L> {
                 direction,
                 &connection.justification,
                 cache,
+                use_unoptimized,
             ));
         }
         proof
@@ -1189,6 +1205,7 @@ impl<L: Language> Explain<L> {
         rule_direction: bool,
         justification: &Justification,
         cache: &mut ExplainCache<L>,
+        use_unoptimized: bool,
     ) -> Rc<TreeTerm<L>> {
         let fingerprint = (current, next);
 
@@ -1219,7 +1236,12 @@ impl<L: Language> Explain<L> {
                     .iter()
                     .zip(next_node.children().iter())
                 {
-                    subproofs.push(self.explain_enodes(*left_child, *right_child, cache));
+                    subproofs.push(self.explain_enodes(
+                        *left_child,
+                        *right_child,
+                        cache,
+                        use_unoptimized,
+                    ));
                 }
                 Rc::new(TreeTerm::new(current_node.clone(), subproofs))
             }
@@ -1262,22 +1284,16 @@ impl<L: Language> Explain<L> {
         for enode in &enodes {
             for other in congruent_nodes[usize::from(*enode)].iter() {
                 let mut cost = 0;
-                let current_node = &self.explainfind[usize::from(*enode)].node;
-                let next_node = &self.explainfind[usize::from(*other)].node;
+                let current_node = self.explainfind[usize::from(*enode)].node.clone();
+                let next_node = self.explainfind[usize::from(*other)].node.clone();
                 for (left_child, right_child) in current_node
                     .children()
                     .iter()
                     .zip(next_node.children().iter())
                 {
-                    if let Some((child_cost, _)) = self
-                        .shortest_explanation_memo
-                        .get(&(*left_child, *right_child))
-                    {
-                        cost += *child_cost;
-                    } else {
-                        cost = usize::MAX;
-                        break;
-                    }
+                    cost += self
+                        .cache_distance_between(*left_child, *right_child, distance_memo)
+                        .0;
                 }
 
                 let old = self.cache_distance_between(*enode, *other, distance_memo);
@@ -1330,9 +1346,11 @@ impl<L: Language> Explain<L> {
         right: Id,
         left_connections: &Vec<Connection>,
         distance_memo: &mut DistanceMemo,
+        target_cost: usize,
     ) {
         self.shortest_explanation_memo
             .insert((right, right), (0, right));
+        let mut last_cost = 0;
         for connection in left_connections.iter().rev() {
             let next = connection.next;
             let current = connection.current;
@@ -1341,9 +1359,11 @@ impl<L: Language> Explain<L> {
                 .get(&(next, right))
                 .unwrap()
                 .0;
-            let dist = self.distance_between(current, next, distance_memo).0;
+            let dist = self.connection_distance(connection, distance_memo);
+            last_cost = dist + next_cost;
             self.replace_distance(current, next, right, next_cost + dist);
         }
+        assert_eq!(last_cost, target_cost);
     }
 
     fn cache_distance_between(
@@ -1401,6 +1421,43 @@ impl<L: Language> Explain<L> {
         return (dist, next);
     }
 
+    fn congruence_distance(
+        &mut self,
+        current: Id,
+        next: Id,
+        distance_memo: &mut DistanceMemo,
+    ) -> usize {
+        let current_node = self.explainfind[usize::from(current)].node.clone();
+        let next_node = self.explainfind[usize::from(next)].node.clone();
+        let mut cost: usize = 0;
+        for (left_child, right_child) in current_node
+            .children()
+            .iter()
+            .zip(next_node.children().iter())
+        {
+            cost = cost
+                .checked_add(
+                    self.distance_between(*left_child, *right_child, distance_memo)
+                        .0,
+                )
+                .unwrap();
+        }
+        cost
+    }
+
+    fn connection_distance(
+        &mut self,
+        connection: &Connection,
+        distance_memo: &mut DistanceMemo,
+    ) -> usize {
+        match connection.justification {
+            Justification::Congruence => {
+                self.congruence_distance(connection.current, connection.next, distance_memo)
+            }
+            Justification::Rule(_) => 1,
+        }
+    }
+
     fn calculate_parent_distance(
         &mut self,
         enode: Id,
@@ -1439,27 +1496,14 @@ impl<L: Language> Explain<L> {
                 let current = connection.current;
                 let next = connection.next;
                 let cost = match connection.justification {
-                        Justification::Congruence => {
-                            let current_node = self.explainfind[usize::from(current)].node.clone();
-                            let next_node = self.explainfind[usize::from(next)].node.clone();
-                            let mut cost = 0;
-                            for (left_child, right_child) in current_node
-                                .children()
-                                .iter()
-                                .zip(next_node.children().iter())
-                            {
-                                cost += self
-                                    .distance_between(*left_child, *right_child, distance_memo)
-                                    .0;
-                            }
-                            cost
-                        }
-                        Justification::Rule(_) => 1,
-                    };
+                    Justification::Congruence => {
+                        self.congruence_distance(current, next, distance_memo)
+                    }
+                    Justification::Rule(_) => 1,
+                };
                 distance_memo.parent_distance[usize::from(parent)] = (self.parent(parent), cost);
             }
         }
-
 
         //assert_eq!(distance_memo.parent_distance[usize::from(enode)].1+1,
         //Explanation::new(self.explain_enodes(enode, distance_memo.parent_distance[usize::from(enode)].0, &mut Default::default())).make_flat_explanation().len());
@@ -1507,10 +1551,7 @@ impl<L: Language> Explain<L> {
     ) -> (usize, usize) {
         let eclass_size = self.find_all_enodes(start).len();
         if fuel < eclass_size {
-            return (
-                self.distance_between(start, end, distance_memo).0,
-                fuel,
-            );
+            return (self.distance_between(start, end, distance_memo).0, fuel);
         }
         fuel -= eclass_size;
 
@@ -1557,21 +1598,7 @@ impl<L: Language> Explain<L> {
             }
 
             for other in congruence_neighbors[usize::from(current)].iter() {
-                let mut distance: usize = 0;
-                let current_node = self.explainfind[usize::from(current)].node.clone();
-                let next_node = self.explainfind[usize::from(*other)].node.clone();
-                for (left_child, right_child) in current_node
-                    .children()
-                    .iter()
-                    .zip(next_node.children().iter())
-                {
-                    distance = distance
-                        .checked_add(
-                            self.distance_between(*left_child, *right_child, distance_memo)
-                                .0,
-                        )
-                        .unwrap();
-                }
+                let distance = self.congruence_distance(current, *other, distance_memo);
                 let other_cost = cost_so_far + distance;
                 todo.push(HeapState {
                     item: Connection {
@@ -1609,8 +1636,10 @@ impl<L: Language> Explain<L> {
                 current = prev_connection.current;
             }
             left_connections.reverse();
-            self.populate_path_length(end, &left_connections, distance_memo);
+            self.populate_path_length(end, &left_connections, distance_memo, total_cost);
         }
+
+        //assert!(Explanation::new(self.explain_enodes(start, end, &mut Default::default())).make_flat_explanation().len()-1 <= total_cost);
 
         let mut greedy_cost = 0;
         let mut total_cost_check = 0;
@@ -1643,12 +1672,19 @@ impl<L: Language> Explain<L> {
                         eclass_seen_memo,
                         fuel,
                     );
-                    assert!(rec.0 <= self.distance_between(*left_child, *right_child, distance_memo).0);
+                    assert!(
+                        rec.0
+                            <= self
+                                .distance_between(*left_child, *right_child, distance_memo)
+                                .0
+                    );
                     cost += rec.0;
-                    total_cost_check += self.distance_between(*left_child, *right_child, distance_memo).0;
+                    total_cost_check += self
+                        .distance_between(*left_child, *right_child, distance_memo)
+                        .0;
                     fuel = rec.1;
                 }
-                
+
                 greedy_cost += cost;
             } else {
                 greedy_cost += 1;

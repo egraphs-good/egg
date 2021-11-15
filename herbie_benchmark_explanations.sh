@@ -9,6 +9,17 @@ make install
 bash infra/generate-proof-examples.sh
 cd ..
 
+REPORTDIR=proof_report
+
+if [ -d "$REPORTDIR" ]; then
+    rm -r "$REPORTDIR"
+fi
+
+mkdir "$REPORTDIR"
+
 cargo test herbie_benchmark --release --features reports -- --nocapture
 
-racket eval-results.rkt herbie-bench-results.txt macros.txt
+
+racket eval-results.rkt "$REPORTDIR/herbie-bench-results.txt" "$REPORTDIR/macros.txt" \
+    "$REPORTDIR/proof-len-scatter.png" "$REPORTDIR/proof-len-scatter-zoomed800.png" \
+    "$REPORTDIR/proof-len-scatter-zoomed200.png"

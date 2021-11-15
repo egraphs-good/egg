@@ -642,7 +642,12 @@ mod proofbench {
         }
     }
 
-    fn herbie_benchmark_proof(runner: &mut Runner, proof: &Sexp, output: &mut File) {
+    fn herbie_benchmark_proof(
+        runner: &mut Runner,
+        proof: &Sexp,
+        output: &mut File,
+        rules: &[Rewrite],
+    ) {
         let pair = unwrap_sexp_list(proof);
         //println!("Doing {} and {}", pair[0], pair[1]);
         let start_parsed: egg::RecExpr<_> = unwrap_sexp_string(&pair[0]).parse().unwrap();
@@ -654,10 +659,12 @@ mod proofbench {
         //assert_eq!(runner.egraph.find(l), runner.egraph.find(r));
 
         let mut normal = runner.explain_equivalence(&start_parsed, &end_parsed, 0, false);
+        normal.check_proof(rules);
         let duration_normal = start_normal.elapsed().as_millis();
 
         let start_slow = Instant::now();
         let mut slow = runner.explain_equivalence(&start_parsed, &end_parsed, 10, true);
+        slow.check_proof(rules);
         let duration_slow = start_slow.elapsed().as_millis();
         let normal_len = normal.get_flat_sexps().len();
         let slow_len = slow.get_flat_sexps().len();
@@ -667,6 +674,7 @@ mod proofbench {
             proof, duration_normal, duration_slow, normal_len, slow_len
         )
         .unwrap();
+        assert!(slow_len <= normal_len);
         output.flush().unwrap();
         print!(".");
         std::io::stdout().flush().unwrap();
@@ -703,14 +711,16 @@ mod proofbench {
             runner = runner.with_expr(&parsed);
         }
 
-        runner = runner.run(&math_rules(if is_f64 { "f64" } else { "f32" }));
+        let rules = math_rules(if is_f64 { "f64" } else { "f32" });
+
+        runner = runner.run(&rules);
 
         for proof in proofs_sexps {
             if skip > &mut 0 {
                 *skip -= 1;
                 continue;
             }
-            herbie_benchmark_proof(&mut runner, &proof, output);
+            herbie_benchmark_proof(&mut runner, &proof, output, &rules);
         }
     }
 
@@ -731,11 +741,11 @@ mod proofbench {
             .create(true)
             .write(true)
             .truncate(true)
-            .open("herbie-bench-results.txt")
+            .open("proof_report/herbie-bench-results.txt")
             .unwrap();
         let paths = fs::read_dir("./herbie/reports/egg-proof-examples").unwrap();
 
-        let mut skip = 110000 + 3218; // 150 works
+        let mut skip = 0;
 
         for path in paths {
             let path = path.unwrap().path();
