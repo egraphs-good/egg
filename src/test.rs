@@ -94,12 +94,14 @@ pub fn test_runner<L, A>(
                 explained.get_sexp_with_let();
                 let vanilla_len = explained.get_flat_sexps().len();
                 explained.check_proof(rules);
+                assert!(explained.get_tree_size() > 0);
 
                 let mut explained_short =
                     runner.explain_matches(&start, &goal.ast, &subst, 4, true);
                 explained_short.get_sexp_with_let();
                 let short_len = explained_short.get_flat_sexps().len();
                 assert!(short_len <= vanilla_len);
+                assert!(explained_short.get_tree_size() > 0);
                 println!("Unoptimized {} Optimized {}", vanilla_len, short_len);
                 explained_short.check_proof(rules);
             }

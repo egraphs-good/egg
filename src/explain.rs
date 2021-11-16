@@ -161,6 +161,38 @@ impl<L: Language + Display> Explanation<L> {
         Sexp::List(items)
     }
 
+    /// Get the size of this explanation tree in terms of the number of rewrites
+    /// in the let-bound version of the tree.
+    pub fn get_tree_size(&self) -> usize {
+        let mut seen = Default::default();
+        let mut sum = 0;
+        for e in self.explanation_trees.iter() {
+            sum += self.tree_size(&mut seen, e);
+        }
+        sum
+    }
+
+    fn tree_size(&self, seen: &mut HashSet<*const TreeTerm<L>>, current: &Rc<TreeTerm<L>>) -> usize {
+        if !seen.insert(&**current as *const TreeTerm<L>) {
+            return 0;
+        }
+        let mut my_size = 0;
+        if let Some(_) = current.forward_rule {
+            my_size += 1;
+        }
+        if let Some(_) = current.backward_rule {
+            my_size += 1;
+        }
+        assert!(my_size <= 1);
+        for child_proof in &current.child_proofs {
+            for child in child_proof {
+                my_size += self.tree_size(seen, child);
+            }
+        }
+        my_size
+    }
+
+
     /// Get the tree-style explanation as an s-expression with let binding
     /// to enable sharing of subproofs.
     ///
@@ -218,7 +250,7 @@ impl<L: Language + Display> Explanation<L> {
                 items.push(e.get_sexp_with_bindings(&bindings));
             }
         }
-
+        
         let mut result = Sexp::List(items);
 
         for (name, expr) in generated_bindings.into_iter().rev() {

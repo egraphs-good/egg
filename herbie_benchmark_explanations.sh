@@ -20,6 +20,4 @@ mkdir "$REPORTDIR"
 cargo test herbie_benchmark --release --features reports -- --nocapture
 
 
-racket eval-results.rkt "$REPORTDIR/herbie-bench-results.txt" "$REPORTDIR/macros.txt" \
-    "$REPORTDIR/proof-len-scatter.png" "$REPORTDIR/proof-len-scatter-zoomed800.png" \
-    "$REPORTDIR/proof-len-scatter-zoomed200.png"
+racket eval-results.rkt "$REPORTDIR/herbie-bench-results.txt" "$REPORTDIR"

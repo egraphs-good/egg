@@ -471,9 +471,9 @@ fn check_proof_exists(r: &mut Runner, rules: Vec<Rewrite>, left: &str, right: &s
     if r.egraph.add_expr(&lexpr) != r.egraph.add_expr(&rexpr) {
         panic!("{} != {}", left, right);
     }
-    let mut explained = r.explain_equivalence(&lexpr, &rexpr, 0, false);
+    let explained = r.explain_equivalence(&lexpr, &rexpr, 0, false);
     let start = Instant::now();
-    let mut explained_short = r.explain_equivalence(&lexpr, &rexpr, 4, true);
+    let explained_short = r.explain_equivalence(&lexpr, &rexpr, 4, true);
     let duration = start.elapsed().as_secs_f64();
     println!("Time elapsed: {}", duration);
     println!(
@@ -652,26 +652,22 @@ mod proofbench {
         //println!("Doing {} and {}", pair[0], pair[1]);
         let start_parsed: egg::RecExpr<_> = unwrap_sexp_string(&pair[0]).parse().unwrap();
         let end_parsed: egg::RecExpr<_> = unwrap_sexp_string(&pair[1]).parse().unwrap();
+
         let start_normal = Instant::now();
-
-        let r = runner.egraph.add_expr(&end_parsed);
-        let l = runner.egraph.add_expr(&start_parsed);
-        //assert_eq!(runner.egraph.find(l), runner.egraph.find(r));
-
         let mut normal = runner.explain_equivalence(&start_parsed, &end_parsed, 0, false);
-        normal.check_proof(rules);
         let duration_normal = start_normal.elapsed().as_millis();
+        normal.check_proof(rules);
 
         let start_slow = Instant::now();
-        let mut slow = runner.explain_equivalence(&start_parsed, &end_parsed, 10, true);
-        slow.check_proof(rules);
+        let mut slow = runner.explain_equivalence(&start_parsed, &end_parsed, 100, true);
         let duration_slow = start_slow.elapsed().as_millis();
+        slow.check_proof(rules);
         let normal_len = normal.get_flat_sexps().len();
         let slow_len = slow.get_flat_sexps().len();
         writeln!(
             output,
-            "({} {} {} {} {})",
-            proof, duration_normal, duration_slow, normal_len, slow_len
+            "({} {} {} {} {} {} {})",
+            proof, duration_normal, duration_slow, normal_len, slow_len, normal.get_tree_size(), slow.get_tree_size()
         )
         .unwrap();
         assert!(slow_len <= normal_len);
