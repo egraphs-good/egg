@@ -350,6 +350,7 @@ impl<L: Language> RecExpr<L> {
         let mut todo = vec![new_root];
         while let Some(id) = todo.last().copied() {
             if ids.contains_key(&id) {
+                todo.pop();
                 continue;
             }
 
