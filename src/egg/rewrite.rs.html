@@ -775,7 +775,7 @@
 <span class="doccomment">/// struct MinSize;</span>
 <span class="doccomment">/// impl Analysis&lt;Math&gt; for MinSize {</span>
 <span class="doccomment">///     type Data = usize;</span>
-<span class="doccomment">///     fn merge(&amp;self, to: &amp;mut Self::Data, from: Self::Data) -&gt; DidMerge {</span>
+<span class="doccomment">///     fn merge(&amp;mut self, to: &amp;mut Self::Data, from: Self::Data) -&gt; DidMerge {</span>
 <span class="doccomment">///         merge_min(to, from)</span>
 <span class="doccomment">///     }</span>
 <span class="doccomment">///     fn make(egraph: &amp;EGraph, enode: &amp;Math) -&gt; Self::Data {</span>
