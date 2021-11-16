@@ -1033,6 +1033,133 @@
 <span id="1030">1030</span>
 <span id="1031">1031</span>
 <span id="1032">1032</span>
+<span id="1033">1033</span>
+<span id="1034">1034</span>
+<span id="1035">1035</span>
+<span id="1036">1036</span>
+<span id="1037">1037</span>
+<span id="1038">1038</span>
+<span id="1039">1039</span>
+<span id="1040">1040</span>
+<span id="1041">1041</span>
+<span id="1042">1042</span>
+<span id="1043">1043</span>
+<span id="1044">1044</span>
+<span id="1045">1045</span>
+<span id="1046">1046</span>
+<span id="1047">1047</span>
+<span id="1048">1048</span>
+<span id="1049">1049</span>
+<span id="1050">1050</span>
+<span id="1051">1051</span>
+<span id="1052">1052</span>
+<span id="1053">1053</span>
+<span id="1054">1054</span>
+<span id="1055">1055</span>
+<span id="1056">1056</span>
+<span id="1057">1057</span>
+<span id="1058">1058</span>
+<span id="1059">1059</span>
+<span id="1060">1060</span>
+<span id="1061">1061</span>
+<span id="1062">1062</span>
+<span id="1063">1063</span>
+<span id="1064">1064</span>
+<span id="1065">1065</span>
+<span id="1066">1066</span>
+<span id="1067">1067</span>
+<span id="1068">1068</span>
+<span id="1069">1069</span>
+<span id="1070">1070</span>
+<span id="1071">1071</span>
+<span id="1072">1072</span>
+<span id="1073">1073</span>
+<span id="1074">1074</span>
+<span id="1075">1075</span>
+<span id="1076">1076</span>
+<span id="1077">1077</span>
+<span id="1078">1078</span>
+<span id="1079">1079</span>
+<span id="1080">1080</span>
+<span id="1081">1081</span>
+<span id="1082">1082</span>
+<span id="1083">1083</span>
+<span id="1084">1084</span>
+<span id="1085">1085</span>
+<span id="1086">1086</span>
+<span id="1087">1087</span>
+<span id="1088">1088</span>
+<span id="1089">1089</span>
+<span id="1090">1090</span>
+<span id="1091">1091</span>
+<span id="1092">1092</span>
+<span id="1093">1093</span>
+<span id="1094">1094</span>
+<span id="1095">1095</span>
+<span id="1096">1096</span>
+<span id="1097">1097</span>
+<span id="1098">1098</span>
+<span id="1099">1099</span>
+<span id="1100">1100</span>
+<span id="1101">1101</span>
+<span id="1102">1102</span>
+<span id="1103">1103</span>
+<span id="1104">1104</span>
+<span id="1105">1105</span>
+<span id="1106">1106</span>
+<span id="1107">1107</span>
+<span id="1108">1108</span>
+<span id="1109">1109</span>
+<span id="1110">1110</span>
+<span id="1111">1111</span>
+<span id="1112">1112</span>
+<span id="1113">1113</span>
+<span id="1114">1114</span>
+<span id="1115">1115</span>
+<span id="1116">1116</span>
+<span id="1117">1117</span>
+<span id="1118">1118</span>
+<span id="1119">1119</span>
+<span id="1120">1120</span>
+<span id="1121">1121</span>
+<span id="1122">1122</span>
+<span id="1123">1123</span>
+<span id="1124">1124</span>
+<span id="1125">1125</span>
+<span id="1126">1126</span>
+<span id="1127">1127</span>
+<span id="1128">1128</span>
+<span id="1129">1129</span>
+<span id="1130">1130</span>
+<span id="1131">1131</span>
+<span id="1132">1132</span>
+<span id="1133">1133</span>
+<span id="1134">1134</span>
+<span id="1135">1135</span>
+<span id="1136">1136</span>
+<span id="1137">1137</span>
+<span id="1138">1138</span>
+<span id="1139">1139</span>
+<span id="1140">1140</span>
+<span id="1141">1141</span>
+<span id="1142">1142</span>
+<span id="1143">1143</span>
+<span id="1144">1144</span>
+<span id="1145">1145</span>
+<span id="1146">1146</span>
+<span id="1147">1147</span>
+<span id="1148">1148</span>
+<span id="1149">1149</span>
+<span id="1150">1150</span>
+<span id="1151">1151</span>
+<span id="1152">1152</span>
+<span id="1153">1153</span>
+<span id="1154">1154</span>
+<span id="1155">1155</span>
+<span id="1156">1156</span>
+<span id="1157">1157</span>
+<span id="1158">1158</span>
+<span id="1159">1159</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">Symbol</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::{
@@ -1058,6 +1185,12 @@
     <span class="ident">next</span>: <span class="ident">Id</span>,
     <span class="ident">current</span>: <span class="ident">Id</span>,
     <span class="ident">justification</span>: <span class="ident">Justification</span>,
+    <span class="comment">// it was inserted because of:</span>
+    <span class="comment">// 1) it&#39;s parent is inserted (points to parent enode)</span>
+    <span class="comment">// 2) a rewrite instantiated it (points to adjacent enode)</span>
+    <span class="comment">// 3) it was inserted directly (points to itself)</span>
+    <span class="comment">// if 1 is true but it&#39;s also adjacent (2) then either works and it picks 2</span>
+    <span class="ident">existance_node</span>: <span class="ident">Id</span>,
     <span class="ident">is_rewrite_forward</span>: <span class="ident">bool</span>,
 }
 
@@ -1788,6 +1921,22 @@ See [`Explanation`] for more details.
         <span class="kw">let</span> <span class="ident">rule_table</span> <span class="op">=</span> <span class="ident">Explain</span>::<span class="ident">make_rule_table</span>(<span class="ident">rules</span>);
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="self">self</span>.<span class="ident">explainfind</span>.<span class="ident">len</span>() {
             <span class="kw">let</span> <span class="ident">explain_node</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">i</span>];
+
+            <span class="comment">// check that explanation reasons never form a cycle</span>
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">existance</span> <span class="op">=</span> <span class="ident">i</span>;
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">seen_existance</span>: <span class="ident">HashSet</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Default</span>::<span class="ident">default</span>();
+            <span class="kw">loop</span> {
+                <span class="ident">seen_existance</span>.<span class="ident">insert</span>(<span class="ident">existance</span>);
+                <span class="kw">let</span> <span class="ident">next</span> <span class="op">=</span> <span class="ident">usize</span>::<span class="ident">from</span>(<span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">existance</span>].<span class="ident">existance_node</span>);
+                <span class="kw">if</span> <span class="ident">existance</span> <span class="op">=</span><span class="op">=</span> <span class="ident">next</span> {
+                    <span class="kw">break</span>;
+                }
+                <span class="ident">existance</span> <span class="op">=</span> <span class="ident">next</span>;
+                <span class="kw">if</span> <span class="ident">seen_existance</span>.<span class="ident">contains</span>(<span class="kw-2">&amp;</span><span class="ident">existance</span>) {
+                    <span class="macro">assert</span><span class="macro">!</span>(<span class="bool-val">false</span>, <span class="string">&quot;Cycle in existance!&quot;</span>);
+                }
+            }
+
             <span class="kw">if</span> <span class="ident">explain_node</span>.<span class="ident">next</span> <span class="op">!</span><span class="op">=</span> <span class="ident">Id</span>::<span class="ident">from</span>(<span class="ident">i</span>) {
                 <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">current_explanation</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">node_to_flat_explanation</span>(<span class="ident">Id</span>::<span class="ident">from</span>(<span class="ident">i</span>));
                 <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">next_explanation</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">node_to_flat_explanation</span>(<span class="ident">explain_node</span>.<span class="ident">next</span>);
@@ -1817,13 +1966,18 @@ See [`Explanation`] for more details.
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">node</span>: <span class="ident">L</span>, <span class="ident">set</span>: <span class="ident">Id</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Id</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">set_existance_reason</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">node</span>: <span class="ident">Id</span>, <span class="ident">existance_node</span>: <span class="ident">Id</span>) {
+        <span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">node</span>)].<span class="ident">existance_node</span> <span class="op">=</span> <span class="ident">existance_node</span>;
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">add</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">node</span>: <span class="ident">L</span>, <span class="ident">set</span>: <span class="ident">Id</span>, <span class="ident">existance_node</span>: <span class="ident">Id</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Id</span> {
         <span class="self">self</span>.<span class="ident">uncanon_memo</span>.<span class="ident">insert</span>(<span class="ident">node</span>.<span class="ident">clone</span>(), <span class="ident">set</span>);
         <span class="self">self</span>.<span class="ident">explainfind</span>.<span class="ident">push</span>(<span class="ident">ExplainNode</span> {
             <span class="ident">node</span>,
             <span class="ident">justification</span>: <span class="ident">Justification</span>::<span class="ident">Congruence</span>,
             <span class="ident">next</span>: <span class="ident">set</span>,
             <span class="ident">current</span>: <span class="ident">set</span>,
+            <span class="ident">existance_node</span>,
             <span class="ident">is_rewrite_forward</span>: <span class="bool-val">false</span>,
         });
         <span class="ident">set</span>
@@ -1889,11 +2043,18 @@ See [`Explanation`] for more details.
                                 .<span class="ident">map_children</span>(<span class="op">|</span><span class="ident">id</span><span class="op">|</span> <span class="ident">unionfind</span>.<span class="ident">find</span>(<span class="ident">id</span>))
                         );
 
-                        <span class="kw">let</span> <span class="ident">new_congruent_id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">add</span>(<span class="ident">new_congruent_node</span>, <span class="ident">unionfind</span>.<span class="ident">make_set</span>());
+                        <span class="kw">let</span> <span class="ident">new_congruent_id</span> <span class="op">=</span>
+                            <span class="self">self</span>.<span class="ident">add</span>(<span class="ident">new_congruent_node</span>, <span class="ident">unionfind</span>.<span class="ident">make_set</span>(), <span class="ident">congruent_id</span>);
+
                         <span class="ident">match_ids</span>.<span class="ident">push</span>(<span class="ident">new_congruent_id</span>);
                         <span class="comment">// make the congruent_id we found the leader</span>
                         <span class="ident">unionfind</span>.<span class="ident">union</span>(<span class="ident">congruent_class</span>, <span class="ident">new_congruent_id</span>);
-                        <span class="self">self</span>.<span class="ident">union</span>(<span class="ident">new_congruent_id</span>, <span class="ident">congruent_id</span>, <span class="ident">Justification</span>::<span class="ident">Congruence</span>);
+                        <span class="self">self</span>.<span class="ident">union</span>(
+                            <span class="ident">new_congruent_id</span>,
+                            <span class="ident">congruent_id</span>,
+                            <span class="ident">Justification</span>::<span class="ident">Congruence</span>,
+                            <span class="bool-val">false</span>,
+                        );
                     }
                 }
             }
@@ -1916,7 +2077,17 @@ See [`Explanation`] for more details.
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">union</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">node1</span>: <span class="ident">Id</span>, <span class="ident">node2</span>: <span class="ident">Id</span>, <span class="ident">justification</span>: <span class="ident">Justification</span>) {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">union</span>(
+        <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
+        <span class="ident">node1</span>: <span class="ident">Id</span>,
+        <span class="ident">node2</span>: <span class="ident">Id</span>,
+        <span class="ident">justification</span>: <span class="ident">Justification</span>,
+        <span class="ident">new_rhs</span>: <span class="ident">bool</span>,
+    ) {
+        <span class="kw">if</span> <span class="ident">new_rhs</span> {
+            <span class="self">self</span>.<span class="ident">set_existance_reason</span>(<span class="ident">node2</span>, <span class="ident">node1</span>)
+        }
+
         <span class="self">self</span>.<span class="ident">make_leader</span>(<span class="ident">node1</span>);
         <span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">node1</span>)].<span class="ident">next</span> <span class="op">=</span> <span class="ident">node2</span>;
         <span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">node1</span>)].<span class="ident">justification</span> <span class="op">=</span> <span class="ident">justification</span>;
@@ -1948,6 +2119,37 @@ See [`Explanation`] for more details.
         <span class="kw">let</span> <span class="ident">right_added</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">add_expr</span>(<span class="ident">right</span>, <span class="ident">memo</span>, <span class="ident">unionfind</span>);
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">cache</span> <span class="op">=</span> <span class="ident">Default</span>::<span class="ident">default</span>();
         <span class="ident">Explanation</span>::<span class="ident">new</span>(<span class="self">self</span>.<span class="ident">explain_enodes</span>(<span class="ident">left_added</span>, <span class="ident">right_added</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">cache</span>))
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">explain_existance</span>(
+        <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
+        <span class="ident">left</span>: <span class="kw-2">&amp;</span><span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
+        <span class="ident">memo</span>: <span class="kw-2">&amp;</span><span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">Id</span><span class="op">&gt;</span>,
+        <span class="ident">unionfind</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">UnionFind</span>,
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Explanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">left_added</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">add_expr</span>(<span class="ident">left</span>, <span class="ident">memo</span>, <span class="ident">unionfind</span>);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">cache</span> <span class="op">=</span> <span class="ident">Default</span>::<span class="ident">default</span>();
+        <span class="ident">Explanation</span>::<span class="ident">new</span>(<span class="self">self</span>.<span class="ident">explain_enode_existance</span>(
+            <span class="ident">left_added</span>,
+            <span class="ident">Rc</span>::<span class="ident">new</span>(<span class="self">self</span>.<span class="ident">node_to_explanation</span>(<span class="ident">left_added</span>)),
+            <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">cache</span>,
+        ))
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">explain_existance_pattern</span>(
+        <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
+        <span class="ident">left</span>: <span class="kw-2">&amp;</span><span class="ident">PatternAst</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
+        <span class="ident">subst</span>: <span class="kw-2">&amp;</span><span class="ident">Subst</span>,
+        <span class="ident">memo</span>: <span class="kw-2">&amp;</span><span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">Id</span><span class="op">&gt;</span>,
+        <span class="ident">unionfind</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">UnionFind</span>,
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Explanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">left_added</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">add_match</span>(<span class="ident">left</span>, <span class="kw-2">&amp;</span><span class="ident">subst</span>, <span class="ident">memo</span>, <span class="ident">unionfind</span>);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">cache</span> <span class="op">=</span> <span class="ident">Default</span>::<span class="ident">default</span>();
+        <span class="ident">Explanation</span>::<span class="ident">new</span>(<span class="self">self</span>.<span class="ident">explain_enode_existance</span>(
+            <span class="ident">left_added</span>,
+            <span class="ident">Rc</span>::<span class="ident">new</span>(<span class="self">self</span>.<span class="ident">node_to_explanation</span>(<span class="ident">left_added</span>)),
+            <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">cache</span>,
+        ))
     }
 
     <span class="kw">fn</span> <span class="ident">common_ancestor</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">left</span>: <span class="ident">Id</span>, <span class="kw-2">mut</span> <span class="ident">right</span>: <span class="ident">Id</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Id</span> {
@@ -1987,6 +2189,58 @@ See [`Explanation`] for more details.
             <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">next</span> <span class="op">!</span><span class="op">=</span> <span class="ident">node</span>);
             <span class="ident">node</span> <span class="op">=</span> <span class="ident">next</span>;
         }
+    }
+
+    <span class="kw">fn</span> <span class="ident">explain_enode_existance</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">node</span>: <span class="ident">Id</span>,
+        <span class="ident">rest_of_proof</span>: <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">cache</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">ExplainCache</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">TreeExplanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">graphnode</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">node</span>)];
+        <span class="kw">let</span> <span class="ident">existance</span> <span class="op">=</span> <span class="ident">graphnode</span>.<span class="ident">existance_node</span>;
+        <span class="kw">let</span> <span class="ident">existance_node</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">existance</span>)];
+        <span class="comment">// case 1)</span>
+        <span class="kw">if</span> <span class="ident">existance</span> <span class="op">=</span><span class="op">=</span> <span class="ident">node</span> {
+            <span class="kw">return</span> <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">Rc</span>::<span class="ident">new</span>(<span class="self">self</span>.<span class="ident">node_to_explanation</span>(<span class="ident">node</span>)), <span class="ident">rest_of_proof</span>];
+        }
+
+        <span class="comment">// case 2)</span>
+        <span class="kw">if</span> <span class="ident">graphnode</span>.<span class="ident">next</span> <span class="op">=</span><span class="op">=</span> <span class="ident">existance</span> <span class="op">|</span><span class="op">|</span> <span class="ident">existance_node</span>.<span class="ident">next</span> <span class="op">=</span><span class="op">=</span> <span class="ident">node</span> {
+            <span class="kw">let</span> <span class="ident">direction</span>;
+            <span class="kw">let</span> <span class="ident">justification</span>;
+            <span class="kw">if</span> <span class="ident">graphnode</span>.<span class="ident">next</span> <span class="op">=</span><span class="op">=</span> <span class="ident">existance</span> {
+                <span class="ident">direction</span> <span class="op">=</span> <span class="op">!</span><span class="ident">graphnode</span>.<span class="ident">is_rewrite_forward</span>;
+                <span class="ident">justification</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">graphnode</span>.<span class="ident">justification</span>;
+            } <span class="kw">else</span> {
+                <span class="ident">direction</span> <span class="op">=</span> <span class="ident">existance_node</span>.<span class="ident">is_rewrite_forward</span>;
+                <span class="ident">justification</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">existance_node</span>.<span class="ident">justification</span>;
+            }
+            <span class="kw">return</span> <span class="self">self</span>.<span class="ident">explain_enode_existance</span>(
+                <span class="ident">existance</span>,
+                <span class="self">self</span>.<span class="ident">explain_adjacent</span>(<span class="ident">existance</span>, <span class="ident">node</span>, <span class="ident">direction</span>, <span class="ident">justification</span>, <span class="ident">cache</span>),
+                <span class="ident">cache</span>,
+            );
+        }
+
+        <span class="comment">// case 3)</span>
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">new_rest_of_proof</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">node_to_explanation</span>(<span class="ident">existance</span>);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">index_of_child</span> <span class="op">=</span> <span class="number">0</span>;
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">found</span> <span class="op">=</span> <span class="bool-val">false</span>;
+        <span class="ident">existance_node</span>.<span class="ident">node</span>.<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">child</span><span class="op">|</span> {
+            <span class="kw">if</span> <span class="ident">found</span> {
+                <span class="kw">return</span>;
+            }
+            <span class="kw">if</span> <span class="ident">child</span> <span class="op">=</span><span class="op">=</span> <span class="ident">node</span> {
+                <span class="ident">found</span> <span class="op">=</span> <span class="bool-val">true</span>;
+            } <span class="kw">else</span> {
+                <span class="ident">index_of_child</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
+            }
+        });
+        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">found</span>);
+        <span class="ident">new_rest_of_proof</span>.<span class="ident">child_proofs</span>[<span class="ident">index_of_child</span>].<span class="ident">push</span>(<span class="ident">rest_of_proof</span>);
+
+        <span class="self">self</span>.<span class="ident">explain_enode_existance</span>(<span class="ident">existance</span>, <span class="ident">Rc</span>::<span class="ident">new</span>(<span class="ident">new_rest_of_proof</span>), <span class="ident">cache</span>)
     }
 
     <span class="kw">fn</span> <span class="ident">explain_enodes</span>(
