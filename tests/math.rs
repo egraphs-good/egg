@@ -74,7 +74,7 @@ impl Analysis<Math> for ConstantFold {
         })
     }
 
-    fn merge(&self, a: &mut Self::Data, b: Self::Data) -> DidMerge {
+    fn merge(&mut self, a: &mut Self::Data, b: Self::Data) -> DidMerge {
         match (a.as_mut(), &b) {
             (None, None) => DidMerge(false, false),
             (None, Some(_)) => {

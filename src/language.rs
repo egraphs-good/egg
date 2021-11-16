@@ -474,7 +474,7 @@ impl<L: FromOp> FromStr for RecExpr<L> {
 /// The fields correspond to whether the `a` and `b` inputs to [`Analysis::merge`]
 /// were changed in any way by the merge.
 ///
-/// In both cases the result may be coservative -- they may indicate `true` even
+/// In both cases the result may be conservative -- they may indicate `true` even
 /// when there is no difference between the input and the result.
 pub struct DidMerge(pub bool, pub bool);
 
@@ -525,7 +525,7 @@ struct ConstantFolding;
 impl Analysis<SimpleMath> for ConstantFolding {
     type Data = Option<i32>;
 
-    fn merge(&self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
+    fn merge(&mut self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
         egg::merge_max(to, from)
     }
 
@@ -602,12 +602,19 @@ pub trait Analysis<L: Language>: Sized {
     ///
     /// If `b != a1` the result must have `b_merged == true`. This may be
     /// conservative -- it may be `true` even if even if `b == a1`.
-    fn merge(&self, a: &mut Self::Data, b: Self::Data) -> DidMerge;
+    ///
+    /// This function may modify the [`Analysis`], which can be useful as a way
+    /// to store information for the [`Analysis::modify`] hook to process, since
+    /// `modify` has access to the e-graph.
+    fn merge(&mut self, a: &mut Self::Data, b: Self::Data) -> DidMerge;
 
     /// A hook that allows the modification of the
-    /// [`EGraph`]
+    /// [`EGraph`].
     ///
     /// By default this does nothing.
+    ///
+    /// This function is called immediately following
+    /// `Analysis::merge` when unions are performed.
     #[allow(unused_variables)]
     fn modify(egraph: &mut EGraph<L, Self>, id: Id) {}
 }
@@ -615,7 +622,7 @@ pub trait Analysis<L: Language>: Sized {
 impl<L: Language> Analysis<L> for () {
     type Data = ();
     fn make(_egraph: &EGraph<L, Self>, _enode: &L) -> Self::Data {}
-    fn merge(&self, _: &mut Self::Data, _: Self::Data) -> DidMerge {
+    fn merge(&mut self, _: &mut Self::Data, _: Self::Data) -> DidMerge {
         DidMerge(false, false)
     }
 }
