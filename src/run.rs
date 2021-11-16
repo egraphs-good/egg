@@ -406,6 +406,20 @@ where
         self.egraph.explain_equivalence(left, right)
     }
 
+    /// Calls [`EGraph::explain_existance`](EGraph::explain_existance()).
+    pub fn explain_existance(&mut self, expr: &RecExpr<L>) -> Explanation<L> {
+        self.egraph.explain_existance(expr)
+    }
+
+    /// Calls [EGraph::explain_existance_pattern`](EGraph::explain_existance_pattern()).
+    pub fn explain_existance_pattern(
+        &mut self,
+        pattern: &PatternAst<L>,
+        subst: &Subst,
+    ) -> Explanation<L> {
+        self.egraph.explain_existance_pattern(pattern, subst)
+    }
+
     /// Get an explanation for why an expression matches a pattern.
     pub fn explain_matches(
         &mut self,
