@@ -968,6 +968,7 @@
 <span id="965">965</span>
 <span id="966">966</span>
 <span id="967">967</span>
+<span id="968">968</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident">std</span>::{
@@ -1506,6 +1507,7 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
         )
     }
 
+    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy</span>::<span class="ident">too_many_arguments</span>)]</span>
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">union_with_justification</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">id1</span>: <span class="ident">Id</span>,
