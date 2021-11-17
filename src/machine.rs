@@ -218,15 +218,9 @@ impl<'a, L: Language> Compiler<'a, L> {
 
         self.add_todo(Id::from(last_i), Reg(0));
 
-        println!("Compiling: {:?}", self.pattern);
-
         while let Some((id, (reg, node))) = self.next() {
             if self.is_ground_now(id) && !node.is_leaf() {
                 let extracted = self.pattern.extract(id);
-                println!(
-                    "grounded! ({:?})\n{:?}\n => {:?}",
-                    self.instructions, self.v2r, extracted
-                );
                 self.instructions.push(Instruction::Lookup {
                     i: reg,
                     term: extracted
@@ -255,8 +249,6 @@ impl<'a, L: Language> Compiler<'a, L> {
                 }
             }
         }
-
-        println!("Compiled to {:#?}", self.instructions);
 
         let mut subst = Subst::default();
         for (v, r) in self.v2r {
