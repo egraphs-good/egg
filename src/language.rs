@@ -344,6 +344,18 @@ impl<L: Language> RecExpr<L> {
         Id::from(self.nodes.len() - 1)
     }
 
+    pub(crate) fn compact(mut self) -> Self {
+        let mut ids = HashMap::<Id, Id>::default();
+        let mut set = IndexSet::default();
+        for (i, node) in self.nodes.drain(..).enumerate() {
+            let node = node.map_children(|id| ids[&id]);
+            let new_id = set.insert_full(node).0;
+            ids.insert(Id::from(i), Id::from(new_id));
+        }
+        self.nodes.extend(set);
+        self
+    }
+
     pub(crate) fn extract(&self, new_root: Id) -> Self {
         let mut ids = HashMap::<Id, Id>::default();
         let mut set = IndexSet::default();

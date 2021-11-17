@@ -141,6 +141,11 @@ where
             .collect()
     }
 
+    /// Returns the number of matches in the e-graph
+    fn n_matches(&self, egraph: &EGraph<L, N>) -> usize {
+        self.search(egraph).iter().map(|m| m.substs.len()).sum()
+    }
+
     /// For patterns, return the ast directly as a reference
     fn get_pattern_ast(&self) -> Option<&PatternAst<L>> {
         None

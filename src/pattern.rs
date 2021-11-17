@@ -73,6 +73,13 @@ pub struct Pattern<L> {
 pub type PatternAst<L> = RecExpr<ENodeOrVar<L>>;
 
 impl<L: Language> Pattern<L> {
+    /// Creates a new pattern from the given pattern ast.
+    pub fn new(ast: PatternAst<L>) -> Self {
+        let ast = ast.compact();
+        let program = machine::Program::compile_from_pat(&ast);
+        Pattern { ast, program }
+    }
+
     /// Returns a list of the [`Var`]s in this pattern.
     pub fn vars(&self) -> Vec<Var> {
         let mut vars = vec![];
@@ -175,14 +182,13 @@ impl<'a, L: Language> From<&'a [L]> for Pattern<L> {
     fn from(expr: &'a [L]) -> Self {
         let nodes: Vec<_> = expr.iter().cloned().map(ENodeOrVar::ENode).collect();
         let ast = RecExpr::from(nodes);
-        Self::from(ast)
+        Self::new(ast)
     }
 }
 
-impl<'a, L: Language> From<PatternAst<L>> for Pattern<L> {
+impl<L: Language> From<PatternAst<L>> for Pattern<L> {
     fn from(ast: PatternAst<L>) -> Self {
-        let program = machine::Program::compile_from_pat(&ast);
-        Pattern { ast, program }
+        Self::new(ast)
     }
 }
 
@@ -411,5 +417,22 @@ mod tests {
         let ext = Extractor::new(&egraph, AstSize);
         let (_, best) = ext.find_best(plus_id);
         eprintln!("Best: {:#?}", best);
+    }
+
+    #[test]
+    fn nonlinear_patterns() {
+        crate::init_logger();
+        let mut egraph = EGraph::default();
+        egraph.add_expr(&"(f a a)".parse().unwrap());
+        egraph.add_expr(&"(f a (g a))))".parse().unwrap());
+        egraph.add_expr(&"(f a (g b))))".parse().unwrap());
+        egraph.rebuild();
+
+        let n_matches = |s: &str| s.parse::<Pattern<S>>().unwrap().n_matches(&egraph);
+
+        assert_eq!(n_matches("(f ?x ?y)"), 3);
+        assert_eq!(n_matches("(f ?x ?x)"), 1);
+        assert_eq!(n_matches("(f ?x (g ?y))))"), 2);
+        assert_eq!(n_matches("(f ?x (g ?x))))"), 1);
     }
 }

@@ -1,5 +1,4 @@
 use crate::*;
-use std::cmp::Ordering;
 
 #[derive(Default)]
 struct Machine {
@@ -133,64 +132,20 @@ impl Machine {
     }
 }
 
-type VarToReg = crate::util::IndexMap<Var, Reg>;
-type TodoList<L> = std::collections::BinaryHeap<Todo<L>>;
-
-#[derive(PartialEq, Eq)]
-struct Todo<L> {
-    reg: Reg,
-    n_free: usize,
-    pat: ENodeOrVar<L>,
-    /// location within the pattern
-    id: Id,
-}
-
-impl<L: Language> PartialOrd for Todo<L> {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl<L: Language> Ord for Todo<L> {
-    // TodoList is a max-heap, so we greater is higher priority
-    fn cmp(&self, other: &Self) -> Ordering {
-        use ENodeOrVar::*;
-        let cmp_free = self.n_free.cmp(&other.n_free);
-        cmp_free.then_with(|| match (&self.pat, &other.pat) {
-            // fewer children means higher priority
-            (ENode(e1), ENode(e2)) => e2.len().cmp(&e1.len()),
-            // Var is higher prio than enode
-            (ENode(_), Var(_)) => Ordering::Less,
-            (Var(_), ENode(_)) => Ordering::Greater,
-            (Var(_), Var(_)) => Ordering::Equal,
-        })
-    }
-}
-
-struct Compiler<'a, L: Language> {
+struct Compiler<'a, L> {
     pattern: &'a PatternAst<L>,
-    v2r: VarToReg,
-    todo: TodoList<L>,
-    out: Reg,
+    v2r: IndexMap<Var, Reg>,
+    free_vars: Vec<HashSet<Var>>,
+    todo_nodes: HashMap<Id, (Reg, L)>,
+    instructions: Vec<Instruction<L>>,
 }
 
 impl<'a, L: Language> Compiler<'a, L> {
-    fn compile(pattern: &'a PatternAst<L>) -> Program<L> {
-        let mut compiler = Self {
-            pattern,
-            v2r: Default::default(),
-            todo: Default::default(),
-            out: Reg(0),
-        };
-        compiler.go()
-    }
-
-    fn go(&mut self) -> Program<L> {
-        let nodes = self.pattern.as_ref();
-        let len = nodes.len();
-
+    fn new(pattern: &'a PatternAst<L>) -> Self {
+        let len = pattern.as_ref().len();
         let mut free_vars: Vec<HashSet<Var>> = Vec::with_capacity(len);
-        for node in nodes {
+
+        for node in pattern.as_ref() {
             let mut free = HashSet::default();
             match node {
                 ENodeOrVar::ENode(n) => {
@@ -205,80 +160,110 @@ impl<'a, L: Language> Compiler<'a, L> {
             free_vars.push(free)
         }
 
-        let last_i = len - 1;
-        self.todo.push(Todo {
-            reg: Reg(self.out.0),
-            n_free: free_vars[last_i].len(),
-            id: Id::from(last_i),
-            pat: nodes[last_i].clone(),
-        });
-        self.out.0 += 1;
+        Self {
+            pattern,
+            free_vars,
+            v2r: Default::default(),
+            todo_nodes: Default::default(),
+            instructions: Default::default(),
+        }
+    }
 
-        let mut instructions = vec![];
-
-        while let Some(todo) = self.todo.pop() {
-            match todo.pat {
-                ENodeOrVar::Var(v) => {
-                    if let Some(&j) = self.v2r.get(&v) {
-                        instructions.push(Instruction::Compare { i: todo.reg, j })
-                    } else {
-                        self.v2r.insert(v, todo.reg);
-                    }
+    fn add_todo(&mut self, id: Id, reg: Reg) {
+        match &self.pattern[id] {
+            ENodeOrVar::Var(v) => {
+                if let Some(&j) = self.v2r.get(v) {
+                    self.instructions.push(Instruction::Compare { i: reg, j })
+                } else {
+                    self.v2r.insert(*v, reg);
                 }
-                ENodeOrVar::ENode(node) => {
-                    // check to see if this e-node corresponds to a term
-                    // that is grounded by the variables bound at this point
-                    let is_ground_now = free_vars[usize::from(todo.id)]
+            }
+            ENodeOrVar::ENode(pat) => {
+                self.todo_nodes.insert(id, (reg, pat.clone()));
+            }
+        }
+    }
+
+    fn next(&mut self) -> Option<(Id, (Reg, L))> {
+        // we take the max todo according to this key
+        // - prefer grounded
+        // - prefer variables
+        // - prefer more free vars (if not grounded)
+        let key = |id: &&Id| {
+            let n_free = self.free_vars[usize::from(**id)]
+                .iter()
+                .filter(|v| self.v2r.contains_key(*v))
+                .count() as isize;
+            (n_free == 0, n_free)
+        };
+
+        self.todo_nodes
+            .keys()
+            .max_by_key(key)
+            .copied()
+            .map(|id| (id, self.todo_nodes.remove(&id).unwrap()))
+    }
+
+    /// check to see if this e-node corresponds to a term that is grounded by
+    /// the variables bound at this point
+    fn is_ground_now(&self, id: Id) -> bool {
+        self.free_vars[usize::from(id)]
+            .iter()
+            .all(|v| self.v2r.contains_key(v))
+    }
+
+    fn compile(mut self) -> Program<L> {
+        let last_i = self.pattern.as_ref().len() - 1;
+        let mut next_out = Reg(1);
+
+        self.add_todo(Id::from(last_i), Reg(0));
+
+        println!("Compiling: {:?}", self.pattern);
+
+        while let Some((id, (reg, node))) = self.next() {
+            if self.is_ground_now(id) && !node.is_leaf() {
+                let extracted = self.pattern.extract(id);
+                println!(
+                    "grounded! ({:?})\n{:?}\n => {:?}",
+                    self.instructions, self.v2r, extracted
+                );
+                self.instructions.push(Instruction::Lookup {
+                    i: reg,
+                    term: extracted
+                        .as_ref()
                         .iter()
-                        .all(|v| self.v2r.contains_key(v));
-                    if is_ground_now && !node.is_leaf() {
-                        let pattern = self.pattern.extract(todo.id);
-                        instructions.push(Instruction::Lookup {
-                            i: todo.reg,
-                            term: pattern
-                                .as_ref()
-                                .iter()
-                                .map(|n| match n {
-                                    ENodeOrVar::ENode(n) => ENodeOrReg::ENode(n.clone()),
-                                    ENodeOrVar::Var(v) => ENodeOrReg::Reg(self.v2r[v]),
-                                })
-                                .collect(),
-                        });
-                        continue;
-                    }
-                    let out = self.out;
-                    self.out.0 += node.len() as u32;
+                        .map(|n| match n {
+                            ENodeOrVar::ENode(n) => ENodeOrReg::ENode(n.clone()),
+                            ENodeOrVar::Var(v) => ENodeOrReg::Reg(self.v2r[v]),
+                        })
+                        .collect(),
+                });
+            } else {
+                let out = next_out;
+                next_out.0 += node.len() as u32;
 
-                    let mut id = 0;
-                    node.for_each(|child| {
-                        let r = Reg(out.0 + id as u32);
-                        self.todo.push(Todo {
-                            reg: r,
-                            n_free: free_vars[usize::from(child)].len(),
-                            id: child,
-                            pat: nodes[usize::from(child)].clone(),
-                        });
-                        id += 1;
-                    });
+                // zero out the children so Bind can use it to sort
+                let op = node.clone().map_children(|_| Id::from(0));
+                self.instructions.push(Instruction::Bind {
+                    i: reg,
+                    node: op,
+                    out,
+                });
 
-                    // zero out the children so Bind can use it to sort
-                    let node = node.map_children(|_| Id::from(0));
-                    instructions.push(Instruction::Bind {
-                        i: todo.reg,
-                        node,
-                        out,
-                    })
+                for (i, &child) in node.children().iter().enumerate() {
+                    self.add_todo(child, Reg(out.0 + i as u32));
                 }
             }
         }
 
-        let mut subst = Subst::default();
-        for (v, r) in &self.v2r {
-            subst.insert(*v, Id::from(r.0 as usize));
-        }
+        println!("Compiled to {:#?}", self.instructions);
 
+        let mut subst = Subst::default();
+        for (v, r) in self.v2r {
+            subst.insert(v, Id::from(r.0 as usize));
+        }
         Program {
-            instructions,
+            instructions: self.instructions,
             subst,
         }
     }
@@ -286,7 +271,7 @@ impl<'a, L: Language> Compiler<'a, L> {
 
 impl<L: Language> Program<L> {
     pub(crate) fn compile_from_pat(pattern: &PatternAst<L>) -> Self {
-        let program = Compiler::compile(pattern);
+        let program = Compiler::new(pattern).compile();
         log::debug!("Compiled {:?} to {:?}", pattern.as_ref(), program);
         program
     }
