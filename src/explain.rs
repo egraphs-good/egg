@@ -770,7 +770,7 @@ impl<L: Language> Explain<L> {
                 }
                 existance = next;
                 if seen_existance.contains(&existance) {
-                    assert!(false, "Cycle in existance!");
+                    panic!("Cycle in existance!");
                 }
             }
 

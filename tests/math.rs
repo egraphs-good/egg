@@ -328,3 +328,18 @@ fn assoc_mul_saturates() {
 
     assert!(matches!(runner.stop_reason, Some(StopReason::Saturated)));
 }
+
+#[test]
+fn math_ematching_bench() {
+    let exprs = &[
+        "(i (ln x) x)",
+        "(i (+ x (cos x)) x)",
+        "(i (* (cos x) x) x)",
+        "(d x (+ 1 (* 2 x)))",
+        "(d x (- (pow x 3) (* 7 (pow x 2))))",
+        "(+ (* y (+ x y)) (- (+ x 2) (+ x x)))",
+        "(/ 1 (- (/ (+ 1 (sqrt five)) 2) (/ (- 1 (sqrt five)) 2)))",
+    ];
+
+    egg::test::bench_egraph("math", rules(), exprs);
+}

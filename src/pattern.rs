@@ -72,6 +72,34 @@ pub struct Pattern<L> {
 /// [`Pattern`].
 pub type PatternAst<L> = RecExpr<ENodeOrVar<L>>;
 
+impl<L: Language> PatternAst<L> {
+    /// Returns a new `PatternAst` with the variables renames canonically
+    pub fn alpha_rename(&self) -> Self {
+        let mut vars = HashMap::<Var, Var>::default();
+        let mut new = PatternAst::default();
+
+        fn mkvar(i: usize) -> Var {
+            let vs = &["?x", "?y", "?z", "?w"];
+            match vs.get(i) {
+                Some(v) => v.parse().unwrap(),
+                None => format!("?v{}", i - vs.len()).parse().unwrap(),
+            }
+        }
+
+        for n in self.as_ref() {
+            new.add(match n {
+                ENodeOrVar::ENode(_) => n.clone(),
+                ENodeOrVar::Var(v) => {
+                    let i = vars.len();
+                    ENodeOrVar::Var(*vars.entry(*v).or_insert_with(|| mkvar(i)))
+                }
+            });
+        }
+
+        new
+    }
+}
+
 impl<L: Language> Pattern<L> {
     /// Creates a new pattern from the given pattern ast.
     pub fn new(ast: PatternAst<L>) -> Self {

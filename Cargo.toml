@@ -28,19 +28,9 @@ vectorize = { version = "0.2", optional = true }
 # for the reports feature
 serde_json = { version = "1", optional = true }
 
-[[bench]]
-name = "bench_tests"
-harness = false
-
 [dev-dependencies]
 env_logger = {version = "0.7", default-features = false}
 ordered-float = "1"
-
-[dev-dependencies.iai]
-# version = "*"
-git = "https://github.com/mwillsey/iai"
-rev = "c0b7cb47181e9577a6847caae53a2f0f881f45b2"
-features = ["threadpool"]
 
 [features]
 wasm-bindgen = [ "instant/wasm-bindgen" ]

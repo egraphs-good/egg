@@ -535,6 +535,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn union_with_justification(
         &mut self,
         id1: Id,
