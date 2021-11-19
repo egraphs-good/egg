@@ -48,17 +48,11 @@ pub fn test_runner<L, A>(
     if let Some(lim) = env_var("EGG_TIME_LIMIT") {
         runner = runner.with_time_limit(std::time::Duration::from_secs(lim))
     }
-    if let Some(is_enabled) = env_var("EGG_TEST_EXPLANATIONS") {
-        if is_enabled {
-            runner = runner.with_explanations_enabled();
-        } else {
-            // in case we enabled it in order to add expressions
-            runner = runner.with_explanations_disabled();
-        }
-    } else {
-        // in case we enabled it in order to add expressions
-        runner = runner.with_explanations_disabled();
-    }
+
+    runner = match env_var("EGG_TEST_EXPLANATIONS") {
+        Some(true) => runner.with_explanations_enabled(),
+        _ => runner.with_explanations_disabled(),
+    };
 
     runner = runner.with_expr(&start);
     // NOTE this is a bit of hack, we rely on the fact that the

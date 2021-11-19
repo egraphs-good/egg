@@ -361,10 +361,10 @@ impl<L: Language> IndexMut<Id> for RecExpr<L> {
 impl<L: Language + Display> Display for RecExpr<L> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.nodes.is_empty() {
-            write!(f, "()")
+            Display::fmt("()", f)
         } else {
             let s = self.to_sexp(self.nodes.len() - 1).to_string();
-            write!(f, "{}", s)
+            Display::fmt(&s, f)
         }
     }
 }
