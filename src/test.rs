@@ -26,7 +26,7 @@ where
 
 #[allow(clippy::type_complexity)]
 pub fn test_runner<L, A>(
-    name: &str,
+    _name: &str,
     runner: Option<Runner<L, A, ()>>,
     rules: &[Rewrite<L, A>],
     start: RecExpr<L>,
@@ -49,10 +49,11 @@ pub fn test_runner<L, A>(
         runner = runner.with_time_limit(std::time::Duration::from_secs(lim))
     }
 
-    runner = match env_var("EGG_TEST_EXPLANATIONS") {
-        Some(true) => runner.with_explanations_enabled(),
-        _ => runner.with_explanations_disabled(),
-    };
+    if cfg!(feature = "test-explanations") {
+        runner = runner.with_explanations_enabled();
+    } else {
+        runner = runner.with_explanations_disabled();
+    }
 
     runner = runner.with_expr(&start);
     // NOTE this is a bit of hack, we rely on the fact that the
@@ -80,7 +81,7 @@ pub fn test_runner<L, A>(
         runner.print_report();
         runner.egraph.check_goals(id, &goals);
 
-        if runner.egraph.are_explanations_enabled() && name != "lambda_function_repeat" {
+        if runner.egraph.are_explanations_enabled() {
             for goal in goals {
                 let matches = goal.search_eclass(&runner.egraph, id).unwrap();
                 let subst = matches.substs[0].clone();

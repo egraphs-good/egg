@@ -36,3 +36,7 @@ ordered-float = "1"
 wasm-bindgen = [ "instant/wasm-bindgen" ]
 serde-1 = [ "serde", "indexmap/serde-1", "hashbrown/serde", "vectorize" ]
 reports = [ "serde-1", "serde_json" ]
+
+# private features for testing
+test-explanations = []
+
