@@ -1,4 +1,4 @@
-all: test nits bench
+all: test nits
 
 .PHONY: test
 test:
@@ -20,11 +20,3 @@ nits:
 	EGG_TEST_EXPLANATIONS=true cargo clippy --tests
 	cargo clippy --tests --features "serde-1"
 	cargo clippy --tests --features "reports"
-
-.PHONY: bench
-bench:
-	cargo bench | ./scripts/filter-iai-output.py
-
-.PHONY: bench_explanations
-bench_explanations:
-	EGG_TEST_EXPLANATIONS=true cargo bench | ./scripts/filter-iai-output.py
