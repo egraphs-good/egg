@@ -587,6 +587,11 @@
 <span id="584">584</span>
 <span id="585">585</span>
 <span id="586">586</span>
+<span id="587">587</span>
+<span id="588">588</span>
+<span id="589">589</span>
+<span id="590">590</span>
+<span id="591">591</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">pattern</span>::<span class="ident">apply_pat</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fmt</span>::{<span class="self">self</span>, <span class="ident">Debug</span>, <span class="ident">Display</span>};
@@ -729,6 +734,11 @@
             .<span class="ident">classes</span>()
             .<span class="ident">filter_map</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">search_eclass</span>(<span class="ident">egraph</span>, <span class="ident">e</span>.<span class="ident">id</span>))
             .<span class="ident">collect</span>()
+    }
+
+    <span class="doccomment">/// Returns the number of matches in the e-graph</span>
+    <span class="kw">fn</span> <span class="ident">n_matches</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
+        <span class="self">self</span>.<span class="ident">search</span>(<span class="ident">egraph</span>).<span class="ident">iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">m</span><span class="op">|</span> <span class="ident">m</span>.<span class="ident">substs</span>.<span class="ident">len</span>()).<span class="ident">sum</span>()
     }
 
     <span class="doccomment">/// For patterns, return the ast directly as a reference</span>

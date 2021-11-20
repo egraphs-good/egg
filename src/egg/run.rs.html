@@ -875,6 +875,45 @@
 <span id="872">872</span>
 <span id="873">873</span>
 <span id="874">874</span>
+<span id="875">875</span>
+<span id="876">876</span>
+<span id="877">877</span>
+<span id="878">878</span>
+<span id="879">879</span>
+<span id="880">880</span>
+<span id="881">881</span>
+<span id="882">882</span>
+<span id="883">883</span>
+<span id="884">884</span>
+<span id="885">885</span>
+<span id="886">886</span>
+<span id="887">887</span>
+<span id="888">888</span>
+<span id="889">889</span>
+<span id="890">890</span>
+<span id="891">891</span>
+<span id="892">892</span>
+<span id="893">893</span>
+<span id="894">894</span>
+<span id="895">895</span>
+<span id="896">896</span>
+<span id="897">897</span>
+<span id="898">898</span>
+<span id="899">899</span>
+<span id="900">900</span>
+<span id="901">901</span>
+<span id="902">902</span>
+<span id="903">903</span>
+<span id="904">904</span>
+<span id="905">905</span>
+<span id="906">906</span>
+<span id="907">907</span>
+<span id="908">908</span>
+<span id="909">909</span>
+<span id="910">910</span>
+<span id="911">911</span>
+<span id="912">912</span>
+<span id="913">913</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fmt</span>::{<span class="self">self</span>, <span class="ident">Debug</span>, <span class="ident">Formatter</span>};
 
@@ -1102,6 +1141,46 @@ println!(
     <span class="ident">Other</span>(<span class="ident">String</span>),
 }
 
+<span class="doccomment">/// A report containing data about an entire [`Runner`] run.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// This is basically a summary of the [`Iteration`] data,</span>
+<span class="doccomment">/// but summed across iterations.</span>
+<span class="doccomment">/// See [`Iteration`] docs for details about fields.</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>)]</span>
+<span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde-1&quot;</span>, <span class="ident">derive</span>(<span class="ident">serde</span>::<span class="ident">Serialize</span>))]</span>
+<span class="attribute">#[<span class="ident">non_exhaustive</span>]</span>
+<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">missing_docs</span>)]</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Report</span> {
+    <span class="doccomment">/// The number of iterations this runner performed.</span>
+    <span class="kw">pub</span> <span class="ident">iterations</span>: <span class="ident">usize</span>,
+    <span class="kw">pub</span> <span class="ident">stop_reason</span>: <span class="ident">StopReason</span>,
+    <span class="kw">pub</span> <span class="ident">egraph_nodes</span>: <span class="ident">usize</span>,
+    <span class="kw">pub</span> <span class="ident">egraph_classes</span>: <span class="ident">usize</span>,
+    <span class="kw">pub</span> <span class="ident">memo_size</span>: <span class="ident">usize</span>,
+    <span class="kw">pub</span> <span class="ident">rebuilds</span>: <span class="ident">usize</span>,
+    <span class="kw">pub</span> <span class="ident">total_time</span>: <span class="ident">f64</span>,
+    <span class="kw">pub</span> <span class="ident">search_time</span>: <span class="ident">f64</span>,
+    <span class="kw">pub</span> <span class="ident">apply_time</span>: <span class="ident">f64</span>,
+    <span class="kw">pub</span> <span class="ident">rebuild_time</span>: <span class="ident">f64</span>,
+}
+
+<span class="kw">impl</span> <span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Display</span> <span class="kw">for</span> <span class="ident">Report</span> {
+    <span class="attribute">#[<span class="ident">rustfmt</span>::<span class="ident">skip</span>]</span>
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
+        <span class="macro">writeln</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;Runner report&quot;</span>)<span class="question-mark">?</span>;
+        <span class="macro">writeln</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;=============&quot;</span>)<span class="question-mark">?</span>;
+        <span class="macro">writeln</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;  Stop reason: {:?}&quot;</span>, <span class="self">self</span>.<span class="ident">stop_reason</span>)<span class="question-mark">?</span>;
+        <span class="macro">writeln</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;  Iterations: {}&quot;</span>, <span class="self">self</span>.<span class="ident">iterations</span>)<span class="question-mark">?</span>;
+        <span class="macro">writeln</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;  Egraph size: {} nodes, {} classes, {} memo&quot;</span>, <span class="self">self</span>.<span class="ident">egraph_nodes</span>, <span class="self">self</span>.<span class="ident">egraph_classes</span>, <span class="self">self</span>.<span class="ident">memo_size</span>)<span class="question-mark">?</span>;
+        <span class="macro">writeln</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;  Rebuilds: {}&quot;</span>, <span class="self">self</span>.<span class="ident">rebuilds</span>)<span class="question-mark">?</span>;
+        <span class="macro">writeln</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;  Total time: {}&quot;</span>, <span class="self">self</span>.<span class="ident">total_time</span>)<span class="question-mark">?</span>;
+        <span class="macro">writeln</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;    Search:  ({:.2}) {}&quot;</span>, <span class="self">self</span>.<span class="ident">search_time</span> <span class="op">/</span> <span class="self">self</span>.<span class="ident">total_time</span>, <span class="self">self</span>.<span class="ident">search_time</span>)<span class="question-mark">?</span>;
+        <span class="macro">writeln</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;    Apply:   ({:.2}) {}&quot;</span>, <span class="self">self</span>.<span class="ident">apply_time</span> <span class="op">/</span> <span class="self">self</span>.<span class="ident">total_time</span>, <span class="self">self</span>.<span class="ident">apply_time</span>)<span class="question-mark">?</span>;
+        <span class="macro">writeln</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;    Rebuild: ({:.2}) {}&quot;</span>, <span class="self">self</span>.<span class="ident">rebuild_time</span> <span class="op">/</span> <span class="self">self</span>.<span class="ident">total_time</span>, <span class="self">self</span>.<span class="ident">rebuild_time</span>)<span class="question-mark">?</span>;
+        <span class="prelude-val">Ok</span>(())
+    }
+}
+
 <span class="doccomment">/// Data generated by running a [`Runner`] one iteration.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// If the `serde-1` feature is enabled, this implements</span>
@@ -1253,9 +1332,11 @@ println!(
         <span class="kw">loop</span> {
             <span class="kw">let</span> <span class="ident">iter</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">run_one</span>(<span class="kw-2">&amp;</span><span class="ident">rules</span>);
             <span class="self">self</span>.<span class="ident">iterations</span>.<span class="ident">push</span>(<span class="ident">iter</span>);
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">stop_reason</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">iterations</span>.<span class="ident">last</span>().<span class="ident">unwrap</span>().<span class="ident">stop_reason</span> {
+            <span class="kw">let</span> <span class="ident">stop_reason</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">iterations</span>.<span class="ident">last</span>().<span class="ident">unwrap</span>().<span class="ident">stop_reason</span>.<span class="ident">clone</span>();
+            <span class="comment">// we need to check_limits after the iteration is complete to check for iter_limit</span>
+            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">stop_reason</span>) <span class="op">=</span> <span class="ident">stop_reason</span>.<span class="ident">or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">check_limits</span>().<span class="ident">err</span>()) {
                 <span class="macro">info</span><span class="macro">!</span>(<span class="string">&quot;Stopping: {:?}&quot;</span>, <span class="ident">stop_reason</span>);
-                <span class="self">self</span>.<span class="ident">stop_reason</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">stop_reason</span>.<span class="ident">clone</span>());
+                <span class="self">self</span>.<span class="ident">stop_reason</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">stop_reason</span>);
                 <span class="kw">break</span>;
             }
         }
@@ -1308,28 +1389,25 @@ println!(
         <span class="self">self</span>.<span class="ident">egraph</span>.<span class="ident">explain_matches</span>(<span class="ident">left</span>, <span class="ident">right</span>, <span class="ident">subst</span>)
     }
 
-    <span class="attribute">#[<span class="ident">rustfmt</span>::<span class="ident">skip</span>]</span>
     <span class="doccomment">/// Prints some information about a runners run.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">print_report</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) {
-        <span class="kw">let</span> <span class="ident">search_time</span>: <span class="ident">f64</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">iterations</span>.<span class="ident">iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="ident">i</span>.<span class="ident">search_time</span>).<span class="ident">sum</span>();
-        <span class="kw">let</span> <span class="ident">apply_time</span>: <span class="ident">f64</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">iterations</span>.<span class="ident">iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="ident">i</span>.<span class="ident">apply_time</span>).<span class="ident">sum</span>();
-        <span class="kw">let</span> <span class="ident">rebuild_time</span>: <span class="ident">f64</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">iterations</span>.<span class="ident">iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="ident">i</span>.<span class="ident">rebuild_time</span>).<span class="ident">sum</span>();
-        <span class="kw">let</span> <span class="ident">total_time</span>: <span class="ident">f64</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">iterations</span>.<span class="ident">iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="ident">i</span>.<span class="ident">total_time</span>).<span class="ident">sum</span>();
+        <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;{}&quot;</span>, <span class="self">self</span>.<span class="ident">report</span>())
+    }
 
-        <span class="kw">let</span> <span class="ident">iters</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">iterations</span>.<span class="ident">len</span>();
-        <span class="kw">let</span> <span class="ident">rebuilds</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">iterations</span>.<span class="ident">iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="ident">i</span>.<span class="ident">n_rebuilds</span>).<span class="ident">sum</span>();
-
-        <span class="kw">let</span> <span class="ident">eg</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">egraph</span>;
-        <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;Runner report&quot;</span>);
-        <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;=============&quot;</span>);
-        <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;  Stop reason: {:?}&quot;</span>, <span class="self">self</span>.<span class="ident">stop_reason</span>.<span class="ident">as_ref</span>().<span class="ident">unwrap</span>());
-        <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;  Iterations: {}&quot;</span>, <span class="ident">iters</span>);
-        <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;  Egraph size: {} nodes, {} classes, {} memo&quot;</span>, <span class="ident">eg</span>.<span class="ident">total_number_of_nodes</span>(), <span class="ident">eg</span>.<span class="ident">number_of_classes</span>(), <span class="ident">eg</span>.<span class="ident">total_size</span>());
-        <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;  Rebuilds: {}, {:.2} per iter&quot;</span>, <span class="ident">rebuilds</span>, (<span class="ident">rebuilds</span> <span class="kw">as</span> <span class="ident">f64</span>) <span class="op">/</span> (<span class="ident">iters</span> <span class="kw">as</span> <span class="ident">f64</span>));
-        <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;  Total time: {}&quot;</span>, <span class="ident">total_time</span>);
-        <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;    Search:  ({:.2}) {}&quot;</span>, <span class="ident">search_time</span> <span class="op">/</span> <span class="ident">total_time</span>, <span class="ident">search_time</span>);
-        <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;    Apply:   ({:.2}) {}&quot;</span>, <span class="ident">apply_time</span> <span class="op">/</span> <span class="ident">total_time</span>, <span class="ident">apply_time</span>);
-        <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;    Rebuild: ({:.2}) {}&quot;</span>, <span class="ident">rebuild_time</span> <span class="op">/</span> <span class="ident">total_time</span>, <span class="ident">rebuild_time</span>);
+    <span class="doccomment">/// Creates a [`Report`] summarizing this `Runner`s run.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">report</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Report</span> {
+        <span class="ident">Report</span> {
+            <span class="ident">stop_reason</span>: <span class="self">self</span>.<span class="ident">stop_reason</span>.<span class="ident">clone</span>().<span class="ident">unwrap</span>(),
+            <span class="ident">iterations</span>: <span class="self">self</span>.<span class="ident">iterations</span>.<span class="ident">len</span>(),
+            <span class="ident">egraph_nodes</span>: <span class="self">self</span>.<span class="ident">egraph</span>.<span class="ident">total_number_of_nodes</span>(),
+            <span class="ident">egraph_classes</span>: <span class="self">self</span>.<span class="ident">egraph</span>.<span class="ident">number_of_classes</span>(),
+            <span class="ident">memo_size</span>: <span class="self">self</span>.<span class="ident">egraph</span>.<span class="ident">total_size</span>(),
+            <span class="ident">rebuilds</span>: <span class="self">self</span>.<span class="ident">iterations</span>.<span class="ident">iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="ident">i</span>.<span class="ident">n_rebuilds</span>).<span class="ident">sum</span>(),
+            <span class="ident">search_time</span>: <span class="self">self</span>.<span class="ident">iterations</span>.<span class="ident">iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="ident">i</span>.<span class="ident">search_time</span>).<span class="ident">sum</span>(),
+            <span class="ident">apply_time</span>: <span class="self">self</span>.<span class="ident">iterations</span>.<span class="ident">iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="ident">i</span>.<span class="ident">apply_time</span>).<span class="ident">sum</span>(),
+            <span class="ident">rebuild_time</span>: <span class="self">self</span>.<span class="ident">iterations</span>.<span class="ident">iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="ident">i</span>.<span class="ident">rebuild_time</span>).<span class="ident">sum</span>(),
+            <span class="ident">total_time</span>: <span class="self">self</span>.<span class="ident">iterations</span>.<span class="ident">iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="ident">i</span>.<span class="ident">total_time</span>).<span class="ident">sum</span>(),
+        }
     }
 
     <span class="kw">fn</span> <span class="ident">run_one</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">rules</span>: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="ident">Rewrite</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Iteration</span><span class="op">&lt;</span><span class="ident">IterData</span><span class="op">&gt;</span> {
