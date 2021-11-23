@@ -329,7 +329,7 @@ fn assoc_mul_saturates() {
     assert!(matches!(runner.stop_reason, Some(StopReason::Saturated)));
 }
 
-#[cfg(feature = "good_lp")]
+#[cfg(feature = "lp")]
 #[test]
 fn math_lp_extract() {
     let expr: RecExpr<Math> = "(pow (+ x (+ x x)) (+ x x))".parse().unwrap();

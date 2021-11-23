@@ -36,7 +36,7 @@ mod egraph;
 mod explain;
 mod extract;
 mod language;
-#[cfg(feature = "good_lp")]
+#[cfg(feature = "lp")]
 mod lp_extract;
 mod machine;
 mod pattern;
@@ -92,7 +92,7 @@ pub use {
     util::*,
 };
 
-#[cfg(feature = "good_lp")]
+#[cfg(feature = "lp")]
 pub use lp_extract::*;
 
 #[cfg(test)]

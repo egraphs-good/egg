@@ -3,7 +3,7 @@ all: test nits bench
 .PHONY: test
 test:
 	cargo test --release
-	cargo test --release --features=good_lp
+	cargo test --release --features=lp
 	# don't run examples in proof-production mode
 	EGG_TEST_EXPLANATIONS=true cargo test --lib --bins --tests --benches --release
 	

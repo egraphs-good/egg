@@ -25,7 +25,7 @@ fxhash = "0.2"
 hashbrown = { version = "0.11", default-features = false, features = ["inline-more"] }
 thiserror = "1"
 
-good_lp = { version = "1.2", optional = true }
+coin_cbc = { version = "0.1.6", optional = true }
 
 [[bench]]
 name = "bench_tests"
@@ -42,6 +42,7 @@ rev = "c0b7cb47181e9577a6847caae53a2f0f881f45b2"
 features = ["threadpool"]
 
 [features]
+lp = [ "coin_cbc" ]
 wasm-bindgen = [ "instant/wasm-bindgen" ]
 serde-1 = [ "serde", "indexmap/serde-1", "hashbrown/serde" ]
 reports = [ "serde-1", "serde_json" ]
