@@ -115,7 +115,7 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
     /// let a_plus_2: RecExpr<SymbolLang> = "(+ a 2)".parse().unwrap();
     /// // here's an enode with some meaningless child ids
     /// let enode = SymbolLang::new("*", vec![Id::from(0), Id::from(0)]);
-    /// // make a new recexpr, replacing enode's childen with a_plus_2
+    /// // make a new recexpr, replacing enode's children with a_plus_2
     /// let recexpr = enode.to_recexpr(|_id| a_plus_2.as_ref());
     /// assert_eq!(recexpr, "(* (+ a 2) (+ a 2))".parse().unwrap())
     /// ```
@@ -307,7 +307,7 @@ impl<L: Language + Display> serde::Serialize for RecExpr<L> {
     where
         S: serde::Serializer,
     {
-        let s = self.to_sexp(self.nodes.len() - 1).to_string();
+        let s = self.to_sexp().to_string();
         serializer.serialize_str(&s)
     }
 }
@@ -389,6 +389,18 @@ impl<L: Language> RecExpr<L> {
             nodes: set.into_iter().collect(),
         }
     }
+
+    /// Checks if this expr is a DAG, i.e. doesn't have any back edges
+    pub fn is_dag(&self) -> bool {
+        for (i, n) in self.nodes.iter().enumerate() {
+            for &child in n.children() {
+                if usize::from(child) >= i {
+                    return false;
+                }
+            }
+        }
+        true
+    }
 }
 
 impl<L: Language> Index<Id> for RecExpr<L> {
@@ -409,21 +421,37 @@ impl<L: Language + Display> Display for RecExpr<L> {
         if self.nodes.is_empty() {
             Display::fmt("()", f)
         } else {
-            let s = self.to_sexp(self.nodes.len() - 1).to_string();
+            let s = self.to_sexp().to_string();
             Display::fmt(&s, f)
         }
     }
 }
 
 impl<L: Language + Display> RecExpr<L> {
-    fn to_sexp(&self, i: usize) -> Sexp {
+    fn to_sexp(&self) -> Sexp {
+        let last = self.nodes.len() - 1;
+        if !self.is_dag() {
+            log::warn!("Tried to print a non-dag: {:?}", self.nodes);
+        }
+        self.to_sexp_rec(last, &mut |_| None)
+    }
+
+    fn to_sexp_rec(&self, i: usize, f: &mut impl FnMut(usize) -> Option<String>) -> Sexp {
         let node = &self.nodes[i];
         let op = Sexp::String(node.to_string());
         if node.is_leaf() {
             op
         } else {
             let mut vec = vec![op];
-            node.for_each(|id| vec.push(self.to_sexp(id.into())));
+            for child in node.children().iter().map(|i| usize::from(*i)) {
+                vec.push(if let Some(s) = f(child) {
+                    return Sexp::String(s);
+                } else if child < i {
+                    self.to_sexp_rec(child, f)
+                } else {
+                    Sexp::String(format!("<<<< CYCLE to {} = {:?} >>>>", i, node))
+                })
+            }
             Sexp::List(vec)
         }
     }
@@ -443,7 +471,7 @@ impl<L: Language + Display> RecExpr<L> {
     /// ".trim());
     /// ```
     pub fn pretty(&self, width: usize) -> String {
-        let sexp = self.to_sexp(self.nodes.len() - 1);
+        let sexp = self.to_sexp();
 
         let mut buf = String::new();
         pretty_print(&mut buf, &sexp, width, 1).unwrap();
