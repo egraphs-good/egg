@@ -1,8 +1,12 @@
 # Changes
 
-<!-- next-header -->
-
 ## [Unreleased] - ReleaseDate
+
+## [0.7.0] - 2021-11-23
+
+It's a been a long time since a release! 
+There's a lot in this one, hopefully I can cut releases more frequently in the future,
+ because there are definitely more features coming :)
 
 ### Added
 - The egraph now has an `EGraph::with_explanations_enabled` mode that allows for
@@ -12,13 +16,18 @@
   Calling `explain_equivalence` returns an `Explanation`
   which has both a `FlatExplanation` form and a
   `TreeExplanation` form.
+  See #115 and #119 for more details.
 - The `BackoffScheduler` is now more flexible.
 - `EGraph::pre_union` allows inspection of unions, which can be useful for debugging.
 - The dot printer is now more flexible.
 
 ### Changed
+
+- `Analysis::merge` now gets a `&mut self`, so it can store data on the `Analysis` itself.
+- `Analysis::merge` has a different signature.
+- Pattern compilation and execution is faster, especially when there are ground terms involved.
 - All unions are now delayed until rebuilding, so `EGraph::rebuild` be called to observe effects.
-- The `apply_one` function on appliers now needs to perform unions.
+- The `apply_one` function on appliers *now needs to perform unions*.
 - The congruence closure algorithm now keeps the egraph congruent before
   doing any analysis (calling `make`). It does this by interleaving rebuilding
   and doing analysis.
