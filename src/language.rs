@@ -2,7 +2,6 @@ use std::ops::{BitOr, Index, IndexMut};
 use std::{cmp::Ordering, convert::TryFrom};
 use std::{
     convert::Infallible,
-    error::Error,
     fmt::{self, Debug, Display},
 };
 use std::{hash::Hash, str::FromStr};
@@ -187,7 +186,7 @@ pub trait FromOp: Language + Sized {
     /// represent a valid e-node.
     ///
     /// [`from_op`]: FromOp::from_op
-    type Error: Error + 'static;
+    type Error: Debug;
 
     /// Parse an e-node with operator `op` and children `children`.
     fn from_op(op: &str, children: Vec<Id>) -> Result<Self, Self::Error>;
@@ -482,7 +481,7 @@ impl<L: Language + Display> RecExpr<L> {
 /// An error type for failures when attempting to parse an s-expression as a
 /// [`RecExpr<L>`].
 #[derive(Debug, Error)]
-pub enum RecExprParseError<E: Error + 'static> {
+pub enum RecExprParseError<E> {
     /// An empty s-expression was found. Usually this is caused by an
     /// empty list "()" somewhere in the input.
     #[error("found empty s-expression")]
