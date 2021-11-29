@@ -2,7 +2,7 @@ use fmt::Formatter;
 use log::*;
 use std::borrow::Cow;
 use std::fmt::{self, Display};
-use std::{convert::TryFrom, error::Error, str::FromStr};
+use std::{convert::TryFrom, str::FromStr};
 
 use thiserror::Error;
 
@@ -169,7 +169,7 @@ impl<L: Language + Display> Display for ENodeOrVar<L> {
 }
 
 #[derive(Debug, Error)]
-pub enum ENodeOrVarParseError<E: Error + 'static> {
+pub enum ENodeOrVarParseError<E> {
     #[error(transparent)]
     BadVar(<Var as FromStr>::Err),
 
