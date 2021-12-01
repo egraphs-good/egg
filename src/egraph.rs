@@ -427,7 +427,15 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     }
 
     /// Lookup the eclass of the given [`RecExpr`].
+    ///
+    /// Equivalent to the last value in [`EGraph::lookup_expr_ids`].
     pub fn lookup_expr(&self, expr: &RecExpr<L>) -> Option<Id> {
+        self.lookup_expr_ids(expr)
+            .and_then(|ids| ids.last().copied())
+    }
+
+    /// Lookup the eclasses of all the nodes in the given [`RecExpr`].
+    pub fn lookup_expr_ids(&self, expr: &RecExpr<L>) -> Option<Vec<Id>> {
         let nodes = expr.as_ref();
         let mut new_ids = Vec::with_capacity(nodes.len());
         for node in nodes {
@@ -435,7 +443,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             let id = self.lookup(node)?;
             new_ids.push(id)
         }
-        Some(*new_ids.last().unwrap())
+        Some(new_ids)
     }
 
     /// Adds an enode to the [`EGraph`].

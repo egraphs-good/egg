@@ -106,7 +106,9 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
         self.fold(false, |acc, id| acc || f(id))
     }
 
-    /// Make a `RecExpr` converting this enodes children to `RecExpr`s
+    /// Make a [`RecExpr`] by mapping this enodes children to other [`RecExpr`]s.
+    ///
+    /// This can be used to join together different expression with a new node.
     ///
     /// # Example
     /// ```
@@ -115,13 +117,13 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
     /// // here's an enode with some meaningless child ids
     /// let enode = SymbolLang::new("*", vec![Id::from(0), Id::from(0)]);
     /// // make a new recexpr, replacing enode's children with a_plus_2
-    /// let recexpr = enode.to_recexpr(|_id| a_plus_2.as_ref());
+    /// let recexpr = enode.join_recexprs(|_id| &a_plus_2);
     /// assert_eq!(recexpr, "(* (+ a 2) (+ a 2))".parse().unwrap())
     /// ```
-    fn to_recexpr<'a, F>(&self, mut child_recexpr: F) -> RecExpr<Self>
+    fn join_recexprs<F, Expr>(&self, mut child_recexpr: F) -> RecExpr<Self>
     where
-        Self: 'a,
-        F: FnMut(Id) -> &'a [Self],
+        F: FnMut(Id) -> Expr,
+        Expr: AsRef<[Self]>,
     {
         fn build<L: Language>(to: &mut RecExpr<L>, from: &[L]) -> Id {
             let last = from.last().unwrap().clone();
@@ -135,9 +137,67 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
         let mut expr = RecExpr::default();
         let node = self
             .clone()
-            .map_children(|id| build(&mut expr, child_recexpr(id)));
+            .map_children(|id| build(&mut expr, child_recexpr(id).as_ref()));
         expr.add(node);
         expr
+    }
+
+    /// Build a [`RecExpr`] from an e-node.
+    ///
+    /// The provided `get_node` function must return the same node for a given
+    /// [`Id`] on multiple invocations.
+    ///
+    /// # Example
+    ///
+    /// You could use this method to perform an "ad-hoc" extraction from the e-graph,
+    /// where you already know which node you want pick for each class:
+    /// ```
+    /// # use egg::*;
+    /// let mut egraph = EGraph::<SymbolLang, ()>::default();
+    /// let expr = "(foo (bar1 (bar2 (bar3 baz))))".parse().unwrap();
+    /// let root = egraph.add_expr(&expr);
+    /// let get_first_enode = |id| egraph[id].nodes[0].clone();
+    /// let expr2 = get_first_enode(root).build_recexpr(get_first_enode);
+    /// assert_eq!(expr, expr2)
+    /// ```
+    fn build_recexpr<F>(&self, mut get_node: F) -> RecExpr<Self>
+    where
+        F: FnMut(Id) -> Self,
+    {
+        let mut set = IndexSet::<Self>::default();
+        let mut ids = HashMap::<Id, Id>::default();
+        let mut todo = self.children().to_vec();
+
+        while let Some(id) = todo.last().copied() {
+            if ids.contains_key(&id) {
+                todo.pop();
+                continue;
+            }
+
+            let node = get_node(id);
+
+            // check to see if we can do this node yet
+            let mut ids_has_all_children = true;
+            for child in node.children() {
+                if !ids.contains_key(child) {
+                    ids_has_all_children = false;
+                    todo.push(*child)
+                }
+            }
+
+            // all children are processed, so we can lookup this node safely
+            if ids_has_all_children {
+                let node = node.map_children(|id| ids[&id]);
+                let new_id = set.insert_full(node).0;
+                ids.insert(id, Id::from(new_id));
+                todo.pop();
+            }
+        }
+
+        // finally, add the root node and create the expression
+        let mut nodes: Vec<Self> = set.into_iter().collect();
+        nodes.push(self.clone().map_children(|id| ids[&id]));
+        RecExpr::from(nodes)
     }
 }
 
@@ -356,37 +416,7 @@ impl<L: Language> RecExpr<L> {
     }
 
     pub(crate) fn extract(&self, new_root: Id) -> Self {
-        let mut ids = HashMap::<Id, Id>::default();
-        let mut set = IndexSet::default();
-        let mut todo = vec![new_root];
-        while let Some(id) = todo.last().copied() {
-            if ids.contains_key(&id) {
-                todo.pop();
-                continue;
-            }
-
-            let node = &self[id];
-
-            // check to see if we can do this node yet
-            let mut ids_has_all_children = true;
-            for child in node.children() {
-                if !ids.contains_key(child) {
-                    ids_has_all_children = false;
-                    todo.push(*child)
-                }
-            }
-
-            // all children are processed, so we can lookup this node safely
-            if ids_has_all_children {
-                let new_id = set.insert_full(node.clone().map_children(|i| ids[&i])).0;
-                ids.insert(id, Id::from(new_id));
-                todo.pop();
-            }
-        }
-
-        Self {
-            nodes: set.into_iter().collect(),
-        }
+        self[new_root].build_recexpr(|id| self[id].clone())
     }
 
     /// Checks if this expr is a DAG, i.e. doesn't have any back edges
