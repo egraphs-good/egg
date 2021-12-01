@@ -785,6 +785,36 @@
 <span id="782">782</span>
 <span id="783">783</span>
 <span id="784">784</span>
+<span id="785">785</span>
+<span id="786">786</span>
+<span id="787">787</span>
+<span id="788">788</span>
+<span id="789">789</span>
+<span id="790">790</span>
+<span id="791">791</span>
+<span id="792">792</span>
+<span id="793">793</span>
+<span id="794">794</span>
+<span id="795">795</span>
+<span id="796">796</span>
+<span id="797">797</span>
+<span id="798">798</span>
+<span id="799">799</span>
+<span id="800">800</span>
+<span id="801">801</span>
+<span id="802">802</span>
+<span id="803">803</span>
+<span id="804">804</span>
+<span id="805">805</span>
+<span id="806">806</span>
+<span id="807">807</span>
+<span id="808">808</span>
+<span id="809">809</span>
+<span id="810">810</span>
+<span id="811">811</span>
+<span id="812">812</span>
+<span id="813">813</span>
+<span id="814">814</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">ops</span>::{<span class="ident">BitOr</span>, <span class="ident">Index</span>, <span class="ident">IndexMut</span>};
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">cmp</span>::<span class="ident">Ordering</span>, <span class="ident">convert</span>::<span class="ident">TryFrom</span>};
@@ -894,7 +924,9 @@
         <span class="self">self</span>.<span class="ident">fold</span>(<span class="bool-val">false</span>, <span class="op">|</span><span class="ident">acc</span>, <span class="ident">id</span><span class="op">|</span> <span class="ident">acc</span> <span class="op">|</span><span class="op">|</span> <span class="ident">f</span>(<span class="ident">id</span>))
     }
 
-    <span class="doccomment">/// Make a `RecExpr` converting this enodes children to `RecExpr`s</span>
+    <span class="doccomment">/// Make a [`RecExpr`] by mapping this enodes children to other [`RecExpr`]s.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// This can be used to join together different expression with a new node.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// # Example</span>
     <span class="doccomment">/// ```</span>
@@ -903,13 +935,13 @@
     <span class="doccomment">/// // here&#39;s an enode with some meaningless child ids</span>
     <span class="doccomment">/// let enode = SymbolLang::new(&quot;*&quot;, vec![Id::from(0), Id::from(0)]);</span>
     <span class="doccomment">/// // make a new recexpr, replacing enode&#39;s children with a_plus_2</span>
-    <span class="doccomment">/// let recexpr = enode.to_recexpr(|_id| a_plus_2.as_ref());</span>
+    <span class="doccomment">/// let recexpr = enode.join_recexprs(|_id| &amp;a_plus_2);</span>
     <span class="doccomment">/// assert_eq!(recexpr, &quot;(* (+ a 2) (+ a 2))&quot;.parse().unwrap())</span>
     <span class="doccomment">/// ```</span>
-    <span class="kw">fn</span> <span class="ident">to_recexpr</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">F</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">child_recexpr</span>: <span class="ident">F</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">RecExpr</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>
+    <span class="kw">fn</span> <span class="ident">join_recexprs</span><span class="op">&lt;</span><span class="ident">F</span>, <span class="ident">Expr</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">child_recexpr</span>: <span class="ident">F</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">RecExpr</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>
     <span class="kw">where</span>
-        <span class="self">Self</span>: <span class="lifetime">&#39;a</span>,
-        <span class="ident">F</span>: <span class="ident">FnMut</span>(<span class="ident">Id</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> [<span class="self">Self</span>],
+        <span class="ident">F</span>: <span class="ident">FnMut</span>(<span class="ident">Id</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Expr</span>,
+        <span class="ident">Expr</span>: <span class="ident">AsRef</span><span class="op">&lt;</span>[<span class="self">Self</span>]<span class="op">&gt;</span>,
     {
         <span class="kw">fn</span> <span class="ident">build</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span>(<span class="ident">to</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>, <span class="ident">from</span>: <span class="kw-2">&amp;</span>[<span class="ident">L</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Id</span> {
             <span class="kw">let</span> <span class="ident">last</span> <span class="op">=</span> <span class="ident">from</span>.<span class="ident">last</span>().<span class="ident">unwrap</span>().<span class="ident">clone</span>();
@@ -923,9 +955,67 @@
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">expr</span> <span class="op">=</span> <span class="ident">RecExpr</span>::<span class="ident">default</span>();
         <span class="kw">let</span> <span class="ident">node</span> <span class="op">=</span> <span class="self">self</span>
             .<span class="ident">clone</span>()
-            .<span class="ident">map_children</span>(<span class="op">|</span><span class="ident">id</span><span class="op">|</span> <span class="ident">build</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">expr</span>, <span class="ident">child_recexpr</span>(<span class="ident">id</span>)));
+            .<span class="ident">map_children</span>(<span class="op">|</span><span class="ident">id</span><span class="op">|</span> <span class="ident">build</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">expr</span>, <span class="ident">child_recexpr</span>(<span class="ident">id</span>).<span class="ident">as_ref</span>()));
         <span class="ident">expr</span>.<span class="ident">add</span>(<span class="ident">node</span>);
         <span class="ident">expr</span>
+    }
+
+    <span class="doccomment">/// Build a [`RecExpr`] from an e-node.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// The provided `get_node` function must return the same node for a given</span>
+    <span class="doccomment">/// [`Id`] on multiple invocations.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// # Example</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// You could use this method to perform an &quot;ad-hoc&quot; extraction from the e-graph,</span>
+    <span class="doccomment">/// where you already know which node you want pick for each class:</span>
+    <span class="doccomment">/// ```</span>
+    <span class="doccomment">/// # use egg::*;</span>
+    <span class="doccomment">/// let mut egraph = EGraph::&lt;SymbolLang, ()&gt;::default();</span>
+    <span class="doccomment">/// let expr = &quot;(foo (bar1 (bar2 (bar3 baz))))&quot;.parse().unwrap();</span>
+    <span class="doccomment">/// let root = egraph.add_expr(&amp;expr);</span>
+    <span class="doccomment">/// let get_first_enode = |id| egraph[id].nodes[0].clone();</span>
+    <span class="doccomment">/// let expr2 = get_first_enode(root).build_recexpr(get_first_enode);</span>
+    <span class="doccomment">/// assert_eq!(expr, expr2)</span>
+    <span class="doccomment">/// ```</span>
+    <span class="kw">fn</span> <span class="ident">build_recexpr</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">get_node</span>: <span class="ident">F</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">RecExpr</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>
+    <span class="kw">where</span>
+        <span class="ident">F</span>: <span class="ident">FnMut</span>(<span class="ident">Id</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span>,
+    {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">set</span> <span class="op">=</span> <span class="ident">IndexSet</span>::<span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>::<span class="ident">default</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ids</span> <span class="op">=</span> <span class="ident">HashMap</span>::<span class="op">&lt;</span><span class="ident">Id</span>, <span class="ident">Id</span><span class="op">&gt;</span>::<span class="ident">default</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">todo</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">children</span>().<span class="ident">to_vec</span>();
+
+        <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">id</span>) <span class="op">=</span> <span class="ident">todo</span>.<span class="ident">last</span>().<span class="ident">copied</span>() {
+            <span class="kw">if</span> <span class="ident">ids</span>.<span class="ident">contains_key</span>(<span class="kw-2">&amp;</span><span class="ident">id</span>) {
+                <span class="ident">todo</span>.<span class="ident">pop</span>();
+                <span class="kw">continue</span>;
+            }
+
+            <span class="kw">let</span> <span class="ident">node</span> <span class="op">=</span> <span class="ident">get_node</span>(<span class="ident">id</span>);
+
+            <span class="comment">// check to see if we can do this node yet</span>
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ids_has_all_children</span> <span class="op">=</span> <span class="bool-val">true</span>;
+            <span class="kw">for</span> <span class="ident">child</span> <span class="kw">in</span> <span class="ident">node</span>.<span class="ident">children</span>() {
+                <span class="kw">if</span> <span class="op">!</span><span class="ident">ids</span>.<span class="ident">contains_key</span>(<span class="ident">child</span>) {
+                    <span class="ident">ids_has_all_children</span> <span class="op">=</span> <span class="bool-val">false</span>;
+                    <span class="ident">todo</span>.<span class="ident">push</span>(<span class="kw-2">*</span><span class="ident">child</span>)
+                }
+            }
+
+            <span class="comment">// all children are processed, so we can lookup this node safely</span>
+            <span class="kw">if</span> <span class="ident">ids_has_all_children</span> {
+                <span class="kw">let</span> <span class="ident">node</span> <span class="op">=</span> <span class="ident">node</span>.<span class="ident">map_children</span>(<span class="op">|</span><span class="ident">id</span><span class="op">|</span> <span class="ident">ids</span>[<span class="kw-2">&amp;</span><span class="ident">id</span>]);
+                <span class="kw">let</span> <span class="ident">new_id</span> <span class="op">=</span> <span class="ident">set</span>.<span class="ident">insert_full</span>(<span class="ident">node</span>).<span class="number">0</span>;
+                <span class="ident">ids</span>.<span class="ident">insert</span>(<span class="ident">id</span>, <span class="ident">Id</span>::<span class="ident">from</span>(<span class="ident">new_id</span>));
+                <span class="ident">todo</span>.<span class="ident">pop</span>();
+            }
+        }
+
+        <span class="comment">// finally, add the root node and create the expression</span>
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">nodes</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">set</span>.<span class="ident">into_iter</span>().<span class="ident">collect</span>();
+        <span class="ident">nodes</span>.<span class="ident">push</span>(<span class="self">self</span>.<span class="ident">clone</span>().<span class="ident">map_children</span>(<span class="op">|</span><span class="ident">id</span><span class="op">|</span> <span class="ident">ids</span>[<span class="kw-2">&amp;</span><span class="ident">id</span>]));
+        <span class="ident">RecExpr</span>::<span class="ident">from</span>(<span class="ident">nodes</span>)
     }
 }
 
@@ -1144,37 +1234,7 @@
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">extract</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">new_root</span>: <span class="ident">Id</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ids</span> <span class="op">=</span> <span class="ident">HashMap</span>::<span class="op">&lt;</span><span class="ident">Id</span>, <span class="ident">Id</span><span class="op">&gt;</span>::<span class="ident">default</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">set</span> <span class="op">=</span> <span class="ident">IndexSet</span>::<span class="ident">default</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">todo</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">new_root</span>];
-        <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">id</span>) <span class="op">=</span> <span class="ident">todo</span>.<span class="ident">last</span>().<span class="ident">copied</span>() {
-            <span class="kw">if</span> <span class="ident">ids</span>.<span class="ident">contains_key</span>(<span class="kw-2">&amp;</span><span class="ident">id</span>) {
-                <span class="ident">todo</span>.<span class="ident">pop</span>();
-                <span class="kw">continue</span>;
-            }
-
-            <span class="kw">let</span> <span class="ident">node</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>[<span class="ident">id</span>];
-
-            <span class="comment">// check to see if we can do this node yet</span>
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ids_has_all_children</span> <span class="op">=</span> <span class="bool-val">true</span>;
-            <span class="kw">for</span> <span class="ident">child</span> <span class="kw">in</span> <span class="ident">node</span>.<span class="ident">children</span>() {
-                <span class="kw">if</span> <span class="op">!</span><span class="ident">ids</span>.<span class="ident">contains_key</span>(<span class="ident">child</span>) {
-                    <span class="ident">ids_has_all_children</span> <span class="op">=</span> <span class="bool-val">false</span>;
-                    <span class="ident">todo</span>.<span class="ident">push</span>(<span class="kw-2">*</span><span class="ident">child</span>)
-                }
-            }
-
-            <span class="comment">// all children are processed, so we can lookup this node safely</span>
-            <span class="kw">if</span> <span class="ident">ids_has_all_children</span> {
-                <span class="kw">let</span> <span class="ident">new_id</span> <span class="op">=</span> <span class="ident">set</span>.<span class="ident">insert_full</span>(<span class="ident">node</span>.<span class="ident">clone</span>().<span class="ident">map_children</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="ident">ids</span>[<span class="kw-2">&amp;</span><span class="ident">i</span>])).<span class="number">0</span>;
-                <span class="ident">ids</span>.<span class="ident">insert</span>(<span class="ident">id</span>, <span class="ident">Id</span>::<span class="ident">from</span>(<span class="ident">new_id</span>));
-                <span class="ident">todo</span>.<span class="ident">pop</span>();
-            }
-        }
-
-        <span class="self">Self</span> {
-            <span class="ident">nodes</span>: <span class="ident">set</span>.<span class="ident">into_iter</span>().<span class="ident">collect</span>(),
-        }
+        <span class="self">self</span>[<span class="ident">new_root</span>].<span class="ident">build_recexpr</span>(<span class="op">|</span><span class="ident">id</span><span class="op">|</span> <span class="self">self</span>[<span class="ident">id</span>].<span class="ident">clone</span>())
     }
 
     <span class="doccomment">/// Checks if this expr is a DAG, i.e. doesn&#39;t have any back edges</span>
