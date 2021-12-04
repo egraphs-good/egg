@@ -4,6 +4,8 @@ These are not considered part of the public api.
 */
 
 use std::fmt::Display;
+use std::io::{self, Write};
+use std::process::{Command, Stdio};
 
 use crate::*;
 
@@ -24,6 +26,177 @@ where
     }
 }
 
+fn get_z3_funcs<L>(pattern: &PatternAst<L>) -> HashSet<(String, usize)>
+where
+    L: Language + Display + 'static,
+{
+    let mut set: HashSet<(String, usize)> = Default::default();
+
+    for node in pattern.as_ref() {
+        if let ENodeOrVar::ENode(node) = node {
+            set.insert((node.to_string(), node.children().len()));
+        }
+    }
+
+    set
+}
+
+fn get_all_z3_funcs_consts<L, A>(
+    rules: &[Rewrite<L, A>],
+    start: &RecExpr<L>,
+    goals: &[Pattern<L>],
+) -> (Vec<String>, Vec<String>)
+where
+    L: Language + Display + 'static,
+    A: Analysis<L> + Default,
+{
+    let mut set: HashSet<(String, usize)> = Default::default();
+
+    let mut const_set: HashSet<String> = Default::default();
+
+    for rule in rules {
+        set = set
+            .union(&get_z3_funcs(rule.searcher.get_pattern_ast().unwrap()))
+            .cloned()
+            .collect();
+        set = set
+            .union(&get_z3_funcs(rule.applier.get_pattern_ast().unwrap()))
+            .cloned()
+            .collect();
+    }
+
+    for node in start.as_ref() {
+        set.insert((node.to_string(), node.children().len()));
+    }
+
+    for goal in goals {
+        set = set.union(&get_z3_funcs(&goal.ast)).cloned().collect();
+    }
+
+    let mut res = vec![];
+    let mut consts = vec![];
+
+    for s in set {
+        if s.1 > 0 {
+            let avec = vec!["Int"; s.1];
+            res.push(format!("(declare-fun {} ({}) Int)", s.0, avec.join(" ")));
+        } else {
+            if s.0.parse::<i64>().is_err() {
+                consts.push(format!("(declare-const {} Int)", s.0));
+            }
+        }
+    }
+
+    (res, consts)
+}
+
+fn get_z3_rewrites<L, A>(rules: &[Rewrite<L, A>]) -> Vec<String>
+where
+    L: Language + Display + 'static,
+    A: Analysis<L> + Default,
+{
+    let mut results = Vec::new();
+    for rule in rules {
+        let left_pat = rule.searcher.get_pattern_ast().unwrap();
+        let right_pat = rule.applier.get_pattern_ast().unwrap();
+        let left = left_pat.to_string();
+        let right = right_pat.to_string();
+        let mut vars: HashSet<String> = Default::default();
+        for node in left_pat.as_ref() {
+            if let ENodeOrVar::Var(v) = node {
+                vars.insert(v.to_string());
+            }
+        }
+        for node in right_pat.as_ref() {
+            if let ENodeOrVar::Var(v) = node {
+                vars.insert(v.to_string());
+            }
+        }
+
+        let final_str = if vars.len() == 0 {
+            format!("(assert (= {} {}))", left, right)
+        } else {
+            let vars_str = format!(
+                "({})",
+                vars.iter()
+                    .map(|v| format!("({} Int)", v))
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            );
+
+            format!("(assert (forall {} (= {} {})))", vars_str, left, right)
+        };
+        results.push(final_str);
+    }
+
+    results
+}
+
+fn test_z3<L, A>(rules: &[Rewrite<L, A>], start: RecExpr<L>, goals: &[Pattern<L>])
+where
+    L: Language + Display + 'static,
+    A: Analysis<L> + Default,
+{
+    let quantified_rewrites = get_z3_rewrites(rules);
+    let (funs, consts) = get_all_z3_funcs_consts(rules, &start, goals);
+    let current_goal = &goals[0];
+    let mut goal_vars: HashSet<String> = Default::default();
+    for node in current_goal.ast.as_ref() {
+        if let ENodeOrVar::Var(v) = node {
+            goal_vars.insert(v.to_string());
+        }
+    }
+
+    let goal_string = if goal_vars.len() == 0 {
+        format!(
+            "(assert (not (= {} {})))",
+            start.to_string(),
+            current_goal.ast.to_string()
+        )
+    } else {
+        format!(
+            "(assert (forall ({}) (not (= {} {}))))",
+            goal_vars
+                .iter()
+                .map(|v| format!("({} Int)", v))
+                .collect::<Vec<_>>()
+                .join(" "),
+            start.to_string(),
+            current_goal.ast.to_string(),
+        )
+    };
+
+    let mut z3_process = Command::new("z3")
+        .arg("-smt2")
+        .arg("-in")
+        .stdin(Stdio::piped())
+        //.stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+
+    let z3_input = vec!["(set-option :produce-proofs true)".to_string(),
+                    consts.join("\n"),
+                    funs.join("\n"),
+                    quantified_rewrites.join("\n"),
+                    goal_string,
+                    "(check-sat)".to_string(),
+                    "(get-proof)".to_string(),].join("\n");
+
+                    println!("{}", z3_input);
+
+
+    let z3_in = z3_process.stdin.as_mut().unwrap();
+    z3_in
+        .write_all(z3_input.as_bytes())
+        .unwrap();
+
+    drop(z3_in);
+
+    z3_process.wait().unwrap();
+    //let output = z3_process.wait_with_output().unwrap();
+    //println!("Output from z3 = {:?}", output);
+}
+
 #[allow(clippy::type_complexity)]
 pub fn test_runner<L, A>(
     name: &str,
@@ -37,6 +210,8 @@ pub fn test_runner<L, A>(
     L: Language + Display + 'static,
     A: Analysis<L> + Default,
 {
+    test_z3(rules, start.clone(), goals);
+
     let mut runner = runner.unwrap_or_default();
 
     if let Some(lim) = env_var("EGG_NODE_LIMIT") {

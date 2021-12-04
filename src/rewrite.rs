@@ -357,6 +357,10 @@ where
     A: Applier<L, N>,
     N: Analysis<L>,
 {
+    fn get_pattern_ast(&self) -> Option<&PatternAst<L>> {
+        self.applier.get_pattern_ast()
+    }
+
     fn apply_one(
         &self,
         egraph: &mut EGraph<L, N>,
