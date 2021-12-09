@@ -6,6 +6,7 @@ These are not considered part of the public api.
 use std::fmt::Display;
 use std::io::{self, Write};
 use std::process::{Command, Stdio};
+use symbolic_expressions::Sexp;
 
 use crate::*;
 
@@ -73,16 +74,16 @@ where
         set = set.union(&get_z3_funcs(&goal.ast)).cloned().collect();
     }
 
-    let mut res = vec![];
+    let mut res = vec!["(declare-fun wrap-int (Int) A)".to_string()];
     let mut consts = vec![];
 
     for s in set {
         if s.1 > 0 {
-            let avec = vec!["Int"; s.1];
-            res.push(format!("(declare-fun {} ({}) Int)", s.0, avec.join(" ")));
+            let avec = vec!["A"; s.1];
+            res.push(format!("(declare-fun {} ({}) A)", s.0, avec.join(" ")));
         } else {
             if s.0.parse::<i64>().is_err() {
-                consts.push(format!("(declare-const {} Int)", s.0));
+                consts.push(format!("(declare-const {} A)", s.0));
             }
         }
     }
@@ -90,17 +91,48 @@ where
     (res, consts)
 }
 
+fn get_const_fold_rewrites() -> Vec<String> {
+    let mut res = vec![];
+
+    let ops = vec!["+", "-", "*", "/"];
+    for op in ops {
+        res.push(format!("(assert (forall ((?x Int) (?y Int)) (= ({} (wrap-int ?x) (wrap-int ?y)) (wrap-int ({} ?x ?y)))))", op, op));
+    }
+    res
+}
+
+fn wrap_ints(sexp: Sexp) -> Sexp {
+    match sexp {
+        Sexp::List(l) => {
+            Sexp::List(l.into_iter().map(wrap_ints).collect())
+        }
+        Sexp::String(s) => {
+            if s.parse::<i64>().is_ok() {
+                Sexp::List(vec![Sexp::String("wrap-int".to_string()), Sexp::String(s)])
+            } else {
+                Sexp::String(s)
+            }
+        }
+        Empty => Empty,
+    }
+}
+
+fn pat_to_z3_string<L: Language + Display>(pat: &PatternAst<L>) -> String {
+    let sexp = pat.to_sexp(usize::from(pat.as_ref().len()-1));
+    wrap_ints(sexp).to_string()
+}
+
 fn get_z3_rewrites<L, A>(rules: &[Rewrite<L, A>]) -> Vec<String>
 where
     L: Language + Display + 'static,
     A: Analysis<L> + Default,
 {
-    let mut results = Vec::new();
+    let mut results = get_const_fold_rewrites();
     for rule in rules {
         let left_pat = rule.searcher.get_pattern_ast().unwrap();
         let right_pat = rule.applier.get_pattern_ast().unwrap();
-        let left = left_pat.to_string();
-        let right = right_pat.to_string();
+        let left = pat_to_z3_string(left_pat);
+        let right = pat_to_z3_string(right_pat);
         let mut vars: HashSet<String> = Default::default();
         for node in left_pat.as_ref() {
             if let ENodeOrVar::Var(v) = node {
@@ -119,7 +151,7 @@ where
             let vars_str = format!(
                 "({})",
                 vars.iter()
-                    .map(|v| format!("({} Int)", v))
+                    .map(|v| format!("({} A)", v))
                     .collect::<Vec<_>>()
                     .join(" ")
             );
@@ -150,19 +182,19 @@ where
     let goal_string = if goal_vars.len() == 0 {
         format!(
             "(assert (not (= {} {})))",
-            start.to_string(),
-            current_goal.ast.to_string()
+            wrap_ints(start.to_sexp(start.as_ref().len() - 1)),
+            pat_to_z3_string(&current_goal.ast)
         )
     } else {
         format!(
             "(assert (forall ({}) (not (= {} {}))))",
             goal_vars
                 .iter()
-                .map(|v| format!("({} Int)", v))
+                .map(|v| format!("({} A)", v))
                 .collect::<Vec<_>>()
                 .join(" "),
-            start.to_string(),
-            current_goal.ast.to_string(),
+            wrap_ints(start.to_sexp(start.as_ref().len() - 1)),
+            pat_to_z3_string(&current_goal.ast),
         )
     };
 
@@ -175,6 +207,7 @@ where
         .unwrap();
 
     let z3_input = vec!["(set-option :produce-proofs true)".to_string(),
+                    "(declare-sort A)".to_string(),
                     consts.join("\n"),
                     funs.join("\n"),
                     quantified_rewrites.join("\n"),

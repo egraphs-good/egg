@@ -370,7 +370,7 @@ impl<L: Language + Display> Display for RecExpr<L> {
 }
 
 impl<L: Language + Display> RecExpr<L> {
-    fn to_sexp(&self, i: usize) -> Sexp {
+    pub fn to_sexp(&self, i: usize) -> Sexp {
         let node = &self.nodes[i];
         let op = Sexp::String(node.to_string());
         if node.is_leaf() {
