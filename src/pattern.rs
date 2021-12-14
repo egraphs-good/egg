@@ -454,6 +454,9 @@ mod tests {
         egraph.add_expr(&"(f a a)".parse().unwrap());
         egraph.add_expr(&"(f a (g a))))".parse().unwrap());
         egraph.add_expr(&"(f a (g b))))".parse().unwrap());
+        egraph.add_expr(&"(h (foo a b) 0 1)".parse().unwrap());
+        egraph.add_expr(&"(h (foo a b) 1 0)".parse().unwrap());
+        egraph.add_expr(&"(h (foo a b) 0 0)".parse().unwrap());
         egraph.rebuild();
 
         let n_matches = |s: &str| s.parse::<Pattern<S>>().unwrap().n_matches(&egraph);
@@ -462,5 +465,6 @@ mod tests {
         assert_eq!(n_matches("(f ?x ?x)"), 1);
         assert_eq!(n_matches("(f ?x (g ?y))))"), 2);
         assert_eq!(n_matches("(f ?x (g ?x))))"), 1);
+        assert_eq!(n_matches("(h ?x 0 0)"), 1);
     }
 }
