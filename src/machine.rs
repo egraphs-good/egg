@@ -136,7 +136,7 @@ struct Compiler<'a, L> {
     pattern: &'a PatternAst<L>,
     v2r: IndexMap<Var, Reg>,
     free_vars: Vec<HashSet<Var>>,
-    todo_nodes: HashMap<Id, (Reg, L)>,
+    todo_nodes: HashMap<(Id, Reg), L>,
     instructions: Vec<Instruction<L>>,
 }
 
@@ -179,18 +179,18 @@ impl<'a, L: Language> Compiler<'a, L> {
                 }
             }
             ENodeOrVar::ENode(pat) => {
-                self.todo_nodes.insert(id, (reg, pat.clone()));
+                self.todo_nodes.insert((id, reg), pat.clone());
             }
         }
     }
 
-    fn next(&mut self) -> Option<(Id, (Reg, L))> {
+    fn next(&mut self) -> Option<((Id, Reg), L)> {
         // we take the max todo according to this key
         // - prefer grounded
         // - prefer variables
         // - prefer more free vars (if not grounded)
-        let key = |id: &&Id| {
-            let n_free = self.free_vars[usize::from(**id)]
+        let key = |(id, _): &&(Id, Reg)| {
+            let n_free = self.free_vars[usize::from(*id)]
                 .iter()
                 .filter(|v| self.v2r.contains_key(*v))
                 .count() as isize;
@@ -201,7 +201,7 @@ impl<'a, L: Language> Compiler<'a, L> {
             .keys()
             .max_by_key(key)
             .copied()
-            .map(|id| (id, self.todo_nodes.remove(&id).unwrap()))
+            .map(|k| (k, self.todo_nodes.remove(&k).unwrap()))
     }
 
     /// check to see if this e-node corresponds to a term that is grounded by
@@ -218,7 +218,7 @@ impl<'a, L: Language> Compiler<'a, L> {
 
         self.add_todo(Id::from(last_i), Reg(0));
 
-        while let Some((id, (reg, node))) = self.next() {
+        while let Some(((id, reg), node)) = self.next() {
             if self.is_ground_now(id) && !node.is_leaf() {
                 let extracted = self.pattern.extract(id);
                 self.instructions.push(Instruction::Lookup {
