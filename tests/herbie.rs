@@ -5,7 +5,13 @@ use instant::{Duration, Instant};
 use num_bigint::BigInt;
 use num_rational::Ratio;
 use num_traits::{Pow, Signed, Zero};
+use std::collections::HashSet;
 use std::str::FromStr;
+
+use std::fmt::Display;
+use std::io::{self, Write};
+use std::process::{Command, Stdio};
+use symbolic_expressions::Sexp;
 
 pub type Constant = num_rational::BigRational;
 pub type RecExpr = egg::RecExpr<Math>;
@@ -617,6 +623,196 @@ fn herbie_prove_cbrt() {
     );
 }
 
+fn get_z3_funcs<L>(pattern: &PatternAst<L>) -> HashSet<(String, usize)>
+where
+    L: Language + Display + 'static,
+{
+    let mut set: HashSet<(String, usize)> = Default::default();
+
+    for node in pattern.as_ref() {
+        if let ENodeOrVar::ENode(node) = node {
+            set.insert((node.to_string(), node.children().len()));
+        }
+    }
+
+    set
+}
+
+fn get_all_z3_funcs_consts<L, A>(
+    rules: &[egg::Rewrite<L, A>],
+    start: &egg::RecExpr<L>,
+    end: &egg::RecExpr<L>,
+) -> (Vec<String>, Vec<String>)
+where
+    L: Language + Display + 'static,
+    A: Analysis<L> + Default,
+{
+    let mut set: HashSet<(String, usize)> = Default::default();
+
+    let mut const_set: HashSet<String> = Default::default();
+
+    for rule in rules {
+        set = set
+            .union(&get_z3_funcs(rule.searcher.get_pattern_ast().unwrap()))
+            .cloned()
+            .collect();
+        set = set
+            .union(&get_z3_funcs(rule.applier.get_pattern_ast().unwrap()))
+            .cloned()
+            .collect();
+    }
+
+    for node in start.as_ref() {
+        set.insert((node.to_string(), node.children().len()));
+    }
+
+    for node in end.as_ref() {
+        set.insert((node.to_string(), node.children().len()));
+    }
+
+    let mut res = vec!["(declare-fun wrap-rat (Real) A)".to_string()];
+    let mut consts = vec![];
+
+    for s in set {
+        if s.1 > 0 {
+            let avec = vec!["A"; s.1];
+            res.push(format!("(declare-fun {} ({}) A)", s.0, avec.join(" ")));
+        } else {
+            if s.0.parse::<i64>().is_err() {
+                if s.0.parse::<Ratio<BigInt>>().is_err() {
+                    consts.push(format!("(declare-const {} A)", s.0));
+                }
+            }
+        }
+    }
+
+    (res, consts)
+}
+
+fn get_const_fold_rewrites() -> Vec<String> {
+    let mut res = vec![];
+
+    let ops = vec!["+", "-", "*", "/"];
+    for op in ops {
+        res.push(format!("(assert (forall ((?t A) (?x Real) (?y Real)) (= ({} ?t (wrap-rat ?x) (wrap-rat ?y)) (wrap-rat ({} ?x ?y)))))", op, op));
+    }
+    res
+}
+
+fn wrap_ints(sexp: Sexp) -> Sexp {
+    match sexp {
+        Sexp::List(l) => Sexp::List(l.into_iter().map(wrap_ints).collect()),
+        Sexp::String(s) => {
+            if s.parse::<i64>().is_ok() {
+                Sexp::List(vec![Sexp::String("wrap-rat".to_string()), Sexp::String(s)])
+            } else if let Ok(num) = s.parse::<Ratio<BigInt>>() {
+                let rat_sexp = Sexp::List(vec![
+                    Sexp::String("/".to_string()),
+                    Sexp::String(num.numer().to_string()),
+                    Sexp::String(num.denom().to_string()),
+                ]);
+                Sexp::List(vec![Sexp::String("wrap-rat".to_string()), rat_sexp])
+            } else {
+                Sexp::String(s)
+            }
+        }
+        Empty => Empty,
+    }
+}
+
+fn pat_to_z3_string<L: Language + Display>(pat: &PatternAst<L>) -> String {
+    let sexp = pat.to_sexp(usize::from(pat.as_ref().len() - 1));
+    wrap_ints(sexp).to_string()
+}
+
+fn get_z3_rewrites<L, A>(rules: &[egg::Rewrite<L, A>]) -> Vec<String>
+where
+    L: Language + Display + 'static,
+    A: Analysis<L> + Default,
+{
+    let mut results = get_const_fold_rewrites();
+    for rule in rules {
+        let left_pat = rule.searcher.get_pattern_ast().unwrap();
+        let right_pat = rule.applier.get_pattern_ast().unwrap();
+        let left = pat_to_z3_string(left_pat);
+        let right = pat_to_z3_string(right_pat);
+        let mut vars: HashSet<String> = Default::default();
+        for node in left_pat.as_ref() {
+            if let ENodeOrVar::Var(v) = node {
+                vars.insert(v.to_string());
+            }
+        }
+        for node in right_pat.as_ref() {
+            if let ENodeOrVar::Var(v) = node {
+                vars.insert(v.to_string());
+            }
+        }
+
+        let final_str = if vars.len() == 0 {
+            format!("(assert (= {} {}))", left, right)
+        } else {
+            let vars_str = format!(
+                "({})",
+                vars.iter()
+                    .map(|v| format!("({} A)", v))
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            );
+
+            format!("(assert (forall {} (= {} {})))", vars_str, left, right)
+        };
+        results.push(final_str);
+    }
+
+    results
+}
+
+fn test_z3<L, A>(rules: &[egg::Rewrite<L, A>], start: egg::RecExpr<L>, end: egg::RecExpr<L>)
+where
+    L: Language + Display + 'static,
+    A: Analysis<L> + Default,
+{
+    let quantified_rewrites = get_z3_rewrites(rules);
+    let (funs, consts) = get_all_z3_funcs_consts(rules, &start, &end);
+
+    let goal_string = format!(
+        "(assert (not (= {} {})))",
+        wrap_ints(start.to_sexp(start.as_ref().len() - 1)),
+        wrap_ints(end.to_sexp(end.as_ref().len() - 1))
+    );
+
+    let mut z3_process = Command::new("z3")
+        .arg("-smt2")
+        .arg("-in")
+        .stdin(Stdio::piped())
+        //.stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+
+    let z3_input = vec![
+        "(set-option :produce-proofs true)".to_string(),
+        "(declare-sort A)".to_string(),
+        consts.join("\n"),
+        funs.join("\n"),
+        quantified_rewrites.join("\n"),
+        goal_string,
+        "(check-sat)".to_string(),
+        "(get-proof)".to_string(),
+    ]
+    .join("\n");
+
+    //println!("{}", z3_input);
+
+    let z3_in = z3_process.stdin.as_mut().unwrap();
+    z3_in.write_all(z3_input.as_bytes()).unwrap();
+
+    drop(z3_in);
+
+    z3_process.wait().unwrap();
+    //let output = z3_process.wait_with_output().unwrap();
+    //println!("Output from z3 = {:?}", output);
+}
+
 #[cfg(feature = "reports")]
 mod proofbench {
     use super::*;
@@ -664,10 +860,17 @@ mod proofbench {
         slow.check_proof(rules);
         let normal_len = normal.get_flat_sexps().len();
         let slow_len = slow.get_flat_sexps().len();
+
         writeln!(
             output,
             "({} {} {} {} {} {} {})",
-            proof, duration_normal, duration_slow, normal_len, slow_len, normal.get_tree_size(), slow.get_tree_size()
+            proof,
+            duration_normal,
+            duration_slow,
+            normal_len,
+            slow_len,
+            normal.get_tree_size(),
+            slow.get_tree_size()
         )
         .unwrap();
         assert!(slow_len <= normal_len);
@@ -711,12 +914,24 @@ mod proofbench {
 
         runner = runner.run(&rules);
 
-        for proof in proofs_sexps {
+        if true {
             if skip > &mut 0 {
                 *skip -= 1;
-                continue;
+                return;
             }
-            herbie_benchmark_proof(&mut runner, &proof, output, &rules);
+            let proof = &proofs_sexps[0];
+            let pair = unwrap_sexp_list(proof);
+            let start_parsed: egg::RecExpr<_> = unwrap_sexp_string(&pair[0]).parse().unwrap();
+            let end_parsed: egg::RecExpr<_> = unwrap_sexp_string(&pair[1]).parse().unwrap();
+            test_z3(&rules, start_parsed, end_parsed);
+        } else {
+            for proof in proofs_sexps {
+                if skip > &mut 0 {
+                    *skip -= 1;
+                    continue;
+                }
+                herbie_benchmark_proof(&mut runner, &proof, output, &rules);
+            }
         }
     }
 

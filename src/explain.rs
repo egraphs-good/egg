@@ -172,7 +172,11 @@ impl<L: Language + Display> Explanation<L> {
         sum
     }
 
-    fn tree_size(&self, seen: &mut HashSet<*const TreeTerm<L>>, current: &Rc<TreeTerm<L>>) -> usize {
+    fn tree_size(
+        &self,
+        seen: &mut HashSet<*const TreeTerm<L>>,
+        current: &Rc<TreeTerm<L>>,
+    ) -> usize {
         if !seen.insert(&**current as *const TreeTerm<L>) {
             return 0;
         }
@@ -191,7 +195,6 @@ impl<L: Language + Display> Explanation<L> {
         }
         my_size
     }
-
 
     /// Get the tree-style explanation as an s-expression with let binding
     /// to enable sharing of subproofs.
@@ -250,7 +253,7 @@ impl<L: Language + Display> Explanation<L> {
                 items.push(e.get_sexp_with_bindings(&bindings));
             }
         }
-        
+
         let mut result = Sexp::List(items);
 
         for (name, expr) in generated_bindings.into_iter().rev() {

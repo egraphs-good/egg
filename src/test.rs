@@ -103,9 +103,7 @@ fn get_const_fold_rewrites() -> Vec<String> {
 
 fn wrap_ints(sexp: Sexp) -> Sexp {
     match sexp {
-        Sexp::List(l) => {
-            Sexp::List(l.into_iter().map(wrap_ints).collect())
-        }
+        Sexp::List(l) => Sexp::List(l.into_iter().map(wrap_ints).collect()),
         Sexp::String(s) => {
             if s.parse::<i64>().is_ok() {
                 Sexp::List(vec![Sexp::String("wrap-int".to_string()), Sexp::String(s)])
@@ -118,7 +116,7 @@ fn wrap_ints(sexp: Sexp) -> Sexp {
 }
 
 fn pat_to_z3_string<L: Language + Display>(pat: &PatternAst<L>) -> String {
-    let sexp = pat.to_sexp(usize::from(pat.as_ref().len()-1));
+    let sexp = pat.to_sexp(usize::from(pat.as_ref().len() - 1));
     wrap_ints(sexp).to_string()
 }
 
@@ -206,22 +204,22 @@ where
         .spawn()
         .unwrap();
 
-    let z3_input = vec!["(set-option :produce-proofs true)".to_string(),
-                    "(declare-sort A)".to_string(),
-                    consts.join("\n"),
-                    funs.join("\n"),
-                    quantified_rewrites.join("\n"),
-                    goal_string,
-                    "(check-sat)".to_string(),
-                    "(get-proof)".to_string(),].join("\n");
+    let z3_input = vec![
+        "(set-option :produce-proofs true)".to_string(),
+        "(declare-sort A)".to_string(),
+        consts.join("\n"),
+        funs.join("\n"),
+        quantified_rewrites.join("\n"),
+        goal_string,
+        "(check-sat)".to_string(),
+        "(get-proof)".to_string(),
+    ]
+    .join("\n");
 
-                    println!("{}", z3_input);
-
+    println!("{}", z3_input);
 
     let z3_in = z3_process.stdin.as_mut().unwrap();
-    z3_in
-        .write_all(z3_input.as_bytes())
-        .unwrap();
+    z3_in.write_all(z3_input.as_bytes()).unwrap();
 
     drop(z3_in);
 
