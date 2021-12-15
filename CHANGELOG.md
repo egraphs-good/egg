@@ -2,6 +2,14 @@
 
 ## [Unreleased] - ReleaseDate
 
+## [0.7.1] - 2021-12-14
+
+This patch fixes a pretty bad e-matching bug introduced in 0.7.0. Please upgrade!
+
+### Fixed
+- (#143) Non-linear patterns e-match correctly again
+- (#141) Loosen requirement on FromOp::Error
+
 ## [0.7.0] - 2021-11-23
 
 It's a been a long time since a release! 
@@ -164,7 +172,8 @@ But hopefully things will be a little more stable from here on out
 since the API is a lot nicer.
 
 <!-- next-url -->
-[Unreleased]: https://github.com/egraphs-good/egg/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/egraphs-good/egg/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/egraphs-good/egg/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/egraphs-good/egg/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/egraphs-good/egg/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/egraphs-good/egg/compare/v0.4.1...v0.5.0
