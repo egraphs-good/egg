@@ -2,7 +2,7 @@ use fmt::Formatter;
 use log::*;
 use std::borrow::Cow;
 use std::fmt::{self, Display};
-use std::{convert::TryFrom, error::Error, str::FromStr};
+use std::{convert::TryFrom, str::FromStr};
 
 use thiserror::Error;
 
@@ -72,7 +72,42 @@ pub struct Pattern<L> {
 /// [`Pattern`].
 pub type PatternAst<L> = RecExpr<ENodeOrVar<L>>;
 
+impl<L: Language> PatternAst<L> {
+    /// Returns a new `PatternAst` with the variables renames canonically
+    pub fn alpha_rename(&self) -> Self {
+        let mut vars = HashMap::<Var, Var>::default();
+        let mut new = PatternAst::default();
+
+        fn mkvar(i: usize) -> Var {
+            let vs = &["?x", "?y", "?z", "?w"];
+            match vs.get(i) {
+                Some(v) => v.parse().unwrap(),
+                None => format!("?v{}", i - vs.len()).parse().unwrap(),
+            }
+        }
+
+        for n in self.as_ref() {
+            new.add(match n {
+                ENodeOrVar::ENode(_) => n.clone(),
+                ENodeOrVar::Var(v) => {
+                    let i = vars.len();
+                    ENodeOrVar::Var(*vars.entry(*v).or_insert_with(|| mkvar(i)))
+                }
+            });
+        }
+
+        new
+    }
+}
+
 impl<L: Language> Pattern<L> {
+    /// Creates a new pattern from the given pattern ast.
+    pub fn new(ast: PatternAst<L>) -> Self {
+        let ast = ast.compact();
+        let program = machine::Program::compile_from_pat(&ast);
+        Pattern { ast, program }
+    }
+
     /// Returns a list of the [`Var`]s in this pattern.
     pub fn vars(&self) -> Vec<Var> {
         let mut vars = vec![];
@@ -134,7 +169,7 @@ impl<L: Language + Display> Display for ENodeOrVar<L> {
 }
 
 #[derive(Debug, Error)]
-pub enum ENodeOrVarParseError<E: Error + 'static> {
+pub enum ENodeOrVarParseError<E> {
     #[error(transparent)]
     BadVar(<Var as FromStr>::Err),
 
@@ -175,14 +210,13 @@ impl<'a, L: Language> From<&'a [L]> for Pattern<L> {
     fn from(expr: &'a [L]) -> Self {
         let nodes: Vec<_> = expr.iter().cloned().map(ENodeOrVar::ENode).collect();
         let ast = RecExpr::from(nodes);
-        Self::from(ast)
+        Self::new(ast)
     }
 }
 
-impl<'a, L: Language> From<PatternAst<L>> for Pattern<L> {
+impl<L: Language> From<PatternAst<L>> for Pattern<L> {
     fn from(ast: PatternAst<L>) -> Self {
-        let program = machine::Program::compile_from_pat(&ast);
-        Pattern { ast, program }
+        Self::new(ast)
     }
 }
 
@@ -411,5 +445,26 @@ mod tests {
         let ext = Extractor::new(&egraph, AstSize);
         let (_, best) = ext.find_best(plus_id);
         eprintln!("Best: {:#?}", best);
+    }
+
+    #[test]
+    fn nonlinear_patterns() {
+        crate::init_logger();
+        let mut egraph = EGraph::default();
+        egraph.add_expr(&"(f a a)".parse().unwrap());
+        egraph.add_expr(&"(f a (g a))))".parse().unwrap());
+        egraph.add_expr(&"(f a (g b))))".parse().unwrap());
+        egraph.add_expr(&"(h (foo a b) 0 1)".parse().unwrap());
+        egraph.add_expr(&"(h (foo a b) 1 0)".parse().unwrap());
+        egraph.add_expr(&"(h (foo a b) 0 0)".parse().unwrap());
+        egraph.rebuild();
+
+        let n_matches = |s: &str| s.parse::<Pattern<S>>().unwrap().n_matches(&egraph);
+
+        assert_eq!(n_matches("(f ?x ?y)"), 3);
+        assert_eq!(n_matches("(f ?x ?x)"), 1);
+        assert_eq!(n_matches("(f ?x (g ?y))))"), 2);
+        assert_eq!(n_matches("(f ?x (g ?x))))"), 1);
+        assert_eq!(n_matches("(h ?x 0 0)"), 1);
     }
 }

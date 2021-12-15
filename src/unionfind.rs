@@ -14,6 +14,10 @@ impl UnionFind {
         id
     }
 
+    pub fn size(&self) -> usize {
+        self.parents.len()
+    }
+
     fn parent(&self, query: Id) -> Id {
         self.parents[usize::from(query)]
     }

@@ -1,11 +1,11 @@
-all: test nits bench
+all: test nits
 
 .PHONY: test
 test:
 	cargo test --release
 	cargo test --release --features=lp
 	# don't run examples in proof-production mode
-	EGG_TEST_EXPLANATIONS=true cargo test --lib --bins --tests --benches --release
+	cargo test --release --features "test-explanations"
 	
 
 .PHONY: nits
@@ -17,14 +17,6 @@ nits:
 	cargo deadlinks
 
 	cargo clippy --tests
-	EGG_TEST_EXPLANATIONS=true cargo clippy --tests
+	cargo clippy --tests --features "test-explanations"
 	cargo clippy --tests --features "serde-1"
 	cargo clippy --tests --features "reports"
-
-.PHONY: bench
-bench:
-	cargo bench | ./scripts/filter-iai-output.py
-
-.PHONY: bench_explanations
-bench_explanations:
-	EGG_TEST_EXPLANATIONS=true cargo bench | ./scripts/filter-iai-output.py

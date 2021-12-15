@@ -57,8 +57,9 @@ pub struct EGraph<L: Language, N: Analysis<L>> {
     /// The `Explain` used to explain equivalences in this `EGraph`.
     pub(crate) explain: Option<Explain<L>>,
     unionfind: UnionFind,
+    #[cfg_attr(feature = "serde-1", serde(with = "vectorize"))]
     memo: HashMap<L, Id>,
-    to_union: Vec<(Id, Id, Option<Symbol>)>,
+    to_union: Vec<(Id, Id, Option<Symbol>, bool)>,
     pending: Vec<(L, Id)>,
     analysis_pending: IndexSet<(L, Id)>,
     #[cfg_attr(
@@ -211,6 +212,35 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         }
     }
 
+    /// When explanations are enabled, this function
+    /// produces an [`Explanation`] describing how the given expression came
+    /// to be in the egraph.
+    ///
+    /// The [`Explanation`] begins with some expression that was added directly
+    /// into the egraph and ends with the given `expr`.
+    /// Note that this function can be called again to explain any intermediate terms
+    /// used in the output [`Explanation`].
+    pub fn explain_existance(&mut self, expr: &RecExpr<L>) -> Explanation<L> {
+        if let Some(explain) = &mut self.explain {
+            explain.explain_existance(expr, &self.memo, &mut self.unionfind)
+        } else {
+            panic!("Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations.")
+        }
+    }
+
+    /// Return an [`Explanation`] for why a pattern appears in the egraph.
+    pub fn explain_existance_pattern(
+        &mut self,
+        pattern: &PatternAst<L>,
+        subst: &Subst,
+    ) -> Explanation<L> {
+        if let Some(explain) = &mut self.explain {
+            explain.explain_existance_pattern(pattern, subst, &self.memo, &mut self.unionfind)
+        } else {
+            panic!("Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations.")
+        }
+    }
+
     /// Get an explanation for why an expression matches a pattern.
     pub fn explain_matches(
         &mut self,
@@ -303,9 +333,25 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     pub fn add_expr(&mut self, expr: &RecExpr<L>) -> Id {
         let nodes = expr.as_ref();
         let mut new_ids = Vec::with_capacity(nodes.len());
+        let mut new_node_q = Vec::with_capacity(nodes.len());
         for node in nodes {
-            let node = node.clone().map_children(|i| new_ids[usize::from(i)]);
-            new_ids.push(self.add(node))
+            let new_node = node.clone().map_children(|i| new_ids[usize::from(i)]);
+            let size_before = self.unionfind.size();
+            let next_id = self.add(new_node);
+            if self.unionfind.size() > size_before {
+                new_node_q.push(true);
+            } else {
+                new_node_q.push(false);
+            }
+            if let Some(explain) = &mut self.explain {
+                node.for_each(|child| {
+                    // Set the existance reason for new nodes to their parent node.
+                    if new_node_q[usize::from(child)] {
+                        explain.set_existance_reason(new_ids[usize::from(child)], next_id);
+                    }
+                });
+            }
+            new_ids.push(next_id);
         }
         *new_ids.last().unwrap()
     }
@@ -314,15 +360,31 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     pub fn add_instantiation(&mut self, pat: &PatternAst<L>, subst: &Subst) -> Id {
         let nodes = pat.as_ref().as_ref();
         let mut new_ids = Vec::with_capacity(nodes.len());
+        let mut new_node_q = Vec::with_capacity(nodes.len());
         for node in nodes {
             match node {
                 ENodeOrVar::Var(var) => {
                     let id = subst[*var];
                     new_ids.push(id);
+                    new_node_q.push(false);
                 }
                 ENodeOrVar::ENode(node) => {
-                    let node = node.clone().map_children(|i| new_ids[usize::from(i)]);
-                    new_ids.push(self.add(node))
+                    let new_node = node.clone().map_children(|i| new_ids[usize::from(i)]);
+                    let size_before = self.unionfind.size();
+                    let next_id = self.add(new_node);
+                    if self.unionfind.size() > size_before {
+                        new_node_q.push(true);
+                    } else {
+                        new_node_q.push(false);
+                    }
+                    if let Some(explain) = &mut self.explain {
+                        node.for_each(|child| {
+                            if new_node_q[usize::from(child)] {
+                                explain.set_existance_reason(new_ids[usize::from(child)], next_id);
+                            }
+                        });
+                    }
+                    new_ids.push(next_id);
                 }
             }
         }
@@ -365,7 +427,15 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     }
 
     /// Lookup the eclass of the given [`RecExpr`].
+    ///
+    /// Equivalent to the last value in [`EGraph::lookup_expr_ids`].
     pub fn lookup_expr(&self, expr: &RecExpr<L>) -> Option<Id> {
+        self.lookup_expr_ids(expr)
+            .and_then(|ids| ids.last().copied())
+    }
+
+    /// Lookup the eclasses of all the nodes in the given [`RecExpr`].
+    pub fn lookup_expr_ids(&self, expr: &RecExpr<L>) -> Option<Vec<Id>> {
         let nodes = expr.as_ref();
         let mut new_ids = Vec::with_capacity(nodes.len());
         for node in nodes {
@@ -373,7 +443,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             let id = self.lookup(node)?;
             new_ids.push(id)
         }
-        Some(*new_ids.last().unwrap())
+        Some(new_ids)
     }
 
     /// Adds an enode to the [`EGraph`].
@@ -393,7 +463,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         self.lookup(&mut enode).unwrap_or_else(|| {
             let id = self.unionfind.make_set();
             if let Some(explain) = &mut self.explain {
-                explain.add(enode.clone(), id);
+                explain.add(enode.clone(), id, id);
             }
             log::trace!("  ...adding to {}", id);
             let class = EClass {
@@ -464,13 +534,16 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         rule_name: impl Into<Symbol>,
     ) -> (Id, bool) {
         let id1 = self.add_instantiation(from_pat, subst);
+        let size_before = self.unionfind.size();
         let id2 = self.add_instantiation(to_pat, subst);
+        let rhs_new = self.unionfind.size() > size_before;
         (
             id1,
-            self.union_with_justification(id1, id2, from_pat, to_pat, subst, rule_name),
+            self.union_with_justification(id1, id2, from_pat, to_pat, subst, rule_name, rhs_new),
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn union_with_justification(
         &mut self,
         id1: Id,
@@ -479,6 +552,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         to_pat: &PatternAst<L>,
         subst: &Subst,
         rule_name: impl Into<Symbol>,
+        rhs_new: bool,
     ) -> bool {
         self.clean = false;
         if let Some(explain) = &mut self.explain {
@@ -487,9 +561,11 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             } else {
                 let left_added =
                     explain.add_match(from_pat, subst, &self.memo, &mut self.unionfind);
+                let size_before_right = self.unionfind.size();
                 let right_added = explain.add_match(to_pat, subst, &self.memo, &mut self.unionfind);
+                let any_new_rhs = rhs_new || self.unionfind.size() > size_before_right;
                 self.to_union
-                    .push((left_added, right_added, Some(rule_name.into())));
+                    .push((left_added, right_added, Some(rule_name.into()), any_new_rhs));
                 true
             }
         } else {
@@ -522,12 +598,18 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         if self.find_mut(id1) == self.find_mut(id2) {
             false
         } else {
-            self.to_union.push((id1, id2, None));
+            self.to_union.push((id1, id2, None, false));
             true
         }
     }
 
-    fn perform_union(&mut self, enode_id1: Id, enode_id2: Id, rule: Option<Justification>) -> bool {
+    fn perform_union(
+        &mut self,
+        enode_id1: Id,
+        enode_id2: Id,
+        rule: Option<Justification>,
+        any_new_rhs: bool,
+    ) -> bool {
         let mut id1 = self.find_mut(enode_id1);
         let mut id2 = self.find_mut(enode_id2);
         if id1 == id2 {
@@ -543,7 +625,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         N::pre_union(self, id1, id2);
 
         if let Some(explain) = &mut self.explain {
-            explain.union(enode_id1, enode_id2, rule.unwrap());
+            explain.union(enode_id1, enode_id2, rule.unwrap(), any_new_rhs);
         } else {
             assert!(rule.is_none());
         }
@@ -702,8 +784,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         while !self.to_union.is_empty() {
             let mut current = vec![];
             std::mem::swap(&mut self.to_union, &mut current);
-            for (id1, id2, rule) in current.into_iter() {
-                self.perform_union(id1, id2, rule.map(Justification::Rule));
+            for (id1, id2, rule, any_new_rhs) in current.into_iter() {
+                self.perform_union(id1, id2, rule.map(Justification::Rule), any_new_rhs);
             }
         }
     }
@@ -727,7 +809,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                         if self.explain.is_some() {
                             reason = Some(Justification::Congruence);
                         }
-                        let did_something = self.perform_union(memo_class, class, reason);
+                        let did_something = self.perform_union(memo_class, class, reason, false);
                         n_unions += did_something as usize;
                     }
                 }
@@ -877,14 +959,18 @@ mod tests {
         egraph.dot().to_dot("target/foo.dot").unwrap();
     }
 
-    #[cfg(feature = "serde-1")]
+    #[cfg(all(feature = "serde-1", feature = "serde_json"))]
     #[test]
     fn test_serde() {
         fn ser(_: &impl Serialize) {}
         fn de<'a>(_: &impl Deserialize<'a>) {}
 
-        let egraph = EGraph::<SymbolLang, ()>::default();
+        let mut egraph = EGraph::<SymbolLang, ()>::default();
+        egraph.add_expr(&"(foo bar baz)".parse().unwrap());
         ser(&egraph);
         de(&egraph);
+
+        let json_rep = serde_json::to_string_pretty(&egraph).unwrap();
+        println!("{}", json_rep);
     }
 }

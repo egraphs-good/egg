@@ -141,6 +141,11 @@ where
             .collect()
     }
 
+    /// Returns the number of matches in the e-graph
+    fn n_matches(&self, egraph: &EGraph<L, N>) -> usize {
+        self.search(egraph).iter().map(|m| m.substs.len()).sum()
+    }
+
     /// For patterns, return the ast directly as a reference
     fn get_pattern_ast(&self) -> Option<&PatternAst<L>> {
         None
@@ -185,7 +190,7 @@ where
 /// struct MinSize;
 /// impl Analysis<Math> for MinSize {
 ///     type Data = usize;
-///     fn merge(&self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
+///     fn merge(&mut self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
 ///         merge_min(to, from)
 ///     }
 ///     fn make(egraph: &EGraph, enode: &Math) -> Self::Data {
