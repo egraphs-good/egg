@@ -164,6 +164,15 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
     where
         F: FnMut(Id) -> Self,
     {
+        self.try_build_recexpr::<_, std::convert::Infallible>(|id| Ok(get_node(id)))
+            .unwrap()
+    }
+
+    /// Same as [`Language::build_recexpr`], but fallible.
+    fn try_build_recexpr<F, Err>(&self, mut get_node: F) -> Result<RecExpr<Self>, Err>
+    where
+        F: FnMut(Id) -> Result<Self, Err>,
+    {
         let mut set = IndexSet::<Self>::default();
         let mut ids = HashMap::<Id, Id>::default();
         let mut todo = self.children().to_vec();
@@ -174,7 +183,7 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
                 continue;
             }
 
-            let node = get_node(id);
+            let node = get_node(id)?;
 
             // check to see if we can do this node yet
             let mut ids_has_all_children = true;
@@ -197,7 +206,7 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
         // finally, add the root node and create the expression
         let mut nodes: Vec<Self> = set.into_iter().collect();
         nodes.push(self.clone().map_children(|id| ids[&id]));
-        RecExpr::from(nodes)
+        Ok(RecExpr::from(nodes))
     }
 }
 
