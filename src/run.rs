@@ -485,10 +485,24 @@ where
         let start_time = Instant::now();
 
         let mut matches = Vec::new();
+        let mut applied = IndexMap::default();
         result = result.and_then(|_| {
-            rules.iter().try_for_each(|rule| {
-                let ms = self.scheduler.search_rewrite(i, &self.egraph, rule);
-                matches.push(ms);
+            rules.iter().try_for_each(|rw| {
+                let ms = self.scheduler.search_rewrite(i, &self.egraph, rw);
+                if self.upwards_merging_enabled {
+                    let actually_matched = self.scheduler.apply_rewrite(i, &mut self.egraph, rw, ms);
+                    if actually_matched > 0 {
+                        if let Some(count) = applied.get_mut(&rw.name) {
+                            *count += actually_matched;
+                        } else {
+                            applied.insert(rw.name.to_owned(), actually_matched);
+                        }
+                        debug!("Applied {} {} times", rw.name, actually_matched);
+                    }
+                    self.egraph.rebuild();
+                } else {
+                    matches.push(ms);
+                }
                 self.check_limits()
             })
         });
@@ -498,7 +512,7 @@ where
 
         let apply_time = Instant::now();
 
-        let mut applied = IndexMap::default();
+        
         result = result.and_then(|_| {
             rules.iter().zip(matches).try_for_each(|(rw, ms)| {
                 let total_matches: usize = ms.iter().map(|m| m.substs.len()).sum();
@@ -506,9 +520,6 @@ where
 
                 let actually_matched = self.scheduler.apply_rewrite(i, &mut self.egraph, rw, ms);
                 if actually_matched > 0 {
-                    if self.upwards_merging_enabled {
-                        self.egraph.rebuild();
-                    }
                     if let Some(count) = applied.get_mut(&rw.name) {
                         *count += actually_matched;
                     } else {

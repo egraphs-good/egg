@@ -908,6 +908,7 @@ mod proofbench {
         let start_upwards_run = Instant::now();
         runner_upwards = runner_upwards.run(rules);
         let upwards_run_duration = start_upwards_run.elapsed().as_millis();
+        //runner_upwards.print_report();
 
         let start_z3 = Instant::now();
         let z3_res = test_z3(&rules, &start_parsed, &end_parsed);
@@ -938,14 +939,18 @@ mod proofbench {
         let upwards_normal_len;
         let upwards_normal_tree_size;
         if runner_upwards.egraph.add_expr(&start_parsed) != runner_upwards.egraph.add_expr(&end_parsed) {
-            panic!("upwards runner failed to find equality");
+            println!("upwards runner failed to find equality");
+            upwards_normal_time = "#f".to_string();
+            upwards_normal_len = "#f".to_string();
+            upwards_normal_tree_size = "#f".to_string();
+        } else {
+            let upwards_normal_instant = Instant::now();
+            let mut upwards_normal = runner_upwards.explain_equivalence(&start_parsed, &end_parsed, 100, true);
+            upwards_normal_time = format!("{}", upwards_normal_instant.elapsed().as_millis());
+            upwards_normal.check_proof(rules);
+            upwards_normal_len = format!("{}", upwards_normal.get_flat_sexps().len());
+            upwards_normal_tree_size = format!("{}", upwards_normal.get_tree_size());
         }
-        let upwards_normal_instant = Instant::now();
-        let mut upwards_normal = runner_upwards.explain_equivalence(&start_parsed, &end_parsed, 0, false);
-        upwards_normal_time = format!("{}", upwards_normal_instant.elapsed().as_millis());
-        upwards_normal.check_proof(rules);
-        upwards_normal_len = format!("{}", upwards_normal.get_flat_sexps().len());
-        upwards_normal_tree_size = format!("{}", upwards_normal.get_tree_size());
 
         writeln!(
             output,
@@ -971,12 +976,14 @@ mod proofbench {
         std::io::stdout().flush().unwrap();
     }
 
-    fn herbie_runner(expressions: &Sexp, node_limit: usize) -> Runner {
+    fn herbie_runner(expressions: &Sexp, node_limit: usize, timeout: u64, start: &RecExpr, end: &RecExpr, use_hook: bool) -> Runner {
+        let start_cloned = start.clone();
+        let end_cloned = end.clone();
         let mut runner = Runner::new(Default::default())
             .with_explanations_enabled()
             .with_node_limit(node_limit)
             .with_iter_limit(usize::MAX) // should never hit
-            .with_time_limit(Duration::from_secs(u64::MAX))
+            .with_time_limit(Duration::from_secs(timeout))
             .with_hook(|r| {
                 if r.egraph.analysis.unsound.load(Ordering::SeqCst) {
                     Err("Unsoundness detected".into())
@@ -984,6 +991,18 @@ mod proofbench {
                     Ok(())
                 }
             });
+
+        if use_hook {
+            runner = runner.with_hook(move |r| {        
+                let res = if r.egraph.add_expr(&start_cloned) == r.egraph.add_expr(&end_cloned) {
+                    Err("Finished".into())
+                } else {
+                    Ok(())
+                };
+                r.egraph.rebuild();
+                return res;
+            });
+        }
         for expr in unwrap_sexp_list(expressions) {
             let parsed: egg::RecExpr<_> = unwrap_sexp_string(expr).parse().unwrap();
             runner = runner.with_expr(&parsed);
@@ -1007,13 +1026,14 @@ mod proofbench {
         let mut rng = rand::thread_rng();
         proofs_sexps.shuffle(&mut rng);
         for proof in proofs_sexps.iter().take(2) {
-            let mut runner = herbie_runner(expressions, 5000);
-            let mut runner_upwards = herbie_runner(expressions, 5000);
-            runner_upwards.upwards_merging_enabled = true;
-
             let pair = unwrap_sexp_list(proof);
             let start_parsed: egg::RecExpr<_> = unwrap_sexp_string(&pair[0]).parse().unwrap();
             let end_parsed: egg::RecExpr<_> = unwrap_sexp_string(&pair[1]).parse().unwrap();
+
+            let mut runner = herbie_runner(expressions, 5000, 20, &start_parsed, &end_parsed, false);
+            let mut runner_upwards = herbie_runner(expressions, 100000, 20, &start_parsed, &end_parsed, true);
+            runner_upwards.upwards_merging_enabled = true;
+            
             herbie_benchmark_proof(runner, runner_upwards, start_parsed, end_parsed, output, &rules);
         }
     }

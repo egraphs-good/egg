@@ -94,6 +94,8 @@
     (define results (file->list results-file))
     (define filtered-z3 (filter (lambda (row) ((getter 'z3-dag-size) row))
                                 results))
+    (define filtered-upwards (filter (lambda (row) ((getter 'upwards-dag-size) row))
+                                     results))
     
     (define macro-port (open-output-file macro-output-file #:exists 'replace))
     (output-macro-results macro-port
@@ -104,6 +106,10 @@
     (println "" macro-port)
     (output-macro-results macro-port
                           filtered-z3 'z3-dag-size 'greedy-dag-size "z3-dag-size")
+
+    (println "" macro-port)
+    (output-macro-results macro-port
+                          filtered-upwards 'dag-size 'upwards-dag-size "upwards-dag-size")
     (make-proof-len-scatter (build-path report-dir "proof-len-scatter.png") #f results 'proof-length 'greedy-proof-length "Unoptimized Proof Lengths" "Greedily Optimized Proof Lengths")
     (make-proof-len-scatter (build-path report-dir "proof-len-scatter-zoomed800.png") 800 results 'proof-length 'greedy-proof-length "Unoptimized Proof Lengths" "Greedily Optimized Proof Lengths")
     (make-proof-len-scatter (build-path report-dir "proof-len-scatter-zoomed200.png") 200 results 'proof-length 'greedy-proof-length "Unoptimized Proof Lengths" "Greedily Optimized Proof Lengths")
@@ -117,7 +123,10 @@
     (make-proof-len-scatter (build-path report-dir "z3-dag-size-scatter-zoomed200.png") 200 filtered-z3 'z3-dag-size 'greedy-dag-size "Z3 DAG Size" "Greedily Optimized DAG Size")
     (make-proof-len-scatter (build-path report-dir "z3-dag-size-scatter-zoomed100.png") 100 filtered-z3 'z3-dag-size 'greedy-dag-size "Z3 DAG Size" "Greedily Optimized DAG Size")
 
-    (make-proof-len-scatter (build-path report-dir "rebuilding-upwards-zoomed100.png") 100 results 'dag-size 'upwards-dag-size "DAG Size With Rebuilding" "DAG Size With Upwards Merging")
+    (make-proof-len-scatter (build-path report-dir "rebuilding-upwards-zoomed100.png") 100 filtered-upwards 'dag-size 'upwards-dag-size "DAG Size With Rebuilding" "DAG Size With Upwards Merging")
+    (make-proof-len-scatter (build-path report-dir "rebuilding-upwards-zoomed200.png") 200 filtered-upwards 'dag-size 'upwards-dag-size "DAG Size With Rebuilding" "DAG Size With Upwards Merging")
+
+    (make-proof-len-scatter (build-path report-dir "upwards-vs-rebuilding-greedy-zoomed-100.png") 100 filtered-upwards 'upwards-dag-size 'greedy-dag-size "DAG size with Upwards Merging" "DAG size with Rebuilding and Greedy Optimization")
 
     
   )
