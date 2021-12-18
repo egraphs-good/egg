@@ -165,9 +165,10 @@ impl<L: Language + Display> Explanation<L> {
     /// in the let-bound version of the tree.
     pub fn get_tree_size(&self) -> usize {
         let mut seen = Default::default();
+        let mut seen_adjacent = Default::default();
         let mut sum = 0;
         for e in self.explanation_trees.iter() {
-            sum += self.tree_size(&mut seen, e);
+            sum += self.tree_size(&mut seen, &mut seen_adjacent, e);
         }
         sum
     }
@@ -175,6 +176,7 @@ impl<L: Language + Display> Explanation<L> {
     fn tree_size(
         &self,
         seen: &mut HashSet<*const TreeTerm<L>>,
+        seen_adjacent: &mut HashSet<(Id, Id)>,
         current: &Rc<TreeTerm<L>>,
     ) -> usize {
         if !seen.insert(&**current as *const TreeTerm<L>) {
@@ -188,9 +190,17 @@ impl<L: Language + Display> Explanation<L> {
             my_size += 1;
         }
         assert!(my_size <= 1);
+        if my_size == 1 {
+            if !seen_adjacent.insert((current.current, current.last)) {
+                return 0;
+            } else {
+                seen_adjacent.insert((current.last, current.current));
+            }
+        }
+
         for child_proof in &current.child_proofs {
             for child in child_proof {
-                my_size += self.tree_size(seen, child);
+                my_size += self.tree_size(seen, seen_adjacent, child);
             }
         }
         my_size
@@ -430,6 +440,9 @@ pub struct TreeTerm<L: Language> {
     pub forward_rule: Option<Symbol>,
     /// A list of child proofs, each transforming the initial term to the final term for that child.
     pub child_proofs: Vec<TreeExplanation<L>>,
+
+    last: Id,
+    current: Id,
 }
 
 impl<L: Language> TreeTerm<L> {
@@ -440,6 +453,8 @@ impl<L: Language> TreeTerm<L> {
             backward_rule: None,
             forward_rule: None,
             child_proofs,
+            current: Id::from(0),
+            last: Id::from(0),
         }
     }
 
@@ -1256,6 +1271,9 @@ impl<L: Language> Explain<L> {
                 } else {
                     rewritten.backward_rule = Some(*name);
                 }
+
+                rewritten.current = next;
+                rewritten.last = current;
 
                 Rc::new(rewritten)
             }

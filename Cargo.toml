@@ -30,6 +30,8 @@ num-rational = "0.3.0"
 num-bigint = "0.3.0"
 num-traits = "0.2.12"
 
+wait-timeout = "0.2.0"
+rand = "0.8.4"
 
 [[bench]]
 name = "bench_tests"

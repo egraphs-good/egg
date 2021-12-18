@@ -213,6 +213,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         optimize_iters: usize,
         greedy_search: bool,
     ) -> Explanation<L> {
+        self.add_expr(left);
+        self.add_expr(right);
         if let Some(explain) = &mut self.explain {
             explain.explain_equivalence::<N>(
                 left,
@@ -237,6 +239,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         optimize_iters: usize,
         greedy_search: bool,
     ) -> Explanation<L> {
+        self.add_expr(left);
         if let Some(explain) = &mut self.explain {
             explain.explain_matches::<N>(
                 left,

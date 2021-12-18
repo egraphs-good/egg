@@ -7,9 +7,14 @@ use num_rational::Ratio;
 use num_traits::{Pow, Signed, Zero};
 use std::collections::HashSet;
 use std::str::FromStr;
+use rand::Rng;
+use rand::seq::SliceRandom;
 
+
+use wait_timeout::ChildExt;
+use std::io::Read;
 use std::fmt::Display;
-use std::io::{self, Write};
+use std::io::{Write};
 use std::process::{Command, Stdio};
 use symbolic_expressions::Sexp;
 
@@ -693,9 +698,25 @@ fn get_const_fold_rewrites() -> Vec<String> {
     let mut res = vec![];
 
     let ops = vec!["+", "-", "*", "/"];
-    for op in ops {
-        res.push(format!("(assert (forall ((?t A) (?x Real) (?y Real)) (= ({} ?t (wrap-rat ?x) (wrap-rat ?y)) (wrap-rat ({} ?x ?y)))))", op, op));
+    let conditions = vec!["", "", "", "(not (= ?y 0))"];
+
+    for (op, condition) in ops.iter().zip(conditions.iter()) {
+        if condition == &"" {
+            res.push(format!("(assert (forall ((?t A) (?x Real) (?y Real)) (= ({} ?t (wrap-rat ?x) (wrap-rat ?y)) (wrap-rat ({} ?x ?y)))))", op, op));
+        } else {
+            res.push(format!("(assert (forall ((?t A) (?x Real) (?y Real)) (=> {} (= ({} ?t (wrap-rat ?x) (wrap-rat ?y)) (wrap-rat ({} ?x ?y))))))", condition, op, op));
+        }
     }
+
+    res.push(format!("(assert (forall ((?t A) (?x Real) (?y Real)) (= ({} ?t (wrap-rat ?x) (wrap-rat ?y)) (wrap-rat ({} ?x ?y)))))", "pow", "^"));
+    res.push(format!("(assert (forall ((?t A) (?x Real) (?y Real)) (= ({} ?t (wrap-rat ?x) (wrap-rat 0)) (wrap-rat 1))))", "pow"));
+    res.push(format!("(assert (forall ((?t A) (?x Real) (?y Real)) (= ({} ?t (wrap-rat ?x)) (wrap-rat ({} ?x (/ 1 2))))))", "sqrt", "^"));
+    res.push(format!("(assert (forall ((?t A) (?x Real) (?y Real)) (= ({} ?t (wrap-rat ?x)) (wrap-rat ({} ?x (/ 1 3))))))", "cbrt", "^"));
+    res.push(format!("(assert (forall ((?t A) (?x Real)) (= ({} ?t (wrap-rat ?x)) (wrap-rat ({} ?x)))))", "neg", "-"));
+    res.push(format!("(assert (forall ((?t A) (?x Real)) (= ({} ?t (wrap-rat ?x)) (wrap-rat ({} ?x)))))", "fabs", "abs"));
+
+
+
     res
 }
 
@@ -759,7 +780,7 @@ where
                     .join(" ")
             );
 
-            format!("(assert (forall {} (= {} {})))", vars_str, left, right)
+            format!("(assert (forall {} (! (= {} {}) :pattern {})))", vars_str, left, right, left)
         };
         results.push(final_str);
     }
@@ -767,13 +788,13 @@ where
     results
 }
 
-fn test_z3<L, A>(rules: &[egg::Rewrite<L, A>], start: egg::RecExpr<L>, end: egg::RecExpr<L>)
+fn test_z3<L, A>(rules: &[egg::Rewrite<L, A>], start: &egg::RecExpr<L>, end: &egg::RecExpr<L>) -> String
 where
     L: Language + Display + 'static,
     A: Analysis<L> + Default,
 {
     let quantified_rewrites = get_z3_rewrites(rules);
-    let (funs, consts) = get_all_z3_funcs_consts(rules, &start, &end);
+    let (funs, consts) = get_all_z3_funcs_consts(rules, start, end);
 
     let goal_string = format!(
         "(assert (not (= {} {})))",
@@ -785,12 +806,16 @@ where
         .arg("-smt2")
         .arg("-in")
         .stdin(Stdio::piped())
-        //.stdout(Stdio::piped())
+        .stdout(Stdio::piped())
         .spawn()
         .unwrap();
 
     let z3_input = vec![
         "(set-option :produce-proofs true)".to_string(),
+        "(set-option :auto-config false)".to_string(),
+        "(set-option :smt.qi.eager_threshold 2000)".to_string(),
+        "(set-option :smt.mbqi false)".to_string(),
+        "(set-option :smt.ematching true)".to_string(),
         "(declare-sort A)".to_string(),
         consts.join("\n"),
         funs.join("\n"),
@@ -808,9 +833,37 @@ where
 
     drop(z3_in);
 
-    z3_process.wait().unwrap();
-    //let output = z3_process.wait_with_output().unwrap();
-    //println!("Output from z3 = {:?}", output);
+    let TIMEOUT = Duration::from_secs(120);
+    let mut timed_out = false;
+
+    let _status_code = match z3_process.wait_timeout(TIMEOUT).unwrap() {
+        Some(status) => status.code(),
+        None => {
+            timed_out = true;
+            println!("timeout!");
+            //println!("{}", start);
+            //println!("{}", end);
+            z3_process.kill().unwrap();
+            z3_process.wait().unwrap().code()
+        }
+    };
+
+    let mut output = String::new();
+    z3_process.stdout.unwrap().read_to_string(&mut output).unwrap();
+    
+    if !timed_out && !output.starts_with("unsat\n") {
+        println!("Z3 returned unknown!");
+        //println!("{}", output);
+    }
+    return output;
+}
+
+fn count_string_in_sexp(sexp: &Sexp, func: &str) -> usize {
+    match sexp {
+        Sexp::List(l) => l.iter().map(|s| count_string_in_sexp(s, func)).sum(),
+        Sexp::String(s) => if s == func { 1 } else { 0 },
+        Sexp::Empty => 0,
+    }
 }
 
 #[cfg(feature = "reports")]
@@ -839,15 +892,37 @@ mod proofbench {
     }
 
     fn herbie_benchmark_proof(
-        runner: &mut Runner,
-        proof: &Sexp,
+        mut runner: Runner,
+        mut runner_upwards: Runner,
+        start_parsed: RecExpr,
+        end_parsed: RecExpr,
         output: &mut File,
         rules: &[Rewrite],
     ) {
-        let pair = unwrap_sexp_list(proof);
-        //println!("Doing {} and {}", pair[0], pair[1]);
-        let start_parsed: egg::RecExpr<_> = unwrap_sexp_string(&pair[0]).parse().unwrap();
-        let end_parsed: egg::RecExpr<_> = unwrap_sexp_string(&pair[1]).parse().unwrap();
+        //println!("Testing {} \n {}", start_parsed, end_parsed);
+
+        let start_egg_run = Instant::now();
+        runner = runner.run(rules);
+        let egg_run_duration = start_egg_run.elapsed().as_millis();
+
+        let start_upwards_run = Instant::now();
+        runner_upwards = runner_upwards.run(rules);
+        let upwards_run_duration = start_upwards_run.elapsed().as_millis();
+
+        let start_z3 = Instant::now();
+        let z3_res = test_z3(&rules, &start_parsed, &end_parsed);
+        let end_z3 = start_z3.elapsed().as_millis();
+
+        let z3_len = if !z3_res.starts_with("unsat\n") {
+            "#f".to_string()
+        } else {
+            match parser::parse_str(&z3_res[6..]) {
+                Ok(z3_res_parsed) =>{
+                    format!("{}", count_string_in_sexp(&z3_res_parsed, "quant-inst"))
+                }
+                Err(_) => "#f".to_string(),
+            }
+        };
 
         let start_normal = Instant::now();
         let mut normal = runner.explain_equivalence(&start_parsed, &end_parsed, 0, false);
@@ -858,44 +933,48 @@ mod proofbench {
         let mut slow = runner.explain_equivalence(&start_parsed, &end_parsed, 100, true);
         let duration_slow = start_slow.elapsed().as_millis();
         slow.check_proof(rules);
-        let normal_len = normal.get_flat_sexps().len();
-        let slow_len = slow.get_flat_sexps().len();
+
+        let upwards_normal_time;
+        let upwards_normal_len;
+        let upwards_normal_tree_size;
+        if runner_upwards.egraph.add_expr(&start_parsed) != runner_upwards.egraph.add_expr(&end_parsed) {
+            panic!("upwards runner failed to find equality");
+        }
+        let upwards_normal_instant = Instant::now();
+        let mut upwards_normal = runner_upwards.explain_equivalence(&start_parsed, &end_parsed, 0, false);
+        upwards_normal_time = format!("{}", upwards_normal_instant.elapsed().as_millis());
+        upwards_normal.check_proof(rules);
+        upwards_normal_len = format!("{}", upwards_normal.get_flat_sexps().len());
+        upwards_normal_tree_size = format!("{}", upwards_normal.get_tree_size());
 
         writeln!(
             output,
-            "({} {} {} {} {} {} {})",
-            proof,
+            "({} {} {} {} {} {} {} {} {} {} {} {} {} {})",
+            &start_parsed,
+            &end_parsed,
             duration_normal,
             duration_slow,
-            normal_len,
-            slow_len,
+            normal.get_flat_sexps().len(),
+            slow.get_flat_sexps().len(),
             normal.get_tree_size(),
-            slow.get_tree_size()
+            slow.get_tree_size(),
+            end_z3,
+            z3_len,
+            egg_run_duration,
+            upwards_normal_time,
+            upwards_normal_len,
+            upwards_normal_tree_size,
         )
         .unwrap();
-        assert!(slow_len <= normal_len);
         output.flush().unwrap();
         print!(".");
         std::io::stdout().flush().unwrap();
     }
 
-    fn herbie_benchmark_example(example: &str, output: &mut File, skip: &mut usize) {
-        let is_f64 = example.contains("f64");
-        let parsed: Sexp = parser::parse_str(example).unwrap();
-        let pair = unwrap_sexp_list(&parsed);
-        let expressions = &pair[0];
-        let proofs = &pair[1];
-        let proofs_sexps = unwrap_sexp_list(proofs);
-        if proofs_sexps.len() == 0 {
-            return;
-        }
-        if skip >= &mut proofs_sexps.len() {
-            *skip -= proofs_sexps.len();
-            return;
-        }
+    fn herbie_runner(expressions: &Sexp, node_limit: usize) -> Runner {
         let mut runner = Runner::new(Default::default())
             .with_explanations_enabled()
-            .with_node_limit(5000)
+            .with_node_limit(node_limit)
             .with_iter_limit(usize::MAX) // should never hit
             .with_time_limit(Duration::from_secs(u64::MAX))
             .with_hook(|r| {
@@ -909,29 +988,33 @@ mod proofbench {
             let parsed: egg::RecExpr<_> = unwrap_sexp_string(expr).parse().unwrap();
             runner = runner.with_expr(&parsed);
         }
+        return runner;
+    }
+
+    fn herbie_benchmark_example(example: &str, output: &mut File, skip: &mut usize) {
+        let is_f64 = example.contains("f64");
+        let parsed: Sexp = parser::parse_str(example).unwrap();
+        let pair = unwrap_sexp_list(&parsed);
+        let expressions = &pair[0];
+        let proofs = &pair[1];
+        let mut proofs_sexps = unwrap_sexp_list(proofs).clone();
+        if proofs_sexps.len() == 0 {
+            return;
+        }
 
         let rules = math_rules(if is_f64 { "f64" } else { "f32" });
 
-        runner = runner.run(&rules);
+        let mut rng = rand::thread_rng();
+        proofs_sexps.shuffle(&mut rng);
+        for proof in proofs_sexps.iter().take(2) {
+            let mut runner = herbie_runner(expressions, 5000);
+            let mut runner_upwards = herbie_runner(expressions, 5000);
+            runner_upwards.upwards_merging_enabled = true;
 
-        if true {
-            if skip > &mut 0 {
-                *skip -= 1;
-                return;
-            }
-            let proof = &proofs_sexps[0];
             let pair = unwrap_sexp_list(proof);
             let start_parsed: egg::RecExpr<_> = unwrap_sexp_string(&pair[0]).parse().unwrap();
             let end_parsed: egg::RecExpr<_> = unwrap_sexp_string(&pair[1]).parse().unwrap();
-            test_z3(&rules, start_parsed, end_parsed);
-        } else {
-            for proof in proofs_sexps {
-                if skip > &mut 0 {
-                    *skip -= 1;
-                    continue;
-                }
-                herbie_benchmark_proof(&mut runner, &proof, output, &rules);
-            }
+            herbie_benchmark_proof(runner, runner_upwards, start_parsed, end_parsed, output, &rules);
         }
     }
 

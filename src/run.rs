@@ -146,6 +146,8 @@ pub struct Runner<L: Language, N: Analysis<L>, IterData = ()> {
     /// stopped yet.
     pub stop_reason: Option<StopReason>,
 
+    pub upwards_merging_enabled: bool,
+
     /// The hooks added by the
     /// [`with_hook`](Runner::with_hook()) method, in insertion order.
     #[allow(clippy::type_complexity)]
@@ -189,6 +191,7 @@ where
             time_limit,
             start_time,
             scheduler: _,
+            upwards_merging_enabled,
         } = self;
 
         f.debug_struct("Runner")
@@ -277,6 +280,8 @@ where
             iter_limit: 30,
             node_limit: 10_000,
             time_limit: Duration::from_secs(5),
+
+            upwards_merging_enabled: false,
 
             egraph: EGraph::new(analysis),
             roots: vec![],
@@ -501,6 +506,9 @@ where
 
                 let actually_matched = self.scheduler.apply_rewrite(i, &mut self.egraph, rw, ms);
                 if actually_matched > 0 {
+                    if self.upwards_merging_enabled {
+                        self.egraph.rebuild();
+                    }
                     if let Some(count) = applied.get_mut(&rw.name) {
                         *count += actually_matched;
                     } else {
