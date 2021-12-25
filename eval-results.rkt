@@ -12,9 +12,10 @@
                   greedy-dag-size z3-duration
                   z3-dag-size
                   egg-run-duration
-                  upwards-run-duration
+                  upwards-proof-duration
                   upwards-proof-length
-                  upwards-dag-size))
+                  upwards-dag-size
+                  upwards-run-duration))
   (define m
     (for/hash ([name names] [i (in-range 0 (length names))])
               (values name (curryr list-ref i))))
@@ -87,6 +88,80 @@
       (list  (function (λ (x) x) #:color 0 #:style 'dot)
              scatter-points)))))
 
+
+(define (make-zach-graph output-file z3-unfiltered cutoff z3-dag-size-filter)
+  (define z3-filtered
+    (if z3-dag-size-filter
+        (filter (lambda (row)
+                  (>= z3-dag-size-filter ((getter 'z3-dag-size) row)))
+                z3-unfiltered)
+        z3-unfiltered))
+  
+  (define egg-rebuilding-greedy-points
+    (points #:alpha 1
+            #:color "green"
+            #:sym 'circle
+            #:size 4
+            #:x-max cutoff
+            (list->vector
+             (map (lambda (row)
+                    (vector (+ ((getter 'greedy-duration) row) ((getter 'egg-run-duration) row))
+                            ((getter 'greedy-dag-size) row)))
+                  z3-filtered))))
+
+  (define z3-points
+    (points #:alpha 1
+            #:color "orange"
+            #:sym 'triangle
+            #:size 4
+            #:x-max cutoff
+            (list->vector
+             (map (lambda (row)
+                    (vector (+ ((getter 'z3-duration) row))
+                            ((getter 'z3-dag-size) row)))
+                  z3-filtered))))
+
+  (define egg-rebuilding-points
+    (points #:alpha 1
+            #:color "blue"
+            #:sym 'square
+            #:size 4
+            #:x-max cutoff
+            (list->vector
+             (map (lambda (row)
+                    (vector (+ ((getter 'egg-run-duration) row) ((getter 'vanilla-duration) row))
+                            ((getter 'dag-size) row)))
+                  z3-filtered))))
+
+  (define z3-timeout-points
+    (points #:alpha 1
+            #:color "red"
+            #:sym 'triangle
+            #:size 4
+            (list->vector
+             (map (lambda (row)
+                    (vector cutoff
+                             ((getter 'dag-size) row)))
+                  
+                  (filter (lambda (row)
+                            (> ((getter 'z3-duration) row) (if cutoff cutoff 9999999999999)))
+                          z3-filtered)))))
+
+  (parameterize-plot-size
+   300
+   1
+   ""
+   "Time in Milliseconds"
+   "DAG Size of Resulting Proof"
+   output-file
+   (lambda ()
+     (plot-pict
+      (list  
+             egg-rebuilding-points
+             egg-rebuilding-greedy-points
+             z3-points
+             z3-timeout-points)))))
+
 (module+ main
   (command-line #:program "report"
                 #:args (results-file report-dir)
@@ -110,6 +185,18 @@
     (println "" macro-port)
     (output-macro-results macro-port
                           filtered-upwards 'dag-size 'upwards-dag-size "upwards-dag-size")
+
+
+    (make-zach-graph (build-path report-dir "zach-graph.png")
+                     filtered-z3 #f #f)
+    (make-zach-graph (build-path report-dir "zach-graph-zoomed-2000.png")
+                     filtered-z3 2000 #f)
+    (make-zach-graph (build-path report-dir "zach-graph-filtered-z3-grt-20.png")
+                     filtered-z3 #f 20)
+    (make-zach-graph (build-path report-dir "zach-graph-filtered-z3-grt-20-zoomed-2000.png")
+                     filtered-z3 2000 20)
+                                 
+    
     (make-proof-len-scatter (build-path report-dir "proof-len-scatter.png") #f results 'proof-length 'greedy-proof-length "Unoptimized Proof Lengths" "Greedily Optimized Proof Lengths")
     (make-proof-len-scatter (build-path report-dir "proof-len-scatter-zoomed800.png") 800 results 'proof-length 'greedy-proof-length "Unoptimized Proof Lengths" "Greedily Optimized Proof Lengths")
     (make-proof-len-scatter (build-path report-dir "proof-len-scatter-zoomed200.png") 200 results 'proof-length 'greedy-proof-length "Unoptimized Proof Lengths" "Greedily Optimized Proof Lengths")
@@ -126,6 +213,9 @@
     (make-proof-len-scatter (build-path report-dir "rebuilding-upwards-zoomed100.png") 100 filtered-upwards 'dag-size 'upwards-dag-size "DAG Size With Rebuilding" "DAG Size With Upwards Merging")
     (make-proof-len-scatter (build-path report-dir "rebuilding-upwards-zoomed200.png") 200 filtered-upwards 'dag-size 'upwards-dag-size "DAG Size With Rebuilding" "DAG Size With Upwards Merging")
 
+    (make-proof-len-scatter (build-path report-dir "z3-vs-rebuilding-greedy-time.png") #f filtered-z3 'z3-duration 'greedy-duration "Z3 Proof Production Runtime (ms)" "Greedy Proof Production Runtime (ms)")
+    (make-proof-len-scatter (build-path report-dir "z3-vs-rebuilding-greedy-time-zoomed10000.png") 10000 filtered-z3 'z3-duration 'greedy-duration "Z3 Proof Production Runtime (ms)" "Greedy Proof Production Runtime (ms)")
+    
     (make-proof-len-scatter (build-path report-dir "upwards-vs-rebuilding-greedy-zoomed-100.png") 100 filtered-upwards 'upwards-dag-size 'greedy-dag-size "DAG size with Upwards Merging" "DAG size with Rebuilding and Greedy Optimization")
 
     

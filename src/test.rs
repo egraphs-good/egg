@@ -27,7 +27,6 @@ where
     }
 }
 
-
 #[allow(clippy::type_complexity)]
 pub fn test_runner<L, A>(
     name: &str,
@@ -41,7 +40,6 @@ pub fn test_runner<L, A>(
     L: Language + Display + 'static,
     A: Analysis<L> + Default,
 {
-
     let mut runner = runner.unwrap_or_default();
 
     if let Some(lim) = env_var("EGG_NODE_LIMIT") {

@@ -490,7 +490,8 @@ where
             rules.iter().try_for_each(|rw| {
                 let ms = self.scheduler.search_rewrite(i, &self.egraph, rw);
                 if self.upwards_merging_enabled {
-                    let actually_matched = self.scheduler.apply_rewrite(i, &mut self.egraph, rw, ms);
+                    let actually_matched =
+                        self.scheduler.apply_rewrite(i, &mut self.egraph, rw, ms);
                     if actually_matched > 0 {
                         if let Some(count) = applied.get_mut(&rw.name) {
                             *count += actually_matched;
@@ -512,7 +513,6 @@ where
 
         let apply_time = Instant::now();
 
-        
         result = result.and_then(|_| {
             rules.iter().zip(matches).try_for_each(|(rw, ms)| {
                 let total_matches: usize = ms.iter().map(|m| m.substs.len()).sum();

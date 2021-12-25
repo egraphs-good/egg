@@ -1441,7 +1441,12 @@ impl<L: Language> Explain<L> {
         if left == right {
             return (0, left);
         }
-        let ancestor = *distance_memo.common_ancestor.get(&(left, right)).unwrap();
+        let ancestor = if let Some(a) = distance_memo.common_ancestor.get(&(left, right)) {
+            *a
+        } else {
+            // fall back on calculating ancestor for top-level query (not from congruence)
+            self.common_ancestor(left, right)
+        };
         // calculate edges until you are past the ancestor
         self.calculate_parent_distance(left, ancestor, distance_memo);
         self.calculate_parent_distance(right, ancestor, distance_memo);
@@ -1463,9 +1468,9 @@ impl<L: Language> Explain<L> {
         // calculate distance to find upper bound
         let dist = b
             .checked_add(c)
-            .unwrap()
-            .checked_sub(a.checked_mul(2).unwrap())
-            .unwrap();
+            .unwrap_or_else(|| panic!("overflow in proof size calculation!"))
+            .checked_sub(a.checked_mul(2).unwrap_or_else(|| panic!("overflow in proof size calculation!")))
+            .unwrap_or_else(|| panic!("common ancestor distance was too large!"));
 
         let next = self.parent(left);
 
@@ -1535,10 +1540,13 @@ impl<L: Language> Explain<L> {
                 if parent == ancestor {
                     break;
                 }
-                let higher = *distance_memo
-                    .common_ancestor
-                    .get(&(parent, ancestor))
-                    .unwrap();
+                let higher = if let Some(a) = distance_memo.common_ancestor.get(&(parent, ancestor))
+                {
+                    *a
+                } else {
+                    // fall back on calculating ancestor for top-level query (not from congruence)
+                    self.common_ancestor(parent, ancestor)
+                };
                 if higher != ancestor {
                     assert!(higher == parent);
                     break;
@@ -1755,6 +1763,7 @@ impl<L: Language> Explain<L> {
         &self,
         enode: Id,
         children: &HashMap<Id, Vec<Id>>,
+        common_ancestor_queries: &HashMap<Id, Vec<Id>>,
         black_set: &mut HashSet<Id>,
         unionfind: &mut UnionFind,
         ancestor: &mut Vec<Id>,
@@ -1765,6 +1774,7 @@ impl<L: Language> Explain<L> {
             self.tarjan_ocla(
                 *child,
                 children,
+                common_ancestor_queries,
                 black_set,
                 unionfind,
                 ancestor,
@@ -1774,11 +1784,15 @@ impl<L: Language> Explain<L> {
             ancestor[usize::from(unionfind.find(enode))] = enode;
         }
 
-        black_set.insert(enode);
-        for other in black_set.iter() {
-            let ancestor = ancestor[usize::from(unionfind.find(*other))];
-            common_ancestor.insert((enode, *other), ancestor);
-            common_ancestor.insert((*other, enode), ancestor);
+        if common_ancestor_queries.get(&enode).is_some() {
+            black_set.insert(enode);
+            for other in common_ancestor_queries.get(&enode).unwrap() {
+                if black_set.contains(&other) {
+                    let ancestor = ancestor[usize::from(unionfind.find(*other))];
+                    common_ancestor.insert((enode, *other), ancestor);
+                    common_ancestor.insert((*other, enode), ancestor);
+                }
+            }
         }
     }
 
@@ -1789,7 +1803,33 @@ impl<L: Language> Explain<L> {
     fn calculate_common_ancestor<N: Analysis<L>>(
         &self,
         classes: &HashMap<Id, EClass<L, N::Data>>,
+        congruence_neighbors: &Vec<Vec<Id>>,
     ) -> HashMap<(Id, Id), Id> {
+        let mut common_ancestor_queries = HashMap::default();
+        for s_int in 0..congruence_neighbors.len() {
+            let start = &Id::from(s_int);
+            let others = &congruence_neighbors[s_int];
+            for other in others {
+                for (left, right) in self.explainfind[usize::from(*start)]
+                    .node
+                    .children()
+                    .iter()
+                    .zip(self.explainfind[usize::from(*other)].node.children().iter())
+                {
+                    if left != right {
+                        if common_ancestor_queries.get(start).is_none() {
+                            common_ancestor_queries.insert(*start, vec![]);
+                        }
+                        if common_ancestor_queries.get(other).is_none() {
+                            common_ancestor_queries.insert(*other, vec![]);
+                        }
+                        common_ancestor_queries.get_mut(start).unwrap().push(*other);
+                        common_ancestor_queries.get_mut(other).unwrap().push(*start);
+                    }
+                }
+            }
+        }
+
         let mut common_ancestor = HashMap::default();
         let mut unionfind = UnionFind::default();
         let mut ancestor = vec![];
@@ -1818,6 +1858,7 @@ impl<L: Language> Explain<L> {
             self.tarjan_ocla(
                 parent,
                 &children,
+                &common_ancestor_queries,
                 &mut black_set,
                 &mut unionfind,
                 &mut ancestor,
@@ -1848,7 +1889,7 @@ impl<L: Language> Explain<L> {
         }
         let mut distance_memo = DistanceMemo {
             parent_distance,
-            common_ancestor: self.calculate_common_ancestor::<N>(classes),
+            common_ancestor: self.calculate_common_ancestor::<N>(classes, &congruence_neighbors),
         };
 
         if greedy_search {
@@ -1973,7 +2014,7 @@ mod tests {
         );
         assert_eq!(
             egraph
-                .explain_equivalence(&fa, &fb, 0, true)
+                .explain_equivalence(&fa, &fb, 1, true)
                 .get_flat_sexps()
                 .len(),
             3

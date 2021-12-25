@@ -5,18 +5,17 @@ use instant::{Duration, Instant};
 use num_bigint::BigInt;
 use num_rational::Ratio;
 use num_traits::{Pow, Signed, Zero};
+use rand::seq::SliceRandom;
+use rand::Rng;
 use std::collections::HashSet;
 use std::str::FromStr;
-use rand::Rng;
-use rand::seq::SliceRandom;
 
-
-use wait_timeout::ChildExt;
-use std::io::Read;
 use std::fmt::Display;
-use std::io::{Write};
+use std::io::Read;
+use std::io::Write;
 use std::process::{Command, Stdio};
 use symbolic_expressions::Sexp;
+use wait_timeout::ChildExt;
 
 pub type Constant = num_rational::BigRational;
 pub type RecExpr = egg::RecExpr<Math>;
@@ -476,158 +475,6 @@ pub fn math_rules(type_str: &str) -> Vec<Rewrite> {
     rules
 }
 
-fn check_proof_exists(r: &mut Runner, rules: Vec<Rewrite>, left: &str, right: &str) {
-    let lexpr = left.parse().unwrap();
-    let rexpr = right.parse().unwrap();
-    if r.egraph.add_expr(&lexpr) != r.egraph.add_expr(&rexpr) {
-        panic!("{} != {}", left, right);
-    }
-    let explained = r.explain_equivalence(&lexpr, &rexpr, 0, false);
-    let start = Instant::now();
-    let explained_short = r.explain_equivalence(&lexpr, &rexpr, 4, true);
-    let duration = start.elapsed().as_secs_f64();
-    println!("Time elapsed: {}", duration);
-    println!(
-        "Unoptimized {} Optimized {}",
-        explained.get_string_with_let().len(),
-        explained_short.get_string_with_let().len()
-    );
-}
-
-#[test]
-fn herbie_prove_numerics() {
-    let start: egg::RecExpr<_> =
-        "(* f64 2 (atan f64 (sqrt f64 (/ f64 (- f64 1 h0) (+ f64 1 h0)))))"
-            .parse()
-            .unwrap();
-    let mut runner = Runner::new(Default::default())
-        .with_explanations_enabled()
-        .with_expr(&start)
-        .with_node_limit(5000)
-        .with_iter_limit(100_000_000) // should never hit
-        .with_time_limit(Duration::from_secs(u64::MAX))
-        .with_hook(|r| {
-            if r.egraph.analysis.unsound.load(Ordering::SeqCst) {
-                Err("Unsoundness detected".into())
-            } else {
-                Ok(())
-            }
-        });
-    let first = "(+ f64 (neg f64 (neg f64 2)) 0))";
-    let second = "-1";
-    runner = runner.run(&math_rules("f64"));
-    runner.print_report();
-    //assert!(runner.egraph.equivs(&first.parse().unwrap(), &second.parse().unwrap()).len() == 1);
-    check_proof_exists(&mut runner, math_rules("f64"), first, second);
-}
-
-#[test]
-fn herbie_prove_2() {
-    let start: egg::RecExpr<_> =
-        "(* f64 2 (atan f64 (sqrt f64 (/ f64 (- f64 1 h0) (+ f64 1 h0)))))"
-            .parse()
-            .unwrap();
-    let mut runner = Runner::new(Default::default())
-        .with_explanations_enabled()
-        .with_expr(&start)
-        .with_node_limit(5000)
-        .with_iter_limit(100_000_000) // should never hit
-        .with_time_limit(Duration::from_secs(u64::MAX))
-        .with_hook(|r| {
-            if r.egraph.analysis.unsound.load(Ordering::SeqCst) {
-                Err("Unsoundness detected".into())
-            } else {
-                Ok(())
-            }
-        });
-    let first = "2";
-    let second = "(+ f64 1 1)";
-    runner = runner.run(&math_rules("f64"));
-    //assert!(runner.egraph.equivs(&first.parse().unwrap(), &second.parse().unwrap()).len() == 1);
-    check_proof_exists(&mut runner, math_rules("f64"), first, second);
-}
-
-#[test]
-fn herbie_prove_neg() {
-    let start: egg::RecExpr<_> =
-        "(* f64 2 (atan f64 (sqrt f64 (/ f64 (- f64 1 h0) (+ f64 1 h0)))))"
-            .parse()
-            .unwrap();
-    let mut runner = Runner::new(Default::default())
-        .with_explanations_enabled()
-        .with_expr(&start)
-        .with_node_limit(5000)
-        .with_iter_limit(100_000_000) // should never hit
-        .with_time_limit(Duration::from_secs(u64::MAX))
-        .with_hook(|r| {
-            if r.egraph.analysis.unsound.load(Ordering::SeqCst) {
-                Err("Unsoundness detected".into())
-            } else {
-                Ok(())
-            }
-        });
-    let first = "(neg f64 (neg f64 2)))";
-    let second = "(neg f64 (neg f64 (+ f64 1 1))))";
-    runner = runner.run(&math_rules("f64"));
-    //assert!(runner.egraph.equivs(&first.parse().unwrap(), &second.parse().unwrap()).len() == 1);
-    check_proof_exists(&mut runner, math_rules("f64"), first, second);
-}
-
-#[test]
-fn herbie_prove_long() {
-    let start: egg::RecExpr<_> = "(biggroup (/ f64 -1 (pow f64 h0 3)) (/ f64 -1 (pow f64 h0 3)) (/ f64 -1 (pow f64 h0 3)) (/ f64 -1 (pow f64 h0 3)) (- f64 (/ f64 1 h0) (/ f64 1 (pow f64 h0 3))) (/ f64 1 h0) (- f64 (/ f64 1 h0) (/ f64 1 (pow f64 h0 3))) (/ f64 1 h0) (- f64 (/ f64 1 h0) (/ f64 1 (pow f64 h0 3))) (- f64 (log f64 -1) (* f64 (log f64 h0) 3)) (- f64 (log f64 -1) (* f64 (log f64 h0) 3)) (- f64 (log f64 -1) (log f64 (pow f64 h0 3))) (exp f64 (/ f64 -1 (pow f64 h0 3))) (log f64 (/ f64 -1 (pow f64 h0 3))) (* f64 (* f64 (/ f64 -1 (pow f64 h0 3)) (/ f64 -1 (pow f64 h0 3))) (/ f64 -1 (pow f64 h0 3))) (* f64 (cbrt f64 (/ f64 -1 (pow f64 h0 3))) (cbrt f64 (/ f64 -1 (pow f64 h0 3)))) (cbrt f64 (/ f64 -1 (pow f64 h0 3))) (/ f64 (* f64 (* f64 -1 -1) -1) (* f64 (* f64 (pow f64 h0 3) (pow f64 h0 3)) (pow f64 h0 3))) (sqrt f64 (/ f64 -1 (pow f64 h0 3))) (sqrt f64 (/ f64 -1 (pow f64 h0 3))) (neg f64 -1) (neg f64 (pow f64 h0 3)) (/ f64 (* f64 (cbrt f64 -1) (cbrt f64 -1)) (pow f64 (* f64 (cbrt f64 h0) (cbrt f64 h0)) 3)) (/ f64 (cbrt f64 -1) (pow f64 (cbrt f64 h0) 3)) (/ f64 (* f64 (cbrt f64 -1) (cbrt f64 -1)) (pow f64 (sqrt f64 h0) 3)) (/ f64 (cbrt f64 -1) (pow f64 (sqrt f64 h0) 3)) (/ f64 (* f64 (cbrt f64 -1) (cbrt f64 -1)) (pow f64 1 3)) (/ f64 (cbrt f64 -1) (pow f64 h0 3)) (/ f64 (* f64 (cbrt f64 -1) (cbrt f64 -1)) (* f64 h0 h0)) (/ f64 (cbrt f64 -1) h0) (/ f64 (* f64 (cbrt f64 -1) (cbrt f64 -1)) (* f64 (cbrt f64 (pow f64 h0 3)) (cbrt f64 (pow f64 h0 3)))) (/ f64 (cbrt f64 -1) (cbrt f64 (pow f64 h0 3))) (/ f64 (* f64 (cbrt f64 -1) (cbrt f64 -1)) h0) (/ f64 (cbrt f64 -1) (* f64 h0 h0)) (/ f64 (* f64 (cbrt f64 -1) (cbrt f64 -1)) (pow f64 (* f64 (cbrt f64 h0) (cbrt f64 h0)) 3)) (/ f64 (cbrt f64 -1) (pow f64 (cbrt f64 h0) 3)) (/ f64 (* f64 (cbrt f64 -1) (cbrt f64 -1)) (pow f64 (sqrt f64 h0) 3)) (/ f64 (cbrt f64 -1) (pow f64 (sqrt f64 h0) 3)) (/ f64 (* f64 (cbrt f64 -1) (cbrt f64 -1)) (pow f64 1 3)) (/ f64 (cbrt f64 -1) (pow f64 h0 3)) (/ f64 (* f64 (cbrt f64 -1) (cbrt f64 -1)) (sqrt f64 (pow f64 h0 3))) (/ f64 (cbrt f64 -1) (sqrt f64 (pow f64 h0 3))) (/ f64 (* f64 (cbrt f64 -1) (cbrt f64 -1)) 1) (/ f64 (cbrt f64 -1) (pow f64 h0 3)) (/ f64 (* f64 (cbrt f64 -1) (cbrt f64 -1)) (pow f64 h0 (/ f64 3 2))) (/ f64 (cbrt f64 -1) (pow f64 h0 (/ f64 3 2))) (/ f64 (sqrt f64 -1) (pow f64 (* f64 (cbrt f64 h0) (cbrt f64 h0)) 3)) (/ f64 (sqrt f64 -1) (pow f64 (cbrt f64 h0) 3)) (/ f64 (sqrt f64 -1) (pow f64 (sqrt f64 h0) 3)) (/ f64 (sqrt f64 -1) (pow f64 (sqrt f64 h0) 3)) (/ f64 (sqrt f64 -1) (pow f64 1 3)) (/ f64 (sqrt f64 -1) (pow f64 h0 3)) (/ f64 (sqrt f64 -1) (* f64 h0 h0)) (/ f64 (sqrt f64 -1) h0) (/ f64 (sqrt f64 -1) (* f64 (cbrt f64 (pow f64 h0 3)) (cbrt f64 (pow f64 h0 3)))) (/ f64 (sqrt f64 -1) (cbrt f64 (pow f64 h0 3))) (/ f64 (sqrt f64 -1) h0) (/ f64 (sqrt f64 -1) (* f64 h0 h0)) (/ f64 (sqrt f64 -1) (pow f64 (* f64 (cbrt f64 h0) (cbrt f64 h0)) 3)) (/ f64 (sqrt f64 -1) (pow f64 (cbrt f64 h0) 3)) (/ f64 (sqrt f64 -1) (pow f64 (sqrt f64 h0) 3)) (/ f64 (sqrt f64 -1) (pow f64 (sqrt f64 h0) 3)) (/ f64 (sqrt f64 -1) (pow f64 1 3)) (/ f64 (sqrt f64 -1) (pow f64 h0 3)) (/ f64 (sqrt f64 -1) (sqrt f64 (pow f64 h0 3))) (/ f64 (sqrt f64 -1) (sqrt f64 (pow f64 h0 3))) (/ f64 (sqrt f64 -1) 1) (/ f64 (sqrt f64 -1) (pow f64 h0 3)) (/ f64 (sqrt f64 -1) (pow f64 h0 (/ f64 3 2))) (/ f64 (sqrt f64 -1) (pow f64 h0 (/ f64 3 2))) (/ f64 1 (pow f64 (* f64 (cbrt f64 h0) (cbrt f64 h0)) 3)) (/ f64 -1 (pow f64 (cbrt f64 h0) 3)) (/ f64 1 (pow f64 (sqrt f64 h0) 3)) (/ f64 -1 (pow f64 (sqrt f64 h0) 3)) (/ f64 1 (pow f64 1 3)) (/ f64 -1 (pow f64 h0 3)) (/ f64 1 (* f64 h0 h0)) (/ f64 -1 h0) (/ f64 1 (* f64 (cbrt f64 (pow f64 h0 3)) (cbrt f64 (pow f64 h0 3)))) (/ f64 -1 (cbrt f64 (pow f64 h0 3))) (/ f64 1 h0) (/ f64 -1 (* f64 h0 h0)) (/ f64 1 (pow f64 (* f64 (cbrt f64 h0) (cbrt f64 h0)) 3)) (/ f64 -1 (pow f64 (cbrt f64 h0) 3)) (/ f64 1 (pow f64 (sqrt f64 h0) 3)) (/ f64 -1 (pow f64 (sqrt f64 h0) 3)) (/ f64 1 (pow f64 1 3)) (/ f64 -1 (pow f64 h0 3)) (/ f64 1 (sqrt f64 (pow f64 h0 3))) (/ f64 -1 (sqrt f64 (pow f64 h0 3))) (/ f64 1 1) (/ f64 -1 (pow f64 h0 3)) (/ f64 1 (pow f64 h0 (/ f64 3 2))) (/ f64 -1 (pow f64 h0 (/ f64 3 2))) (/ f64 (pow f64 h0 3) -1) (/ f64 1 (pow f64 h0 3)) (/ f64 (pow f64 h0 3) (cbrt f64 -1)) (/ f64 (pow f64 h0 3) (sqrt f64 -1)) (/ f64 (pow f64 h0 3) -1) (/ f64 -1 (pow f64 (* f64 (cbrt f64 h0) (cbrt f64 h0)) 3)) (/ f64 -1 (pow f64 (sqrt f64 h0) 3)) (/ f64 -1 (pow f64 1 3)) (/ f64 -1 (* f64 h0 h0)) (/ f64 -1 (* f64 (cbrt f64 (pow f64 h0 3)) (cbrt f64 (pow f64 h0 3)))) (/ f64 -1 h0) (/ f64 -1 (pow f64 (* f64 (cbrt f64 h0) (cbrt f64 h0)) 3)) (/ f64 -1 (pow f64 (sqrt f64 h0) 3)) (/ f64 -1 (pow f64 1 3)) (/ f64 -1 (sqrt f64 (pow f64 h0 3))) (/ f64 -1 1) (/ f64 -1 (pow f64 h0 (/ f64 3 2))) (* f64 (exp f64 (/ f64 1 h0)) (exp f64 (/ f64 -1 (pow f64 h0 3)))) (exp f64 (+ f64 (/ f64 1 h0) (/ f64 -1 (pow f64 h0 3)))) (log f64 (+ f64 (/ f64 1 h0) (/ f64 -1 (pow f64 h0 3)))) (* f64 (* f64 (+ f64 (/ f64 1 h0) (/ f64 -1 (pow f64 h0 3))) (+ f64 (/ f64 1 h0) (/ f64 -1 (pow f64 h0 3)))) (+ f64 (/ f64 1 h0) (/ f64 -1 (pow f64 h0 3)))) (* f64 (cbrt f64 (+ f64 (/ f64 1 h0) (/ f64 -1 (pow f64 h0 3)))) (cbrt f64 (+ f64 (/ f64 1 h0) (/ f64 -1 (pow f64 h0 3))))) (cbrt f64 (+ f64 (/ f64 1 h0) (/ f64 -1 (pow f64 h0 3)))) (sqrt f64 (+ f64 (/ f64 1 h0) (/ f64 -1 (pow f64 h0 3)))) (sqrt f64 (+ f64 (/ f64 1 h0) (/ f64 -1 (pow f64 h0 3)))) (+ f64 (* f64 1 (pow f64 h0 3)) (* f64 h0 -1)) (* f64 h0 (pow f64 h0 3)) (+ f64 (pow f64 (/ f64 1 h0) 3) (pow f64 (/ f64 -1 (pow f64 h0 3)) 3)) (+ f64 (* f64 (/ f64 1 h0) (/ f64 1 h0)) (- f64 (* f64 (/ f64 -1 (pow f64 h0 3)) (/ f64 -1 (pow f64 h0 3))) (* f64 (/ f64 1 h0) (/ f64 -1 (pow f64 h0 3))))) (- f64 (* f64 (/ f64 1 h0) (/ f64 1 h0)) (* f64 (/ f64 -1 (pow f64 h0 3)) (/ f64 -1 (pow f64 h0 3)))) (- f64 (/ f64 1 h0) (/ f64 -1 (pow f64 h0 3))) (+ f64 (/ f64 1 h0) (/ f64 -1 (pow f64 h0 3))) (+ f64 (/ f64 1 h0) (/ f64 -1 (pow f64 h0 3))) (+ f64 (/ f64 1 h0) (/ f64 -1 (pow f64 h0 3))))"
-        .parse()
-        .unwrap();
-    let mut runner = Runner::new(Default::default())
-        .with_explanations_enabled()
-        .with_expr(&start)
-        .with_node_limit(5000)
-        .with_iter_limit(100_000_000) // should never hit
-        .with_time_limit(Duration::from_secs(u64::MAX))
-        .with_hook(|r| {
-            if r.egraph.analysis.unsound.load(Ordering::SeqCst) {
-                Err("Unsoundness detected".into())
-            } else {
-                Ok(())
-            }
-        });
-    runner = runner.run(&math_rules("f64"));
-    check_proof_exists(
-        &mut runner,
-        math_rules("f64"),
-        "(/ f64 (* f64 (cbrt f64 -1) (cbrt f64 -1)) (pow f64 (* f64 (cbrt f64 h0) (cbrt f64 h0)) 3))",
-        "(/ f64 1 (* f64 h0 h0))",
-    );
-}
-
-#[test]
-fn herbie_prove_cbrt() {
-    let start: egg::RecExpr<_> = "(biggroup -1 (- f64 (* f64 2 (/ f64 h0 h1)) 1) (- f64 (* f64 2 (/ f64 h0 h1)) (+ f64 (* f64 2 (/ f64 (pow f64 h0 2) (pow f64 h1 2))) 1)) 1 (- f64 1 (* f64 2 (/ f64 h1 h0))) 1 (- f64 1 (* f64 2 (/ f64 h1 h0))) 1 (- f64 1 (* f64 2 (/ f64 h1 h0))) -1 (- f64 (* f64 2 (/ f64 h0 h1)) 1) (- f64 (* f64 2 (/ f64 h0 h1)) (+ f64 (* f64 2 (/ f64 (pow f64 h0 2) (pow f64 h1 2))) 1)) -1 (- f64 (* f64 2 (/ f64 h0 h1)) 1) (- f64 (* f64 2 (/ f64 h0 h1)) (+ f64 (* f64 2 (/ f64 (pow f64 h0 2) (pow f64 h1 2))) 1)) -1 (neg f64 (+ f64 (* f64 2 (/ f64 h0 h1)) 1)) (neg f64 (+ f64 (* f64 2 (/ f64 h0 h1)) (+ f64 (* f64 2 (/ f64 (pow f64 h0 2) (pow f64 h1 2))) 1))) 1 (+ f64 (* f64 2 (/ f64 h1 h0)) 1) 1 (+ f64 (* f64 2 (/ f64 h1 h0)) 1) 1 (+ f64 (* f64 2 (/ f64 h1 h0)) 1) -1 (neg f64 (+ f64 (* f64 2 (/ f64 h0 h1)) 1)) (neg f64 (+ f64 (* f64 2 (/ f64 h0 h1)) (+ f64 (* f64 2 (/ f64 (pow f64 h0 2) (pow f64 h1 2))) 1))) -1 (neg f64 (+ f64 (* f64 2 (/ f64 h0 h1)) 1)) (neg f64 (+ f64 (* f64 2 (/ f64 h0 h1)) (+ f64 (* f64 2 (/ f64 (pow f64 h0 2) (pow f64 h1 2))) 1))) (- f64 (log f64 (- f64 h0 h1)) (log f64 (+ f64 h1 h0))) (exp f64 (/ f64 (- f64 h0 h1) (+ f64 h1 h0))) (log f64 (/ f64 (- f64 h0 h1) (+ f64 h1 h0))) (* f64 (* f64 (/ f64 (- f64 h0 h1) (+ f64 h1 h0)) (/ f64 (- f64 h0 h1) (+ f64 h1 h0))) (/ f64 (- f64 h0 h1) (+ f64 h1 h0))) (* f64 (cbrt f64 (/ f64 (- f64 h0 h1) (+ f64 h1 h0))) (cbrt f64 (/ f64 (- f64 h0 h1) (+ f64 h1 h0)))) (cbrt f64 (/ f64 (- f64 h0 h1) (+ f64 h1 h0))) (/ f64 (* f64 (* f64 (- f64 h0 h1) (- f64 h0 h1)) (- f64 h0 h1)) (* f64 (* f64 (+ f64 h1 h0) (+ f64 h1 h0)) (+ f64 h1 h0))) (sqrt f64 (/ f64 (- f64 h0 h1) (+ f64 h1 h0))) (sqrt f64 (/ f64 (- f64 h0 h1) (+ f64 h1 h0))) (neg f64 (- f64 h0 h1)) (neg f64 (+ f64 h1 h0)) (/ f64 (* f64 (cbrt f64 (- f64 h0 h1)) (cbrt f64 (- f64 h0 h1))) (* f64 (cbrt f64 (+ f64 h1 h0)) (cbrt f64 (+ f64 h1 h0)))) (/ f64 (cbrt f64 (- f64 h0 h1)) (cbrt f64 (+ f64 h1 h0))) (/ f64 (* f64 (cbrt f64 (- f64 h0 h1)) (cbrt f64 (- f64 h0 h1))) (sqrt f64 (+ f64 h1 h0))) (/ f64 (cbrt f64 (- f64 h0 h1)) (sqrt f64 (+ f64 h1 h0))) (/ f64 (* f64 (cbrt f64 (- f64 h0 h1)) (cbrt f64 (- f64 h0 h1))) 1) (/ f64 (cbrt f64 (- f64 h0 h1)) (+ f64 h1 h0)) (/ f64 (* f64 (cbrt f64 (- f64 h0 h1)) (cbrt f64 (- f64 h0 h1))) 1) (/ f64 (cbrt f64 (- f64 h0 h1)) (+ f64 h1 h0)) (/ f64 (sqrt f64 (- f64 h0 h1)) (* f64 (cbrt f64 (+ f64 h1 h0)) (cbrt f64 (+ f64 h1 h0)))) (/ f64 (sqrt f64 (- f64 h0 h1)) (cbrt f64 (+ f64 h1 h0))) (/ f64 (sqrt f64 (- f64 h0 h1)) (sqrt f64 (+ f64 h1 h0))) (/ f64 (sqrt f64 (- f64 h0 h1)) (sqrt f64 (+ f64 h1 h0))) (/ f64 (sqrt f64 (- f64 h0 h1)) 1) (/ f64 (sqrt f64 (- f64 h0 h1)) (+ f64 h1 h0)) (/ f64 (sqrt f64 (- f64 h0 h1)) 1) (/ f64 (sqrt f64 (- f64 h0 h1)) (+ f64 h1 h0)) (/ f64 1 (* f64 (cbrt f64 (+ f64 h1 h0)) (cbrt f64 (+ f64 h1 h0)))) (/ f64 (- f64 h0 h1) (cbrt f64 (+ f64 h1 h0))) (/ f64 1 (sqrt f64 (+ f64 h1 h0))) (/ f64 (- f64 h0 h1) (sqrt f64 (+ f64 h1 h0))) (/ f64 1 1) (/ f64 (- f64 h0 h1) (+ f64 h1 h0)) (/ f64 1 1) (/ f64 (- f64 h0 h1) (+ f64 h1 h0)) (/ f64 (+ f64 (sqrt f64 h0) (sqrt f64 h1)) (* f64 (cbrt f64 (+ f64 h1 h0)) (cbrt f64 (+ f64 h1 h0)))) (/ f64 (- f64 (sqrt f64 h0) (sqrt f64 h1)) (cbrt f64 (+ f64 h1 h0))) (/ f64 (+ f64 (sqrt f64 h0) (sqrt f64 h1)) (sqrt f64 (+ f64 h1 h0))) (/ f64 (- f64 (sqrt f64 h0) (sqrt f64 h1)) (sqrt f64 (+ f64 h1 h0))) (/ f64 (+ f64 (sqrt f64 h0) (sqrt f64 h1)) 1) (/ f64 (- f64 (sqrt f64 h0) (sqrt f64 h1)) (+ f64 h1 h0)) (/ f64 (+ f64 (sqrt f64 h0) (sqrt f64 h1)) 1) (/ f64 (- f64 (sqrt f64 h0) (sqrt f64 h1)) (+ f64 h1 h0)) (/ f64 1 (* f64 (cbrt f64 (+ f64 h1 h0)) (cbrt f64 (+ f64 h1 h0)))) (/ f64 (- f64 h0 h1) (cbrt f64 (+ f64 h1 h0))) (/ f64 1 (sqrt f64 (+ f64 h1 h0))) (/ f64 (- f64 h0 h1) (sqrt f64 (+ f64 h1 h0))) (/ f64 1 1) (/ f64 (- f64 h0 h1) (+ f64 h1 h0)) (/ f64 1 1) (/ f64 (- f64 h0 h1) (+ f64 h1 h0)) (/ f64 h0 (+ f64 h1 h0)) (/ f64 h1 (+ f64 h1 h0)) (/ f64 (+ f64 h1 h0) (- f64 h0 h1)) (/ f64 1 (+ f64 h1 h0)) (* f64 (+ f64 h1 h0) (+ f64 (* f64 h0 h0) (+ f64 (* f64 h1 h1) (* f64 h0 h1)))) (* f64 (+ f64 h1 h0) (+ f64 h0 h1)) (/ f64 (- f64 h0 h1) (+ f64 (pow f64 h1 3) (pow f64 h0 3))) (/ f64 (- f64 h0 h1) (- f64 (* f64 h1 h1) (* f64 h0 h0))) (/ f64 (+ f64 h1 h0) (cbrt f64 (- f64 h0 h1))) (/ f64 (+ f64 h1 h0) (sqrt f64 (- f64 h0 h1))) (/ f64 (+ f64 h1 h0) (- f64 h0 h1)) (/ f64 (+ f64 h1 h0) (- f64 (sqrt f64 h0) (sqrt f64 h1))) (/ f64 (+ f64 h1 h0) (- f64 h0 h1)) (/ f64 (- f64 h0 h1) (* f64 (cbrt f64 (+ f64 h1 h0)) (cbrt f64 (+ f64 h1 h0)))) (/ f64 (- f64 h0 h1) (sqrt f64 (+ f64 h1 h0))) (/ f64 (- f64 h0 h1) 1) (/ f64 (- f64 h0 h1) 1) (neg f64 1) (- f64 0 (- f64 (log f64 (- f64 h0 h1)) (log f64 (+ f64 h1 h0)))) (- f64 0 (log f64 (/ f64 (- f64 h0 h1) (+ f64 h1 h0)))) (- f64 (log f64 1) (- f64 (log f64 (- f64 h0 h1)) (log f64 (+ f64 h1 h0)))) (- f64 (log f64 1) (log f64 (/ f64 (- f64 h0 h1) (+ f64 h1 h0)))) (neg f64 (- f64 (log f64 (- f64 h0 h1)) (log f64 (+ f64 h1 h0)))) (neg f64 (log f64 (/ f64 (- f64 h0 h1) (+ f64 h1 h0)))) (exp f64 (/ f64 1 (/ f64 (- f64 h0 h1) (+ f64 h1 h0)))) (log f64 (/ f64 1 (/ f64 (- f64 h0 h1) (+ f64 h1 h0)))) (* f64 (* f64 (/ f64 1 (/ f64 (- f64 h0 h1) (+ f64 h1 h0))) (/ f64 1 (/ f64 (- f64 h0 h1) (+ f64 h1 h0)))) (/ f64 1 (/ f64 (- f64 h0 h1) (+ f64 h1 h0)))) (* f64 (cbrt f64 (/ f64 1 (/ f64 (- f64 h0 h1) (+ f64 h1 h0)))) (cbrt f64 (/ f64 1 (/ f64 (- f64 h0 h1) (+ f64 h1 h0))))) (cbrt f64 (/ f64 1 (/ f64 (- f64 h0 h1) (+ f64 h1 h0)))) (/ f64 (* f64 (* f64 1 1) 1) (* f64 (* f64 (/ f64 (- f64 h0 h1) (+ f64 h1 h0)) (/ f64 (- f64 h0 h1) (+ f64 h1 h0))) (/ f64 (- f64 h0 h1) (+ f64 h1 h0)))) (/ f64 (* f64 (* f64 1 1) 1) (/ f64 (* f64 (* f64 (- f64 h0 h1) (- f64 h0 h1)) (- f64 h0 h1)) (* f64 (* f64 (+ f64 h1 h0) (+ f64 h1 h0)) (+ f64 h1 h0)))) (sqrt f64 (/ f64 1 (/ f64 (- f64 h0 h1) (+ f64 h1 h0)))) (sqrt f64 (/ f64 1 (/ f64 (- f64 h0 h1) (+ f64 h1 h0)))) (neg f64 1) (neg f64 (/ f64 (- f64 h0 h1) (+ f64 h1 h0))) (/ f64 (* f64 (cbrt f64 1) (cbrt f64 1)) (* f64 (cbrt f64 (/ f64 (- f64 h0 h1) (+ f64 h1 h0))) (cbrt f64 (/ f64 (- f64 h0 h1) (+ f64 h1 h0))))) (/ f64 (cbrt f64 1) (cbrt f64 (/ f64 (- f64 h0 h1) (+ f64 h1 h0)))) (/ f64 (* f64 (cbrt f64 1) (cbrt f64 1)) (sqrt f64 (/ f64 (- f64 h0 h1) (+ f64 h1 h0)))) (/ f64 (cbrt f64 1) (sqrt f64 (/ f64 (- f64 h0 h1) (+ f64 h1 h0)))) (/ f64 (* f64 (cbrt f64 1) (cbrt f64 1)) (/ f64 (* f64 (cbrt f64 (- f64 h0 h1)) (cbrt f64 (- f64 h0 h1))) (* f64 (cbrt f64 (+ f64 h1 h0)) (cbrt f64 (+ f64 h1 h0))))) (/ f64 (cbrt f64 1) (/ f64 (cbrt f64 (- f64 h0 h1)) (cbrt f64 (+ f64 h1 h0)))) (/ f64 (* f64 (cbrt f64 1) (cbrt f64 1)) (/ f64 (* f64 (cbrt f64 (- f64 h0 h1)) (cbrt f64 (- f64 h0 h1))) (sqrt f64 (+ f64 h1 h0)))) (/ f64 (cbrt f64 1) (/ f64 (cbrt f64 (- f64 h0 h1)) (sqrt f64 (+ f64 h1 h0)))) (/ f64 (* f64 (cbrt f64 1) (cbrt f64 1)) (/ f64 (* f64 (cbrt f64 (- f64 h0 h1)) (cbrt f64 (- f64 h0 h1))) 1)) (/ f64 (cbrt f64 1) (/ f64 (cbrt f64 (- f64 h0 h1)) (+ f64 h1 h0))) (/ f64 (* f64 (cbrt f64 1) (cbrt f64 1)) (/ f64 (* f64 (cbrt f64 (- f64 h0 h1)) (cbrt f64 (- f64 h0 h1))) 1)) (/ f64 (cbrt f64 1) (/ f64 (cbrt f64 (- f64 h0 h1)) (+ f64 h1 h0))) (/ f64 (* f64 (cbrt f64 1) (cbrt f64 1)) (/ f64 (sqrt f64 (- f64 h0 h1)) (* f64 (cbrt f64 (+ f64 h1 h0)) (cbrt f64 (+ f64 h1 h0))))) (/ f64 (cbrt f64 1) (/ f64 (sqrt f64 (- f64 h0 h1)) (cbrt f64 (+ f64 h1 h0)))) (/ f64 (* f64 (cbrt f64 1) (cbrt f64 1)) (/ f64 (sqrt f64 (- f64 h0 h1)) (sqrt f64 (+ f64 h1 h0)))) (/ f64 (cbrt f64 1) (/ f64 (sqrt f64 (- f64 h0 h1)) (sqrt f64 (+ f64 h1 h0)))) (/ f64 (* f64 (cbrt f64 1) (cbrt f64 1)) (/ f64 (sqrt f64 (- f64 h0 h1)) 1)) (/ f64 (cbrt f64 1) (/ f64 (sqrt f64 (- f64 h0 h1)) (+ f64 h1 h0))) (/ f64 (* f64 (cbrt f64 1) (cbrt f64 1)) (/ f64 (sqrt f64 (- f64 h0 h1)) 1)) (/ f64 (cbrt f64 1) (/ f64 (sqrt f64 (- f64 h0 h1)) (+ f64 h1 h0))) (/ f64 (* f64 (cbrt f64 1) (cbrt f64 1)) (/ f64 1 (* f64 (cbrt f64 (+ f64 h1 h0)) (cbrt f64 (+ f64 h1 h0))))) (/ f64 (cbrt f64 1) (/ f64 (- f64 h0 h1) (cbrt f64 (+ f64 h1 h0)))) (/ f64 (* f64 (cbrt f64 1) (cbrt f64 1)) (/ f64 1 (sqrt f64 (+ f64 h1 h0)))) (/ f64 (cbrt f64 1) (/ f64 (- f64 h0 h1) (sqrt f64 (+ f64 h1 h0)))) (/ f64 (* f64 (cbrt f64 1) (cbrt f64 1)) (/ f64 1 1)) (/ f64 (cbrt f64 1) (/ f64 (- f64 h0 h1) (+ f64 h1 h0))) (/ f64 (* f64 (cbrt f64 1) (cbrt f64 1)) (/ f64 1 1)) (/ f64 (cbrt f64 1) (/ f64 (- f64 h0 h1) (+ f64 h1 h0))) (/ f64 (* f64 (cbrt f64 1) (cbrt f64 1)) (/ f64 (+ f64 (sqrt f64 h0) (sqrt f64 h1)) (* f64 (cbrt f64 (+ f64 h1 h0)) (cbrt f64 (+ f64 h1 h0))))) (/ f64 (cbrt f64 1) (/ f64 (- f64 (sqrt f64 h0) (sqrt f64 h1)) (cbrt f64 (+ f64 h1 h0)))) (/ f64 (* f64 (cbrt f64 1) (cbrt f64 1)) (/ f64 (+ f64 (sqrt f64 h0) (sqrt f64 h1)) (sqrt f64 (+ f64 h1 h0)))) (/ f64 (cbrt f64 1) (/ f64 (- f64 (sqrt f64 h0) (sqrt f64 h1)) (sqrt f64 (+ f64 h1 h0)))) (/ f64 (* f64 (cbrt f64 1) (cbrt f64 1)) (/ f64 (+ f64 (sqrt f64 h0) (sqrt f64 h1)) 1)) (/ f64 (cbrt f64 1) (/ f64 (- f64 (sqrt f64 h0) (sqrt f64 h1)) (+ f64 h1 h0))) (/ f64 (* f64 (cbrt f64 1) (cbrt f64 1)) (/ f64 (+ f64 (sqrt f64 h0) (sqrt f64 h1)) 1)) (/ f64 (cbrt f64 1) (/ f64 (- f64 (sqrt f64 h0) (sqrt f64 h1)) (+ f64 h1 h0))) (/ f64 (* f64 (cbrt f64 1) (cbrt f64 1)) (/ f64 1 (* f64 (cbrt f64 (+ f64 h1 h0)) (cbrt f64 (+ f64 h1 h0))))) (/ f64 (cbrt f64 1) (/ f64 (- f64 h0 h1) (cbrt f64 (+ f64 h1 h0)))) (/ f64 (* f64 (cbrt f64 1) (cbrt f64 1)) (/ f64 1 (sqrt f64 (+ f64 h1 h0)))) (/ f64 (cbrt f64 1) (/ f64 (- f64 h0 h1) (sqrt f64 (+ f64 h1 h0)))) (/ f64 (* f64 (cbrt f64 1) (cbrt f64 1)) (/ f64 1 1)) (/ f64 (cbrt f64 1) (/ f64 (- f64 h0 h1) (+ f64 h1 h0))) (/ f64 (* f64 (cbrt f64 1) (cbrt f64 1)) (/ f64 1 1)) (/ f64 (cbrt f64 1) (/ f64 (- f64 h0 h1) (+ f64 h1 h0))) (/ f64 (* f64 (cbrt f64 1) (cbrt f64 1)) 1)
-(/ f64 (cbrt f64 1) (/ f64 (- f64 h0 h1) (+ f64 h1 h0))) (/ f64 (* f64 (cbrt f64 1) (cbrt f64 1)) (- f64 h0 h1)) (/ f64 (cbrt f64 1) (/ f64 1 (+ f64 h1 h0))) (/ f64 (* f64 (cbrt f64 1) (cbrt f64 1)) (/ f64 (- f64 h0 h1) (+ f64 (pow f64 h1 3) (pow f64 h0 3)))) (/ f64 (cbrt f64 1) (+ f64 (* f64 h1 h1) (- f64 (* f64 h0 h0) (* f64 h1 h0)))) (/ f64 (* f64 (cbrt f64 1) (cbrt f64 1)) (/ f64 (- f64 h0 h1) (- f64 (* f64 h1 h1) (* f64 h0 h0)))) (/ f64 (cbrt f64 1) (- f64 h1 h0)) (/ f64 (sqrt f64 1) (* f64 (cbrt f64 (/ f64 (- f64 h0 h1) (+ f64 h1 h0))) (cbrt f64 (/ f64 (- f64 h0 h1) (+ f64 h1 h0))))) (/ f64 (sqrt f64 1) (cbrt f64 (/ f64 (- f64 h0 h1) (+ f64 h1 h0)))) (/ f64 (sqrt f64 1) (sqrt f64 (/ f64 (- f64 h0 h1) (+ f64 h1 h0)))) (/ f64 (sqrt f64 1) (sqrt f64 (/ f64 (- f64 h0 h1) (+ f64 h1 h0)))) (/ f64 (sqrt f64 1) (/ f64 (* f64 (cbrt f64 (- f64 h0 h1)) (cbrt f64 (- f64 h0 h1))) (* f64 (cbrt f64 (+ f64 h1 h0)) (cbrt f64 (+ f64 h1 h0))))) (/ f64 (sqrt f64 1) (/ f64 (cbrt f64 (- f64 h0 h1)) (cbrt f64 (+ f64 h1 h0)))) (/ f64 (sqrt f64 1) (/ f64 (* f64 (cbrt f64 (- f64 h0 h1)) (cbrt f64 (- f64 h0 h1))) (sqrt f64 (+ f64 h1 h0)))) (/ f64 (sqrt f64 1) (/ f64 (cbrt f64 (- f64 h0 h1)) (sqrt f64 (+ f64 h1 h0)))) (/ f64 (sqrt f64 1) (/ f64 (* f64 (cbrt f64 (- f64 h0 h1)) (cbrt f64 (- f64 h0 h1))) 1)) (/ f64 (sqrt f64 1) (/ f64 (cbrt f64 (- f64 h0 h1)) (+ f64 h1 h0))) (/ f64 (sqrt f64 1) (/ f64 (* f64 (cbrt f64 (- f64 h0 h1)) (cbrt f64 (- f64 h0 h1))) 1)) (/ f64 (sqrt f64 1) (/ f64 (cbrt f64 (- f64 h0 h1)) (+ f64 h1 h0))) (/ f64 (sqrt f64 1) (/ f64 (sqrt f64 (- f64 h0 h1)) (* f64 (cbrt f64 (+ f64 h1 h0)) (cbrt f64 (+ f64 h1 h0))))) (/ f64 (sqrt f64 1) (/ f64 (sqrt f64 (- f64 h0 h1)) (cbrt f64 (+ f64 h1 h0)))) (/ f64 (sqrt f64 1) (/ f64 (sqrt f64 (- f64 h0 h1)) (sqrt f64 (+ f64 h1 h0)))) (/ f64 (sqrt f64 1) (/ f64 (sqrt f64 (- f64 h0 h1)) (sqrt f64 (+ f64 h1 h0)))) (/ f64 (sqrt f64 1) (/ f64 (sqrt f64 (- f64 h0 h1)) 1)) (/ f64 (sqrt f64 1) (/ f64 (sqrt f64 (- f64 h0 h1)) (+ f64 h1 h0))) (/ f64 (sqrt f64 1) (/ f64 (sqrt f64 (- f64 h0 h1)) 1)) (/ f64 (sqrt f64 1) (/ f64 (sqrt f64 (- f64 h0 h1)) (+ f64 h1 h0))) (/ f64 (sqrt f64 1) (/ f64 1 (* f64 (cbrt f64 (+ f64 h1 h0)) (cbrt f64 (+ f64 h1 h0))))) (/ f64 (sqrt f64 1) (/ f64 (- f64 h0 h1) (cbrt f64 (+ f64 h1 h0)))) (/ f64 (sqrt f64 1) (/ f64 1 (sqrt f64 (+ f64 h1 h0)))) (/ f64 (sqrt f64 1) (/ f64 (- f64 h0 h1) (sqrt f64 (+ f64 h1 h0)))) (/ f64 (sqrt f64 1) (/ f64 1 1)) (/ f64 (sqrt f64 1) (/ f64 (- f64 h0 h1) (+ f64 h1 h0))) (/ f64 (sqrt f64 1) (/ f64 1 1)) (/ f64 (sqrt f64 1) (/ f64 (- f64 h0 h1) (+ f64 h1 h0))) (/ f64 (sqrt f64 1) (/ f64 (+ f64 (sqrt f64 h0) (sqrt f64 h1)) (* f64 (cbrt f64 (+ f64 h1 h0)) (cbrt f64 (+ f64 h1 h0))))) (/ f64 (sqrt f64 1) (/ f64 (- f64 (sqrt f64 h0) (sqrt f64 h1)) (cbrt f64 (+ f64 h1 h0)))) (/ f64 (sqrt f64 1) (/ f64 (+ f64 (sqrt f64 h0) (sqrt f64 h1)) (sqrt f64 (+ f64 h1 h0)))) (/ f64 (sqrt f64 1) (/ f64 (- f64 (sqrt f64 h0) (sqrt f64 h1)) (sqrt f64 (+ f64 h1 h0)))) (/ f64 (sqrt f64 1) (/ f64 (+ f64 (sqrt f64 h0) (sqrt f64 h1)) 1)) (/ f64 (sqrt f64 1) (/ f64 (- f64 (sqrt f64 h0) (sqrt f64 h1)) (+ f64 h1 h0))) (/ f64 (sqrt f64 1) (/ f64 (+ f64 (sqrt f64 h0) (sqrt f64 h1)) 1)) (/ f64 (sqrt f64 1) (/ f64 (- f64 (sqrt f64 h0) (sqrt f64 h1)) (+ f64 h1 h0))) (/ f64 (sqrt f64 1) (/ f64 1 (* f64 (cbrt f64 (+ f64 h1 h0)) (cbrt f64 (+ f64 h1 h0))))) (/ f64 (sqrt f64 1) (/ f64 (- f64 h0 h1) (cbrt f64 (+ f64 h1 h0)))) (/ f64 (sqrt f64 1) (/ f64 1 (sqrt f64 (+ f64 h1 h0)))) (/ f64 (sqrt f64 1) (/ f64 (- f64 h0 h1) (sqrt f64 (+ f64 h1 h0)))) (/ f64 (sqrt f64 1) (/ f64 1 1)) (/ f64 (sqrt f64 1) (/ f64 (- f64 h0 h1) (+ f64 h1 h0))) (/ f64 (sqrt f64 1) (/ f64 1 1)) (/ f64 (sqrt f64 1) (/ f64 (- f64 h0 h1) (+ f64 h1 h0))) (/ f64 (sqrt f64 1) 1) (/ f64 (sqrt f64 1) (/ f64 (- f64 h0 h1) (+ f64 h1 h0))) (/ f64 (sqrt f64 1) (- f64 h0 h1)) (/ f64 (sqrt f64 1) (/ f64 1 (+ f64 h1 h0))) (/ f64 (sqrt f64 1) (/ f64 (- f64 h0 h1) (+ f64 (pow f64 h1 3) (pow f64 h0 3)))) (/ f64 (sqrt f64 1) (+ f64 (* f64 h1 h1) (- f64 (* f64 h0 h0) (* f64 h1 h0)))) (/ f64 (sqrt f64 1) (/ f64 (- f64 h0 h1) (- f64 (* f64 h1 h1) (* f64 h0 h0)))) (/ f64 (sqrt f64 1) (- f64 h1 h0)) (/ f64 1 (* f64 (cbrt f64 (/ f64 (- f64 h0 h1) (+ f64 h1 h0))) (cbrt f64 (/ f64 (- f64 h0 h1) (+ f64 h1 h0))))) (/ f64 1 (cbrt f64 (/ f64 (- f64 h0 h1) (+ f64 h1 h0)))) (/ f64 1 (sqrt f64 (/ f64 (- f64 h0 h1) (+ f64 h1 h0)))) (/ f64 1 (sqrt f64 (/ f64 (- f64 h0 h1) (+ f64 h1 h0)))) (/ f64 1 (/ f64 (* f64 (cbrt f64 (- f64 h0 h1)) (cbrt f64 (- f64 h0 h1))) (* f64 (cbrt f64 (+ f64 h1 h0)) (cbrt f64 (+ f64 h1 h0))))) (/ f64 1 (/ f64 (cbrt f64 (- f64 h0 h1)) (cbrt f64 (+ f64 h1 h0)))) (/ f64 1 (/ f64 (* f64 (cbrt f64 (- f64 h0 h1)) (cbrt f64 (- f64 h0 h1))) (sqrt f64 (+ f64 h1 h0)))) (/ f64 1 (/ f64 (cbrt f64 (- f64 h0 h1)) (sqrt f64 (+ f64 h1 h0)))) (/ f64 1 (/ f64 (* f64 (cbrt f64 (- f64 h0 h1)) (cbrt f64 (- f64 h0 h1))) 1)) (/ f64 1 (/ f64 (cbrt f64 (- f64 h0 h1)) (+ f64 h1 h0))) (/ f64 1 (/ f64 (* f64 (cbrt f64 (- f64 h0 h1)) (cbrt f64 (- f64 h0 h1))) 1)) (/ f64 1 (/ f64 (cbrt f64 (- f64 h0 h1)) (+ f64 h1 h0))) (/ f64 1 (/ f64 (sqrt f64 (- f64 h0 h1)) (* f64 (cbrt f64 (+ f64 h1 h0)) (cbrt f64 (+ f64 h1 h0))))) (/ f64 1 (/ f64 (sqrt f64 (- f64 h0 h1)) (cbrt f64 (+ f64 h1 h0)))) (/ f64 1 (/ f64 (sqrt f64 (- f64 h0 h1)) (sqrt f64 (+ f64 h1 h0)))) (/ f64 1 (/ f64 (sqrt f64 (- f64 h0 h1)) (sqrt f64 (+ f64 h1 h0)))) (/ f64 1 (/ f64 (sqrt f64 (- f64 h0 h1)) 1)) (/ f64 1 (/ f64 (sqrt f64 (- f64 h0 h1)) (+ f64 h1 h0))) (/ f64 1 (/ f64 (sqrt f64 (- f64 h0 h1)) 1)) (/ f64 1 (/ f64 (sqrt f64 (- f64 h0 h1)) (+ f64 h1 h0))) (/ f64 1 (/ f64 1 (* f64 (cbrt f64 (+ f64 h1 h0)) (cbrt f64 (+ f64 h1 h0))))) (/ f64 1 (/ f64 (- f64 h0 h1) (cbrt f64 (+ f64 h1 h0)))) (/ f64 1 (/ f64 1 (sqrt f64 (+ f64 h1 h0)))) (/ f64 1 (/ f64 (- f64 h0 h1) (sqrt f64 (+ f64 h1 h0)))) (/ f64 1 (/ f64 1 1)) (/ f64 1 (/ f64 (- f64 h0 h1) (+ f64 h1 h0))) (/ f64 1 (/ f64 1 1)) (/ f64 1 (/ f64 (- f64 h0 h1) (+ f64 h1 h0))) (/ f64 1 (/ f64 (+ f64 (sqrt f64 h0) (sqrt f64 h1)) (* f64 (cbrt f64 (+ f64 h1 h0)) (cbrt f64 (+ f64 h1 h0))))) (/ f64 1 (/ f64 (- f64 (sqrt f64 h0) (sqrt f64 h1)) (cbrt f64 (+ f64 h1 h0)))) (/ f64 1 (/ f64 (+ f64 (sqrt f64 h0) (sqrt f64 h1)) (sqrt f64 (+ f64 h1 h0)))) (/ f64 1 (/ f64 (- f64 (sqrt f64 h0) (sqrt f64 h1)) (sqrt f64 (+ f64 h1 h0)))) (/ f64 1 (/ f64 (+ f64 (sqrt f64 h0) (sqrt f64 h1)) 1)) (/ f64 1 (/ f64 (- f64 (sqrt f64 h0) (sqrt f64 h1)) (+ f64 h1 h0))) (/ f64 1 (/ f64 (+ f64 (sqrt f64 h0) (sqrt f64 h1)) 1)) (/ f64 1 (/ f64 (- f64 (sqrt f64 h0) (sqrt f64 h1)) (+ f64 h1 h0))) (/ f64 1 (/ f64 1 (* f64 (cbrt f64 (+ f64 h1 h0)) (cbrt f64 (+ f64 h1 h0))))) (/ f64 1 (/ f64 (- f64 h0 h1) (cbrt f64 (+ f64 h1 h0)))) (/ f64 1 (/ f64 1 (sqrt f64 (+ f64 h1 h0)))) (/ f64 1 (/ f64 (- f64 h0 h1) (sqrt f64 (+ f64 h1 h0)))) (/ f64 1 (/ f64 1 1)) (/ f64 1 (/ f64 (- f64 h0 h1) (+ f64 h1 h0))) (/ f64 1 (/ f64 1 1)) (/ f64 1 (/ f64 (- f64 h0 h1) (+ f64 h1 h0))) (/ f64 1 1) (/ f64 1 (/ f64 (- f64 h0 h1) (+ f64 h1 h0))) (/ f64 1 (- f64 h0 h1)) (/ f64 1 (/ f64 1 (+ f64 h1 h0))) (/ f64 1 (/ f64 (- f64 h0 h1) (+ f64 (pow f64 h1 3) (pow f64 h0 3)))) (/ f64 1 (+ f64 (* f64 h1 h1) (- f64 (* f64 h0 h0) (* f64 h1 h0)))) (/ f64 1 (/ f64 (- f64 h0 h1) (- f64 (* f64 h1 h1) (* f64 h0 h0)))) (/ f64 1 (- f64 h1 h0)) (/ f64 (/ f64 (- f64 h0 h1) (+ f64 h1 h0)) 1) (/ f64 1 (/ f64 (- f64 h0 h1) (+ f64 h1 h0))) (/ f64 1 (- f64 h0 h1)) (/ f64 (/ f64 (- f64 h0 h1) (+ f64 h1 h0)) (cbrt f64 1)) (/ f64 (/ f64 (- f64 h0 h1) (+ f64 h1 h0)) (sqrt f64 1)) (/ f64 (/ f64 (- f64 h0 h1) (+ f64 h1 h0)) 1) (/ f64 1 (* f64 (cbrt f64 (/ f64 (- f64 h0 h1) (+ f64 h1 h0))) (cbrt f64 (/ f64 (- f64 h0 h1) (+ f64 h1 h0))))) (/ f64 1 (sqrt f64 (/ f64 (- f64 h0 h1) (+ f64 h1 h0)))) (/ f64 1 (/ f64 (* f64 (cbrt f64 (- f64 h0 h1)) (cbrt f64 (- f64 h0 h1))) (* f64 (cbrt f64 (+ f64 h1 h0)) (cbrt f64 (+ f64 h1 h0))))) (/ f64 1 (/ f64 (* f64 (cbrt f64 (- f64 h0 h1)) (cbrt f64 (- f64 h0 h1))) (sqrt f64 (+ f64 h1 h0)))) (/ f64 1 (/ f64 (* f64 (cbrt f64 (- f64 h0 h1)) (cbrt f64 (- f64 h0 h1))) 1)) (/ f64 1 (/ f64 (* f64 (cbrt f64 (- f64 h0 h1)) (cbrt f64 (- f64 h0 h1))) 1)) (/ f64 1 (/ f64 (sqrt f64 (- f64 h0 h1)) (* f64 (cbrt f64 (+ f64 h1 h0)) (cbrt f64 (+ f64 h1 h0))))) (/ f64 1 (/ f64 (sqrt f64 (- f64 h0 h1)) (sqrt f64 (+ f64 h1 h0)))) (/ f64 1 (/ f64 (sqrt f64 (- f64 h0 h1)) 1)) (/ f64 1 (/ f64 (sqrt f64 (- f64 h0 h1)) 1)) (/ f64 1 (/ f64 1 (* f64 (cbrt f64 (+ f64 h1 h0)) (cbrt f64 (+ f64 h1 h0))))) (/ f64 1 (/ f64 1 (sqrt f64 (+ f64 h1 h0)))) (/ f64 1 (/ f64 1 1)) (/ f64 1 (/ f64 1 1)) (/ f64 1 (/ f64 (+ f64 (sqrt f64 h0) (sqrt f64 h1)) (* f64 (cbrt f64 (+ f64 h1 h0)) (cbrt f64 (+ f64 h1 h0))))) (/ f64 1 (/ f64 (+ f64 (sqrt f64 h0) (sqrt f64 h1)) (sqrt f64 (+ f64 h1 h0)))) (/ f64 1 (/ f64 (+ f64 (sqrt f64 h0) (sqrt f64 h1)) 1)) (/ f64 1 (/ f64 (+ f64 (sqrt f64 h0) (sqrt f64 h1)) 1)) (/ f64 1 (/ f64 1 (* f64 (cbrt f64 (+ f64 h1 h0)) (cbrt f64 (+ f64 h1 h0))))) (/ f64 1 (/ f64 1 (sqrt f64 (+ f64 h1 h0)))) (/ f64 1 (/ f64 1 1)) (/ f64 1 (/ f64 1 1)) (/ f64 1 1) (/ f64 1 (- f64 h0 h1)) (/ f64 1 (/ f64 (- f64 h0 h1) (+ f64 (pow f64 h1 3) (pow f64 h0 3)))) (/ f64 1 (/ f64 (- f64 h0 h1) (- f64 (* f64 h1 h1) (* f64 h0 h0)))))"
-        .parse()
-        .unwrap();
-    let mut runner = Runner::new(Default::default())
-        .with_explanations_enabled()
-        .with_expr(&start)
-        .with_node_limit(5000)
-        .with_iter_limit(100_000_000) // should never hit
-        .with_time_limit(Duration::from_secs(u64::MAX))
-        .with_hook(|r| {
-            if r.egraph.analysis.unsound.load(Ordering::SeqCst) {
-                Err("Unsoundness detected".into())
-            } else {
-                Ok(())
-            }
-        });
-    runner = runner.run(&math_rules("f64"));
-    check_proof_exists(
-        &mut runner,
-        math_rules("f64"),
-        "(cbrt f64 1)",
-        "(cbrt f64 (* f64 1 (* f64 1 1)))",
-    );
-}
-
 fn get_z3_funcs<L>(pattern: &PatternAst<L>) -> HashSet<(String, usize)>
 where
     L: Language + Display + 'static,
@@ -712,10 +559,14 @@ fn get_const_fold_rewrites() -> Vec<String> {
     res.push(format!("(assert (forall ((?t A) (?x Real) (?y Real)) (= ({} ?t (wrap-rat ?x) (wrap-rat 0)) (wrap-rat 1))))", "pow"));
     res.push(format!("(assert (forall ((?t A) (?x Real) (?y Real)) (= ({} ?t (wrap-rat ?x)) (wrap-rat ({} ?x (/ 1 2))))))", "sqrt", "^"));
     res.push(format!("(assert (forall ((?t A) (?x Real) (?y Real)) (= ({} ?t (wrap-rat ?x)) (wrap-rat ({} ?x (/ 1 3))))))", "cbrt", "^"));
-    res.push(format!("(assert (forall ((?t A) (?x Real)) (= ({} ?t (wrap-rat ?x)) (wrap-rat ({} ?x)))))", "neg", "-"));
-    res.push(format!("(assert (forall ((?t A) (?x Real)) (= ({} ?t (wrap-rat ?x)) (wrap-rat ({} ?x)))))", "fabs", "abs"));
-
-
+    res.push(format!(
+        "(assert (forall ((?t A) (?x Real)) (= ({} ?t (wrap-rat ?x)) (wrap-rat ({} ?x)))))",
+        "neg", "-"
+    ));
+    res.push(format!(
+        "(assert (forall ((?t A) (?x Real)) (= ({} ?t (wrap-rat ?x)) (wrap-rat ({} ?x)))))",
+        "fabs", "abs"
+    ));
 
     res
 }
@@ -780,7 +631,10 @@ where
                     .join(" ")
             );
 
-            format!("(assert (forall {} (! (= {} {}) :pattern {})))", vars_str, left, right, left)
+            format!(
+                "(assert (forall {} (! (= {} {}) :pattern {})))",
+                vars_str, left, right, left
+            )
         };
         results.push(final_str);
     }
@@ -788,7 +642,11 @@ where
     results
 }
 
-fn test_z3<L, A>(rules: &[egg::Rewrite<L, A>], start: &egg::RecExpr<L>, end: &egg::RecExpr<L>) -> String
+fn test_z3<L, A>(
+    rules: &[egg::Rewrite<L, A>],
+    start: &egg::RecExpr<L>,
+    end: &egg::RecExpr<L>,
+) -> String
 where
     L: Language + Display + 'static,
     A: Analysis<L> + Default,
@@ -849,8 +707,12 @@ where
     };
 
     let mut output = String::new();
-    z3_process.stdout.unwrap().read_to_string(&mut output).unwrap();
-    
+    z3_process
+        .stdout
+        .unwrap()
+        .read_to_string(&mut output)
+        .unwrap();
+
     if !timed_out && !output.starts_with("unsat\n") {
         println!("Z3 returned unknown!");
         //println!("{}", output);
@@ -861,7 +723,13 @@ where
 fn count_string_in_sexp(sexp: &Sexp, func: &str) -> usize {
     match sexp {
         Sexp::List(l) => l.iter().map(|s| count_string_in_sexp(s, func)).sum(),
-        Sexp::String(s) => if s == func { 1 } else { 0 },
+        Sexp::String(s) => {
+            if s == func {
+                1
+            } else {
+                0
+            }
+        }
         Sexp::Empty => 0,
     }
 }
@@ -918,7 +786,7 @@ mod proofbench {
             "#f".to_string()
         } else {
             match parser::parse_str(&z3_res[6..]) {
-                Ok(z3_res_parsed) =>{
+                Ok(z3_res_parsed) => {
                     format!("{}", count_string_in_sexp(&z3_res_parsed, "quant-inst"))
                 }
                 Err(_) => "#f".to_string(),
@@ -938,14 +806,17 @@ mod proofbench {
         let upwards_normal_time;
         let upwards_normal_len;
         let upwards_normal_tree_size;
-        if runner_upwards.egraph.add_expr(&start_parsed) != runner_upwards.egraph.add_expr(&end_parsed) {
+        if runner_upwards.egraph.add_expr(&start_parsed)
+            != runner_upwards.egraph.add_expr(&end_parsed)
+        {
             println!("upwards runner failed to find equality");
             upwards_normal_time = "#f".to_string();
             upwards_normal_len = "#f".to_string();
             upwards_normal_tree_size = "#f".to_string();
         } else {
             let upwards_normal_instant = Instant::now();
-            let mut upwards_normal = runner_upwards.explain_equivalence(&start_parsed, &end_parsed, 100, true);
+            let mut upwards_normal =
+                runner_upwards.explain_equivalence(&start_parsed, &end_parsed, 100, true);
             upwards_normal_time = format!("{}", upwards_normal_instant.elapsed().as_millis());
             upwards_normal.check_proof(rules);
             upwards_normal_len = format!("{}", upwards_normal.get_flat_sexps().len());
@@ -954,7 +825,7 @@ mod proofbench {
 
         writeln!(
             output,
-            "({} {} {} {} {} {} {} {} {} {} {} {} {} {})",
+            "({} {} {} {} {} {} {} {} {} {} {} {} {} {} {})",
             &start_parsed,
             &end_parsed,
             duration_normal,
@@ -969,6 +840,7 @@ mod proofbench {
             upwards_normal_time,
             upwards_normal_len,
             upwards_normal_tree_size,
+            upwards_run_duration,
         )
         .unwrap();
         output.flush().unwrap();
@@ -976,7 +848,14 @@ mod proofbench {
         std::io::stdout().flush().unwrap();
     }
 
-    fn herbie_runner(expressions: &Sexp, node_limit: usize, timeout: u64, start: &RecExpr, end: &RecExpr, use_hook: bool) -> Runner {
+    fn herbie_runner(
+        expressions: &Sexp,
+        node_limit: usize,
+        timeout: u64,
+        start: &RecExpr,
+        end: &RecExpr,
+        use_hook: bool,
+    ) -> Runner {
         let start_cloned = start.clone();
         let end_cloned = end.clone();
         let mut runner = Runner::new(Default::default())
@@ -993,7 +872,7 @@ mod proofbench {
             });
 
         if use_hook {
-            runner = runner.with_hook(move |r| {        
+            runner = runner.with_hook(move |r| {
                 let res = if r.egraph.add_expr(&start_cloned) == r.egraph.add_expr(&end_cloned) {
                     Err("Finished".into())
                 } else {
@@ -1030,11 +909,20 @@ mod proofbench {
             let start_parsed: egg::RecExpr<_> = unwrap_sexp_string(&pair[0]).parse().unwrap();
             let end_parsed: egg::RecExpr<_> = unwrap_sexp_string(&pair[1]).parse().unwrap();
 
-            let mut runner = herbie_runner(expressions, 5000, 20, &start_parsed, &end_parsed, false);
-            let mut runner_upwards = herbie_runner(expressions, 100000, 20, &start_parsed, &end_parsed, true);
+            let mut runner =
+                herbie_runner(expressions, 5000, 20, &start_parsed, &end_parsed, false);
+            let mut runner_upwards =
+                herbie_runner(expressions, 10000, 20, &start_parsed, &end_parsed, true);
             runner_upwards.upwards_merging_enabled = true;
-            
-            herbie_benchmark_proof(runner, runner_upwards, start_parsed, end_parsed, output, &rules);
+
+            herbie_benchmark_proof(
+                runner,
+                runner_upwards,
+                start_parsed,
+                end_parsed,
+                output,
+                &rules,
+            );
         }
     }
 
