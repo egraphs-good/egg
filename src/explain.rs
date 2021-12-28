@@ -52,6 +52,7 @@ pub struct Explain<L: Language> {
 struct DistanceMemo {
     parent_distance: Vec<(Id, usize)>,
     common_ancestor: HashMap<(Id, Id), Id>,
+    tree_depth: HashMap<Id, usize>,
 }
 
 /// Explanation trees are the compact representation showing
@@ -1320,6 +1321,27 @@ impl<L: Language> Explain<L> {
         enodes
     }
 
+    fn add_tree_depths(&self, node: Id, depths: &mut HashMap<Id, usize>) -> usize {
+        if depths.get(&node).is_none() {
+            let parent = self.parent(node);
+            let depth = if parent == node {
+                0
+            } else {
+                self.add_tree_depths(parent, depths)+1
+            };
+            depths.insert(node, depth);
+        }
+        return *depths.get(&node).unwrap();
+    }
+
+    fn calculate_tree_depths(&self) -> HashMap<Id, usize> {
+        let mut depths = HashMap::default();
+        for i in 0..self.explainfind.len() {
+            self.add_tree_depths(Id::from(i), &mut depths);
+        }
+        return depths;
+    }   
+
     // Run Floyd-Warshall to find all pairs shortest paths for this eclass.
     // When child lengths are absent, they are considered
     // to be the largest usize length.
@@ -1537,18 +1559,7 @@ impl<L: Language> Explain<L> {
                 if ancestor == Id::from(usize::MAX) {
                     break;
                 }
-                if parent == ancestor {
-                    break;
-                }
-                let higher = if let Some(a) = distance_memo.common_ancestor.get(&(parent, ancestor))
-                {
-                    *a
-                } else {
-                    // fall back on calculating ancestor for top-level query (not from congruence)
-                    self.common_ancestor(parent, ancestor)
-                };
-                if higher != ancestor {
-                    assert!(higher == parent);
+                if distance_memo.tree_depth.get(&parent).unwrap() <= distance_memo.tree_depth.get(&ancestor).unwrap() {
                     break;
                 }
 
@@ -1890,6 +1901,7 @@ impl<L: Language> Explain<L> {
         let mut distance_memo = DistanceMemo {
             parent_distance,
             common_ancestor: self.calculate_common_ancestor::<N>(classes, &congruence_neighbors),
+            tree_depth: self.calculate_tree_depths(),
         };
 
         if greedy_search {
