@@ -762,6 +762,7 @@ mod proofbench {
     fn herbie_benchmark_proof(
         mut runner: Runner,
         mut runner_upwards: Runner,
+        mut runner_low_node_limit: Runner,
         start_parsed: RecExpr,
         end_parsed: RecExpr,
         output: &mut File,
@@ -799,7 +800,7 @@ mod proofbench {
         normal.check_proof(rules);
 
         let start_slow = Instant::now();
-        let mut slow = runner.explain_equivalence(&start_parsed, &end_parsed, 100, true);
+        let mut slow = runner.explain_equivalence(&start_parsed, &end_parsed, 10, true);
         let duration_slow = start_slow.elapsed().as_millis();
         slow.check_proof(rules);
 
@@ -816,16 +817,46 @@ mod proofbench {
         } else {
             let upwards_normal_instant = Instant::now();
             let mut upwards_normal =
-                runner_upwards.explain_equivalence(&start_parsed, &end_parsed, 100, true);
+                runner_upwards.explain_equivalence(&start_parsed, &end_parsed, 10, true);
             upwards_normal_time = format!("{}", upwards_normal_instant.elapsed().as_millis());
             upwards_normal.check_proof(rules);
             upwards_normal_len = format!("{}", upwards_normal.get_flat_sexps().len());
             upwards_normal_tree_size = format!("{}", upwards_normal.get_tree_size());
         }
 
+        let start_low = Instant::now();
+        runner_low_node_limit = runner_low_node_limit.run(rules);
+        let egg_low_duration = start_egg_run.elapsed().as_millis();
+        let low_greedy_time;
+        let low_optimal_time;
+        let low_greedy_tree_size;
+        let low_optimal_tree_size;
+        if runner_low_node_limit.egraph.add_expr(&start_parsed)
+            != runner_low_node_limit.egraph.add_expr(&end_parsed)
+        {
+            low_greedy_time = "#f".to_string();
+            low_optimal_time = "#f".to_string();
+            low_greedy_tree_size = "#f".to_string();
+            low_optimal_tree_size = "#f".to_string();
+        } else {
+            let low_greedy_instant = Instant::now();
+            let mut low_greedy =
+                runner_low_node_limit.explain_equivalence(&start_parsed, &end_parsed, 10, true);
+            low_greedy_time = format!("{}", low_greedy_instant.elapsed().as_millis());
+            low_greedy.check_proof(rules);
+            low_greedy_tree_size = format!("{}", low_greedy.get_tree_size());
+
+            let low_optimal_instant = Instant::now();
+            let mut low_optimal =
+                runner_low_node_limit.explain_equivalence(&start_parsed, &end_parsed, usize::MAX, false);
+            low_optimal_time = format!("{}", low_optimal_instant.elapsed().as_millis());
+            low_optimal.check_proof(rules);
+            low_optimal_tree_size = format!("{}", low_optimal.get_tree_size());
+        }
+
         writeln!(
             output,
-            "({} {} {} {} {} {} {} {} {} {} {} {} {} {} {})",
+            "({} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {})",
             &start_parsed,
             &end_parsed,
             duration_normal,
@@ -841,6 +872,10 @@ mod proofbench {
             upwards_normal_len,
             upwards_normal_tree_size,
             upwards_run_duration,
+            low_greedy_time,
+            low_optimal_time,
+            low_greedy_tree_size,
+            low_optimal_tree_size,
         )
         .unwrap();
         output.flush().unwrap();
@@ -913,11 +948,14 @@ mod proofbench {
                 herbie_runner(expressions, 5000, 20, &start_parsed, &end_parsed, false);
             let mut runner_upwards =
                 herbie_runner(expressions, 10000, 20, &start_parsed, &end_parsed, true);
+            let mut runner_low_limit =
+                herbie_runner(expressions, 750, 20, &start_parsed, &end_parsed, false);
             runner_upwards.upwards_merging_enabled = true;
 
             herbie_benchmark_proof(
                 runner,
                 runner_upwards,
+                runner_low_limit,
                 start_parsed,
                 end_parsed,
                 output,
