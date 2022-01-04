@@ -48,6 +48,7 @@ mod util;
 /// [`EGraph`].
 #[derive(Clone, Copy, Default, Ord, PartialOrd, Eq, PartialEq, Hash)]
 #[cfg_attr(feature = "serde-1", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde-1", serde(transparent))]
 pub struct Id(u32);
 
 impl From<usize> for Id {

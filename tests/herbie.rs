@@ -204,7 +204,7 @@ impl Analysis<Math> for ConstantFold {
         ))
     }
 
-    fn merge(&self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
+    fn merge(&mut self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
         match (to.as_mut(), &from) {
             (None, None) => DidMerge(false, false),
             (None, Some(_)) => {
@@ -593,7 +593,7 @@ fn wrap_ints(sexp: Sexp) -> Sexp {
 }
 
 fn pat_to_z3_string<L: Language + Display>(pat: &PatternAst<L>) -> String {
-    let sexp = pat.to_sexp(usize::from(pat.as_ref().len() - 1));
+    let sexp = pat.to_sexp();
     wrap_ints(sexp).to_string()
 }
 
@@ -656,8 +656,8 @@ where
 
     let goal_string = format!(
         "(assert (not (= {} {})))",
-        wrap_ints(start.to_sexp(start.as_ref().len() - 1)),
-        wrap_ints(end.to_sexp(end.as_ref().len() - 1))
+        wrap_ints(start.to_sexp()),
+        wrap_ints(end.to_sexp())
     );
 
     let mut z3_process = Command::new("z3")

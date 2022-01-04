@@ -18,7 +18,7 @@ type Rewrite = egg::Rewrite<Prop, ConstantFold>;
 struct ConstantFold;
 impl Analysis<Prop> for ConstantFold {
     type Data = Option<(bool, PatternAst<Prop>)>;
-    fn merge(&self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
+    fn merge(&mut self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
         merge_max(to, from)
     }
 

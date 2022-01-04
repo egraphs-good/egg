@@ -66,7 +66,7 @@ impl Analysis<Math> for ConstantFold {
                 x(a)? * x(b)?,
                 format!("(* {} {})", x(a)?, x(b)?).parse().unwrap(),
             ),
-            Math::Div([a, b]) if x(b) != Some(0.0.into()) => (
+            Math::Div([a, b]) if x(b) != Some(NotNan::new(0.0).unwrap()) => (
                 x(a)? / x(b)?,
                 format!("(/ {} {})", x(a)?, x(b)?).parse().unwrap(),
             ),
@@ -74,7 +74,7 @@ impl Analysis<Math> for ConstantFold {
         })
     }
 
-    fn merge(&self, a: &mut Self::Data, b: Self::Data) -> DidMerge {
+    fn merge(&mut self, a: &mut Self::Data, b: Self::Data) -> DidMerge {
         match (a.as_mut(), &b) {
             (None, None) => DidMerge(false, false),
             (None, Some(_)) => {
@@ -327,4 +327,19 @@ fn assoc_mul_saturates() {
         .run(&rules());
 
     assert!(matches!(runner.stop_reason, Some(StopReason::Saturated)));
+}
+
+#[test]
+fn math_ematching_bench() {
+    let exprs = &[
+        "(i (ln x) x)",
+        "(i (+ x (cos x)) x)",
+        "(i (* (cos x) x) x)",
+        "(d x (+ 1 (* 2 x)))",
+        "(d x (- (pow x 3) (* 7 (pow x 2))))",
+        "(+ (* y (+ x y)) (- (+ x 2) (+ x x)))",
+        "(/ 1 (- (/ (+ 1 (sqrt five)) 2) (/ (- 1 (sqrt five)) 2)))",
+    ];
+
+    egg::test::bench_egraph("math", rules(), exprs);
 }

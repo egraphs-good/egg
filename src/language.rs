@@ -2,7 +2,6 @@ use std::ops::{BitOr, Index, IndexMut};
 use std::{cmp::Ordering, convert::TryFrom};
 use std::{
     convert::Infallible,
-    error::Error,
     fmt::{self, Debug, Display},
 };
 use std::{hash::Hash, str::FromStr};
@@ -107,7 +106,9 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
         self.fold(false, |acc, id| acc || f(id))
     }
 
-    /// Make a `RecExpr` converting this enodes children to `RecExpr`s
+    /// Make a [`RecExpr`] by mapping this enodes children to other [`RecExpr`]s.
+    ///
+    /// This can be used to join together different expression with a new node.
     ///
     /// # Example
     /// ```
@@ -115,14 +116,14 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
     /// let a_plus_2: RecExpr<SymbolLang> = "(+ a 2)".parse().unwrap();
     /// // here's an enode with some meaningless child ids
     /// let enode = SymbolLang::new("*", vec![Id::from(0), Id::from(0)]);
-    /// // make a new recexpr, replacing enode's childen with a_plus_2
-    /// let recexpr = enode.to_recexpr(|_id| a_plus_2.as_ref());
+    /// // make a new recexpr, replacing enode's children with a_plus_2
+    /// let recexpr = enode.join_recexprs(|_id| &a_plus_2);
     /// assert_eq!(recexpr, "(* (+ a 2) (+ a 2))".parse().unwrap())
     /// ```
-    fn to_recexpr<'a, F>(&self, mut child_recexpr: F) -> RecExpr<Self>
+    fn join_recexprs<F, Expr>(&self, mut child_recexpr: F) -> RecExpr<Self>
     where
-        Self: 'a,
-        F: FnMut(Id) -> &'a [Self],
+        F: FnMut(Id) -> Expr,
+        Expr: AsRef<[Self]>,
     {
         fn build<L: Language>(to: &mut RecExpr<L>, from: &[L]) -> Id {
             let last = from.last().unwrap().clone();
@@ -136,9 +137,76 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
         let mut expr = RecExpr::default();
         let node = self
             .clone()
-            .map_children(|id| build(&mut expr, child_recexpr(id)));
+            .map_children(|id| build(&mut expr, child_recexpr(id).as_ref()));
         expr.add(node);
         expr
+    }
+
+    /// Build a [`RecExpr`] from an e-node.
+    ///
+    /// The provided `get_node` function must return the same node for a given
+    /// [`Id`] on multiple invocations.
+    ///
+    /// # Example
+    ///
+    /// You could use this method to perform an "ad-hoc" extraction from the e-graph,
+    /// where you already know which node you want pick for each class:
+    /// ```
+    /// # use egg::*;
+    /// let mut egraph = EGraph::<SymbolLang, ()>::default();
+    /// let expr = "(foo (bar1 (bar2 (bar3 baz))))".parse().unwrap();
+    /// let root = egraph.add_expr(&expr);
+    /// let get_first_enode = |id| egraph[id].nodes[0].clone();
+    /// let expr2 = get_first_enode(root).build_recexpr(get_first_enode);
+    /// assert_eq!(expr, expr2)
+    /// ```
+    fn build_recexpr<F>(&self, mut get_node: F) -> RecExpr<Self>
+    where
+        F: FnMut(Id) -> Self,
+    {
+        self.try_build_recexpr::<_, std::convert::Infallible>(|id| Ok(get_node(id)))
+            .unwrap()
+    }
+
+    /// Same as [`Language::build_recexpr`], but fallible.
+    fn try_build_recexpr<F, Err>(&self, mut get_node: F) -> Result<RecExpr<Self>, Err>
+    where
+        F: FnMut(Id) -> Result<Self, Err>,
+    {
+        let mut set = IndexSet::<Self>::default();
+        let mut ids = HashMap::<Id, Id>::default();
+        let mut todo = self.children().to_vec();
+
+        while let Some(id) = todo.last().copied() {
+            if ids.contains_key(&id) {
+                todo.pop();
+                continue;
+            }
+
+            let node = get_node(id)?;
+
+            // check to see if we can do this node yet
+            let mut ids_has_all_children = true;
+            for child in node.children() {
+                if !ids.contains_key(child) {
+                    ids_has_all_children = false;
+                    todo.push(*child)
+                }
+            }
+
+            // all children are processed, so we can lookup this node safely
+            if ids_has_all_children {
+                let node = node.map_children(|id| ids[&id]);
+                let new_id = set.insert_full(node).0;
+                ids.insert(id, Id::from(new_id));
+                todo.pop();
+            }
+        }
+
+        // finally, add the root node and create the expression
+        let mut nodes: Vec<Self> = set.into_iter().collect();
+        nodes.push(self.clone().map_children(|id| ids[&id]));
+        Ok(RecExpr::from(nodes))
     }
 }
 
@@ -187,7 +255,7 @@ pub trait FromOp: Language + Sized {
     /// represent a valid e-node.
     ///
     /// [`from_op`]: FromOp::from_op
-    type Error: Error + 'static;
+    type Error: Debug;
 
     /// Parse an e-node with operator `op` and children `children`.
     fn from_op(op: &str, children: Vec<Id>) -> Result<Self, Self::Error>;
@@ -307,7 +375,7 @@ impl<L: Language + Display> serde::Serialize for RecExpr<L> {
     where
         S: serde::Serializer,
     {
-        let s = self.to_sexp(self.nodes.len() - 1).to_string();
+        let s = self.to_sexp().to_string();
         serializer.serialize_str(&s)
     }
 }
@@ -343,6 +411,34 @@ impl<L: Language> RecExpr<L> {
         self.nodes.push(node);
         Id::from(self.nodes.len() - 1)
     }
+
+    pub(crate) fn compact(mut self) -> Self {
+        let mut ids = HashMap::<Id, Id>::default();
+        let mut set = IndexSet::default();
+        for (i, node) in self.nodes.drain(..).enumerate() {
+            let node = node.map_children(|id| ids[&id]);
+            let new_id = set.insert_full(node).0;
+            ids.insert(Id::from(i), Id::from(new_id));
+        }
+        self.nodes.extend(set);
+        self
+    }
+
+    pub(crate) fn extract(&self, new_root: Id) -> Self {
+        self[new_root].build_recexpr(|id| self[id].clone())
+    }
+
+    /// Checks if this expr is a DAG, i.e. doesn't have any back edges
+    pub fn is_dag(&self) -> bool {
+        for (i, n) in self.nodes.iter().enumerate() {
+            for &child in n.children() {
+                if usize::from(child) >= i {
+                    return false;
+                }
+            }
+        }
+        true
+    }
 }
 
 impl<L: Language> Index<Id> for RecExpr<L> {
@@ -361,23 +457,39 @@ impl<L: Language> IndexMut<Id> for RecExpr<L> {
 impl<L: Language + Display> Display for RecExpr<L> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.nodes.is_empty() {
-            write!(f, "()")
+            Display::fmt("()", f)
         } else {
-            let s = self.to_sexp(self.nodes.len() - 1).to_string();
-            write!(f, "{}", s)
+            let s = self.to_sexp().to_string();
+            Display::fmt(&s, f)
         }
     }
 }
 
 impl<L: Language + Display> RecExpr<L> {
-    pub fn to_sexp(&self, i: usize) -> Sexp {
+    pub fn to_sexp(&self) -> Sexp {
+        let last = self.nodes.len() - 1;
+        if !self.is_dag() {
+            log::warn!("Tried to print a non-dag: {:?}", self.nodes);
+        }
+        self.to_sexp_rec(last, &mut |_| None)
+    }
+
+    fn to_sexp_rec(&self, i: usize, f: &mut impl FnMut(usize) -> Option<String>) -> Sexp {
         let node = &self.nodes[i];
         let op = Sexp::String(node.to_string());
         if node.is_leaf() {
             op
         } else {
             let mut vec = vec![op];
-            node.for_each(|id| vec.push(self.to_sexp(id.into())));
+            for child in node.children().iter().map(|i| usize::from(*i)) {
+                vec.push(if let Some(s) = f(child) {
+                    return Sexp::String(s);
+                } else if child < i {
+                    self.to_sexp_rec(child, f)
+                } else {
+                    Sexp::String(format!("<<<< CYCLE to {} = {:?} >>>>", i, node))
+                })
+            }
             Sexp::List(vec)
         }
     }
@@ -397,7 +509,7 @@ impl<L: Language + Display> RecExpr<L> {
     /// ".trim());
     /// ```
     pub fn pretty(&self, width: usize) -> String {
-        let sexp = self.to_sexp(self.nodes.len() - 1);
+        let sexp = self.to_sexp();
 
         let mut buf = String::new();
         pretty_print(&mut buf, &sexp, width, 1).unwrap();
@@ -408,7 +520,7 @@ impl<L: Language + Display> RecExpr<L> {
 /// An error type for failures when attempting to parse an s-expression as a
 /// [`RecExpr<L>`].
 #[derive(Debug, Error)]
-pub enum RecExprParseError<E: Error + 'static> {
+pub enum RecExprParseError<E> {
     /// An empty s-expression was found. Usually this is caused by an
     /// empty list "()" somewhere in the input.
     #[error("found empty s-expression")]
@@ -474,7 +586,7 @@ impl<L: FromOp> FromStr for RecExpr<L> {
 /// The fields correspond to whether the `a` and `b` inputs to [`Analysis::merge`]
 /// were changed in any way by the merge.
 ///
-/// In both cases the result may be coservative -- they may indicate `true` even
+/// In both cases the result may be conservative -- they may indicate `true` even
 /// when there is no difference between the input and the result.
 pub struct DidMerge(pub bool, pub bool);
 
@@ -525,7 +637,7 @@ struct ConstantFolding;
 impl Analysis<SimpleMath> for ConstantFolding {
     type Data = Option<i32>;
 
-    fn merge(&self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
+    fn merge(&mut self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
         egg::merge_max(to, from)
     }
 
@@ -602,12 +714,19 @@ pub trait Analysis<L: Language>: Sized {
     ///
     /// If `b != a1` the result must have `b_merged == true`. This may be
     /// conservative -- it may be `true` even if even if `b == a1`.
-    fn merge(&self, a: &mut Self::Data, b: Self::Data) -> DidMerge;
+    ///
+    /// This function may modify the [`Analysis`], which can be useful as a way
+    /// to store information for the [`Analysis::modify`] hook to process, since
+    /// `modify` has access to the e-graph.
+    fn merge(&mut self, a: &mut Self::Data, b: Self::Data) -> DidMerge;
 
     /// A hook that allows the modification of the
-    /// [`EGraph`]
+    /// [`EGraph`].
     ///
     /// By default this does nothing.
+    ///
+    /// This function is called immediately following
+    /// `Analysis::merge` when unions are performed.
     #[allow(unused_variables)]
     fn modify(egraph: &mut EGraph<L, Self>, id: Id) {}
 }
@@ -615,7 +734,7 @@ pub trait Analysis<L: Language>: Sized {
 impl<L: Language> Analysis<L> for () {
     type Data = ();
     fn make(_egraph: &EGraph<L, Self>, _enode: &L) -> Self::Data {}
-    fn merge(&self, _: &mut Self::Data, _: Self::Data) -> DidMerge {
+    fn merge(&mut self, _: &mut Self::Data, _: Self::Data) -> DidMerge {
         DidMerge(false, false)
     }
 }

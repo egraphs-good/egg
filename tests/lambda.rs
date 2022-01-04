@@ -61,7 +61,7 @@ fn eval(egraph: &EGraph, enode: &Lambda) -> Option<(Lambda, PatternAst<Lambda>)>
 
 impl Analysis<Lambda> for LambdaAnalysis {
     type Data = Data;
-    fn merge(&self, to: &mut Data, from: Data) -> DidMerge {
+    fn merge(&mut self, to: &mut Data, from: Data) -> DidMerge {
         let before_len = to.free.len();
         // to.free.extend(from.free);
         to.free.retain(|i| from.free.contains(i));
@@ -285,6 +285,7 @@ egg::test_fn! {
 
 egg::test_fn! {
     #[cfg(not(debug_assertions))]
+    #[cfg_attr(feature = "test-explanations", ignore)]
     lambda_function_repeat, rules(),
     runner = Runner::default()
         .with_time_limit(std::time::Duration::from_secs(20))
@@ -323,6 +324,7 @@ egg::test_fn! {
 
 egg::test_fn! {
     #[cfg(not(debug_assertions))]
+    #[cfg_attr(feature = "test-explanations", ignore)]
     lambda_fib, rules(),
     runner = Runner::default()
         .with_iter_limit(60)
@@ -338,4 +340,41 @@ egg::test_fn! {
                 (+ (var n) -2)))))))
         (app (var fib) 4))"
     => "3"
+}
+
+#[test]
+fn lambda_ematching_bench() {
+    let exprs = &[
+        "(let zeroone (lam x
+            (if (= (var x) 0)
+                0
+                1))
+            (+ (app (var zeroone) 0)
+            (app (var zeroone) 10)))",
+        "(let compose (lam f (lam g (lam x (app (var f)
+                                        (app (var g) (var x))))))
+        (let repeat (fix repeat (lam fun (lam n
+            (if (= (var n) 0)
+                (lam i (var i))
+                (app (app (var compose) (var fun))
+                    (app (app (var repeat)
+                            (var fun))
+                        (+ (var n) -1)))))))
+        (let add1 (lam y (+ (var y) 1))
+        (app (app (var repeat)
+                (var add1))
+            2))))",
+        "(let fib (fix fib (lam n
+            (if (= (var n) 0)
+                0
+            (if (= (var n) 1)
+                1
+            (+ (app (var fib)
+                    (+ (var n) -1))
+                (app (var fib)
+                    (+ (var n) -2)))))))
+            (app (var fib) 4))",
+    ];
+
+    egg::test::bench_egraph("lambda", rules(), exprs);
 }

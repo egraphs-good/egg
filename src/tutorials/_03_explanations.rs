@@ -28,7 +28,7 @@ let start = "(/ (* (/ 2 3) (/ 3 2)) 1)".parse().unwrap();
 let end = "1".parse().unwrap();
 let mut runner = Runner::default().with_explanations_enabled().with_expr(&start).run(rules);
 
-println!("{}", runner.explain_equivalence(&start, &end).get_flat_string());
+println!("{}", runner.explain_equivalence(&start, &end, 0, false).get_flat_string());
 ```
 
 The output of the program is a series of s-expressions annotated
@@ -60,10 +60,9 @@ In fact, normally the rules `times-zero` and `cancel-denominator` are perfectly
   reasonable.
 However, in the presence of a division by zero, they lead to arbitrary unions in the egraph.
 So the true problem is the presense of the term `(/ 1 0)`.
-For these kinds of questions, `egg` provides the TODO function which can be used to get an explanation
+For these kinds of questions, `egg` provides the `explain_existance` function which can be used to get an explanation
   of why a term exists in the egraph in the first place.
 
-TODO implement the existance explanation function
 
 # Explanation Trees
 

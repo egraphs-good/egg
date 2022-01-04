@@ -29,7 +29,7 @@ where
 
 #[allow(clippy::type_complexity)]
 pub fn test_runner<L, A>(
-    name: &str,
+    _name: &str,
     runner: Option<Runner<L, A, ()>>,
     rules: &[Rewrite<L, A>],
     start: RecExpr<L>,
@@ -51,15 +51,10 @@ pub fn test_runner<L, A>(
     if let Some(lim) = env_var("EGG_TIME_LIMIT") {
         runner = runner.with_time_limit(std::time::Duration::from_secs(lim))
     }
-    if let Some(is_enabled) = env_var("EGG_TEST_EXPLANATIONS") {
-        if is_enabled {
-            runner = runner.with_explanations_enabled();
-        } else {
-            // in case we enabled it in order to add expressions
-            runner = runner.with_explanations_disabled();
-        }
+
+    if cfg!(feature = "test-explanations") {
+        runner = runner.with_explanations_enabled();
     } else {
-        // in case we enabled it in order to add expressions
         runner = runner.with_explanations_disabled();
     }
 
@@ -89,7 +84,7 @@ pub fn test_runner<L, A>(
         runner.print_report();
         runner.egraph.check_goals(id, &goals);
 
-        if runner.egraph.are_explanations_enabled() && name != "lambda_function_repeat" {
+        if runner.egraph.are_explanations_enabled() {
             for goal in goals {
                 let matches = goal.search_eclass(&runner.egraph, id).unwrap();
                 let subst = matches.substs[0].clone();
@@ -107,6 +102,11 @@ pub fn test_runner<L, A>(
                 assert!(explained_short.get_tree_size() > 0);
                 println!("Unoptimized {} Optimized {}", vanilla_len, short_len);
                 explained_short.check_proof(rules);
+
+                let mut existance = runner.explain_existance_pattern(&goal.ast, &subst);
+                existance.get_sexp_with_let();
+                existance.get_flat_sexps();
+                existance.check_proof(rules);
             }
         }
 
@@ -114,6 +114,94 @@ pub fn test_runner<L, A>(
             check_fn(runner)
         }
     }
+}
+
+fn percentile(k: f64, data: &[u128]) -> u128 {
+    // assumes data is sorted
+    assert!((0.0..=1.0).contains(&k));
+    let i = (data.len() as f64 * k) as usize;
+    let i = i.min(data.len() - 1);
+    data[i]
+}
+
+pub fn bench_egraph<L, N>(_name: &str, rules: Vec<Rewrite<L, N>>, exprs: &[&str]) -> EGraph<L, N>
+where
+    L: Language + FromOp + 'static + Display,
+    N: Analysis<L> + Default + 'static,
+{
+    let mut patterns: Vec<Pattern<L>> = vec![];
+    for rule in &rules {
+        if let Some(ast) = rule.searcher.get_pattern_ast() {
+            patterns.push(ast.alpha_rename().into())
+        }
+        if let Some(ast) = rule.applier.get_pattern_ast() {
+            patterns.push(ast.alpha_rename().into())
+        }
+    }
+    eprintln!("{} patterns", patterns.len());
+
+    patterns.retain(|p| p.ast.as_ref().len() > 1);
+    patterns.sort_by_key(|p| p.to_string());
+    patterns.dedup();
+    patterns.sort_by_key(|p| p.ast.as_ref().len());
+
+    let iter_limit = env_var("EGG_ITER_LIMIT").unwrap_or(1);
+    let node_limit = env_var("EGG_NODE_LIMIT").unwrap_or(1_000_000);
+    let time_limit = env_var("EGG_TIME_LIMIT").unwrap_or(1000);
+    let n_samples = env_var("EGG_SAMPLES").unwrap_or(100);
+    eprintln!("Benching {} samples", n_samples);
+    eprintln!(
+        "Limits: {} iters, {} nodes, {} seconds",
+        iter_limit, node_limit, time_limit
+    );
+
+    let mut runner = Runner::default()
+        .with_scheduler(SimpleScheduler)
+        .with_hook(move |runner| {
+            let n_nodes = runner.egraph.total_number_of_nodes();
+            eprintln!("Iter {}, {} nodes", runner.iterations.len(), n_nodes);
+            if n_nodes > node_limit {
+                Err("Bench stopped".into())
+            } else {
+                Ok(())
+            }
+        })
+        .with_iter_limit(iter_limit)
+        .with_node_limit(node_limit)
+        .with_time_limit(Duration::from_secs(time_limit));
+
+    for expr in exprs {
+        runner = runner.with_expr(&expr.parse().unwrap());
+    }
+
+    let runner = runner.run(&rules);
+    eprintln!("{}", runner.report());
+    let egraph = runner.egraph;
+
+    let get_len = |pat: &Pattern<L>| pat.to_string().len();
+    let max_width = patterns.iter().map(get_len).max().unwrap_or(0);
+    for pat in &patterns {
+        let mut times: Vec<u128> = (0..n_samples)
+            .map(|_| {
+                let start = Instant::now();
+                let matches = pat.search(&egraph);
+                let time = start.elapsed();
+                let _n_results = matches.iter().map(|m| m.substs.len()).sum::<usize>();
+                time.as_nanos()
+            })
+            .collect();
+        times.sort_unstable();
+
+        println!(
+            "test {name:<width$} ... bench: {time:>10} ns/iter (+/- {iqr})",
+            name = pat.to_string().replace(' ', "_"),
+            width = max_width,
+            time = percentile(0.05, &times),
+            iqr = percentile(0.75, &times) - percentile(0.25, &times),
+        );
+    }
+
+    egraph
 }
 
 /// Make a test function
