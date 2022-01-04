@@ -1327,7 +1327,7 @@ impl<L: Language> Explain<L> {
             let depth = if parent == node {
                 0
             } else {
-                self.add_tree_depths(parent, depths)+1
+                self.add_tree_depths(parent, depths) + 1
             };
             depths.insert(node, depth);
         }
@@ -1340,7 +1340,7 @@ impl<L: Language> Explain<L> {
             self.add_tree_depths(Id::from(i), &mut depths);
         }
         return depths;
-    }   
+    }
 
     // Run Floyd-Warshall to find all pairs shortest paths for this eclass.
     // When child lengths are absent, they are considered
@@ -1358,7 +1358,7 @@ impl<L: Language> Explain<L> {
         // distance to congruent nodes is the sum of distances between children
         for enode in &enodes {
             for other in congruent_nodes[usize::from(*enode)].iter() {
-                let mut cost = 0;
+                let mut cost: usize = 0;
                 let current_node = self.explainfind[usize::from(*enode)].node.clone();
                 let next_node = self.explainfind[usize::from(*other)].node.clone();
                 for (left_child, right_child) in current_node
@@ -1366,19 +1366,25 @@ impl<L: Language> Explain<L> {
                     .iter()
                     .zip(next_node.children().iter())
                 {
-                    cost += self
-                        .cache_distance_between(*left_child, *right_child, distance_memo)
-                        .0;
+                    if let Some((c, next)) = self
+                        .shortest_explanation_memo
+                        .get(&(*left_child, *right_child))
+                    {
+                        cost = cost.checked_add(*c).unwrap();
+                    } else {
+                        cost = usize::MAX;
+                        break;
+                    }
                 }
 
-                let old = self.cache_distance_between(*enode, *other, distance_memo);
-
-                if cost < old.0 {
-                    self.shortest_explanation_memo
-                        .insert((*enode, *other), (cost, *other));
-                    self.shortest_explanation_memo
-                        .insert((*other, *enode), (cost, *enode));
-                    did_anything = true;
+                if let Some((old_cost, _)) = self.shortest_explanation_memo.get(&(*enode, *other)) {
+                    if cost < *old_cost {
+                        self.shortest_explanation_memo
+                            .insert((*enode, *other), (cost, *other));
+                        self.shortest_explanation_memo
+                            .insert((*other, *enode), (cost, *enode));
+                        did_anything = true;
+                    }
                 }
             }
         }
@@ -1387,19 +1393,31 @@ impl<L: Language> Explain<L> {
         for intermediate in &enodes {
             for start in &enodes {
                 for end in &enodes {
-                    let start_to_intermediate =
-                        match self.shortest_explanation_memo.get(&(*start, *intermediate)) {
-                            Some(pair) => pair.clone(),
-                            None => continue,
+                    let start_to_intermediate = if let Some(v) =
+                        self.shortest_explanation_memo.get(&(*start, *intermediate))
+                    {
+                        *v
+                    } else {
+                        continue;
+                    };
+                    let intermediate_to_end = if let Some(v) =
+                        self.shortest_explanation_memo.get(&(*intermediate, *end))
+                    {
+                        *v
+                    } else {
+                        continue;
+                    };
+                    let old =
+                        if let Some((c, _)) = self.shortest_explanation_memo.get(&(*start, *end)) {
+                            *c
+                        } else {
+                            usize::MAX
                         };
-                    let intermediate_to_end =
-                        match self.shortest_explanation_memo.get(&(*intermediate, *end)) {
-                            Some((v, _)) => *v,
-                            None => continue,
-                        };
-                    let old = self.cache_distance_between(*start, *end, distance_memo);
-                    let new = start_to_intermediate.0 + intermediate_to_end;
-                    if new < old.0 {
+                    let new = start_to_intermediate
+                        .0
+                        .checked_add(intermediate_to_end.0)
+                        .unwrap();
+                    if new < old {
                         self.shortest_explanation_memo
                             .insert((*start, *end), (new, start_to_intermediate.1));
                         did_anything = true;
@@ -1441,27 +1459,9 @@ impl<L: Language> Explain<L> {
         assert_eq!(last_cost, target_cost);
     }
 
-    fn cache_distance_between(
-        &mut self,
-        left: Id,
-        right: Id,
-        distance_memo: &mut DistanceMemo,
-    ) -> (usize, Id) {
-        if let Some((dist, next)) = self.shortest_explanation_memo.get(&(left, right)) {
-            (*dist, *next)
-        } else {
-            self.distance_between(left, right, distance_memo)
-        }
-    }
-
-    fn distance_between(
-        &mut self,
-        left: Id,
-        right: Id,
-        distance_memo: &mut DistanceMemo,
-    ) -> (usize, Id) {
+    fn distance_between(&mut self, left: Id, right: Id, distance_memo: &mut DistanceMemo) -> usize {
         if left == right {
-            return (0, left);
+            return 0;
         }
         let ancestor = if let Some(a) = distance_memo.common_ancestor.get(&(left, right)) {
             *a
@@ -1491,14 +1491,15 @@ impl<L: Language> Explain<L> {
         let dist = b
             .checked_add(c)
             .unwrap_or_else(|| panic!("overflow in proof size calculation!"))
-            .checked_sub(a.checked_mul(2).unwrap_or_else(|| panic!("overflow in proof size calculation!")))
+            .checked_sub(
+                a.checked_mul(2)
+                    .unwrap_or_else(|| panic!("overflow in proof size calculation!")),
+            )
             .unwrap_or_else(|| panic!("common ancestor distance was too large!"));
-
-        let next = self.parent(left);
 
         //assert_eq!(dist+1, Explanation::new(self.explain_enodes(left, right, &mut Default::default())).make_flat_explanation().len());
 
-        return (dist, next);
+        return dist;
     }
 
     fn congruence_distance(
@@ -1516,10 +1517,7 @@ impl<L: Language> Explain<L> {
             .zip(next_node.children().iter())
         {
             cost = cost
-                .checked_add(
-                    self.distance_between(*left_child, *right_child, distance_memo)
-                        .0,
-                )
+                .checked_add(self.distance_between(*left_child, *right_child, distance_memo))
                 .unwrap();
         }
         cost
@@ -1559,7 +1557,9 @@ impl<L: Language> Explain<L> {
                 if ancestor == Id::from(usize::MAX) {
                     break;
                 }
-                if distance_memo.tree_depth.get(&parent).unwrap() <= distance_memo.tree_depth.get(&ancestor).unwrap() {
+                if distance_memo.tree_depth.get(&parent).unwrap()
+                    <= distance_memo.tree_depth.get(&ancestor).unwrap()
+                {
                     break;
                 }
 
@@ -1623,7 +1623,7 @@ impl<L: Language> Explain<L> {
     ) -> (usize, usize) {
         let eclass_size = self.find_all_enodes(start).len();
         if fuel < eclass_size {
-            return (self.distance_between(start, end, distance_memo).0, fuel);
+            return (self.distance_between(start, end, distance_memo), fuel);
         }
         fuel -= eclass_size;
 
@@ -1687,7 +1687,7 @@ impl<L: Language> Explain<L> {
         let mut left_connections = vec![];
         let mut right_connections = vec![];
         // when we found an equivalent path, avoid cycles by taking the normal route
-        let dist = self.distance_between(start, end, distance_memo).0;
+        let dist = self.distance_between(start, end, distance_memo);
 
         if total_cost > dist {
             panic!(
@@ -1745,15 +1745,11 @@ impl<L: Language> Explain<L> {
                         fuel,
                     );
                     assert!(
-                        rec.0
-                            <= self
-                                .distance_between(*left_child, *right_child, distance_memo)
-                                .0
+                        rec.0 <= self.distance_between(*left_child, *right_child, distance_memo)
                     );
                     cost += rec.0;
-                    total_cost_check += self
-                        .distance_between(*left_child, *right_child, distance_memo)
-                        .0;
+                    total_cost_check +=
+                        self.distance_between(*left_child, *right_child, distance_memo);
                     fuel = rec.1;
                 }
 
@@ -1878,6 +1874,20 @@ impl<L: Language> Explain<L> {
         }
 
         common_ancestor
+    }
+
+    // covered when rewrite inserted
+    fn set_rewrite_distances(
+        &mut self,
+        eclass: Id) {
+        let enodes = self.find_all_enodes(eclass);
+        for node in enodes {
+            for child in &self.explainfind[usize::from(node)].neighbors {
+                if let Justification::Rule(_) = child.justification {
+                    self.shortest_explanation_memo.insert((child.current, child.next), (1, child.next));
+                }
+            }
+        }
     }
 
     fn calculate_shortest_explanations<N: Analysis<L>>(

@@ -829,34 +829,50 @@ mod proofbench {
         let egg_low_duration = start_egg_run.elapsed().as_millis();
         let low_greedy_time;
         let low_optimal_time;
-        let low_greedy_tree_size;
-        let low_optimal_tree_size;
-        if runner_low_node_limit.egraph.add_expr(&start_parsed)
+        let low_greedy_flat_size;
+        let low_optimal_flat_size;
+        let low_greedy_dag_size;
+        let low_optimal_dag_size;
+        let mut skip_optimal = false;
+        for class in runner_low_node_limit.egraph.classes() {
+            if class.len() > 200 {
+                skip_optimal = true;
+            }
+        }
+        if skip_optimal || runner_low_node_limit.egraph.add_expr(&start_parsed)
             != runner_low_node_limit.egraph.add_expr(&end_parsed)
         {
             low_greedy_time = "#f".to_string();
             low_optimal_time = "#f".to_string();
-            low_greedy_tree_size = "#f".to_string();
-            low_optimal_tree_size = "#f".to_string();
+            low_greedy_flat_size = "#f".to_string();
+            low_optimal_flat_size = "#f".to_string();
+            low_greedy_dag_size = "#f".to_string();
+            low_optimal_dag_size = "#f".to_string();
         } else {
             let low_greedy_instant = Instant::now();
             let mut low_greedy =
                 runner_low_node_limit.explain_equivalence(&start_parsed, &end_parsed, 10, true);
             low_greedy_time = format!("{}", low_greedy_instant.elapsed().as_millis());
             low_greedy.check_proof(rules);
-            low_greedy_tree_size = format!("{}", low_greedy.get_tree_size());
+            low_greedy_flat_size = format!("{}", low_greedy.get_flat_sexps().len());
+            low_greedy_dag_size = format!("{}", low_greedy.get_tree_size());
 
             let low_optimal_instant = Instant::now();
-            let mut low_optimal =
-                runner_low_node_limit.explain_equivalence(&start_parsed, &end_parsed, usize::MAX, false);
+            let mut low_optimal = runner_low_node_limit.explain_equivalence(
+                &start_parsed,
+                &end_parsed,
+                usize::MAX,
+                false,
+            );
             low_optimal_time = format!("{}", low_optimal_instant.elapsed().as_millis());
             low_optimal.check_proof(rules);
-            low_optimal_tree_size = format!("{}", low_optimal.get_tree_size());
+            low_optimal_flat_size = format!("{}", low_optimal.get_flat_sexps().len());
+            low_optimal_dag_size = format!("{}", low_optimal.get_tree_size());
         }
 
         writeln!(
             output,
-            "({} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {})",
+            "({} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {})",
             &start_parsed,
             &end_parsed,
             duration_normal,
@@ -874,8 +890,10 @@ mod proofbench {
             upwards_run_duration,
             low_greedy_time,
             low_optimal_time,
-            low_greedy_tree_size,
-            low_optimal_tree_size,
+            low_greedy_flat_size,
+            low_optimal_flat_size,
+            low_greedy_dag_size,
+            low_optimal_dag_size
         )
         .unwrap();
         output.flush().unwrap();
@@ -947,9 +965,9 @@ mod proofbench {
             let mut runner =
                 herbie_runner(expressions, 5000, 20, &start_parsed, &end_parsed, false);
             let mut runner_upwards =
-                herbie_runner(expressions, 10000, 20, &start_parsed, &end_parsed, true);
+                herbie_runner(expressions, 50000, 20, &start_parsed, &end_parsed, true);
             let mut runner_low_limit =
-                herbie_runner(expressions, 750, 20, &start_parsed, &end_parsed, false);
+                herbie_runner(expressions, 2500, 20, &start_parsed, &end_parsed, false);
             runner_upwards.upwards_merging_enabled = true;
 
             herbie_benchmark_proof(
