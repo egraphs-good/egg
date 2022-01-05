@@ -1,6 +1,8 @@
 use egg::*;
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use std::thread;
+
 use instant::{Duration, Instant};
 use num_bigint::BigInt;
 use num_rational::Ratio;
@@ -765,9 +767,8 @@ mod proofbench {
         mut runner_low_node_limit: Runner,
         start_parsed: RecExpr,
         end_parsed: RecExpr,
-        output: &mut File,
         rules: &[Rewrite],
-    ) {
+    ) -> String {
         //println!("Testing {} \n {}", start_parsed, end_parsed);
 
         let start_egg_run = Instant::now();
@@ -810,7 +811,6 @@ mod proofbench {
         if runner_upwards.egraph.add_expr(&start_parsed)
             != runner_upwards.egraph.add_expr(&end_parsed)
         {
-            println!("upwards runner failed to find equality");
             upwards_normal_time = "#f".to_string();
             upwards_normal_len = "#f".to_string();
             upwards_normal_tree_size = "#f".to_string();
@@ -870,14 +870,14 @@ mod proofbench {
             low_optimal_dag_size = format!("{}", low_optimal.get_tree_size());
         }
 
-        writeln!(
-            output,
+        let normal_flat_len = normal.get_flat_sexps().len();
+        format!(
             "({} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {})",
             &start_parsed,
             &end_parsed,
             duration_normal,
             duration_slow,
-            normal.get_flat_sexps().len(),
+            normal_flat_len,
             slow.get_flat_sexps().len(),
             normal.get_tree_size(),
             slow.get_tree_size(),
@@ -895,10 +895,6 @@ mod proofbench {
             low_greedy_dag_size,
             low_optimal_dag_size
         )
-        .unwrap();
-        output.flush().unwrap();
-        print!(".");
-        std::io::stdout().flush().unwrap();
     }
 
     fn herbie_runner(
@@ -945,40 +941,63 @@ mod proofbench {
     fn herbie_benchmark_example(example: &str, output: &mut File, skip: &mut usize) {
         let is_f64 = example.contains("f64");
         let parsed: Sexp = parser::parse_str(example).unwrap();
-        let pair = unwrap_sexp_list(&parsed);
-        let expressions = &pair[0];
-        let proofs = &pair[1];
+        let e_proofs = unwrap_sexp_list(&parsed);
+        let expressions = &e_proofs[0];
+        let proofs = &e_proofs[1];
         let mut proofs_sexps = unwrap_sexp_list(proofs).clone();
         if proofs_sexps.len() == 0 {
             return;
         }
 
-        let rules = math_rules(if is_f64 { "f64" } else { "f32" });
-
         let mut rng = rand::thread_rng();
         proofs_sexps.shuffle(&mut rng);
         for proof in proofs_sexps.iter().take(2) {
-            let pair = unwrap_sexp_list(proof);
-            let start_parsed: egg::RecExpr<_> = unwrap_sexp_string(&pair[0]).parse().unwrap();
-            let end_parsed: egg::RecExpr<_> = unwrap_sexp_string(&pair[1]).parse().unwrap();
+            *skip += 1;
+            let skip_copy = *skip;
+            let p_copy = proof.clone();
+            let exprs_copy = expressions.clone();
+            let h = thread::spawn(move || {
+                let rules = math_rules(if is_f64 { "f64" } else { "f32" });
+                let pair = unwrap_sexp_list(&p_copy);
+                let start_parsed: egg::RecExpr<_> = unwrap_sexp_string(&pair[0]).parse().unwrap();
+                let end_parsed: egg::RecExpr<_> = unwrap_sexp_string(&pair[1]).parse().unwrap();
 
-            let mut runner =
-                herbie_runner(expressions, 5000, 20, &start_parsed, &end_parsed, false);
-            let mut runner_upwards =
-                herbie_runner(expressions, 50000, 20, &start_parsed, &end_parsed, true);
-            let mut runner_low_limit =
-                herbie_runner(expressions, 2500, 20, &start_parsed, &end_parsed, false);
-            runner_upwards.upwards_merging_enabled = true;
+                let mut runner =
+                    herbie_runner(&exprs_copy, 5000, 20, &start_parsed, &end_parsed, false);
+                let mut runner_upwards =
+                    herbie_runner(&exprs_copy, 20000, 20, &start_parsed, &end_parsed, true);
+                let limit = if skip_copy % 5 == 0{
+                    5000
+                } else {
+                    0
+                };
+                let mut runner_low_limit =
+                    herbie_runner(&exprs_copy, limit, 20, &start_parsed, &end_parsed, false);
+                runner_upwards.upwards_merging_enabled = true;
 
-            herbie_benchmark_proof(
-                runner,
-                runner_upwards,
-                runner_low_limit,
-                start_parsed,
-                end_parsed,
-                output,
-                &rules,
-            );
+                herbie_benchmark_proof(
+                    runner,
+                    runner_upwards,
+                    runner_low_limit,
+                    start_parsed,
+                    end_parsed,
+                    &rules,
+                )
+            });
+            match h.join() {
+                Ok(res) => {
+                    output.write(res.as_bytes()).unwrap();
+                    output.write("\n".as_bytes()).unwrap();
+                    ()
+                },
+                Err(_) => {
+                    print!("!");
+                    ()   
+                },
+            }
+            output.flush().unwrap();
+            print!(".");
+            std::io::stdout().flush().unwrap();
         }
     }
 

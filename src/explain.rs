@@ -1476,15 +1476,14 @@ impl<L: Language> Explain<L> {
     fn shortest_explanations_eclass(
         &mut self,
         eclass: Id,
-        unionfind: &UnionFind,
         congruent_nodes: &Vec<Vec<Id>>,
-        distance_memo: &mut DistanceMemo,
     ) -> bool {
         let enodes = self.find_all_enodes(eclass);
         let mut did_anything = false;
 
-        // distance to congruent nodes is the sum of distances between children
+        
         for enode in &enodes {
+            // distance to congruent nodes is the sum of distances between children
             for other in congruent_nodes[usize::from(*enode)].iter() {
                 let mut cost: usize = 0;
                 let current_node = self.explainfind[usize::from(*enode)].node.clone();
@@ -2004,7 +2003,6 @@ impl<L: Language> Explain<L> {
         common_ancestor
     }
 
-    // covered when rewrite inserted
     fn set_rewrite_distances(
         &mut self,
         eclass: Id) {
@@ -2055,14 +2053,19 @@ impl<L: Language> Explain<L> {
                 fuel,
             );
         } else {
+            // clear the memo and start from scratch
+            self.shortest_explanation_memo.clear();
+            // set rewrite distances
+            for eclass in classes.keys() {
+                self.set_rewrite_distances(*eclass);
+            }
+            
             for _i in 0..iters {
                 let mut did_something = false;
                 for eclass in classes.keys() {
                     if self.shortest_explanations_eclass(
                         *eclass,
-                        unionfind,
                         &congruence_neighbors,
-                        &mut distance_memo,
                     ) {
                         did_something = true;
                     }
