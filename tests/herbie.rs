@@ -868,6 +868,7 @@ mod proofbench {
             low_optimal.check_proof(rules);
             low_optimal_flat_size = format!("{}", low_optimal.get_flat_sexps().len());
             low_optimal_dag_size = format!("{}", low_optimal.get_tree_size());
+            println!("({}, {})", low_greedy_flat_size, low_optimal_flat_size);
         }
 
         let normal_flat_len = normal.get_flat_sexps().len();
@@ -952,6 +953,11 @@ mod proofbench {
         let mut rng = rand::thread_rng();
         proofs_sexps.shuffle(&mut rng);
         for proof in proofs_sexps.iter().take(2) {
+            let epair = unwrap_sexp_list(proof);
+            if epair[0] == epair[1] {
+                continue;
+            }
+
             *skip += 1;
             let skip_copy = *skip;
             let p_copy = proof.clone();
@@ -966,7 +972,7 @@ mod proofbench {
                     herbie_runner(&exprs_copy, 5000, 20, &start_parsed, &end_parsed, false);
                 let mut runner_upwards =
                     herbie_runner(&exprs_copy, 20000, 20, &start_parsed, &end_parsed, true);
-                let limit = if skip_copy % 5 == 0{
+                let limit = if skip_copy % 20 == 0{
                     5000
                 } else {
                     0

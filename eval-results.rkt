@@ -69,6 +69,7 @@
 
 (define (make-proof-len-scatter output-file cutoff results getter-normal getter-greedy x-str y-str)
   (define max-x-point (apply max (map (lambda (row) ((getter getter-normal) row)) results)))
+  (define max-y (if cutoff cutoff max-x-point))
   (define scatter-points (points
                           #:alpha 0.5
                           #:color "blue"
@@ -76,7 +77,7 @@
                           #:sym 'fullcircle
                           #:size 2
                           #:x-max cutoff
-                          #:y-max (min cutoff max-x-point)
+                          #:y-max max-y
                           
                   (list->vector
                   (map (lambda (row)

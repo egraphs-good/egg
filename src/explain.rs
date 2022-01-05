@@ -1481,7 +1481,6 @@ impl<L: Language> Explain<L> {
         let enodes = self.find_all_enodes(eclass);
         let mut did_anything = false;
 
-        
         for enode in &enodes {
             // distance to congruent nodes is the sum of distances between children
             for other in congruent_nodes[usize::from(*enode)].iter() {
@@ -1503,15 +1502,17 @@ impl<L: Language> Explain<L> {
                         break;
                     }
                 }
-
-                if let Some((old_cost, _)) = self.shortest_explanation_memo.get(&(*enode, *other)) {
-                    if cost < *old_cost {
-                        self.shortest_explanation_memo
-                            .insert((*enode, *other), (cost, *other));
-                        self.shortest_explanation_memo
-                            .insert((*other, *enode), (cost, *enode));
-                        did_anything = true;
-                    }
+                let old_cost = if let Some((old, _)) = self.shortest_explanation_memo.get(&(*enode, *other)) {
+                    *old
+                } else {
+                    usize::MAX
+                };
+                if cost < old_cost {
+                    self.shortest_explanation_memo
+                        .insert((*enode, *other), (cost, *other));
+                    self.shortest_explanation_memo
+                        .insert((*other, *enode), (cost, *enode));
+                    did_anything = true;
                 }
             }
         }
@@ -2004,11 +2005,10 @@ impl<L: Language> Explain<L> {
     }
 
     fn set_rewrite_distances(
-        &mut self,
-        eclass: Id) {
-        let enodes = self.find_all_enodes(eclass);
-        for node in enodes {
-            for child in &self.explainfind[usize::from(node)].neighbors {
+        &mut self) {
+        for i in 0..self.explainfind.len() {
+            self.shortest_explanation_memo.insert((Id::from(i), Id::from(i)), (0, Id::from(0)));
+            for child in &self.explainfind[i].neighbors {
                 if let Justification::Rule(_) = child.justification {
                     self.shortest_explanation_memo.insert((child.current, child.next), (1, child.next));
                 }
@@ -2055,10 +2055,8 @@ impl<L: Language> Explain<L> {
         } else {
             // clear the memo and start from scratch
             self.shortest_explanation_memo.clear();
-            // set rewrite distances
-            for eclass in classes.keys() {
-                self.set_rewrite_distances(*eclass);
-            }
+            // set rewrite distances to 1
+            self.set_rewrite_distances();
             
             for _i in 0..iters {
                 let mut did_something = false;
@@ -2072,6 +2070,7 @@ impl<L: Language> Explain<L> {
                 }
 
                 if !did_something {
+                    assert!(self.shortest_explanation_memo.get(&(start, end)).is_some());
                     break;
                 }
             }
