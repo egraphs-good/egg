@@ -49,7 +49,7 @@
      (latex-output-percent item)]
     [(exact-integer? item)
      (insert-thinspaces (format "~a" item) "\\thinspace")]
-    [else (format "~a" item)]))
+    [else (format "~a" (~r item #:precision `(= 2)))]))
 
 (define (file->list file)
   (define port (open-input-file file))

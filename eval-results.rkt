@@ -8,7 +8,7 @@
                   end-expr
                   vanilla-duration
                   greedy-duration
-                  proof-length greedy-proof-length dag-size
+                  proof-length greedy-tree-size dag-size
                   greedy-dag-size z3-duration
                   z3-dag-size
                   egg-run-duration
@@ -19,7 +19,9 @@
                   low-greedy-time
                   low-optimal-time
                   low-greedy-tree-size
-                  low-optimal-tree-size))
+                  low-optimal-tree-size
+                  low-greedy-dag-size
+                  low-optimal-dag-size))
   (define m
     (for/hash ([name names] [i (in-range 0 (length names))])
               (values name (curryr list-ref i))))
@@ -28,7 +30,7 @@
 
 (define (output-results-with-tag output-port content tag getter-normal getter-greedy length-str)
   (define (output name val #:output-percent [output-percent #f])
-    (output-latex-macro (string-append length-str "-" name "-" tag) val output-port #:output-percent output-percent))
+    (output-latex-macro (string-append length-str name tag) val output-port #:output-percent output-percent))
   (define vanilla-lengths (get-sum content (getter getter-normal)))
   (define greedy-lengths (get-sum content (getter getter-greedy)))
 
@@ -62,12 +64,39 @@
   (define filtered-greater-than-50
     (filter (lambda (row) (> ((getter getter-normal) row) 50)) content))
   (output-results-with-tag output-port content "" getter-normal getter-greedy length-str)
-  (println "" output-port)
+  (displayln "" output-port)
   (output-results-with-tag output-port filtered-greater-than-10 "lengthgrtten" getter-normal getter-greedy length-str)
-  (println "" output-port)
+  (displayln "" output-port)
   (output-results-with-tag output-port filtered-greater-than-50 "lengthgrtfifty" getter-normal getter-greedy length-str))
 
-(define (make-proof-len-scatter output-file cutoff results getter-normal getter-greedy x-str y-str)
+(define (extra-macro-results output-port content)
+  (define num-herbie-benchmarks 346)
+  (displayln "" output-port)
+  (output-latex-macro "numherbiebenchmarks" num-herbie-benchmarks output-port)
+  (define filtered-optimal
+    (filter (lambda (row) ((getter 'low-optimal-time) row)) content))
+  (define sum-millis-optimal
+    (apply +
+           (map (lambda (row) ((getter 'low-optimal-time) row))
+                filtered-optimal)))
+  (define sum-millis-greedy
+    (apply +
+           (map (getter 'greedy-duration)
+                filtered-optimal)))
+  (define filtered-z3
+    (filter (getter 'z3-dag-size) content))
+  (output-latex-macro "avesecondsoptimal" (/ sum-millis-optimal (* 1000 (length filtered-optimal))) output-port)
+  (output-latex-macro "avesecondsgreedy" (/ sum-millis-greedy (* 1000 (length filtered-optimal))) output-port)
+  (output-latex-macro "percentztimeout" (/ (- (length content) (length filtered-z3)) (length content)) output-port #:output-percent #t)
+  (output-latex-macro "averagemillisegggreedy" (/ (apply +
+                                              (map (lambda (row) (+ ((getter 'greedy-duration) row) ((getter 'egg-run-duration) row)))
+                                                   filtered-z3)) (length filtered-z3)) output-port)
+  (output-latex-macro "averagemillisz" (/ (apply +
+                                              (map (lambda (row) ((getter 'z3-duration) row))
+                                                   filtered-z3)) (length filtered-z3)) output-port)
+)
+
+(define (make-proof-len-scatter output-file cutoff results getter-normal getter-greedy x-str y-str [scale 0.4])
   (define max-x-point (apply max (map (lambda (row) ((getter getter-normal) row)) results)))
   (define max-y (if cutoff cutoff max-x-point))
   (define scatter-points (points
@@ -87,7 +116,7 @@
 
   (parameterize-plot-size
    300
-   1
+   (* 2 scale)
    ""
    x-str
    y-str
@@ -171,6 +200,8 @@
              z3-points
              z3-timeout-points)))))
 
+
+
 (module+ main
   (command-line #:program "report"
                 #:args (results-file report-dir)
@@ -185,13 +216,13 @@
     
     (define macro-port (open-output-file macro-output-file #:exists 'replace))
     (output-macro-results macro-port
-                          results 'proof-length 'greedy-proof-length "prooflength")
+                          results 'proof-length 'greedy-tree-size "prooflength")
     (displayln "" macro-port)
     (output-macro-results macro-port
                           results 'dag-size 'greedy-dag-size "dagsize")
     (displayln "" macro-port)
     (output-macro-results macro-port
-                          filtered-z3 'z3-dag-size 'greedy-dag-size "z3dagsize")
+                          filtered-z3 'z3-dag-size 'greedy-dag-size "zdagsize")
 
     (displayln "" macro-port)
     (output-macro-results macro-port
@@ -200,6 +231,7 @@
     (displayln "" macro-port)
     (output-macro-results macro-port
                           filtered-optimal 'low-greedy-tree-size 'low-optimal-tree-size "lowtreesize")
+    (extra-macro-results macro-port results)
 
     
 
@@ -214,14 +246,17 @@
                      filtered-z3 2000 20)
                                  
     
-    (make-proof-len-scatter (build-path report-dir "proof-len-scatter.png") #f results 'proof-length 'greedy-proof-length "Unoptimized Proof Lengths" "Greedily Optimized Proof Lengths")
-    (make-proof-len-scatter (build-path report-dir "proof-len-scatter-zoomed800.png") 800 results 'proof-length 'greedy-proof-length "Unoptimized Proof Lengths" "Greedily Optimized Proof Lengths")
-    (make-proof-len-scatter (build-path report-dir "proof-len-scatter-zoomed200.png") 200 results 'proof-length 'greedy-proof-length "Unoptimized Proof Lengths" "Greedily Optimized Proof Lengths")
+    (make-proof-len-scatter (build-path report-dir "proof-len-scatter.png") #f results 'proof-length 'greedy-tree-size "Unoptimized Proof Lengths" "Greedily Optimized Proof Lengths")
+    (make-proof-len-scatter (build-path report-dir "proof-len-scatter-zoomed800.png") 800 results 'proof-length 'greedy-tree-size "Unoptimized Proof Lengths" "Greedily Optimized Proof Lengths")
+    (make-proof-len-scatter (build-path report-dir "proof-len-scatter-zoomed200.png") 200 results 'proof-length 'greedy-tree-size "Unoptimized Proof Lengths" "Greedily Optimized Proof Lengths")
     (make-proof-len-scatter (build-path report-dir "dag-size-scatter.png") #f results 'dag-size 'greedy-dag-size "Unoptimized DAG Size" "Greedily Optimized DAG Size")
     (make-proof-len-scatter (build-path report-dir "dag-size-scatter-zoomed800.png") 800 results 'dag-size 'greedy-dag-size "Unoptimized DAG Size" "Greedily Optimized DAG Size")
     (make-proof-len-scatter (build-path report-dir "dag-size-scatter-zoomed200.png") 200 results 'dag-size 'greedy-dag-size "Unoptimized DAG Size" "Greedily Optimized DAG Size")
 
+    (make-proof-len-scatter (build-path report-dir "greedy-tree-vs-dag-scatter.png") #f results 'greedy-tree-size 'greedy-dag-size "Greedily Optimized Tree Size" "Corresponding DAG Size" 0.3)
+    
     (make-proof-len-scatter (build-path report-dir "optimal-tree-size-scatter.png") #f filtered-optimal 'low-greedy-tree-size 'low-optimal-tree-size "Greedily Optimized Tree Size" "Optimal Tree Size")
+    (make-proof-len-scatter (build-path report-dir "optimal-tree-vs-dag-scatter.png") #f filtered-optimal 'low-optimal-tree-size 'low-optimal-dag-size "Optimal Tree Size" "Corresponding DAG Size" 0.3)
 
     (println (length filtered-z3))
     (println (length results))
