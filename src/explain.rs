@@ -964,10 +964,8 @@ impl<L: Language> Explain<L> {
         memo: &HashMap<L, Id>,
         unionfind: &mut UnionFind,
     ) -> Explanation<L> {
-        println!("{:?}", left);
         let left_added = self.add_expr(left, memo, unionfind);
         let right_added = self.add_expr(right, memo, unionfind);
-        println!("done!");
         let mut cache = Default::default();
         let mut enode_cache = Default::default();
         Explanation::new(self.explain_enodes(left_added, right_added, &mut cache, &mut enode_cache))
@@ -1115,15 +1113,10 @@ impl<L: Language> Explain<L> {
         cache: &mut ExplainCache<L>,
         node_explanation_cache: &mut NodeExplanationCache<L>,
     ) -> TreeExplanation<L> {
-        println!("({}, {})", left, right);
-
         let mut proof = vec![self.node_to_explanation(left, node_explanation_cache)];
-        println!("node to explanation");
         let ancestor = self.common_ancestor(left, right);
         let left_nodes = self.get_nodes(left, ancestor);
         let right_nodes = self.get_nodes(right, ancestor);
-
-        println!("got nodes");
 
         for (i, node) in left_nodes
             .iter()
@@ -1160,7 +1153,6 @@ impl<L: Language> Explain<L> {
         node_explanation_cache: &mut NodeExplanationCache<L>,
     ) -> Rc<TreeTerm<L>> {
         let fingerprint = (current, next);
-        println!("finger {} {}", current, next);
 
         if let Some(answer) = cache.get(&fingerprint) {
             return answer.clone();
