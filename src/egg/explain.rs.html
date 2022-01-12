@@ -1201,14 +1201,6 @@
 <span id="1198">1198</span>
 <span id="1199">1199</span>
 <span id="1200">1200</span>
-<span id="1201">1201</span>
-<span id="1202">1202</span>
-<span id="1203">1203</span>
-<span id="1204">1204</span>
-<span id="1205">1205</span>
-<span id="1206">1206</span>
-<span id="1207">1207</span>
-<span id="1208">1208</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">Symbol</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::{
@@ -2176,10 +2168,8 @@ See [`Explanation`] for more details.
         <span class="ident">memo</span>: <span class="kw-2">&amp;</span><span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">Id</span><span class="op">&gt;</span>,
         <span class="ident">unionfind</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">UnionFind</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Explanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
-        <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">left</span>);
         <span class="kw">let</span> <span class="ident">left_added</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">add_expr</span>(<span class="ident">left</span>, <span class="ident">memo</span>, <span class="ident">unionfind</span>);
         <span class="kw">let</span> <span class="ident">right_added</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">add_expr</span>(<span class="ident">right</span>, <span class="ident">memo</span>, <span class="ident">unionfind</span>);
-        <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;done!&quot;</span>);
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">cache</span> <span class="op">=</span> <span class="ident">Default</span>::<span class="ident">default</span>();
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">enode_cache</span> <span class="op">=</span> <span class="ident">Default</span>::<span class="ident">default</span>();
         <span class="ident">Explanation</span>::<span class="ident">new</span>(<span class="self">self</span>.<span class="ident">explain_enodes</span>(<span class="ident">left_added</span>, <span class="ident">right_added</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">cache</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">enode_cache</span>))
@@ -2327,15 +2317,10 @@ See [`Explanation`] for more details.
         <span class="ident">cache</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">ExplainCache</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
         <span class="ident">node_explanation_cache</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">NodeExplanationCache</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">TreeExplanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
-        <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;({}, {})&quot;</span>, <span class="ident">left</span>, <span class="ident">right</span>);
-
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">proof</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[<span class="self">self</span>.<span class="ident">node_to_explanation</span>(<span class="ident">left</span>, <span class="ident">node_explanation_cache</span>)];
-        <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;node to explanation&quot;</span>);
         <span class="kw">let</span> <span class="ident">ancestor</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">common_ancestor</span>(<span class="ident">left</span>, <span class="ident">right</span>);
         <span class="kw">let</span> <span class="ident">left_nodes</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_nodes</span>(<span class="ident">left</span>, <span class="ident">ancestor</span>);
         <span class="kw">let</span> <span class="ident">right_nodes</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_nodes</span>(<span class="ident">right</span>, <span class="ident">ancestor</span>);
-
-        <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;got nodes&quot;</span>);
 
         <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">node</span>) <span class="kw">in</span> <span class="ident">left_nodes</span>
             .<span class="ident">iter</span>()
@@ -2372,7 +2357,6 @@ See [`Explanation`] for more details.
         <span class="ident">node_explanation_cache</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">NodeExplanationCache</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">fingerprint</span> <span class="op">=</span> (<span class="ident">current</span>, <span class="ident">next</span>);
-        <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;finger {} {}&quot;</span>, <span class="ident">current</span>, <span class="ident">next</span>);
 
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">answer</span>) <span class="op">=</span> <span class="ident">cache</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">fingerprint</span>) {
             <span class="kw">return</span> <span class="ident">answer</span>.<span class="ident">clone</span>();
