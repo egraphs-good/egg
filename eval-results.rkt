@@ -127,6 +127,34 @@
              scatter-points)))))
 
 
+(define (cummulative-time-plot output-file results cutoff getter-normal x-str y-str)
+  (define durations-normal (sort (map (lambda (row)
+                                        (if ((getter getter-normal) row)
+                                            ((getter getter-normal) row)
+                                            (+ cutoff 1000)))
+                                      results)
+                                 <))
+  (define durations-greedy (sort (map (lambda (row) (+ ((getter 'greedy-duration) row) ((getter 'egg-run-duration) row))) results) <))
+  (define points-normal
+    (for/list ([i (range (length durations-normal))] [duration durations-normal])
+              (vector (/ duration 1000) i)))
+  (define points-greedy
+    (for/list ([i (range (length durations-greedy))] [duration durations-greedy])
+              (vector (/ duration 1000) i)))
+
+  (parameterize-plot-size
+   300
+   (* 2 0.4)
+   ""
+   x-str
+   y-str
+   output-file
+   (lambda ()
+     (plot-pict
+      #:x-max cutoff
+      (list (lines #:color "orange" points-normal)
+            (lines #:color "green" points-greedy))))))
+
 (define (make-zach-graph output-file z3-unfiltered cutoff z3-dag-size-filter)
   (define z3-filtered
     (if z3-dag-size-filter
@@ -211,6 +239,7 @@
                                 results))
     (define filtered-upwards (filter (lambda (row) ((getter 'upwards-dag-size) row))
                                      results))
+    (define filtered-upwards-z3 (filter (getter 'z3-dag-size) filtered-upwards))
     (define filtered-optimal (filter (lambda (row) ((getter 'low-greedy-tree-size) row))
                                      results))
     
@@ -227,6 +256,10 @@
     (displayln "" macro-port)
     (output-macro-results macro-port
                           filtered-upwards 'dag-size 'upwards-dag-size "upwardsdagsize")
+
+    (displayln "" macro-port)
+    (output-macro-results macro-port
+                          filtered-upwards-z3 'upwards-dag-size 'z3-dag-size "upwardsvszdagsize")
 
     (displayln "" macro-port)
     (output-macro-results macro-port
@@ -260,6 +293,11 @@
 
     (println (length filtered-z3))
     (println (length results))
+
+    (make-proof-len-scatter (build-path report-dir "egg-z3-dag-size-no-optimization.png") #f filtered-z3 'z3-dag-size 'dag-size "Z3 DAG Size" "Egg DAG Size")
+    (make-proof-len-scatter (build-path report-dir "egg-z3-dag-size-no-optimization-zoomed200.png") 200 filtered-z3 'z3-dag-size 'dag-size "Z3 DAG Size" "Egg DAG Size")
+    (make-proof-len-scatter (build-path report-dir "egg-z3-dag-size-no-optimization-zoomed100.png") 100 filtered-z3 'z3-dag-size 'dag-size "Z3 DAG Size" "Egg DAG Size")
+    
     (make-proof-len-scatter (build-path report-dir "z3-dag-size-scatter.png") #f filtered-z3 'z3-dag-size 'greedy-dag-size "Z3 DAG Size" "Greedily Optimized DAG Size")
     (make-proof-len-scatter (build-path report-dir "z3-dag-size-scatter-zoomed200.png") 200 filtered-z3 'z3-dag-size 'greedy-dag-size "Z3 DAG Size" "Greedily Optimized DAG Size")
     (make-proof-len-scatter (build-path report-dir "z3-dag-size-scatter-zoomed100.png") 100 filtered-z3 'z3-dag-size 'greedy-dag-size "Z3 DAG Size" "Greedily Optimized DAG Size")
@@ -271,7 +309,8 @@
     (make-proof-len-scatter (build-path report-dir "z3-vs-rebuilding-greedy-time-zoomed10000.png") 10000 filtered-z3 'z3-duration 'greedy-duration "Z3 Proof Production Runtime (ms)" "Greedy Proof Production Runtime (ms)")
     
     (make-proof-len-scatter (build-path report-dir "upwards-vs-rebuilding-greedy-zoomed-100.png") 100 filtered-upwards 'upwards-dag-size 'greedy-dag-size "DAG size with Upwards Merging" "DAG size with Rebuilding and Greedy Optimization")
+    (make-proof-len-scatter (build-path report-dir "upwards-egg-vs-z3-dag-size.png") #f filtered-upwards-z3 'z3-dag-size 'upwards-dag-size "Z3 DAG Size" "Egg DAG Size with Upwards Merging")
 
-    
+    (cummulative-time-plot (build-path report-dir "cummulative-time-z3-greedy.png") results 0.5 'z3-duration "Time (sec)" "Number of Proofs Solved Within Time")
   )
   )
