@@ -1,7 +1,7 @@
 use crate::Symbol;
 use crate::{
     util::pretty_print, Analysis, EClass, ENodeOrVar, HashMap, HashSet, Id, Language, PatternAst,
-    RecExpr, Rewrite, Subst, UnionFind, Var,
+    RecExpr, Rewrite, Subst, UnionFind, Var, FromOp
 };
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
@@ -97,14 +97,14 @@ pub struct Explanation<L: Language> {
     flat_explanation: Option<FlatExplanation<L>>,
 }
 
-impl<L: Language + Display> Display for Explanation<L> {
+impl<L: Language + Display + FromOp> Display for Explanation<L> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let s = self.get_sexp().to_string();
         f.write_str(&s)
     }
 }
 
-impl<L: Language + Display> Explanation<L> {
+impl<L: Language + Display + FromOp> Explanation<L> {
     /// Get the flattened explanation as a string.
     pub fn get_flat_string(&mut self) -> String {
         self.get_flat_strings().join("\n")
@@ -167,6 +167,39 @@ impl<L: Language + Display> Explanation<L> {
         }
 
         Sexp::List(items)
+    }
+
+    /// Get the grounded equalities that make up this proof
+    /// as pairs of RecExpr.
+    pub fn get_grounded_equalities(&self) -> Vec<(RecExpr<L>, RecExpr<L>)> {
+        let mut seen: HashSet<*const TreeTerm<L>> = HashSet::default();
+        let mut seen_adjacent = Default::default();
+        let res = self.get_grounded_equalities_for(&self.explanation_trees, &mut seen, &mut seen_adjacent);
+
+        assert_eq!(res.len(), self.get_tree_size());
+        res
+    }
+
+    fn get_grounded_equalities_for(&self, proof: &Vec<Rc<TreeTerm<L>>>, seen: &mut HashSet<*const TreeTerm<L>>, seen_adjacent: &mut HashSet<(Id, Id)>) -> Vec<(RecExpr<L>, RecExpr<L>)> {
+        let mut res = vec![];
+        for i in 0..proof.len() {
+            if !seen.insert(&*proof[i] as *const TreeTerm<L>) {
+                continue;
+            }
+            let term = &proof[i];
+            if term.backward_rule.is_some() || term.forward_rule.is_some() {
+                if seen_adjacent.insert((term.current, term.last)) {
+                    seen_adjacent.insert((term.last, term.current));
+                    res.push((proof[i-1].get_last_flat_term().get_recexpr(),
+                    proof[i].get_initial_flat_term().get_recexpr()));
+                }
+            }
+            for child_proof in &term.child_proofs {
+                let child_res = self.get_grounded_equalities_for(child_proof, seen, seen_adjacent);
+                res.extend(child_res);
+            }
+        }
+        res
     }
 
     /// Get the size of this explanation tree in terms of the number of rewrites
@@ -485,6 +518,34 @@ impl<L: Language> TreeTerm<L> {
         flat_proof
     }
 
+    /// Get a FlatTerm representing the first term in this proof.
+    pub fn get_initial_flat_term(&self) -> FlatTerm<L> {
+        FlatTerm {
+            node: self.node.clone(),
+            backward_rule: self.backward_rule.clone(),
+            forward_rule: self.forward_rule.clone(),
+            children: self
+                .child_proofs
+                .iter()
+                .map(|child_proof| child_proof[0].get_initial_flat_term())
+                .collect(),       
+        }
+    }
+
+    /// Get a FlatTerm representing the final term in this proof.
+    pub fn get_last_flat_term(&self) -> FlatTerm<L> {
+        FlatTerm {
+            node: self.node.clone(),
+            backward_rule: self.backward_rule.clone(),
+            forward_rule: self.forward_rule.clone(),
+            children: self
+                .child_proofs
+                .iter()
+                .map(|child_proof| child_proof[child_proof.len() - 1].get_last_flat_term())
+                .collect(),
+        }
+    }
+
     /// Construct the [`FlatExplanation`] for this TreeTerm.
     pub fn flatten_explanation(&self) -> FlatExplanation<L> {
         let mut proof = vec![];
@@ -553,7 +614,7 @@ pub struct FlatTerm<L: Language> {
     pub children: FlatExplanation<L>,
 }
 
-impl<L: Language + Display> Display for FlatTerm<L> {
+impl<L: Language + Display + FromOp> Display for FlatTerm<L> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let s = self.get_sexp().to_string();
         write!(f, "{}", s)
@@ -576,7 +637,8 @@ impl<L: Language> PartialEq for FlatTerm<L> {
 }
 
 impl<L: Language> FlatTerm<L> {
-    fn remove_rewrites(&self) -> FlatTerm<L> {
+    /// Remove the rewrite annotation from this flatterm, if any.
+    pub fn remove_rewrites(&self) -> FlatTerm<L> {
         FlatTerm::new(
             self.node.clone(),
             self.children
@@ -609,7 +671,7 @@ impl<L: Language> Default for Explain<L> {
     }
 }
 
-impl<L: Language + Display> FlatTerm<L> {
+impl<L: Language + Display + FromOp> FlatTerm<L> {
     /// Convert this FlatTerm to an S-expression.
     /// See [`get_flat_sexps`](Explanation::get_flat_sexps) for the format of these expressions.
     pub fn get_sexp(&self) -> Sexp {
@@ -642,9 +704,15 @@ impl<L: Language + Display> FlatTerm<L> {
 
         expr
     }
+
+    /// Convert this FlatTerm to a RecExpr.
+    pub fn get_recexpr(&self) -> RecExpr<L> {
+        let without_rewrites = self.remove_rewrites();
+        return without_rewrites.to_string().parse().unwrap();
+    }
 }
 
-impl<L: Language + Display> Display for TreeTerm<L> {
+impl<L: Language + Display + FromOp> Display for TreeTerm<L> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let mut buf = String::new();
         let width = 80;
@@ -653,7 +721,7 @@ impl<L: Language + Display> Display for TreeTerm<L> {
     }
 }
 
-impl<L: Language + Display> TreeTerm<L> {
+impl<L: Language + Display + FromOp> TreeTerm<L> {
     /// Convert this TreeTerm to an S-expression.
     /// See [`get_sexp`](Explanation::get_sexp) for the format of these expressions.
     pub fn get_sexp(&self) -> Sexp {

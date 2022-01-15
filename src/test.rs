@@ -37,7 +37,7 @@ pub fn test_runner<L, A>(
     check_fn: Option<fn(Runner<L, A, ()>)>,
     should_check: bool,
 ) where
-    L: Language + Display + 'static,
+    L: Language + Display + FromOp + 'static,
     A: Analysis<L> + Default,
 {
     let mut runner = runner.unwrap_or_default();
@@ -90,9 +90,23 @@ pub fn test_runner<L, A>(
                 let subst = matches.substs[0].clone();
                 let mut explained = runner.explain_matches(&start, &goal.ast, &subst, 0, false);
                 explained.get_sexp_with_let();
-                let vanilla_len = explained.get_flat_sexps().len();
+                let flattened = explained.make_flat_explanation().clone();
+                let vanilla_len = flattened.len();
+                let last_term = flattened.last().unwrap().clone();
                 explained.check_proof(rules);
                 assert!(explained.get_tree_size() > 0);
+
+                let grounded_terms = explained.get_grounded_equalities();
+                let mut test_egraph = EGraph::<L, ()>::new(());
+                for pair in grounded_terms {
+                    let (lhs, rhs) = pair;
+                    let l_id = test_egraph.add_expr(&lhs);
+                    let r_id = test_egraph.add_expr(&rhs);
+                    test_egraph.union(l_id, r_id);
+                }
+                let goal_flat_expr = last_term.get_recexpr();
+                test_egraph.rebuild();
+                assert_eq!(test_egraph.add_expr(&start), test_egraph.add_expr(&goal_flat_expr));
 
                 let mut explained_short =
                     runner.explain_matches(&start, &goal.ast, &subst, 4, true);
