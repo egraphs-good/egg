@@ -905,6 +905,7 @@ mod proofbench {
         start: &RecExpr,
         end: &RecExpr,
         use_hook: bool,
+        use_both: bool,
     ) -> Runner {
         let start_cloned = start.clone();
         let end_cloned = end.clone();
@@ -935,6 +936,10 @@ mod proofbench {
         for expr in unwrap_sexp_list(expressions) {
             let parsed: egg::RecExpr<_> = unwrap_sexp_string(expr).parse().unwrap();
             runner = runner.with_expr(&parsed);
+        }
+
+        if use_both {
+            runner = runner.with_expr(end);
         }
         return runner;
     }
@@ -969,16 +974,18 @@ mod proofbench {
                 let end_parsed: egg::RecExpr<_> = unwrap_sexp_string(&pair[1]).parse().unwrap();
 
                 let mut runner =
-                    herbie_runner(&exprs_copy, 5000, 20, &start_parsed, &end_parsed, false);
+                    herbie_runner(&exprs_copy, 5000, 20, &start_parsed, &end_parsed, false, false);
+                let mut runner_eqcheck =
+                    herbie_runner(&exprs_copy, 5000, 20, &start_parsed, &end_parsed, false, true);
                 let mut runner_upwards =
-                    herbie_runner(&exprs_copy, 20000, 20, &start_parsed, &end_parsed, true);
+                    herbie_runner(&exprs_copy, 20000, 20, &start_parsed, &end_parsed, true, true);
                 let limit = if skip_copy % 20 == 0{
                     5000
                 } else {
                     0
                 };
                 let mut runner_low_limit =
-                    herbie_runner(&exprs_copy, limit, 20, &start_parsed, &end_parsed, false);
+                    herbie_runner(&exprs_copy, limit, 20, &start_parsed, &end_parsed, false, false);
                 runner_upwards.upwards_merging_enabled = true;
 
                 herbie_benchmark_proof(
