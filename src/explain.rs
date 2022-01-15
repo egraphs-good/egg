@@ -84,6 +84,7 @@ pub type FlatExplanation<L> = Vec<FlatTerm<L>>;
 
 // given two adjacent nodes and the direction of the proof
 type ExplainCache<L> = HashMap<(Id, Id), Rc<TreeTerm<L>>>;
+type NodeExplanationCache<L> = HashMap<Id, Rc<TreeTerm<L>>>;
 
 /** A data structure representing an explanation that two terms are equivalent.
 
@@ -949,13 +950,23 @@ impl<I: Eq + PartialEq> PartialOrd for HeapState<I> {
 }
 
 impl<L: Language> Explain<L> {
-    fn node_to_explanation(&self, node_id: Id) -> TreeTerm<L> {
-        let node = self.explainfind[usize::from(node_id)].node.clone();
-        let children = node.fold(vec![], |mut sofar, child| {
-            sofar.push(vec![Rc::new(self.node_to_explanation(child))]);
-            sofar
-        });
-        TreeTerm::new(node, children)
+    fn node_to_explanation(
+        &self,
+        node_id: Id,
+        cache: &mut NodeExplanationCache<L>,
+    ) -> Rc<TreeTerm<L>> {
+        if let Some(existing) = cache.get(&node_id) {
+            existing.clone()
+        } else {
+            let node = self.explainfind[usize::from(node_id)].node.clone();
+            let children = node.fold(vec![], |mut sofar, child| {
+                sofar.push(vec![self.node_to_explanation(child, cache)]);
+                sofar
+            });
+            let res = Rc::new(TreeTerm::new(node, children));
+            cache.insert(node_id, res.clone());
+            res
+        }
     }
 
     fn node_to_flat_explanation(&self, node_id: Id) -> FlatTerm<L> {
@@ -1250,13 +1261,14 @@ impl<L: Language> Explain<L> {
             greedy_search,
         );
         let mut cache = Default::default();
-        let res = Explanation::new(self.explain_enodes(
+        let mut enode_cache = Default::default();
+        Explanation::new(self.explain_enodes(
             left_added,
             right_added,
             &mut cache,
+            &mut enode_cache,
             !greedy_search && optimize_iters == 0,
-        ));
-        res
+        ))
     }
 
     pub(crate) fn explain_equivalence<N: Analysis<L>>(
@@ -1283,10 +1295,12 @@ impl<L: Language> Explain<L> {
             greedy_search,
         );
         let mut cache = Default::default();
+        let mut enode_cache = Default::default();
         Explanation::new(self.explain_enodes(
             left_added,
             right_added,
             &mut cache,
+            &mut enode_cache,
             !greedy_search && optimize_iters == 0,
         ))
     }
@@ -1299,10 +1313,12 @@ impl<L: Language> Explain<L> {
     ) -> Explanation<L> {
         let left_added = self.add_expr(left, memo, unionfind);
         let mut cache = Default::default();
+        let mut enode_cache = Default::default();
         Explanation::new(self.explain_enode_existance(
             left_added,
-            Rc::new(self.node_to_explanation(left_added)),
+            self.node_to_explanation(left_added, &mut enode_cache),
             &mut cache,
+            &mut enode_cache,
         ))
     }
 
@@ -1315,10 +1331,12 @@ impl<L: Language> Explain<L> {
     ) -> Explanation<L> {
         let left_added = self.add_match(left, &subst, memo, unionfind);
         let mut cache = Default::default();
+        let mut enode_cache = Default::default();
         Explanation::new(self.explain_enode_existance(
             left_added,
-            Rc::new(self.node_to_explanation(left_added)),
+            self.node_to_explanation(left_added, &mut enode_cache),
             &mut cache,
+            &mut enode_cache,
         ))
     }
 
@@ -1413,13 +1431,14 @@ impl<L: Language> Explain<L> {
         node: Id,
         rest_of_proof: Rc<TreeTerm<L>>,
         cache: &mut ExplainCache<L>,
+        enode_cache: &mut NodeExplanationCache<L>,
     ) -> TreeExplanation<L> {
         let graphnode = &self.explainfind[usize::from(node)];
         let existance = graphnode.existance_node;
         let existance_node = &self.explainfind[usize::from(existance)];
         // case 1)
         if existance == node {
-            return vec![Rc::new(self.node_to_explanation(node)), rest_of_proof];
+            return vec![self.node_to_explanation(node, enode_cache), rest_of_proof];
         }
 
         // case 2)
@@ -1437,13 +1456,22 @@ impl<L: Language> Explain<L> {
             }
             return self.explain_enode_existance(
                 existance,
-                self.explain_adjacent(existance, node, direction, justification, cache, false),
+                self.explain_adjacent(
+                    existance,
+                    node,
+                    direction,
+                    justification,
+                    cache,
+                    enode_cache,
+                    false
+                ),
                 cache,
+                enode_cache,
             );
         }
 
         // case 3)
-        let mut new_rest_of_proof = self.node_to_explanation(existance);
+        let mut new_rest_of_proof = (*self.node_to_explanation(existance, enode_cache)).clone();
         let mut index_of_child = 0;
         let mut found = false;
         existance_node.node.for_each(|child| {
@@ -1459,7 +1487,7 @@ impl<L: Language> Explain<L> {
         assert!(found);
         new_rest_of_proof.child_proofs[index_of_child].push(rest_of_proof);
 
-        self.explain_enode_existance(existance, Rc::new(new_rest_of_proof), cache)
+        self.explain_enode_existance(existance, Rc::new(new_rest_of_proof), cache, enode_cache)
     }
 
     fn explain_enodes(
@@ -1467,9 +1495,10 @@ impl<L: Language> Explain<L> {
         left: Id,
         right: Id,
         cache: &mut ExplainCache<L>,
+        node_explanation_cache: &mut NodeExplanationCache<L>,
         use_unoptimized: bool,
     ) -> TreeExplanation<L> {
-        let mut proof = vec![Rc::new(self.node_to_explanation(left))];
+        let mut proof = vec![self.node_to_explanation(left, node_explanation_cache)];
 
         let (left_connections, right_connections) = if use_unoptimized {
             self.get_path_unoptimized(left, right)
@@ -1496,7 +1525,8 @@ impl<L: Language> Explain<L> {
                 direction,
                 &connection.justification,
                 cache,
-                use_unoptimized,
+                node_explanation_cache,
+                use_unoptimized
             ));
         }
         proof
@@ -1509,6 +1539,7 @@ impl<L: Language> Explain<L> {
         rule_direction: bool,
         justification: &Justification,
         cache: &mut ExplainCache<L>,
+        node_explanation_cache: &mut NodeExplanationCache<L>,
         use_unoptimized: bool,
     ) -> Rc<TreeTerm<L>> {
         let fingerprint = (current, next);
@@ -1519,7 +1550,8 @@ impl<L: Language> Explain<L> {
 
         let term = match justification {
             Justification::Rule(name) => {
-                let mut rewritten = self.node_to_explanation(next);
+                let mut rewritten =
+                    (*self.node_to_explanation(next, node_explanation_cache)).clone();
                 if rule_direction {
                     rewritten.forward_rule = Some(*name);
                 } else {
@@ -1547,6 +1579,7 @@ impl<L: Language> Explain<L> {
                         *left_child,
                         *right_child,
                         cache,
+                        node_explanation_cache,
                         use_unoptimized,
                     ));
                 }
