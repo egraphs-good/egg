@@ -802,7 +802,7 @@ mod proofbench {
         normal.check_proof(rules);
 
         let equalities_normal = normal.get_grounded_equalities();
-        let equalities_reduced_normal = Explanation::<L>::reduce_equalities(&equalities_normal);
+        let equalities_reduced_normal = Explanation::<Math>::reduce_grounded_equalities(&equalities_normal, &start_parsed, &end_parsed);
 
         let start_slow = Instant::now();
         let mut slow = runner.explain_equivalence(&start_parsed, &end_parsed, 10, true);
@@ -810,7 +810,7 @@ mod proofbench {
         slow.check_proof(rules);
 
         let equalities_greedy = slow.get_grounded_equalities();
-        let equalities_reduced_greedy = Explanation::<L>::reduce_equalities(&equalities_greedy);
+        let equalities_reduced_greedy = Explanation::<Math>::reduce_grounded_equalities(&equalities_greedy, &start_parsed, &end_parsed);
 
 
         let start_eqcheck_run = Instant::now();
@@ -931,8 +931,8 @@ mod proofbench {
             eqcheck_normal_len,
             eqcheck_normal_tree_size,
             eqcheck_run_duration,
-            equalities_reduced_normal,
-            equalities_reduced_greedy,
+            equalities_reduced_normal.len(),
+            equalities_reduced_greedy.len(),
         )
     }
 

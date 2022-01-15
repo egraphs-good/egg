@@ -21,7 +21,13 @@
                   low-greedy-tree-size
                   low-optimal-tree-size
                   low-greedy-dag-size
-                  low-optimal-dag-size))
+                  low-optimal-dag-size
+                  eqsat-normal-time
+                  eqsat-normal-length
+                  eqsat-normal-dag-size
+                  eqsat-duration
+                  normal-equalities-reduced
+                  greedy-equalities-reduced))
   (define m
     (for/hash ([name names] [i (in-range 0 (length names))])
               (values name (curryr list-ref i))))
@@ -264,6 +270,14 @@
     (displayln "" macro-port)
     (output-macro-results macro-port
                           filtered-optimal 'low-greedy-tree-size 'low-optimal-tree-size "lowtreesize")
+
+    (displayln "" macro-port)
+    (output-macro-results macro-port results 'dag-size 'normal-equalities-reduced "reductionvsvanilla")
+
+    (displayln "" macro-port)
+    (output-macro-results macro-port results 'normal-equalities-reduced 'greedy-dag-size "reductionvsgreedy")
+    
+    
     (extra-macro-results macro-port results)
 
     
@@ -310,6 +324,10 @@
     
     (make-proof-len-scatter (build-path report-dir "upwards-vs-rebuilding-greedy-zoomed-100.png") 100 filtered-upwards 'upwards-dag-size 'greedy-dag-size "DAG size with Upwards Merging" "DAG size with Rebuilding and Greedy Optimization")
     (make-proof-len-scatter (build-path report-dir "upwards-egg-vs-z3-dag-size.png") #f filtered-upwards-z3 'z3-dag-size 'upwards-dag-size "Z3 DAG Size" "Egg DAG Size with Upwards Merging")
+
+
+    (make-proof-len-scatter (build-path report-dir "proof-reduction-vs-greedy-optimization.png") #f results 'normal-equalities-reduced 'greedy-dag-size "DAG Size with Standard Reduction" "DAG Size with Greedy Optimization")
+    (make-proof-len-scatter (build-path report-dir "proof-reduction-vs-vanilla.png") #f results 'dag-size 'normal-equalities-reduced "DAG Size without Standard Reduction" "DAG Size with Standard Reduction")
 
     (cummulative-time-plot (build-path report-dir "cummulative-time-z3-greedy.png") results 0.5 'z3-duration "Time (sec)" "Number of Proofs Solved Within Time")
   )

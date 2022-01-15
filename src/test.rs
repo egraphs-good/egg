@@ -98,7 +98,7 @@ pub fn test_runner<L, A>(
 
                 let grounded_terms = explained.get_grounded_equalities();
                 let goal_flat_expr = last_term.get_recexpr();
-                let reduced = Explanation::<L>::reduce_grounded_equality_proof(&grounded_terms,
+                let reduced = Explanation::<L>::reduce_grounded_equalities(&grounded_terms,
                     &start,
                     &goal_flat_expr);
                 println!("intial: {}, reduced: {}", grounded_terms.len(), reduced.len());

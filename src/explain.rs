@@ -381,7 +381,7 @@ impl<L: Language> Explanation<L> {
 
     /// Using a set of grounded equalities, find an irriducible set of equalities
     /// which can still prove the start and end terms are equal.
-    pub fn reduce_grounded_equality_proof(
+    pub fn reduce_grounded_equalities(
         proof: &Vec<(RecExpr<L>, RecExpr<L>)>,
         start: &RecExpr<L>,
         end: &RecExpr<L>,
