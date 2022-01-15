@@ -1,7 +1,7 @@
 use crate::Symbol;
 use crate::{
-    util::pretty_print, Analysis, EClass, ENodeOrVar, HashMap, HashSet, Id, Language, PatternAst,
-    RecExpr, Rewrite, Subst, UnionFind, Var, FromOp
+    util::pretty_print, Analysis, EClass, EGraph, ENodeOrVar, FromOp, HashMap, HashSet, Id,
+    Language, PatternAst, RecExpr, Rewrite, Subst, UnionFind, Var,
 };
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
@@ -174,13 +174,22 @@ impl<L: Language + Display + FromOp> Explanation<L> {
     pub fn get_grounded_equalities(&self) -> Vec<(RecExpr<L>, RecExpr<L>)> {
         let mut seen: HashSet<*const TreeTerm<L>> = HashSet::default();
         let mut seen_adjacent = Default::default();
-        let res = self.get_grounded_equalities_for(&self.explanation_trees, &mut seen, &mut seen_adjacent);
+        let res = self.get_grounded_equalities_for(
+            &self.explanation_trees,
+            &mut seen,
+            &mut seen_adjacent,
+        );
 
         assert_eq!(res.len(), self.get_tree_size());
         res
     }
 
-    fn get_grounded_equalities_for(&self, proof: &Vec<Rc<TreeTerm<L>>>, seen: &mut HashSet<*const TreeTerm<L>>, seen_adjacent: &mut HashSet<(Id, Id)>) -> Vec<(RecExpr<L>, RecExpr<L>)> {
+    fn get_grounded_equalities_for(
+        &self,
+        proof: &Vec<Rc<TreeTerm<L>>>,
+        seen: &mut HashSet<*const TreeTerm<L>>,
+        seen_adjacent: &mut HashSet<(Id, Id)>,
+    ) -> Vec<(RecExpr<L>, RecExpr<L>)> {
         let mut res = vec![];
         for i in 0..proof.len() {
             if !seen.insert(&*proof[i] as *const TreeTerm<L>) {
@@ -190,8 +199,10 @@ impl<L: Language + Display + FromOp> Explanation<L> {
             if term.backward_rule.is_some() || term.forward_rule.is_some() {
                 if seen_adjacent.insert((term.current, term.last)) {
                     seen_adjacent.insert((term.last, term.current));
-                    res.push((proof[i-1].get_last_flat_term().get_recexpr(),
-                    proof[i].get_initial_flat_term().get_recexpr()));
+                    res.push((
+                        proof[i - 1].get_last_flat_term().get_recexpr(),
+                        proof[i].get_initial_flat_term().get_recexpr(),
+                    ));
                 }
             }
             for child_proof in &term.child_proofs {
@@ -368,6 +379,50 @@ impl<L: Language> Explanation<L> {
         }
     }
 
+    /// Using a set of grounded equalities, find an irriducible set of equalities
+    /// which can still prove the start and end terms are equal.
+    pub fn reduce_grounded_equality_proof(
+        proof: &Vec<(RecExpr<L>, RecExpr<L>)>,
+        start: &RecExpr<L>,
+        end: &RecExpr<L>,
+    ) -> Vec<(RecExpr<L>, RecExpr<L>)> {
+        let mut res = vec![];
+
+        let mut test_egraph = EGraph::<L, ()>::new(());
+        for pair in proof {
+            let (lhs, rhs) = pair;
+            let l_id = test_egraph.add_expr(&lhs);
+            let r_id = test_egraph.add_expr(&rhs);
+            test_egraph.union(l_id, r_id);
+        }
+        test_egraph.rebuild();
+        assert_eq!(test_egraph.add_expr(start), test_egraph.add_expr(end));
+
+        for i in 0..proof.len() {
+            let mut test_egraph = EGraph::<L, ()>::new(());
+            for pair in &res {
+                let (lhs, rhs) = pair;
+                let l_id = test_egraph.add_expr(&lhs);
+                let r_id = test_egraph.add_expr(&rhs);
+                test_egraph.union(l_id, r_id);
+            }
+
+            for j in i+1..proof.len() {
+                let (lhs, rhs) = &proof[j];
+                let l_id = test_egraph.add_expr(&lhs);
+                let r_id = test_egraph.add_expr(&rhs);
+                test_egraph.union(l_id, r_id);
+            }
+
+            test_egraph.rebuild();
+            if test_egraph.add_expr(start) != test_egraph.add_expr(end) {
+                res.push(proof[i].clone());
+            }
+        }
+
+        res
+    }
+
     /// Construct the flat representation of the explanation and return it.
     pub fn make_flat_explanation(&mut self) -> &FlatExplanation<L> {
         if self.flat_explanation.is_some() {
@@ -528,7 +583,7 @@ impl<L: Language> TreeTerm<L> {
                 .child_proofs
                 .iter()
                 .map(|child_proof| child_proof[0].get_initial_flat_term())
-                .collect(),       
+                .collect(),
         }
     }
 
@@ -1368,7 +1423,9 @@ impl<L: Language> Explain<L> {
         }
 
         // case 2)
-        if graphnode.parent_connection.next == existance || existance_node.parent_connection.next == node {
+        if graphnode.parent_connection.next == existance
+            || existance_node.parent_connection.next == node
+        {
             let direction;
             let justification;
             if graphnode.parent_connection.next == existance {
@@ -1541,11 +1598,7 @@ impl<L: Language> Explain<L> {
     // Run Floyd-Warshall to find all pairs shortest paths for this eclass.
     // When child lengths are absent, they are considered
     // to be the largest usize length.
-    fn shortest_explanations_eclass(
-        &mut self,
-        eclass: Id,
-        congruent_nodes: &Vec<Vec<Id>>,
-    ) -> bool {
+    fn shortest_explanations_eclass(&mut self, eclass: Id, congruent_nodes: &Vec<Vec<Id>>) -> bool {
         let enodes = self.find_all_enodes(eclass);
         let mut did_anything = false;
 
@@ -1570,11 +1623,12 @@ impl<L: Language> Explain<L> {
                         break;
                     }
                 }
-                let old_cost = if let Some((old, _)) = self.shortest_explanation_memo.get(&(*enode, *other)) {
-                    *old
-                } else {
-                    usize::MAX
-                };
+                let old_cost =
+                    if let Some((old, _)) = self.shortest_explanation_memo.get(&(*enode, *other)) {
+                        *old
+                    } else {
+                        usize::MAX
+                    };
                 if cost < old_cost {
                     self.shortest_explanation_memo
                         .insert((*enode, *other), (cost, *other));
@@ -2072,13 +2126,14 @@ impl<L: Language> Explain<L> {
         common_ancestor
     }
 
-    fn set_rewrite_distances(
-        &mut self) {
+    fn set_rewrite_distances(&mut self) {
         for i in 0..self.explainfind.len() {
-            self.shortest_explanation_memo.insert((Id::from(i), Id::from(i)), (0, Id::from(0)));
+            self.shortest_explanation_memo
+                .insert((Id::from(i), Id::from(i)), (0, Id::from(0)));
             for child in &self.explainfind[i].neighbors {
                 if let Justification::Rule(_) = child.justification {
-                    self.shortest_explanation_memo.insert((child.current, child.next), (1, child.next));
+                    self.shortest_explanation_memo
+                        .insert((child.current, child.next), (1, child.next));
                 }
             }
         }
@@ -2125,14 +2180,11 @@ impl<L: Language> Explain<L> {
             self.shortest_explanation_memo.clear();
             // set rewrite distances to 1
             self.set_rewrite_distances();
-            
+
             for _i in 0..iters {
                 let mut did_something = false;
                 for eclass in classes.keys() {
-                    if self.shortest_explanations_eclass(
-                        *eclass,
-                        &congruence_neighbors,
-                    ) {
+                    if self.shortest_explanations_eclass(*eclass, &congruence_neighbors) {
                         did_something = true;
                     }
                 }

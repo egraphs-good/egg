@@ -763,6 +763,7 @@ mod proofbench {
 
     fn herbie_benchmark_proof(
         mut runner: Runner,
+        mut runner_eqcheck: Runner,
         mut runner_upwards: Runner,
         mut runner_low_node_limit: Runner,
         start_parsed: RecExpr,
@@ -800,10 +801,40 @@ mod proofbench {
         let duration_normal = start_normal.elapsed().as_millis();
         normal.check_proof(rules);
 
+        let equalities_normal = normal.get_grounded_equalities();
+        let equalities_reduced_normal = Explanation::<L>::reduce_equalities(&equalities_normal);
+
         let start_slow = Instant::now();
         let mut slow = runner.explain_equivalence(&start_parsed, &end_parsed, 10, true);
         let duration_slow = start_slow.elapsed().as_millis();
         slow.check_proof(rules);
+
+        let equalities_greedy = slow.get_grounded_equalities();
+        let equalities_reduced_greedy = Explanation::<L>::reduce_equalities(&equalities_greedy);
+
+
+        let start_eqcheck_run = Instant::now();
+        runner_eqcheck = runner_eqcheck.run(rules);
+        let eqcheck_run_duration = start_eqcheck_run.elapsed().as_millis();
+
+        let eqcheck_normal_time;
+        let eqcheck_normal_len;
+        let eqcheck_normal_tree_size;
+        if runner_eqcheck.egraph.add_expr(&start_parsed)
+            != runner_eqcheck.egraph.add_expr(&end_parsed)
+        {
+            eqcheck_normal_time = "#f".to_string();
+            eqcheck_normal_len = "#f".to_string();
+            eqcheck_normal_tree_size = "#f".to_string();
+        } else {
+            let eqcheck_normal_instant = Instant::now();
+            let mut eqcheck_normal =
+                runner_eqcheck.explain_equivalence(&start_parsed, &end_parsed, 10, true);
+            eqcheck_normal_time = format!("{}", eqcheck_normal_instant.elapsed().as_millis());
+            eqcheck_normal.check_proof(rules);
+            eqcheck_normal_len = format!("{}", eqcheck_normal.get_flat_sexps().len());
+            eqcheck_normal_tree_size = format!("{}", eqcheck_normal.get_tree_size());
+        }
 
         let upwards_normal_time;
         let upwards_normal_len;
@@ -839,8 +870,9 @@ mod proofbench {
                 skip_optimal = true;
             }
         }
-        if skip_optimal || runner_low_node_limit.egraph.add_expr(&start_parsed)
-            != runner_low_node_limit.egraph.add_expr(&end_parsed)
+        if skip_optimal
+            || runner_low_node_limit.egraph.add_expr(&start_parsed)
+                != runner_low_node_limit.egraph.add_expr(&end_parsed)
         {
             low_greedy_time = "#f".to_string();
             low_optimal_time = "#f".to_string();
@@ -873,7 +905,7 @@ mod proofbench {
 
         let normal_flat_len = normal.get_flat_sexps().len();
         format!(
-            "({} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {})",
+            "({} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {})",
             &start_parsed,
             &end_parsed,
             duration_normal,
@@ -894,7 +926,13 @@ mod proofbench {
             low_greedy_flat_size,
             low_optimal_flat_size,
             low_greedy_dag_size,
-            low_optimal_dag_size
+            low_optimal_dag_size,
+            eqcheck_normal_time,
+            eqcheck_normal_len,
+            eqcheck_normal_tree_size,
+            eqcheck_run_duration,
+            equalities_reduced_normal,
+            equalities_reduced_greedy,
         )
     }
 
@@ -973,23 +1011,48 @@ mod proofbench {
                 let start_parsed: egg::RecExpr<_> = unwrap_sexp_string(&pair[0]).parse().unwrap();
                 let end_parsed: egg::RecExpr<_> = unwrap_sexp_string(&pair[1]).parse().unwrap();
 
-                let mut runner =
-                    herbie_runner(&exprs_copy, 5000, 20, &start_parsed, &end_parsed, false, false);
-                let mut runner_eqcheck =
-                    herbie_runner(&exprs_copy, 5000, 20, &start_parsed, &end_parsed, false, true);
-                let mut runner_upwards =
-                    herbie_runner(&exprs_copy, 20000, 20, &start_parsed, &end_parsed, true, true);
-                let limit = if skip_copy % 20 == 0{
-                    5000
-                } else {
-                    0
-                };
-                let mut runner_low_limit =
-                    herbie_runner(&exprs_copy, limit, 20, &start_parsed, &end_parsed, false, false);
+                let mut runner = herbie_runner(
+                    &exprs_copy,
+                    5000,
+                    20,
+                    &start_parsed,
+                    &end_parsed,
+                    false,
+                    false,
+                );
+                let mut runner_eqcheck = herbie_runner(
+                    &exprs_copy,
+                    5000,
+                    20,
+                    &start_parsed,
+                    &end_parsed,
+                    false,
+                    true,
+                );
+                let mut runner_upwards = herbie_runner(
+                    &exprs_copy,
+                    20000,
+                    20,
+                    &start_parsed,
+                    &end_parsed,
+                    true,
+                    true,
+                );
+                let limit = if skip_copy % 20 == 0 { 5000 } else { 0 };
+                let mut runner_low_limit = herbie_runner(
+                    &exprs_copy,
+                    limit,
+                    20,
+                    &start_parsed,
+                    &end_parsed,
+                    false,
+                    false,
+                );
                 runner_upwards.upwards_merging_enabled = true;
 
                 herbie_benchmark_proof(
                     runner,
+                    runner_eqcheck,
                     runner_upwards,
                     runner_low_limit,
                     start_parsed,
@@ -1002,11 +1065,11 @@ mod proofbench {
                     output.write(res.as_bytes()).unwrap();
                     output.write("\n".as_bytes()).unwrap();
                     ()
-                },
+                }
                 Err(_) => {
                     print!("!");
-                    ()   
-                },
+                    ()
+                }
             }
             output.flush().unwrap();
             print!(".");

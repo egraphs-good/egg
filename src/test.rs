@@ -97,16 +97,23 @@ pub fn test_runner<L, A>(
                 assert!(explained.get_tree_size() > 0);
 
                 let grounded_terms = explained.get_grounded_equalities();
-                let mut test_egraph = EGraph::<L, ()>::new(());
-                for pair in grounded_terms {
-                    let (lhs, rhs) = pair;
-                    let l_id = test_egraph.add_expr(&lhs);
-                    let r_id = test_egraph.add_expr(&rhs);
-                    test_egraph.union(l_id, r_id);
-                }
                 let goal_flat_expr = last_term.get_recexpr();
+                let reduced = Explanation::<L>::reduce_grounded_equality_proof(&grounded_terms,
+                    &start,
+                    &goal_flat_expr);
+                println!("intial: {}, reduced: {}", grounded_terms.len(), reduced.len());
+
+                // check the reduced version still works correctly
+                let mut test_egraph = EGraph::<L, ()>::new(()).with_explanations_enabled();
+                for pair in reduced {
+                    let (lhs, rhs) = pair;
+                    test_egraph.union_instantiations(&lhs.to_string().parse().unwrap(),
+                        &rhs.to_string().parse().unwrap(), &Default::default(), "".to_string());
+                }
                 test_egraph.rebuild();
                 assert_eq!(test_egraph.add_expr(&start), test_egraph.add_expr(&goal_flat_expr));
+                let mut smaller = test_egraph.explain_equivalence(&start, &goal_flat_expr, 0, false);
+                smaller.check_proof(rules);
 
                 let mut explained_short =
                     runner.explain_matches(&start, &goal.ast, &subst, 4, true);
