@@ -763,6 +763,7 @@ mod proofbench {
 
     fn herbie_benchmark_proof(
         mut runner: Runner,
+        mut runner_disabled: Runner,
         mut runner_eqcheck: Runner,
         mut runner_upwards: Runner,
         mut runner_low_node_limit: Runner,
@@ -775,6 +776,10 @@ mod proofbench {
         let start_egg_run = Instant::now();
         runner = runner.run(rules);
         let egg_run_duration = start_egg_run.elapsed().as_millis();
+
+        let start_egg_disabled_run = Instant::now();
+        runner_disabled = runner_disabled.run(rules);
+        let egg_disabled_run_duration = start_egg_disabled_run.elapsed().as_millis();
 
         let start_upwards_run = Instant::now();
         runner_upwards = runner_upwards.run(rules);
@@ -802,7 +807,9 @@ mod proofbench {
         normal.check_proof(rules);
 
         let equalities_normal = normal.get_grounded_equalities();
+        let proof_reduce_start = Instant::now();
         let equalities_reduced_normal = Explanation::<Math>::reduce_grounded_equalities(&equalities_normal, &start_parsed, &end_parsed);
+        let proof_reduce_duration = proof_reduce_start.elapsed().as_millis();
 
         let start_slow = Instant::now();
         let mut slow = runner.explain_equivalence(&start_parsed, &end_parsed, 10, true);
@@ -810,7 +817,9 @@ mod proofbench {
         slow.check_proof(rules);
 
         let equalities_greedy = slow.get_grounded_equalities();
+        let proof_reduce_start_greedy = Instant::now();
         let equalities_reduced_greedy = Explanation::<Math>::reduce_grounded_equalities(&equalities_greedy, &start_parsed, &end_parsed);
+        let proof_reduce_duration_greedy = proof_reduce_start_greedy.elapsed().as_millis();
 
 
         let start_eqcheck_run = Instant::now();
@@ -905,7 +914,7 @@ mod proofbench {
 
         let normal_flat_len = normal.get_flat_sexps().len();
         format!(
-            "({} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {})",
+            "({} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {})",
             &start_parsed,
             &end_parsed,
             duration_normal,
@@ -933,6 +942,9 @@ mod proofbench {
             eqcheck_run_duration,
             equalities_reduced_normal.len(),
             equalities_reduced_greedy.len(),
+            proof_reduce_duration,
+            proof_reduce_duration_greedy,
+            egg_disabled_run_duration,
         )
     }
 
@@ -1020,6 +1032,15 @@ mod proofbench {
                     false,
                     false,
                 );
+                let mut runner_disabled = herbie_runner(
+                    &exprs_copy,
+                    5000,
+                    20,
+                    &start_parsed,
+                    &end_parsed,
+                    false,
+                    false,
+                ).with_explanations_disabled();
                 let mut runner_eqcheck = herbie_runner(
                     &exprs_copy,
                     5000,
@@ -1052,6 +1073,7 @@ mod proofbench {
 
                 herbie_benchmark_proof(
                     runner,
+                    runner_disabled,
                     runner_eqcheck,
                     runner_upwards,
                     runner_low_limit,
