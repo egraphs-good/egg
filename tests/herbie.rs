@@ -259,7 +259,19 @@ pub fn mk_rules(tuples: &[(&str, &str, &str)], replace: &str) -> Vec<Rewrite> {
 fn math_rules_grounded() -> HashSet<Symbol> {
     let mut rules: HashSet<Symbol> = Default::default();
     for rule in math_rules("") {
-        if !rule.searcher.get_pattern_ast().unwrap().to_string().contains("?") && !rule.applier.get_pattern_ast().unwrap().to_string().contains("?") {
+        if !rule
+            .searcher
+            .get_pattern_ast()
+            .unwrap()
+            .to_string()
+            .contains("?")
+            && !rule
+                .applier
+                .get_pattern_ast()
+                .unwrap()
+                .to_string()
+                .contains("?")
+        {
             rules.insert(rule.name);
         }
     }
@@ -811,6 +823,11 @@ mod proofbench {
         let z3_res = test_z3(&rules, &start_parsed, &end_parsed);
         let end_z3 = start_z3.elapsed().as_millis();
 
+        let start_z3_easy = Instant::now();
+        let z3_startup_proof = test_z3(&rules, &start_parsed, &start_parsed);
+        let z3_startup_proof_duration = start_z3_easy.elapsed().as_millis();
+
+
         let z3_len = if !z3_res.starts_with("unsat\n") {
             "#f".to_string()
         } else {
@@ -870,7 +887,10 @@ mod proofbench {
             eqcheck_normal_time = format!("{}", eqcheck_normal_instant.elapsed().as_millis());
             eqcheck_normal.check_proof(rules);
             eqcheck_normal_len = format!("{}", eqcheck_normal.get_flat_sexps().len());
-            eqcheck_normal_tree_size = format!("{}", count_quantified_rewrites(eqcheck_normal.get_grounded_equalities()));
+            eqcheck_normal_tree_size = format!(
+                "{}",
+                count_quantified_rewrites(eqcheck_normal.get_grounded_equalities())
+            );
         }
 
         let upwards_normal_time;
@@ -889,7 +909,10 @@ mod proofbench {
             upwards_normal_time = format!("{}", upwards_normal_instant.elapsed().as_millis());
             upwards_normal.check_proof(rules);
             upwards_normal_len = format!("{}", upwards_normal.get_flat_sexps().len());
-            upwards_normal_tree_size = format!("{}", count_quantified_rewrites(upwards_normal.get_grounded_equalities()));
+            upwards_normal_tree_size = format!(
+                "{}",
+                count_quantified_rewrites(upwards_normal.get_grounded_equalities())
+            );
         }
 
         let start_low = Instant::now();
@@ -924,7 +947,10 @@ mod proofbench {
             low_greedy_time = format!("{}", low_greedy_instant.elapsed().as_millis());
             low_greedy.check_proof(rules);
             low_greedy_flat_size = format!("{}", low_greedy.get_flat_sexps().len());
-            low_greedy_dag_size = format!("{}", count_quantified_rewrites(low_greedy.get_grounded_equalities()));
+            low_greedy_dag_size = format!(
+                "{}",
+                count_quantified_rewrites(low_greedy.get_grounded_equalities())
+            );
 
             let low_optimal_instant = Instant::now();
             let mut low_optimal = runner_low_node_limit.explain_equivalence(
@@ -936,13 +962,15 @@ mod proofbench {
             low_optimal_time = format!("{}", low_optimal_instant.elapsed().as_millis());
             low_optimal.check_proof(rules);
             low_optimal_flat_size = format!("{}", low_optimal.get_flat_sexps().len());
-            low_optimal_dag_size = format!("{}", count_quantified_rewrites(low_optimal.get_grounded_equalities()));
-            println!("({}, {})", low_greedy_flat_size, low_optimal_flat_size);
+            low_optimal_dag_size = format!(
+                "{}",
+                count_quantified_rewrites(low_optimal.get_grounded_equalities())
+            );
         }
 
         let normal_flat_len = normal.get_flat_sexps().len();
         format!(
-            "({} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {})",
+            "({} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {})",
             &start_parsed,
             &end_parsed,
             duration_normal,
@@ -973,7 +1001,8 @@ mod proofbench {
             proof_reduce_duration,
             proof_reduce_duration_greedy,
             egg_disabled_run_duration,
-            egg_low_duration
+            egg_low_duration,
+            z3_startup_proof_duration,
         )
     }
 
@@ -1036,7 +1065,6 @@ mod proofbench {
 
         let mut rng = rand::thread_rng();
         proofs_sexps.shuffle(&mut rng);
-        let mut threads = vec![];
         for proof in proofs_sexps.iter().take(2) {
             let epair = unwrap_sexp_list(proof);
             if epair[0] == epair[1] {
@@ -1113,10 +1141,8 @@ mod proofbench {
                     &rules,
                 )
             });
-            threads.push(h);
-        }
-        for thread in threads {
-            match thread.join() {
+
+            match h.join() {
                 Ok(res) => {
                     output.write(res.as_bytes()).unwrap();
                     output.write("\n".as_bytes()).unwrap();

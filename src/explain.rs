@@ -202,14 +202,16 @@ impl<L: Language + Display + FromOp> Explanation<L> {
             }
             let term = &proof[i];
             if term.backward_rule.is_some() || term.forward_rule.is_some() {
-                let reason = term.backward_rule.unwrap_or_else(|| { term.forward_rule.unwrap() });
+                let reason = term
+                    .backward_rule
+                    .unwrap_or_else(|| term.forward_rule.unwrap());
 
                 if seen_adjacent.insert((term.current, term.last)) {
                     seen_adjacent.insert((term.last, term.current));
                     res.push((
                         proof[i - 1].get_last_flat_term().get_recexpr(),
                         proof[i].get_initial_flat_term().get_recexpr(),
-                        reason
+                        reason,
                     ));
                 }
             }
