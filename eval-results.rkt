@@ -275,7 +275,7 @@
     (output-macro-results macro-port results 'dag-size 'normal-equalities-reduced "reductionvsvanilla")
 
     (displayln "" macro-port)
-    (output-macro-results macro-port results 'normal-equalities-reduced 'greedy-dag-size "reductionvsgreedy")
+    (output-macro-results macro-port results 'dag-size 'greedy-equalities-reduced "greedyandreductionvsvanilla")
     
     
     (extra-macro-results macro-port results)

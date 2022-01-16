@@ -98,21 +98,35 @@ pub fn test_runner<L, A>(
 
                 let grounded_terms = explained.get_grounded_equalities();
                 let goal_flat_expr = last_term.get_recexpr();
-                let reduced = Explanation::<L>::reduce_grounded_equalities(&grounded_terms,
+                let reduced = Explanation::<L>::reduce_grounded_equalities(
+                    &grounded_terms,
                     &start,
-                    &goal_flat_expr);
-                println!("intial: {}, reduced: {}", grounded_terms.len(), reduced.len());
+                    &goal_flat_expr,
+                );
+                println!(
+                    "intial: {}, reduced: {}",
+                    grounded_terms.len(),
+                    reduced.len()
+                );
 
                 // check the reduced version still works correctly
                 let mut test_egraph = EGraph::<L, ()>::new(()).with_explanations_enabled();
                 for pair in reduced {
-                    let (lhs, rhs) = pair;
-                    test_egraph.union_instantiations(&lhs.to_string().parse().unwrap(),
-                        &rhs.to_string().parse().unwrap(), &Default::default(), "".to_string());
+                    let (lhs, rhs, just) = pair;
+                    test_egraph.union_instantiations(
+                        &lhs.to_string().parse().unwrap(),
+                        &rhs.to_string().parse().unwrap(),
+                        &Default::default(),
+                        just,
+                    );
                 }
                 test_egraph.rebuild();
-                assert_eq!(test_egraph.add_expr(&start), test_egraph.add_expr(&goal_flat_expr));
-                let mut smaller = test_egraph.explain_equivalence(&start, &goal_flat_expr, 0, false);
+                assert_eq!(
+                    test_egraph.add_expr(&start),
+                    test_egraph.add_expr(&goal_flat_expr)
+                );
+                let mut smaller =
+                    test_egraph.explain_equivalence(&start, &goal_flat_expr, 0, false);
                 smaller.check_proof(rules);
 
                 let mut explained_short =

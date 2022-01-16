@@ -82,6 +82,10 @@ pub type TreeExplanation<L> = Vec<Rc<TreeTerm<L>>>;
 /// See [`FlatTerm`] for more details on how to find this rewrite.
 pub type FlatExplanation<L> = Vec<FlatTerm<L>>;
 
+/// A vector of grounded equalities. Each entry represents
+/// two expressions that are equal and why.
+pub type GroundedEqualities<L> = Vec<(RecExpr<L>, RecExpr<L>, Symbol)>;
+
 // given two adjacent nodes and the direction of the proof
 type ExplainCache<L> = HashMap<(Id, Id), Rc<TreeTerm<L>>>;
 type NodeExplanationCache<L> = HashMap<Id, Rc<TreeTerm<L>>>;
@@ -172,7 +176,7 @@ impl<L: Language + Display + FromOp> Explanation<L> {
 
     /// Get the grounded equalities that make up this proof
     /// as pairs of RecExpr.
-    pub fn get_grounded_equalities(&self) -> Vec<(RecExpr<L>, RecExpr<L>)> {
+    pub fn get_grounded_equalities(&self) -> GroundedEqualities<L> {
         let mut seen: HashSet<*const TreeTerm<L>> = HashSet::default();
         let mut seen_adjacent = Default::default();
         let res = self.get_grounded_equalities_for(
@@ -190,7 +194,7 @@ impl<L: Language + Display + FromOp> Explanation<L> {
         proof: &Vec<Rc<TreeTerm<L>>>,
         seen: &mut HashSet<*const TreeTerm<L>>,
         seen_adjacent: &mut HashSet<(Id, Id)>,
-    ) -> Vec<(RecExpr<L>, RecExpr<L>)> {
+    ) -> GroundedEqualities<L> {
         let mut res = vec![];
         for i in 0..proof.len() {
             if !seen.insert(&*proof[i] as *const TreeTerm<L>) {
@@ -198,11 +202,14 @@ impl<L: Language + Display + FromOp> Explanation<L> {
             }
             let term = &proof[i];
             if term.backward_rule.is_some() || term.forward_rule.is_some() {
+                let reason = term.backward_rule.unwrap_or_else(|| { term.forward_rule.unwrap() });
+
                 if seen_adjacent.insert((term.current, term.last)) {
                     seen_adjacent.insert((term.last, term.current));
                     res.push((
                         proof[i - 1].get_last_flat_term().get_recexpr(),
                         proof[i].get_initial_flat_term().get_recexpr(),
+                        reason
                     ));
                 }
             }
@@ -383,15 +390,15 @@ impl<L: Language> Explanation<L> {
     /// Using a set of grounded equalities, find an irriducible set of equalities
     /// which can still prove the start and end terms are equal.
     pub fn reduce_grounded_equalities(
-        proof: &Vec<(RecExpr<L>, RecExpr<L>)>,
+        proof: &GroundedEqualities<L>,
         start: &RecExpr<L>,
         end: &RecExpr<L>,
-    ) -> Vec<(RecExpr<L>, RecExpr<L>)> {
+    ) -> GroundedEqualities<L> {
         let mut res = vec![];
 
         let mut test_egraph = EGraph::<L, ()>::new(());
         for pair in proof {
-            let (lhs, rhs) = pair;
+            let (lhs, rhs, _) = pair;
             let l_id = test_egraph.add_expr(&lhs);
             let r_id = test_egraph.add_expr(&rhs);
             test_egraph.union(l_id, r_id);
@@ -402,14 +409,14 @@ impl<L: Language> Explanation<L> {
         for i in 0..proof.len() {
             let mut test_egraph = EGraph::<L, ()>::new(());
             for pair in &res {
-                let (lhs, rhs) = pair;
+                let (lhs, rhs, _) = pair;
                 let l_id = test_egraph.add_expr(&lhs);
                 let r_id = test_egraph.add_expr(&rhs);
                 test_egraph.union(l_id, r_id);
             }
 
-            for j in i+1..proof.len() {
-                let (lhs, rhs) = &proof[j];
+            for j in i + 1..proof.len() {
+                let (lhs, rhs, _) = &proof[j];
                 let l_id = test_egraph.add_expr(&lhs);
                 let r_id = test_egraph.add_expr(&rhs);
                 test_egraph.union(l_id, r_id);
@@ -1463,7 +1470,7 @@ impl<L: Language> Explain<L> {
                     justification,
                     cache,
                     enode_cache,
-                    false
+                    false,
                 ),
                 cache,
                 enode_cache,
@@ -1526,7 +1533,7 @@ impl<L: Language> Explain<L> {
                 &connection.justification,
                 cache,
                 node_explanation_cache,
-                use_unoptimized
+                use_unoptimized,
             ));
         }
         proof
