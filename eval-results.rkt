@@ -22,12 +22,17 @@
                   low-optimal-tree-size
                   low-greedy-dag-size
                   low-optimal-dag-size
-                  eqsat-normal-time
-                  eqsat-normal-length
-                  eqsat-normal-dag-size
-                  eqsat-duration
+                  eqcheck-normal-time
+                  eqcheck-normal-length
+                  eqcheck-normal-dag-size
+                  eqcheck-duration
                   normal-equalities-reduced
-                  greedy-equalities-reduced))
+                  greedy-equalities-reduced
+                  reduce-duration
+                  greedy-reduce-duration
+                  proof-disabled-run-duration
+                  egg-optimal-run-duration
+                  z3-startup-duration))
   (define m
     (for/hash ([name names] [i (in-range 0 (length names))])
               (values name (curryr list-ref i))))
@@ -62,7 +67,11 @@
         (output "percentsmallerthanhalfvanilla" (/ num-smaller-than-half (length content))
                 #:output-percent #t)
         (output "percentreduction" (/ (- vanilla-lengths greedy-lengths) vanilla-lengths)
-                #:output-percent #t)))
+                #:output-percent #t)
+
+        (output "percentasbig" (/ greedy-lengths vanilla-lengths)
+                #:output-percent #t)
+        ))
 
 (define (output-macro-results output-port content getter-normal getter-greedy length-str)
   (define filtered-greater-than-10
@@ -91,15 +100,50 @@
                 filtered-optimal)))
   (define filtered-z3
     (filter (getter 'z3-dag-size) content))
+  (define best-dag-reduction-greedy-vs-z3
+    (apply max (for/list ([row filtered-z3])
+                          (if (equal? ((getter 'z3-dag-size) row) 0)
+                              0
+                         (/
+                          (- 
+                            ((getter 'z3-dag-size) row)
+                            ((getter 'greedy-dag-size) row))
+                          ((getter 'z3-dag-size) row))))))
+  (define best-dag-reduction-greedy-vs-vanilla
+    (apply max (for/list ([row filtered-z3])
+                          (if (equal? ((getter 'dag-size) row) 0)
+                              0
+                         (/
+                          (- 
+                            ((getter 'dag-size) row)
+                            ((getter 'greedy-dag-size) row))
+                          ((getter 'dag-size) row))))))
   (output-latex-macro "avesecondsoptimal" (/ sum-millis-optimal (* 1000 (length filtered-optimal))) output-port)
   (output-latex-macro "avesecondsgreedy" (/ sum-millis-greedy (* 1000 (length filtered-optimal))) output-port)
   (output-latex-macro "percentztimeout" (/ (- (length content) (length filtered-z3)) (length content)) output-port #:output-percent #t)
   (output-latex-macro "averagemillisegggreedy" (/ (apply +
                                               (map (lambda (row) (+ ((getter 'greedy-duration) row) ((getter 'egg-run-duration) row)))
                                                    filtered-z3)) (length filtered-z3)) output-port)
+  (output-latex-macro "averageoverheadgreedy" (/ (apply +
+                                              (map (lambda (row) (+ ((getter 'greedy-duration) row)))
+                                                   filtered-z3)) (length filtered-z3)) output-port)
+  (output-latex-macro "averageoverheadproofsenabled"
+                      (/ (apply +
+                                (map (lambda (row) (- ((getter 'egg-run-duration) row) ((getter 'proof-disabled-run-duration) row)))
+                                     content))
+                         (length content))
+                      output-port)
   (output-latex-macro "averagemillisz" (/ (apply +
                                               (map (lambda (row) ((getter 'z3-duration) row))
                                                    filtered-z3)) (length filtered-z3)) output-port)
+  (output-latex-macro "averagemillisreduction" (/ (apply +
+                                                         (map (lambda (row) ((getter 'reduce-duration) row))
+                                                                content))
+                                                (length content)) output-port)
+  (output-latex-macro "averagezstartuptimemillis" (/ (apply + (map (lambda (row) ((getter 'z3-startup-duration) row)) filtered-z3))
+                                                   (length filtered-z3)) output-port) 
+  (output-latex-macro "bestdagreductiongreedyvsz" best-dag-reduction-greedy-vs-z3 output-port #:output-percent #t)
+  (output-latex-macro "bestdagreductiongreedyvsvanillaegg" best-dag-reduction-greedy-vs-vanilla output-port #:output-percent #t)
 )
 
 (define (make-proof-len-scatter output-file cutoff results getter-normal getter-greedy x-str y-str [scale 0.4])
@@ -276,6 +320,9 @@
 
     (displayln "" macro-port)
     (output-macro-results macro-port results 'dag-size 'greedy-equalities-reduced "greedyandreductionvsvanilla")
+
+    (displayln "" macro-port)
+    (output-macro-results macro-port results 'normal-equalities-reduced 'greedy-dag-size "greedyvsreduction")
     
     
     (extra-macro-results macro-port results)
@@ -316,8 +363,7 @@
     (make-proof-len-scatter (build-path report-dir "z3-dag-size-scatter-zoomed200.png") 200 filtered-z3 'z3-dag-size 'greedy-dag-size "Z3 DAG Size" "Greedily Optimized DAG Size")
     (make-proof-len-scatter (build-path report-dir "z3-dag-size-scatter-zoomed100.png") 100 filtered-z3 'z3-dag-size 'greedy-dag-size "Z3 DAG Size" "Greedily Optimized DAG Size")
 
-    (make-proof-len-scatter (build-path report-dir "rebuilding-upwards-zoomed100.png") 100 filtered-upwards 'dag-size 'upwards-dag-size "DAG Size With Rebuilding" "DAG Size With Upwards Merging")
-    (make-proof-len-scatter (build-path report-dir "rebuilding-upwards-zoomed200.png") 200 filtered-upwards 'dag-size 'upwards-dag-size "DAG Size With Rebuilding" "DAG Size With Upwards Merging")
+    (make-proof-len-scatter (build-path report-dir "rebuilding-upwards-zoomed200.png") 200 filtered-upwards 'upwards-dag-size 'dag-size "DAG Size With Upwards Merging" "DAG Size With Rebuilding")
 
     (make-proof-len-scatter (build-path report-dir "z3-vs-rebuilding-greedy-time.png") #f filtered-z3 'z3-duration 'greedy-duration "Z3 Proof Production Runtime (ms)" "Greedy Proof Production Runtime (ms)")
     (make-proof-len-scatter (build-path report-dir "z3-vs-rebuilding-greedy-time-zoomed10000.png") 10000 filtered-z3 'z3-duration 'greedy-duration "Z3 Proof Production Runtime (ms)" "Greedy Proof Production Runtime (ms)")
@@ -329,6 +375,12 @@
     (make-proof-len-scatter (build-path report-dir "proof-reduction-vs-greedy-optimization.png") #f results 'normal-equalities-reduced 'greedy-dag-size "DAG Size with Standard Reduction" "DAG Size with Greedy Optimization")
     (make-proof-len-scatter (build-path report-dir "proof-reduction-vs-vanilla.png") #f results 'dag-size 'normal-equalities-reduced "DAG Size without Standard Reduction" "DAG Size with Standard Reduction")
 
+    (define filtered-eqcheck
+      (filter (getter 'eqcheck-normal-dag-size) results))
+    (make-proof-len-scatter (build-path report-dir "egg-eqcheck-vs-normal-dag-size-zoomed-100.png") 100 filtered-eqcheck 'dag-size 'eqcheck-normal-dag-size  "Egg DAG Size"  "Egg with Input/Output" 0.2)
+    (make-proof-len-scatter (build-path report-dir "egg-upwards-vs-egg-normal-dag-size-zoomed-100.png") 100 filtered-upwards 'dag-size 'upwards-dag-size "Egg DAG Size" "Egg Theorem Proving Workload" 0.2)
+    (make-proof-len-scatter (build-path report-dir "z3-vs-egg-upwards-zoomed-100.png") 100 filtered-upwards-z3 'z3-dag-size 'upwards-dag-size "Z3 DAG Size" "Egg Theorem Proving Workload" 0.2)
+                            
     (cummulative-time-plot (build-path report-dir "cummulative-time-z3-greedy.png") results 0.5 'z3-duration "Time (sec)" "Number of Proofs Solved Within Time")
   )
   )

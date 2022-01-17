@@ -723,8 +723,6 @@ where
         None => {
             timed_out = true;
             println!("timeout!");
-            //println!("{}", start);
-            //println!("{}", end);
             z3_process.kill().unwrap();
             z3_process.wait().unwrap().code()
         }
@@ -740,6 +738,9 @@ where
     if !timed_out && !output.starts_with("unsat\n") {
         println!("Z3 returned unknown!");
         //println!("{}", output);
+    }
+    if timed_out {
+        return "".to_string();
     }
     return output;
 }
@@ -883,7 +884,7 @@ mod proofbench {
         } else {
             let eqcheck_normal_instant = Instant::now();
             let mut eqcheck_normal =
-                runner_eqcheck.explain_equivalence(&start_parsed, &end_parsed, 10, true);
+                runner_eqcheck.explain_equivalence(&start_parsed, &end_parsed, 0, false);
             eqcheck_normal_time = format!("{}", eqcheck_normal_instant.elapsed().as_millis());
             eqcheck_normal.check_proof(rules);
             eqcheck_normal_len = format!("{}", eqcheck_normal.get_flat_sexps().len());
@@ -905,7 +906,7 @@ mod proofbench {
         } else {
             let upwards_normal_instant = Instant::now();
             let mut upwards_normal =
-                runner_upwards.explain_equivalence(&start_parsed, &end_parsed, 10, true);
+                runner_upwards.explain_equivalence(&start_parsed, &end_parsed, 0, false);
             upwards_normal_time = format!("{}", upwards_normal_instant.elapsed().as_millis());
             upwards_normal.check_proof(rules);
             upwards_normal_len = format!("{}", upwards_normal.get_flat_sexps().len());
