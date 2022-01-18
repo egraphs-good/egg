@@ -57,6 +57,15 @@
                       (* 2 ((getter getter-greedy) row)))
                    1 0))))
 
+  (define best-percent-as-big
+      (apply min (for/list ([row content])
+                          (if (equal? ((getter getter-normal) row) 0)
+                              0
+                         (/
+                            ((getter getter-greedy) row)
+                          ((getter getter-normal) row))))))
+    
+
   (output "numbenchmarks" (length content))
   (output "vanillasum" vanilla-lengths)
   (output "sum" greedy-lengths)
@@ -69,6 +78,8 @@
                 #:output-percent #t)
 
         (output "percentasbig" (/ greedy-lengths vanilla-lengths)
+                #:output-percent #t)
+        (output "bestpercentasbig" best-percent-as-big
                 #:output-percent #t)
         ))
 
@@ -119,6 +130,7 @@
                             ((getter 'dag-size) row)
                             ((getter 'greedy-dag-size) row))
                           ((getter 'dag-size) row))))))
+
   (output "avesecondsoptimal" (/ sum-millis-optimal (* 1000 (length filtered-optimal))) output-port)
   (output "avesecondsgreedy" (/ sum-millis-greedy (* 1000 (length filtered-optimal))) output-port)
   (output "percentztimeout" (/ (- (length content) (length filtered-z3)) (length content)) output-port #:output-percent #t)
@@ -293,6 +305,9 @@
     (define filtered-upwards-z3 (filter (getter 'z3-dag-size) filtered-upwards))
     (define filtered-optimal (filter (lambda (row) ((getter 'low-greedy-tree-size) row))
                                      results))
+
+    (define filtered-eqcheck
+      (filter (getter 'eqcheck-normal-dag-size) results))
     
     (define macro-port (open-output-file macro-output-file #:exists 'replace))
     (output-macro-results macro-port
@@ -310,7 +325,7 @@
 
     (displayln "" macro-port)
     (output-macro-results macro-port
-                          filtered-upwards-z3 'upwards-dag-size 'z3-dag-size "upwardsvszdagsize")
+                          filtered-upwards-z3 'z3-dag-size 'upwards-dag-size "upwardsvszdagsize")
 
     (displayln "" macro-port)
     (output-macro-results macro-port
@@ -324,13 +339,14 @@
 
     (displayln "" macro-port)
     (output-macro-results macro-port results 'normal-equalities-reduced 'greedy-dag-size "greedyvsreduction")
+
+    (displayln "" macro-port)
+    (output-macro-results macro-port filtered-eqcheck 'eqcheck-normal-dag-size 'dag-size "eqcheckdagsizevsvanilla")
     
     
     (extra-macro-results macro-port results "")
 
     (extra-macro-results macro-port (filter (lambda (row) (> ((getter 'dag-size) row) 10)) results) "vanilladagsizegrtten")
-    
-    (extra-macro-results macro-port (filter (lambda (row) (> ((getter 'dag-size) row) 100)) results) "vanilladagsizegrtonehundred")
     
 
     
@@ -381,11 +397,11 @@
     (make-proof-len-scatter (build-path report-dir "proof-reduction-vs-greedy-optimization.png") #f results 'normal-equalities-reduced 'greedy-dag-size "DAG Size with Standard Reduction" "DAG Size with Greedy Optimization")
     (make-proof-len-scatter (build-path report-dir "proof-reduction-vs-vanilla.png") #f results 'dag-size 'normal-equalities-reduced "DAG Size without Standard Reduction" "DAG Size with Standard Reduction")
 
-    (define filtered-eqcheck
-      (filter (getter 'eqcheck-normal-dag-size) results))
-    (make-proof-len-scatter (build-path report-dir "egg-eqcheck-vs-normal-dag-size-zoomed-100.png") 100 filtered-eqcheck 'dag-size 'eqcheck-normal-dag-size  "Egg DAG Size"  "Egg with Input/Output" 0.2)
-    (make-proof-len-scatter (build-path report-dir "egg-upwards-vs-egg-normal-dag-size-zoomed-100.png") 100 filtered-upwards 'dag-size 'upwards-dag-size "Egg DAG Size" "Egg Theorem Proving Workload" 0.2)
-    (make-proof-len-scatter (build-path report-dir "z3-vs-egg-upwards-zoomed-100.png") 100 filtered-upwards-z3 'z3-dag-size 'upwards-dag-size "Z3 DAG Size" "Egg Theorem Proving Workload" 0.2)
+    (make-proof-len-scatter (build-path report-dir "egg-eqcheck-vs-normal-dag-size-zoomed-200.png") 200 filtered-eqcheck 'dag-size 'eqcheck-normal-dag-size  "Egg DAG Size"  "Egg with Input/Output" 0.2)
+    (make-proof-len-scatter (build-path report-dir "egg-upwards-vs-egg-normal-dag-size-zoomed-200.png") 200 filtered-upwards 'dag-size 'upwards-dag-size "Egg DAG Size" "Egg Theorem Proving Workload" 0.2)
+    (make-proof-len-scatter (build-path report-dir "z3-vs-egg-upwards-zoomed-200.png") 200 filtered-upwards-z3 'z3-dag-size 'upwards-dag-size "Z3 DAG Size" "Egg Theorem Proving Workload" 0.2)
+
+    (make-proof-len-scatter (build-path report-dir "reduced-vs-z3-zoomed-100.png") 100 filtered-z3 'z3-dag-size 'normal-equalities-reduced "Z3 DAG Size" "Egg + Reduction DAG Size" 0.2)
                             
     (cummulative-time-plot (build-path report-dir "cummulative-time-z3-greedy.png") results 0.5 'z3-duration "Time (sec)" "Number of Proofs Solved Within Time")
   )
