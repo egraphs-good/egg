@@ -45,18 +45,6 @@
   (define vanilla-lengths (get-sum content (getter getter-normal)))
   (define greedy-lengths (get-sum content (getter getter-greedy)))
 
-  (define percentreduction (/ (get-sum content
-                                    (lambda (row) (/ (- ((getter getter-greedy) row)
-                                                        ((getter getter-normal) row))
-                                                     ((getter getter-normal) row))))
-    (length content)))
-
-  (define percentasbig (/ (get-sum content
-                                    (lambda (row) (/ ((getter getter-greedy) row)
-                                                     ((getter getter-normal) row))))
-    (length content)))
-
-  
   (define num-smaller (get-sum content
                                (lambda (row)
                                  (if (> ((getter getter-normal) row)
