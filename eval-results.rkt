@@ -84,10 +84,12 @@
   (displayln "" output-port)
   (output-results-with-tag output-port filtered-greater-than-50 "lengthgrtfifty" getter-normal getter-greedy length-str))
 
-(define (extra-macro-results output-port content)
+(define (extra-macro-results output-port content tag)
+  (define (output name val _port #:output-percent [output-percent #f])
+    (output-latex-macro (string-append name tag) val output-port #:output-percent output-percent))
   (define num-herbie-benchmarks 346)
   (displayln "" output-port)
-  (output-latex-macro "numherbiebenchmarks" num-herbie-benchmarks output-port)
+  (output "numherbiebenchmarks" num-herbie-benchmarks output-port)
   (define filtered-optimal
     (filter (lambda (row) ((getter 'low-optimal-time) row)) content))
   (define sum-millis-optimal
@@ -118,32 +120,32 @@
                             ((getter 'dag-size) row)
                             ((getter 'greedy-dag-size) row))
                           ((getter 'dag-size) row))))))
-  (output-latex-macro "avesecondsoptimal" (/ sum-millis-optimal (* 1000 (length filtered-optimal))) output-port)
-  (output-latex-macro "avesecondsgreedy" (/ sum-millis-greedy (* 1000 (length filtered-optimal))) output-port)
-  (output-latex-macro "percentztimeout" (/ (- (length content) (length filtered-z3)) (length content)) output-port #:output-percent #t)
-  (output-latex-macro "averagemillisegggreedy" (/ (apply +
+  (output "avesecondsoptimal" (/ sum-millis-optimal (* 1000 (length filtered-optimal))) output-port)
+  (output "avesecondsgreedy" (/ sum-millis-greedy (* 1000 (length filtered-optimal))) output-port)
+  (output "percentztimeout" (/ (- (length content) (length filtered-z3)) (length content)) output-port #:output-percent #t)
+  (output "averagemillisegggreedy" (/ (apply +
                                               (map (lambda (row) (+ ((getter 'greedy-duration) row) ((getter 'egg-run-duration) row)))
                                                    filtered-z3)) (length filtered-z3)) output-port)
-  (output-latex-macro "averageoverheadgreedy" (/ (apply +
+  (output "averageoverheadgreedy" (/ (apply +
                                               (map (lambda (row) (+ ((getter 'greedy-duration) row)))
                                                    filtered-z3)) (length filtered-z3)) output-port)
-  (output-latex-macro "averageoverheadproofsenabled"
+  (output "averageoverheadproofsenabled"
                       (/ (apply +
                                 (map (lambda (row) (- ((getter 'egg-run-duration) row) ((getter 'proof-disabled-run-duration) row)))
                                      content))
                          (length content))
                       output-port)
-  (output-latex-macro "averagemillisz" (/ (apply +
+  (output "averagemillisz" (/ (apply +
                                               (map (lambda (row) ((getter 'z3-duration) row))
                                                    filtered-z3)) (length filtered-z3)) output-port)
-  (output-latex-macro "averagemillisreduction" (/ (apply +
+  (output "averagemillisreduction" (/ (apply +
                                                          (map (lambda (row) ((getter 'reduce-duration) row))
                                                                 content))
                                                 (length content)) output-port)
-  (output-latex-macro "averagezstartuptimemillis" (/ (apply + (map (lambda (row) ((getter 'z3-startup-duration) row)) filtered-z3))
+  (output "averagezstartuptimemillis" (/ (apply + (map (lambda (row) ((getter 'z3-startup-duration) row)) filtered-z3))
                                                    (length filtered-z3)) output-port) 
-  (output-latex-macro "bestdagreductiongreedyvsz" best-dag-reduction-greedy-vs-z3 output-port #:output-percent #t)
-  (output-latex-macro "bestdagreductiongreedyvsvanillaegg" best-dag-reduction-greedy-vs-vanilla output-port #:output-percent #t)
+  (output "bestdagreductiongreedyvsz" best-dag-reduction-greedy-vs-z3 output-port #:output-percent #t)
+  (output "bestdagreductiongreedyvsvanillaegg" best-dag-reduction-greedy-vs-vanilla output-port #:output-percent #t)
 )
 
 (define (make-proof-len-scatter output-file cutoff results getter-normal getter-greedy x-str y-str [scale 0.4])
@@ -325,7 +327,12 @@
     (output-macro-results macro-port results 'normal-equalities-reduced 'greedy-dag-size "greedyvsreduction")
     
     
-    (extra-macro-results macro-port results)
+    (extra-macro-results macro-port results "")
+
+    (extra-macro-results macro-port (filter (lambda (row) (> ((getter 'dag-size) row) 10)) results) "vanilladagsizegrtten")
+    
+    (extra-macro-results macro-port (filter (lambda (row) (> ((getter 'dag-size) row) 100)) results) "vanilladagsizegrtonehundred")
+    
 
     
 
