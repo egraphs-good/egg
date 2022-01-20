@@ -1,6 +1,6 @@
 use std::fmt;
 use std::str::FromStr;
-use std::sync::Mutex;
+use std::sync::RwLock;
 use symbolic_expressions::Sexp;
 
 use fmt::{Debug, Display, Formatter};
@@ -59,7 +59,14 @@ pub(crate) fn pretty_print(
     }
 }
 
-static STRINGS: Lazy<Mutex<IndexSet<&'static str>>> = Lazy::new(Default::default);
+const NUM_STRING_SHARDS: usize = 256;
+
+static STRINGS: Lazy<Vec<RwLock<IndexSet<&'static str>>>> = Lazy::new(|| {
+    let v: Vec<_> = std::iter::repeat_with(|| RwLock::new(Default::default()))
+        .take(NUM_STRING_SHARDS)
+        .collect();
+    v
+});
 
 /// An interned string.
 ///
@@ -93,14 +100,15 @@ static STRINGS: Lazy<Mutex<IndexSet<&'static str>>> = Lazy::new(Default::default
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde-1", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde-1", serde(from = "&str", into = "&'static str"))]
-pub struct Symbol(u32);
+pub struct Symbol(u32, u32);
 
 impl Symbol {
     /// Get the string that this symbol represents
     pub fn as_str(self) -> &'static str {
-        let i = self.0 as usize;
-        let strings = STRINGS
-            .lock()
+        let shard = self.0 as usize;
+        let i = self.1 as usize;
+        let strings = STRINGS[shard]
+            .read()
             .unwrap_or_else(|err| panic!("Failed to acquire egg's global string cache: {}", err));
         strings.get_index(i).unwrap()
     }
@@ -111,14 +119,24 @@ fn leak(s: &str) -> &'static str {
 }
 
 fn intern(s: &str) -> Symbol {
-    let mut strings = STRINGS
-        .lock()
+    let shard = fxhash::hash(s) % NUM_STRING_SHARDS;
+    let strings = STRINGS[shard]
+        .read()
+        .unwrap_or_else(|err| panic!("Failed to acquire egg's global string cache: {}", err));
+    if let Some((i, _)) = strings.get_full(s) {
+        return Symbol(shard as u32, i as u32);
+    }
+    // Release the read lock.
+    drop(strings);
+
+    let mut strings = STRINGS[shard]
+        .write()
         .unwrap_or_else(|err| panic!("Failed to acquire egg's global string cache: {}", err));
     let i = match strings.get_full(s) {
         Some((i, _)) => i,
         None => strings.insert_full(leak(s)).0,
     };
-    Symbol(i as u32)
+    Symbol(shard as u32, i as u32)
 }
 
 impl<S: AsRef<str>> From<S> for Symbol {
