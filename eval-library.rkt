@@ -1,11 +1,21 @@
 #lang racket
 
-(provide file->list get-sum parameterize-plot-size output-latex-macro)
+(provide file->list get-sum parameterize-plot-size output-latex-macro latex-output-percent latex-format-item output-latex-table)
 (require plot/no-gui pict)
 
 (define global-plot-scale 2)
 (define numbers-size 10)
 (define labels-size 12)
+
+(define (output-latex-table rows port)
+  
+  (fprintf port "\\begin{tabular}{|c | ~a|}\n \\hline \n" (apply string-append (make-list (- (length (first rows)) 1) "c ")))
+  (for ([row rows])
+       (fprintf port "~a \\\\\n" (string-join (map latex-format-item  row) " & ")))
+  
+
+  (fprintf port "\\end{tabular}"))
+  
 
 (define (output-latex-macro name val port [comment ""] #:output-percent [output-percent #f])
   (define comment-string
@@ -47,6 +57,8 @@
   (cond
     [output-percent
      (latex-output-percent item)]
+    [(string? item)
+     item]
     [(exact-integer? item)
      (insert-thinspaces (format "~a" item) "\\thinspace")]
     [else (format "~a" (~r item #:precision `(= 2)))]))
