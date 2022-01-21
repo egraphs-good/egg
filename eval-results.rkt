@@ -6,33 +6,38 @@
 (define (getter symbol)
   (define names `(start-expr
                   end-expr
-                  vanilla-duration
-                  greedy-duration
-                  proof-length greedy-flat-size dag-size
-                  greedy-dag-size z3-duration
-                  z3-dag-size
-                  egg-run-duration
-                  upwards-proof-duration
+                  vanilla-duration ;; duration of running just proof production in egg
+                  greedy-duration ;; duration of running just proof production w/ greedy optimization and T = 10
+                  proof-length ;; egg tree size of proof without optimization
+                  greedy-length ;; egg tree soze pf proof with greedy enabled
+                  dag-size ;; egg dag size of proof without optimization
+                  greedy-dag-size ;; egg dag size of proof with optimization
+                  z3-duration ;; z3 run duration
+                  z3-dag-size ;; z3 dag size of resulting proof
+                  ;; end-to-end duration of egg + greedy is egg-run-duration + greedy-duration
+                  egg-run-duration ;; duration of running just egg without producing proof
+                  upwards-proof-duration ;; duration of running proof production on an upwards merging graph
                   upwards-proof-length
                   upwards-dag-size
                   upwards-run-duration
-                  low-greedy-time
-                  low-optimal-time
-                  low-greedy-flat-size
-                  low-optimal-flat-size
-                  low-greedy-dag-size
-                  low-optimal-dag-size
+                  low-greedy-time ;; ignore
+                  optimal-time ;; run time of optimal proof production in milliseconds
+                  low-greedy-length ;; ignore
+                  optimal-length ;; egg tree size of optimal proof
+                  low-greedy-dag-size ;; ignore
+                  optimal-dag-size ;; dag size of optimal tree proof
                   eqcheck-normal-time
                   eqcheck-normal-length
                   eqcheck-normal-dag-size
                   eqcheck-duration
-                  normal-equalities-reduced
-                  greedy-equalities-reduced
-                  reduce-duration
-                  greedy-reduce-duration
+                  normal-equalities-reduced ;; egg + reduction DAG size
+                  greedy-equalities-reduced ;; egg + greedy + reduction DAG size
+                  reduce-duration ;; duration of running reduction on egg proof without optimiation
+                  greedy-reduce-duration ;; duration of running reduction on egg's greedy proof
                   proof-disabled-run-duration
-                  egg-optimal-run-duration
-                  z3-startup-duration))
+                  egg-optimal-run-duration ;; ignore, should be same as egg-run-duration
+                  z3-startup-duration ;; running z3 with trivial query
+                  ))
   (define m
     (for/hash ([name names] [i (in-range 0 (length names))])
               (values name (curryr list-ref i))))
@@ -108,17 +113,17 @@
     (/ (get-sum results (lambda (row) (+ ((getter name) row) ((getter name2) row)))) (length results)))
        
   (output-latex-table `(("" "Egg" "Z3" "Egg Reduc." "Greedy" "Optimal")
-    ,(list "DAG Size vs Z3" (dag-size 'dag-size) (dag-size 'z3-dag-size) (dag-size 'normal-equalities-reduced)  (dag-size 'greedy-dag-size) (dag-size 'low-optimal-dag-size))
+    ,(list "DAG Size vs Z3" (dag-size 'dag-size) (dag-size 'z3-dag-size) (dag-size 'normal-equalities-reduced)  (dag-size 'greedy-dag-size) (dag-size 'optimal-dag-size))
     ,(list "Ave Run Time (ms)" (two-average 'egg-run-duration 'vanilla-duration) (get-average 'z3-duration)
            (two-average 'egg-run-duration 'reduce-duration) (two-average 'egg-run-duration 'greedy-duration)
-           (two-average 'egg-run-duration 'low-optimal-time))
+           (two-average 'egg-run-duration 'optimal-time))
     ,(list "Complexity Overhead" "$O^*(1)$" "$O^*(k^2 \\log(k))$" "$O^*(k^2 \\log(k))$" "$O^*(1)$" "$O^*(n ^ 4)$"))
   output-port))
 
 (define (extra-macro-results output-port content tag)
   (define num-optimal-skipped
     (for/sum ([row content] [i (in-range (length content))])
-             (if (and (equal? (modulo i 20) 0) (equal? #f ((getter 'low-optimal-dag-size) row)))
+             (if (and (equal? (modulo i 20) 0) (equal? #f ((getter 'optimal-dag-size) row)))
                  1 0)))
   (define (output name val _port #:output-percent [output-percent #f])
     (output-latex-macro (string-append name tag) val output-port #:output-percent output-percent))
@@ -126,15 +131,15 @@
   (displayln "" output-port)
   (output "numherbiebenchmarks" num-herbie-benchmarks output-port)
   (define filtered-optimal
-    (filter (lambda (row) ((getter 'low-optimal-time) row)) content))
+    (filter (lambda (row) ((getter 'optimal-time) row)) content))
 
   (define num-optimal-same-as-greedy
     (for/sum ([row filtered-optimal])
-         (if (equal? ((getter 'greedy-dag-size) row) ((getter 'low-optimal-dag-size) row))
+         (if (equal? ((getter 'greedy-dag-size) row) ((getter 'optimal-dag-size) row))
              1 0)))
   (define sum-millis-optimal
     (apply +
-           (map (lambda (row) ((getter 'low-optimal-time) row))
+           (map (lambda (row) ((getter 'optimal-time) row))
                 filtered-optimal)))
   (define sum-millis-greedy
     (apply +
@@ -339,7 +344,7 @@
     (define filtered-upwards (filter (lambda (row) ((getter 'upwards-dag-size) row))
                                      results))
     (define filtered-upwards-z3 (filter (getter 'z3-dag-size) filtered-upwards))
-    (define filtered-optimal (filter (lambda (row) ((getter 'low-optimal-flat-size) row))
+    (define filtered-optimal (filter (lambda (row) ((getter 'optimal-length) row))
                                      results))
 
     (define filtered-eqcheck
@@ -347,7 +352,7 @@
     
     (define macro-port (open-output-file macro-output-file #:exists 'replace))
     (output-macro-results macro-port
-                          results 'proof-length 'greedy-flat-size "prooflength")
+                          results 'proof-length 'greedy-length "prooflength")
     (displayln "" macro-port)
     (output-macro-results macro-port
                           results 'dag-size 'greedy-dag-size "dagsize")
@@ -365,7 +370,7 @@
 
     (displayln "" macro-port)
     (output-macro-results macro-port
-                          filtered-optimal 'low-greedy-flat-size 'low-optimal-flat-size "lowtreesize")
+                          filtered-optimal 'low-greedy-length 'optimal-length "lowtreesize")
 
     (displayln "" macro-port)
     (output-macro-results macro-port results 'dag-size 'normal-equalities-reduced "reductionvsvanilla")
@@ -380,7 +385,7 @@
     (output-macro-results macro-port filtered-eqcheck 'eqcheck-normal-dag-size 'dag-size "eqcheckdagsizevsvanilla")
 
     (displayln "" macro-port)
-    (output-macro-results macro-port filtered-optimal 'greedy-dag-size 'low-optimal-dag-size "optimaldagsizevsgreedy")
+    (output-macro-results macro-port filtered-optimal 'greedy-dag-size 'optimal-dag-size "optimaldagsizevsgreedy")
     
     
     (extra-macro-results macro-port results "")
@@ -403,17 +408,17 @@
                      filtered-z3 2000 20)
                                  
     
-    (make-proof-len-scatter (build-path report-dir "proof-len-scatter.png") #f results 'proof-length 'greedy-flat-size "Unoptimized Proof Lengths" "Greedily Optimized Proof Lengths")
-    (make-proof-len-scatter (build-path report-dir "proof-len-scatter-zoomed800.png") 800 results 'proof-length 'greedy-flat-size "Unoptimized Proof Lengths" "Greedily Optimized Proof Lengths")
-    (make-proof-len-scatter (build-path report-dir "proof-len-scatter-zoomed200.png") 200 results 'proof-length 'greedy-flat-size "Unoptimized Proof Lengths" "Greedily Optimized Proof Lengths")
+    (make-proof-len-scatter (build-path report-dir "proof-len-scatter.png") #f results 'proof-length 'greedy-length "Unoptimized Proof Lengths" "Greedily Optimized Proof Lengths")
+    (make-proof-len-scatter (build-path report-dir "proof-len-scatter-zoomed800.png") 800 results 'proof-length 'greedy-length "Unoptimized Proof Lengths" "Greedily Optimized Proof Lengths")
+    (make-proof-len-scatter (build-path report-dir "proof-len-scatter-zoomed200.png") 200 results 'proof-length 'greedy-length "Unoptimized Proof Lengths" "Greedily Optimized Proof Lengths")
     (make-proof-len-scatter (build-path report-dir "dag-size-scatter.png") #f results 'dag-size 'greedy-dag-size "Unoptimized DAG Size" "Greedily Optimized DAG Size")
     (make-proof-len-scatter (build-path report-dir "dag-size-scatter-zoomed800.png") 800 results 'dag-size 'greedy-dag-size "Unoptimized DAG Size" "Greedily Optimized DAG Size")
     (make-proof-len-scatter (build-path report-dir "dag-size-scatter-zoomed200.png") 200 results 'dag-size 'greedy-dag-size "Unoptimized DAG Size" "Greedily Optimized DAG Size")
 
-    (make-proof-len-scatter (build-path report-dir "greedy-tree-vs-dag-scatter.png") #f results 'greedy-flat-size 'greedy-dag-size "Greedily Optimized Tree Size" "Corresponding DAG Size" 0.3)
+    (make-proof-len-scatter (build-path report-dir "greedy-tree-vs-dag-scatter.png") #f results 'greedy-length 'greedy-dag-size "Greedily Optimized Tree Size" "Corresponding DAG Size" 0.3)
     
-    (make-proof-len-scatter (build-path report-dir "optimal-flat-size-scatter.png") #f filtered-optimal 'low-greedy-flat-size 'low-optimal-flat-size "Greedily Optimized Tree Size" "Optimal Tree Size")
-    (make-proof-len-scatter (build-path report-dir "optimal-tree-vs-dag-scatter.png") #f filtered-optimal 'low-optimal-flat-size 'low-optimal-dag-size "Optimal Tree Size" "Corresponding DAG Size" 0.3)
+    (make-proof-len-scatter (build-path report-dir "optimal-flat-size-scatter.png") #f filtered-optimal 'low-greedy-length 'optimal-length "Greedily Optimized Tree Size" "Optimal Tree Size")
+    (make-proof-len-scatter (build-path report-dir "optimal-tree-vs-dag-scatter.png") #f filtered-optimal 'optimal-length 'optimal-dag-size "Optimal Tree Size" "Corresponding DAG Size" 0.3)
 
     (println (length filtered-z3))
     (println (length results))
