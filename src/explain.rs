@@ -1902,9 +1902,6 @@ impl<L: Language> Explain<L> {
                     counter += 1;
                     cannon_enodes.insert(cannon, vec![*enode]);
                 }
-                if counter > self.explainfind.len()*100 {
-                    return;
-                }
             }
         }
     }
