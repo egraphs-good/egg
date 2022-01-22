@@ -9,7 +9,7 @@
 
 (define (output-latex-table rows port)
   
-  (fprintf port "\\begin{tabular}{|c | ~a|}\n \\hline \n" (apply string-append (make-list (- (length (first rows)) 1) "c ")))
+  (fprintf port "\\begin{tabular}{|c | ~a}\n \\hline \n" (apply string-append (make-list (- (length (first rows)) 1) "c| ")))
   (for ([row rows] [i (in-range (length rows))])
        (fprintf port "~a \\\\\n" (string-join (map latex-format-item  row) " & "))
        (when (equal? i 0)

@@ -1881,6 +1881,7 @@ impl<L: Language> Explain<L> {
         congruence_neighbors: &mut Vec<Vec<Id>>,
         unionfind: &UnionFind,
     ) {
+        let mut counter = 0;
         for eclass in classes.keys() {
             let enodes = self.find_all_enodes(*eclass);
             // find all congruence nodes
@@ -1895,12 +1896,34 @@ impl<L: Language> Explain<L> {
                         congruence_neighbors[usize::from(*enode)].push(*other);
                         congruence_neighbors[usize::from(*other)].push(*enode);
                     }
+                    counter += 1;
                     others.push(*enode);
                 } else {
+                    counter += 1;
                     cannon_enodes.insert(cannon, vec![*enode]);
+                }
+                if counter > self.explainfind.len()*100 {
+                    return;
                 }
             }
         }
+    }
+
+    pub fn get_num_congr<N: Analysis<L>>(&self,
+        classes: &HashMap<Id, EClass<L, N::Data>>,
+        unionfind: &UnionFind) -> usize {
+        let mut congruence_neighbors = vec![vec![]; self.explainfind.len()];
+        self.find_congruence_neighbors::<N>(classes, &mut congruence_neighbors, unionfind);
+        let mut count = 0;
+        for v in congruence_neighbors {
+            count += v.len();
+        }
+
+        count / 2
+    }
+
+    pub fn get_num_nodes(&self) -> usize {
+        self.explainfind.len()
     }
 
     fn greedy_short_explanations(

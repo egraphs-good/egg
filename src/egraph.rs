@@ -198,6 +198,25 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         self.explain.is_some()
     }
 
+    pub fn get_num_congr(&mut self) -> usize {
+        if let Some(explain) = &self.explain {
+            explain.get_num_congr::<N>(
+                &self.classes,
+                &mut self.unionfind,
+            )
+        } else {
+            panic!("Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations.")
+        }
+    }
+
+    pub fn get_num_nodes(&mut self) -> usize {
+        if let Some(explain) = &self.explain {
+            explain.get_num_nodes()
+        } else {
+            panic!("Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations.")
+        }
+    }
+
     /// When explanations are enabled, this function
     /// produces an [`Explanation`] describing why two expressions are equivalent.
     ///

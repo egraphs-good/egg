@@ -86,6 +86,7 @@
                 #:output-percent #t)
         (output "bestpercentasbig" best-percent-as-big
                 #:output-percent #t)
+        (output "otherpercentasbig" (/ vanilla-lengths greedy-lengths) #:output-percent #t)
         ))
 
 (define (output-macro-results output-port content getter-normal getter-greedy length-str)
@@ -99,11 +100,14 @@
   (displayln "" output-port)
   (output-results-with-tag output-port filtered-greater-than-50 "lengthgrtfifty" getter-normal getter-greedy length-str))
 
+(define (transpose xss)
+  (apply map list xss))
+
 (define (make-algorithms-table output-port results)
   (define (dag-size name)
     (latex-format-item
      (/ (get-sum results (getter name))
-       (get-sum results (getter 'z3-dag-size)))
+       (get-sum results (getter 'optimal-dag-size)))
      #:output-percent #t))
 
   (define (get-average name)
@@ -111,13 +115,16 @@
 
   (define (two-average name name2)
     (/ (get-sum results (lambda (row) (+ ((getter name) row) ((getter name2) row)))) (length results)))
-       
-  (output-latex-table `(("" "Egg" "Z3" "Egg Reduc." "Greedy" "Optimal")
-    ,(list "DAG Size vs Z3" (dag-size 'dag-size) (dag-size 'z3-dag-size) (dag-size 'normal-equalities-reduced)  (dag-size 'greedy-dag-size) (dag-size 'optimal-dag-size))
-    ,(list "Ave Run Time (ms)" (two-average 'egg-run-duration 'vanilla-duration) (get-average 'z3-duration)
+
+  ;; order opttree, z3, egg reduc, greedy, egg naive
+  ;; transpose and adding n log n
+  
+  (output-latex-table (transpose (map reverse `(( "Egg" "Z3" "Egg Reduc." "Greedy" "OptTree" "")
+    ,(list  (dag-size 'dag-size) (dag-size 'z3-dag-size) (dag-size 'normal-equalities-reduced)  (dag-size 'greedy-dag-size) (dag-size 'optimal-dag-size) "DAG Size vs TreeOpt")
+    ,(list  (two-average 'egg-run-duration 'vanilla-duration) (get-average 'z3-duration)
            (two-average 'egg-run-duration 'reduce-duration) (two-average 'egg-run-duration 'greedy-duration)
-           (two-average 'egg-run-duration 'optimal-time))
-    ,(list "Complexity Overhead" "$O^*(1)$" "$O^*(k^2 \\log(k))$" "$O^*(k^2 \\log(k))$" "$O^*(1)$" "$O^*(n ^ 4)$"))
+           (two-average 'egg-run-duration 'optimal-time) "Ave Run Time (ms)")
+    ,(list  "$O(n \\log(n))$" "$O(n \\log(n) + k^2 \\log(k))$" "$O(n \\log(n) + k^2 \\log(k))$" "$O(n \\log(n))$" "$O(n ^ 4)$" "Complexity"))))
   output-port))
 
 (define (extra-macro-results output-port content tag)
@@ -417,7 +424,7 @@
 
     (make-proof-len-scatter (build-path report-dir "greedy-tree-vs-dag-scatter.png") #f results 'greedy-length 'greedy-dag-size "Greedily Optimized Tree Size" "Corresponding DAG Size" 0.3)
     
-    (make-proof-len-scatter (build-path report-dir "optimal-flat-size-scatter.png") #f filtered-optimal 'low-greedy-length 'optimal-length "Greedily Optimized Tree Size" "Optimal Tree Size")
+    (make-proof-len-scatter (build-path report-dir "optimal-flat-size-scatter.png") #f filtered-optimal 'low-greedy-length 'optimal-length "Greedily Optimized Tree Size" "Optimal Tree Size" 0.3)
     (make-proof-len-scatter (build-path report-dir "optimal-tree-vs-dag-scatter.png") #f filtered-optimal 'optimal-length 'optimal-dag-size "Optimal Tree Size" "Corresponding DAG Size" 0.3)
 
     (println (length filtered-z3))
