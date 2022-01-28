@@ -356,6 +356,9 @@
 
     (define filtered-eqcheck
       (filter (getter 'eqcheck-normal-dag-size) results))
+
+        (define filtered-optimal-z3
+      (filter (getter 'z3-dag-size) filtered-optimal))
     
     (define macro-port (open-output-file macro-output-file #:exists 'replace))
     (output-macro-results macro-port
@@ -393,14 +396,16 @@
 
     (displayln "" macro-port)
     (output-macro-results macro-port filtered-optimal 'greedy-dag-size 'optimal-dag-size "optimaldagsizevsgreedy")
+
+    (displayln "" macro-port)
+    (output-macro-results macro-port filtered-optimal-z3 'optimal-dag-size 'z3-dag-size "zdagsizevsoptimal")
     
     
     (extra-macro-results macro-port results "")
 
     (extra-macro-results macro-port (filter (lambda (row) (> ((getter 'dag-size) row) 10)) results) "vanilladagsizegrtten")
     
-    (define filtered-optimal-z3
-      (filter (getter 'z3-dag-size) filtered-optimal))
+
     (make-algorithms-table (open-output-file (build-path report-dir "algorithms-table.tex") #:exists 'replace)filtered-optimal-z3)    
     
 
