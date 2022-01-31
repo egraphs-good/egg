@@ -187,6 +187,25 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         self
     }
 
+    /// Make a copy of the egraph with the same nodes, but no unions between them.
+    pub fn copy_without_unions(&self, analysis: N) -> Self {
+        if let Some(explain) = &self.explain {
+            let egraph = Self::new(analysis);    
+            explain.populate_enodes(egraph)
+        } else {
+            panic!("Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get a copied egraph without unions");
+        }
+    }
+
+    /// Get all the unions ever found in the egraph in terms of enode ids.
+    pub fn get_union_equalities(&self) -> UnionEqualities {
+        if let Some(explain) = &self.explain {
+            explain.get_union_equalities()
+        } else {
+            panic!("Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get union equalities");
+        }
+    }
+
     /// Disable explanations for this `EGraph`.
     pub fn with_explanations_disabled(mut self) -> Self {
         self.explain = None;

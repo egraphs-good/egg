@@ -86,6 +86,10 @@ pub type FlatExplanation<L> = Vec<FlatTerm<L>>;
 /// two expressions that are equal and why.
 pub type GroundedEqualities<L> = Vec<(RecExpr<L>, RecExpr<L>, Symbol)>;
 
+/// A vector of equalities based on enode ids. Each entry represents
+/// two enode ids that are equal and why.
+pub type UnionEqualities = Vec<(Id, Id, Symbol)>;
+
 // given two adjacent nodes and the direction of the proof
 type ExplainCache<L> = HashMap<(Id, Id), Rc<TreeTerm<L>>>;
 type NodeExplanationCache<L> = HashMap<Id, Rc<TreeTerm<L>>>;
@@ -1174,11 +1178,11 @@ impl<L: Language> Explain<L> {
         if node1 == node2 {
             return;
         }
-        if let Some((cost, _)) = self.shortest_explanation_memo.get(&(node1, node2)) {
+        /*if let Some((cost, _)) = self.shortest_explanation_memo.get(&(node1, node2)) {
             if cost <= &1 {
                 return;
             }
-        }
+        }*/
 
         let lconnection = Connection {
             justification: justification.clone(),
@@ -1246,6 +1250,44 @@ impl<L: Language> Explain<L> {
             .neighbors
             .push(other_pconnection);
         self.explainfind[usize::from(node1)].parent_connection = pconnection;
+    }
+
+    fn populate_enodes_rec<N: Analysis<L>>(&self, egraph: &mut EGraph<L, N>, index: usize) {
+        let node = &self.explainfind[index];
+        if egraph.lookup(node.node.clone()).is_some() {
+            return;
+        }
+        node.node.for_each(|child| {
+            self.populate_enodes_rec(egraph, usize::from(child));
+        });
+        egraph.add(node.node.clone());
+    }
+
+    pub(crate) fn get_union_equalities(&self) -> UnionEqualities {
+        let mut equalities = vec![];
+        for node in &self.explainfind {
+            for neighbor in &node.neighbors {
+                if neighbor.is_rewrite_forward {
+                    match neighbor.justification {
+                        Justification::Rule(r) => {
+                            equalities.push((neighbor.current, neighbor.next, r));
+                        },
+                        _ => ()
+                    }
+                }
+            }
+        }
+        equalities
+    }
+
+    pub(crate) fn populate_enodes<N: Analysis<L>>(
+        &self,
+        mut egraph: EGraph<L, N>) -> EGraph<L, N> {
+        for i in 0..self.explainfind.len() {
+            self.populate_enodes_rec(&mut egraph, i);
+        }
+
+        egraph
     }
 
     pub(crate) fn explain_matches<N: Analysis<L>>(
