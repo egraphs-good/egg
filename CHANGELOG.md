@@ -2,6 +2,8 @@
 
 ## [Unreleased] - ReleaseDate
 
+- Small symbols (<= 3 bytes) should be faster to create.
+
 ## [0.7.1] - 2021-12-14
 
 This patch fixes a pretty bad e-matching bug introduced in 0.7.0. Please upgrade!

@@ -92,17 +92,33 @@ static STRINGS: Lazy<RwLock<IndexSet<&'static str>>> = Lazy::new(Default::defaul
 ///
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde-1", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serde-1", serde(from = "&str", into = "&'static str"))]
-pub struct Symbol(u32);
+#[cfg_attr(feature = "serde-1", serde(from = "&str", into = "String"))]
+pub struct Symbol([u8; 4]);
 
 impl Symbol {
     /// Get the string that this symbol represents
-    pub fn as_str(self) -> &'static str {
-        let i = self.0 as usize;
-        let strings = STRINGS
-            .read()
-            .unwrap_or_else(|err| panic!("Failed to acquire egg's global string cache: {}", err));
-        strings.get_index(i).unwrap()
+    pub fn as_str(&self) -> &str {
+        let len1 = self.0[0]; // len + 1
+        if let Some(len) = len1.checked_sub(1) {
+            assert!(len < 4);
+            let bytes = &self.0[1..1 + len as usize];
+            std::str::from_utf8(bytes).unwrap()
+        } else {
+            debug_assert_eq!(self.0[0], 0);
+            let i = u32::from_be_bytes(self.0) as usize;
+            let strings = STRINGS.read().unwrap_or_else(|err| {
+                panic!("Failed to acquire egg's global string cache: {}", err)
+            });
+            strings.get_index(i).unwrap()
+        }
+    }
+
+    fn from_index(i: usize) -> Self {
+        if i >= 1 << (8 * 3) {
+            panic!("Can't represent index {} in a Symbol", i)
+        } else {
+            Self((i as u32).to_be_bytes())
+        }
     }
 }
 
@@ -111,11 +127,18 @@ fn leak(s: &str) -> &'static str {
 }
 
 fn intern(s: &str) -> Symbol {
+    if s.len() < 4 {
+        let mut bytes = [0; 4];
+        bytes[1..s.len() + 1].copy_from_slice(s.as_bytes());
+        bytes[0] = (s.len() + 1) as u8;
+        return Symbol(bytes);
+    }
+
     let strings = STRINGS
         .read()
         .unwrap_or_else(|err| panic!("Failed to acquire egg's global string cache: {}", err));
     if let Some((i, _)) = strings.get_full(s) {
-        return Symbol(i as u32);
+        return Symbol::from_index(i);
     }
     // Release the read lock.
     drop(strings);
@@ -127,7 +150,7 @@ fn intern(s: &str) -> Symbol {
         Some((i, _)) => i, // The string was inserted in the meantime.
         None => strings.insert_full(leak(s)).0,
     };
-    Symbol(i as u32)
+    Symbol::from_index(i)
 }
 
 impl<S: AsRef<str>> From<S> for Symbol {
@@ -136,9 +159,9 @@ impl<S: AsRef<str>> From<S> for Symbol {
     }
 }
 
-impl From<Symbol> for &'static str {
+impl From<Symbol> for String {
     fn from(s: Symbol) -> Self {
-        s.as_str()
+        s.as_str().into()
     }
 }
 
@@ -167,5 +190,20 @@ pub(crate) struct DisplayAsDebug<T>(pub T);
 impl<T: Display> Debug for DisplayAsDebug<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         Display::fmt(&self.0, f)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_symbol() {
+        for &s in &["", "f", "x", "foo", "foobar", "foooooooo\n\n", "⌣"] {
+            let sym = Symbol::from(s);
+            assert_eq!(sym.0, Symbol::from(s).0);
+            assert_eq!(sym, Symbol::from(s));
+            assert_eq!(sym.as_str(), s);
+        }
     }
 }
