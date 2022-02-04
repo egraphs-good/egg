@@ -1252,17 +1252,6 @@ impl<L: Language> Explain<L> {
         self.explainfind[usize::from(node1)].parent_connection = pconnection;
     }
 
-    fn populate_enodes_rec<N: Analysis<L>>(&self, egraph: &mut EGraph<L, N>, index: usize) {
-        let node = &self.explainfind[index];
-        if egraph.lookup(node.node.clone()).is_some() {
-            return;
-        }
-        node.node.for_each(|child| {
-            self.populate_enodes_rec(egraph, usize::from(child));
-        });
-        egraph.add(node.node.clone());
-    }
-
     pub(crate) fn get_union_equalities(&self) -> UnionEqualities {
         let mut equalities = vec![];
         for node in &self.explainfind {
@@ -1284,7 +1273,8 @@ impl<L: Language> Explain<L> {
         &self,
         mut egraph: EGraph<L, N>) -> EGraph<L, N> {
         for i in 0..self.explainfind.len() {
-            self.populate_enodes_rec(&mut egraph, i);
+            let node = &self.explainfind[i];
+            egraph.add(node.node.clone());
         }
 
         egraph
