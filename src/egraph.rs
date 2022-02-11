@@ -57,8 +57,13 @@ pub struct EGraph<L: Language, N: Analysis<L>> {
     /// The `Explain` used to explain equivalences in this `EGraph`.
     pub(crate) explain: Option<Explain<L>>,
     unionfind: UnionFind,
+    /// Stores each enode's `Id`, not the `Id` of the eclass.
+    /// Enodes in the memo are canonicalized at each rebuild, but after rebuilding new
+    /// unions can cause them to become out of date.
     #[cfg_attr(feature = "serde-1", serde(with = "vectorize"))]
     memo: HashMap<L, Id>,
+    /// Nodes which need to be processed for rebuilding. The `Id` is the `Id` of the enode,
+    /// not the canonical id of the eclass.
     pending: Vec<(L, Id)>,
     analysis_pending: IndexSet<(L, Id)>,
     #[cfg_attr(
@@ -432,14 +437,20 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// assert_eq!(egraph.lookup(&mut node_f_ab), Some(id));
     /// assert_eq!(node_f_ab, SymbolLang::new("f", vec![a, a]));
     /// ```
-    pub fn lookup<B>(&self, mut enode: B) -> Option<Id>
+    pub fn lookup<B>(&self, enode: B) -> Option<Id>
+    where
+        B: BorrowMut<L>,
+    {
+        self.lookup_internal(enode).map(|id| self.find(id))
+    }
+
+    fn lookup_internal<B>(&self, mut enode: B) -> Option<Id>
     where
         B: BorrowMut<L>,
     {
         let enode = enode.borrow_mut();
         enode.update_children(|id| self.find(id));
-        let id = self.memo.get(enode);
-        id.map(|&id| self.find(id))
+        self.memo.get(enode).map(|&id| id)
     }
 
     /// Lookup the eclass of the given [`RecExpr`].
@@ -483,14 +494,15 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// Adds an enode to the egraph and also returns the the enode's id (uncanonicalized).
     fn add_internal(&mut self, mut enode: L) -> Id {
         let original = enode.clone();
-        if let Some(id) = self.lookup(&mut enode) {
+        if let Some(existing_id) = self.lookup_internal(&mut enode) {
+            let id = self.find(existing_id);
             // when explanations are enabled, we need a new representative for this expr
             if let Some(explain) = self.explain.as_mut() {
                 if !explain.uncanon_memo.contains_key(&original) {
                     let new_id = self.unionfind.make_set();
                     explain.add(original.clone(), new_id, new_id);
                     self.unionfind.union(id, new_id);
-                    explain.union(id, new_id, Justification::Congruence, true);
+                    explain.union(existing_id, new_id, Justification::Congruence, true);
                     return new_id;
                 }
             }

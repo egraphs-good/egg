@@ -715,6 +715,7 @@ impl<L: Language> FlatTerm<L> {
                 bindings.insert(*var, self);
             }
             ENodeOrVar::ENode(node) => {
+                // The node must match the rewrite or the proof is invalid.
                 assert!(node.matches(&self.node));
                 let mut counter = 0;
                 node.for_each(|child| {
