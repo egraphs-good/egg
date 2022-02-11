@@ -482,8 +482,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// If a copy is in the egraph, then [`add`] simply returns the id of the
     /// eclass in which the enode was found.
     ///
-    /// Like [`union`](EGraph::union), this modifies the e-graph,
-    /// so you must call [`rebuild`](EGraph::rebuild) any query operations.
+    /// Like [`union`](EGraph::union), this modifies the e-graph.
     ///
     /// [`add`]: EGraph::add()
     pub fn add(&mut self, enode: L) -> Id {
@@ -507,7 +506,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                 }
             }
 
-            id
+            existing_id
         } else {
             let id = self.make_new_eclass(enode);
             if let Some(explain) = self.explain.as_mut() {
@@ -607,14 +606,12 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// The given ids need not be canonical.
     /// The returned `bool` indicates whether a union is necessary,
     /// so it's `false` if they were already equivalent.
-    /// Both results are canonical.
     ///
     /// When explanations are enabled, this function is not available.
     /// Instead, use [`union_instantiations`](EGraph::union_instantiations).
     /// See [`explain_equivalence`](Runner::explain_equivalence) for a more detailed
     /// explanation of the feature.
     ///
-    /// You must call [`rebuild`](EGraph::rebuild) to observe any effect.
     ///
     pub fn union(&mut self, id1: Id, id2: Id) -> bool {
         if self.explain.is_some() {

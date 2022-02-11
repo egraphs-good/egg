@@ -349,7 +349,9 @@ impl<L: Language> Explanation<L> {
     ) -> bool {
         if let Some(lhs) = rewrite.searcher.get_pattern_ast() {
             if let Some(rhs) = rewrite.applier.get_pattern_ast() {
-                if &current.rewrite(lhs, rhs) != next {
+                let rewritten = current.rewrite(lhs, rhs);
+                println!("Current {:?} \n Next {:?} \n Rewritten {:?} \n Rule {}", current, next, rewritten, rewrite.name);
+                if &rewritten != next {
                     return false;
                 }
             }
@@ -712,7 +714,15 @@ impl<L: Language> FlatTerm<L> {
     ) {
         match &pattern[location] {
             ENodeOrVar::Var(var) => {
-                bindings.insert(*var, self);
+                if let Some(existing) = bindings.get(var) {
+                    if existing != &self {
+                        panic!(
+                            "Invalid proof: binding for variable {:?} does not match between {:?} \n and \n {:?}",
+                            var, existing, self);
+                    }
+                } else {
+                    bindings.insert(*var, self);
+                }
             }
             ENodeOrVar::ENode(node) => {
                 // The node must match the rewrite or the proof is invalid.
