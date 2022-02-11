@@ -451,7 +451,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     {
         let enode = enode.borrow_mut();
         enode.update_children(|id| self.find(id));
-        self.memo.get(enode).map(|&id| id)
+        self.memo.get(enode).copied()
     }
 
     /// Lookup the eclass of the given [`RecExpr`].
@@ -502,7 +502,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                     *existing_explain
                 } else {
                     let new_id = self.unionfind.make_set();
-                    explain.add(original.clone(), new_id, new_id);
+                    explain.add(original, new_id, new_id);
                     self.unionfind.union(id, new_id);
                     explain.union(existing_id, new_id, Justification::Congruence, true);
                     new_id
@@ -513,7 +513,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         } else {
             let id = self.make_new_eclass(enode);
             if let Some(explain) = self.explain.as_mut() {
-                explain.add(original.clone(), id, id);
+                explain.add(original, id, id);
             }
 
             // now that we updated explanations, run the analysis for the new eclass
