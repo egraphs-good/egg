@@ -852,6 +852,9 @@ impl<L: Language> Explain<L> {
         justification: Justification,
         new_rhs: bool,
     ) {
+        if let Justification::Congruence = justification {
+            assert!(self.explainfind[usize::from(node1)].node.matches(&self.explainfind[usize::from(node2)].node));
+        }
         if new_rhs {
             self.set_existance_reason(node2, node1)
         }
@@ -1047,6 +1050,7 @@ impl<L: Language> Explain<L> {
                 // add the children proofs to the last explanation
                 let current_node = &self.explainfind[usize::from(current)].node;
                 let next_node = &self.explainfind[usize::from(next)].node;
+                assert!(current_node.matches(next_node));
                 let mut subproofs = vec![];
 
                 for (left_child, right_child) in current_node
