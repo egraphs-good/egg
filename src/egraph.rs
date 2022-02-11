@@ -398,6 +398,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                     } else {
                         new_node_q.push(false);
                     }
+
                     if let Some(explain) = &mut self.explain {
                         node.for_each(|child| {
                             if new_node_q[usize::from(child)] {
@@ -497,16 +498,18 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             let id = self.find(existing_id);
             // when explanations are enabled, we need a new representative for this expr
             if let Some(explain) = self.explain.as_mut() {
-                if !explain.uncanon_memo.contains_key(&original) {
+                if let Some(existing_explain) = explain.uncanon_memo.get(&original) {
+                    *existing_explain
+                } else {
                     let new_id = self.unionfind.make_set();
                     explain.add(original.clone(), new_id, new_id);
                     self.unionfind.union(id, new_id);
                     explain.union(existing_id, new_id, Justification::Congruence, true);
-                    return new_id;
+                    new_id
                 }
+            } else {
+                existing_id
             }
-
-            existing_id
         } else {
             let id = self.make_new_eclass(enode);
             if let Some(explain) = self.explain.as_mut() {

@@ -350,7 +350,6 @@ impl<L: Language> Explanation<L> {
         if let Some(lhs) = rewrite.searcher.get_pattern_ast() {
             if let Some(rhs) = rewrite.applier.get_pattern_ast() {
                 let rewritten = current.rewrite(lhs, rhs);
-                println!("Current {:?} \n Next {:?} \n Rewritten {:?} \n Rule {}", current, next, rewritten, rewrite.name);
                 if &rewritten != next {
                     return false;
                 }
@@ -864,7 +863,9 @@ impl<L: Language> Explain<L> {
         new_rhs: bool,
     ) {
         if let Justification::Congruence = justification {
-            assert!(self.explainfind[usize::from(node1)].node.matches(&self.explainfind[usize::from(node2)].node));
+            assert!(self.explainfind[usize::from(node1)]
+                .node
+                .matches(&self.explainfind[usize::from(node2)].node));
         }
         if new_rhs {
             self.set_existance_reason(node2, node1)
