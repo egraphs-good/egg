@@ -1047,7 +1047,6 @@ impl<L: Language> Explain<L> {
                 // add the children proofs to the last explanation
                 let current_node = &self.explainfind[usize::from(current)].node;
                 let next_node = &self.explainfind[usize::from(next)].node;
-                assert!(current_node.matches(next_node));
                 let mut subproofs = vec![];
 
                 for (left_child, right_child) in current_node

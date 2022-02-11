@@ -850,14 +850,12 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// let ax = egraph.add_expr(&"(+ a x)".parse().unwrap());
     /// let ay = egraph.add_expr(&"(+ a y)".parse().unwrap());
 
-    /// // The effects of this union aren't yet visible;
-    /// // The union has not taken effect.
+    /// // Union x and y
     /// egraph.union(x, y);
-    /// // Classes: [x] [y] [ax] [ay] [a]
-    /// assert_eq!(egraph.number_of_classes(), 5);
-    /// assert_ne!(egraph.find(ax), egraph.find(ay));
+    /// // Classes: [x y] [ax] [ay] [a]
+    /// assert_eq!(egraph.find(x), egraph.find(y));
     ///
-    /// // Rebuilding applies the union and restores the invariants, finding
+    /// // Rebuilding restores the congruence invariant, finding
     /// // that ax and ay are equivalent.
     /// egraph.rebuild();
     /// // Classes: [x y] [ax ay] [a]
