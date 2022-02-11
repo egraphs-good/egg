@@ -59,7 +59,6 @@ pub struct EGraph<L: Language, N: Analysis<L>> {
     unionfind: UnionFind,
     #[cfg_attr(feature = "serde-1", serde(with = "vectorize"))]
     memo: HashMap<L, Id>,
-    to_union: Vec<(Id, Id, Option<Symbol>, bool)>,
     pending: Vec<(L, Id)>,
     analysis_pending: IndexSet<(L, Id)>,
     #[cfg_attr(
@@ -108,7 +107,6 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     pub fn new(analysis: N) -> Self {
         Self {
             analysis,
-            to_union: Default::default(),
             classes: Default::default(),
             unionfind: Default::default(),
             clean: false,
@@ -205,8 +203,10 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// flattened form. Each of these also has a s-expression string representation,
     /// given by [`get_flat_string`](Explanation::get_flat_string) and [`get_string`](Explanation::get_string).
     pub fn explain_equivalence(&mut self, left: &RecExpr<L>, right: &RecExpr<L>) -> Explanation<L> {
+        let left = self.add_expr_internal(left);
+        let right = self.add_expr_internal(right);
         if let Some(explain) = &mut self.explain {
-            explain.explain_equivalence(left, right, &self.memo, &mut self.unionfind)
+            explain.explain_equivalence(left, right)
         } else {
             panic!("Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations.")
         }
@@ -221,8 +221,9 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// Note that this function can be called again to explain any intermediate terms
     /// used in the output [`Explanation`].
     pub fn explain_existance(&mut self, expr: &RecExpr<L>) -> Explanation<L> {
+        let id = self.add_expr_internal(expr);
         if let Some(explain) = &mut self.explain {
-            explain.explain_existance(expr, &self.memo, &mut self.unionfind)
+            explain.explain_existance(id)
         } else {
             panic!("Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations.")
         }
@@ -234,8 +235,9 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         pattern: &PatternAst<L>,
         subst: &Subst,
     ) -> Explanation<L> {
+        let id = self.add_instantiation_internal(pattern, subst);
         if let Some(explain) = &mut self.explain {
-            explain.explain_existance_pattern(pattern, subst, &self.memo, &mut self.unionfind)
+            explain.explain_existance(id)
         } else {
             panic!("Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations.")
         }
@@ -248,8 +250,10 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         right: &PatternAst<L>,
         subst: &Subst,
     ) -> Explanation<L> {
+        let left = self.add_expr_internal(left);
+        let right = self.add_instantiation_internal(right, subst);
         if let Some(explain) = &mut self.explain {
-            explain.explain_matches(left, right, subst, &self.memo, &mut self.unionfind)
+            explain.explain_equivalence(left, right)
         } else {
             panic!("Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations.");
         }
@@ -316,7 +320,7 @@ impl<L: Language, N: Analysis<L>> std::ops::IndexMut<Id> for EGraph<L, N> {
 }
 
 impl<L: Language, N: Analysis<L>> EGraph<L, N> {
-    /// Adds a [`RecExpr`] to the [`EGraph`].
+    /// Adds a [`RecExpr`] to the [`EGraph`], returning the id of the RecExpr's eclass.
     ///
     /// # Example
     /// ```
@@ -331,13 +335,19 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     ///
     /// [`add_expr`]: EGraph::add_expr()
     pub fn add_expr(&mut self, expr: &RecExpr<L>) -> Id {
+        let id = self.add_expr_internal(expr);
+        self.find(id)
+    }
+
+    /// Adds an expr to the egraph, and returns the uncanonicalized id of the top enode.
+    fn add_expr_internal(&mut self, expr: &RecExpr<L>) -> Id {
         let nodes = expr.as_ref();
         let mut new_ids = Vec::with_capacity(nodes.len());
         let mut new_node_q = Vec::with_capacity(nodes.len());
         for node in nodes {
             let new_node = node.clone().map_children(|i| new_ids[usize::from(i)]);
             let size_before = self.unionfind.size();
-            let next_id = self.add(new_node);
+            let next_id = self.add_internal(new_node);
             if self.unionfind.size() > size_before {
                 new_node_q.push(true);
             } else {
@@ -356,8 +366,14 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         *new_ids.last().unwrap()
     }
 
-    /// Adds a [`Pattern`] and a substitution to the [`EGraph`].
+    /// Adds a [`Pattern`] and a substitution to the [`EGraph`], returning
+    /// the eclass of the instantiated pattern.
     pub fn add_instantiation(&mut self, pat: &PatternAst<L>, subst: &Subst) -> Id {
+        let id = self.add_instantiation_internal(pat, subst);
+        self.find(id)
+    }
+
+    fn add_instantiation_internal(&mut self, pat: &PatternAst<L>, subst: &Subst) -> Id {
         let nodes = pat.as_ref().as_ref();
         let mut new_ids = Vec::with_capacity(nodes.len());
         let mut new_node_q = Vec::with_capacity(nodes.len());
@@ -371,7 +387,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                 ENodeOrVar::ENode(node) => {
                     let new_node = node.clone().map_children(|i| new_ids[usize::from(i)]);
                     let size_before = self.unionfind.size();
-                    let next_id = self.add(new_node);
+                    let next_id = self.add_internal(new_node);
                     if self.unionfind.size() > size_before {
                         new_node_q.push(true);
                     } else {
@@ -459,37 +475,64 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// so you must call [`rebuild`](EGraph::rebuild) any query operations.
     ///
     /// [`add`]: EGraph::add()
-    pub fn add(&mut self, mut enode: L) -> Id {
-        self.lookup(&mut enode).unwrap_or_else(|| {
-            let id = self.unionfind.make_set();
-            if let Some(explain) = &mut self.explain {
-                explain.add(enode.clone(), id, id);
+    pub fn add(&mut self, enode: L) -> Id {
+        let id = self.add_internal(enode);
+        self.find(id)
+    }
+
+    /// Adds an enode to the egraph and also returns the the enode's id (uncanonicalized).
+    fn add_internal(&mut self, mut enode: L) -> Id {
+        let original = enode.clone();
+        if let Some(id) = self.lookup(&mut enode) {
+            // when explanations are enabled, we need a new representative for this expr
+            if let Some(explain) = self.explain.as_mut() {
+                if !explain.uncanon_memo.contains_key(&original) {
+                    let new_id = self.unionfind.make_set();
+                    explain.add(original.clone(), new_id, new_id);
+                    self.unionfind.union(id, new_id);
+                    explain.union(id, new_id, Justification::Congruence, true);
+                    return new_id;
+                }
             }
-            log::trace!("  ...adding to {}", id);
-            let class = EClass {
-                id,
-                nodes: vec![enode.clone()],
-                data: N::make(self, &enode),
-                parents: Default::default(),
-            };
 
-            // add this enode to the parent lists of its children
-            enode.for_each(|child| {
-                let tup = (enode.clone(), id);
-                self[child].parents.push(tup);
-            });
+            id
+        } else {
+            let id = self.make_new_eclass(enode);
+            if let Some(explain) = self.explain.as_mut() {
+                explain.add(original.clone(), id, id);
+            }
 
-            // TODO is this needed?
-            self.pending.push((enode.clone(), id));
-
-            self.classes.insert(id, class);
-            assert!(self.memo.insert(enode, id).is_none());
-
+            // now that we updated explanations, run the analysis for the new eclass
             N::modify(self, id);
-
             self.clean = false;
             id
-        })
+        }
+    }
+
+    /// This function makes a new eclass in the egraph (but doesn't touch explanations)
+    fn make_new_eclass(&mut self, enode: L) -> Id {
+        let id = self.unionfind.make_set();
+        log::trace!("  ...adding to {}", id);
+        let class = EClass {
+            id,
+            nodes: vec![enode.clone()],
+            data: N::make(self, &enode),
+            parents: Default::default(),
+        };
+
+        // add this enode to the parent lists of its children
+        enode.for_each(|child| {
+            let tup = (enode.clone(), id);
+            self[child].parents.push(tup);
+        });
+
+        // TODO is this needed?
+        self.pending.push((enode.clone(), id));
+
+        self.classes.insert(id, class);
+        assert!(self.memo.insert(enode, id).is_none());
+
+        id
     }
 
     /// Checks whether two [`RecExpr`]s are equivalent.
@@ -519,13 +562,13 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     }
 
     /// Given two patterns and a substitution, add the patterns
-    /// and mark them for unioning.
-    /// The unions are performed when [`rebuild`](EGraph::rebuild) is called.
+    /// and union them.
+    ///
     /// When explanations are enabled [`with_explanations_enabled`](Runner::with_explanations_enabled), use
     /// this function instead of [`union`](EGraph::union).
     ///
-    /// The returned `bool` indicates whether a union is necessary,
-    /// and returned Id represents the eclass of the left pattern.
+    /// Returns the id of the new eclass, along with
+    /// a `bool` indicating whether a union occured.
     pub fn union_instantiations(
         &mut self,
         from_pat: &PatternAst<L>,
@@ -533,50 +576,21 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         subst: &Subst,
         rule_name: impl Into<Symbol>,
     ) -> (Id, bool) {
-        let id1 = self.add_instantiation(from_pat, subst);
+        let id1 = self.add_instantiation_internal(from_pat, subst);
         let size_before = self.unionfind.size();
-        let id2 = self.add_instantiation(to_pat, subst);
+        let id2 = self.add_instantiation_internal(to_pat, subst);
         let rhs_new = self.unionfind.size() > size_before;
-        (
+
+        let did_union = self.perform_union(
             id1,
-            self.union_with_justification(id1, id2, from_pat, to_pat, subst, rule_name, rhs_new),
-        )
+            id2,
+            Some(Justification::Rule(rule_name.into())),
+            rhs_new,
+        );
+        (self.find(id1), did_union)
     }
 
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) fn union_with_justification(
-        &mut self,
-        id1: Id,
-        id2: Id,
-        from_pat: &PatternAst<L>,
-        to_pat: &PatternAst<L>,
-        subst: &Subst,
-        rule_name: impl Into<Symbol>,
-        rhs_new: bool,
-    ) -> bool {
-        self.clean = false;
-        if let Some(explain) = &mut self.explain {
-            if self.unionfind.find_mut(id1) == self.unionfind.find_mut(id2) {
-                false
-            } else {
-                let left_added =
-                    explain.add_match(from_pat, subst, &self.memo, &mut self.unionfind);
-                let size_before_right = self.unionfind.size();
-                let right_added = explain.add_match(to_pat, subst, &self.memo, &mut self.unionfind);
-                let any_new_rhs = rhs_new || self.unionfind.size() > size_before_right;
-                self.to_union
-                    .push((left_added, right_added, Some(rule_name.into()), any_new_rhs));
-                true
-            }
-        } else {
-            self.union(id1, id2)
-        }
-    }
-
-    /// Marks two eclasses to be unioned given their ids.
-    ///
-    /// At the end of each iteration, these classes are unioned during
-    /// [`rebuild`](EGraph::rebuild).
+    /// Unions two eclasses given their ids.
     ///
     /// The given ids need not be canonical.
     /// The returned `bool` indicates whether a union is necessary,
@@ -591,16 +605,10 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// You must call [`rebuild`](EGraph::rebuild) to observe any effect.
     ///
     pub fn union(&mut self, id1: Id, id2: Id) -> bool {
-        self.clean = false;
         if self.explain.is_some() {
             panic!("Use union_instantiations when explanation mode is enabled.");
         }
-        if self.find_mut(id1) == self.find_mut(id2) {
-            false
-        } else {
-            self.to_union.push((id1, id2, None, false));
-            true
-        }
+        self.perform_union(id1, id2, None, false)
     }
 
     fn perform_union(
@@ -610,6 +618,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         rule: Option<Justification>,
         any_new_rhs: bool,
     ) -> bool {
+        self.clean = false;
         let mut id1 = self.find_mut(enode_id1);
         let mut id2 = self.find_mut(enode_id2);
         if id1 == id2 {
@@ -626,9 +635,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
         if let Some(explain) = &mut self.explain {
             explain.union(enode_id1, enode_id2, rule.unwrap(), any_new_rhs);
-        } else {
-            assert!(rule.is_none());
         }
+
         // make id1 the new root
         self.unionfind.union(id1, id2);
 
@@ -780,42 +788,23 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         true
     }
 
-    fn perform_to_union(&mut self) {
-        while !self.to_union.is_empty() {
-            let mut current = vec![];
-            std::mem::swap(&mut self.to_union, &mut current);
-            for (id1, id2, rule, any_new_rhs) in current.into_iter() {
-                self.perform_union(id1, id2, rule.map(Justification::Rule), any_new_rhs);
-            }
-        }
-    }
-
     #[inline(never)]
     fn process_unions(&mut self) -> usize {
         let mut n_unions = 0;
 
-        while !self.pending.is_empty()
-            || !self.to_union.is_empty()
-            || !self.analysis_pending.is_empty()
-        {
-            while !self.pending.is_empty() || !self.to_union.is_empty() {
-                self.perform_to_union();
-                assert!(self.to_union.is_empty());
-
-                while let Some((mut node, class)) = self.pending.pop() {
-                    node.update_children(|id| self.find_mut(id));
-                    if let Some(memo_class) = self.memo.insert(node, class) {
-                        let mut reason = None;
-                        if self.explain.is_some() {
-                            reason = Some(Justification::Congruence);
-                        }
-                        let did_something = self.perform_union(memo_class, class, reason, false);
-                        n_unions += did_something as usize;
-                    }
+        while !self.pending.is_empty() {
+            while let Some((mut node, class)) = self.pending.pop() {
+                node.update_children(|id| self.find_mut(id));
+                if let Some(memo_class) = self.memo.insert(node, class) {
+                    let did_something = self.perform_union(
+                        memo_class,
+                        class,
+                        Some(Justification::Congruence),
+                        false,
+                    );
+                    n_unions += did_something as usize;
                 }
             }
-            assert!(self.pending.is_empty());
-            assert!(self.to_union.is_empty());
 
             while let Some((node, class_id)) = self.analysis_pending.pop() {
                 let class_id = self.find_mut(class_id);
@@ -825,14 +814,13 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                 let did_merge = self.analysis.merge(&mut class.data, node_data);
                 if did_merge.0 {
                     self.analysis_pending.extend(class.parents.iter().cloned());
-                    N::modify(self, class_id);
+                    N::modify(self, class_id)
                 }
             }
         }
 
         assert!(self.pending.is_empty());
         assert!(self.analysis_pending.is_empty());
-        assert!(self.to_union.is_empty());
 
         n_unions
     }
