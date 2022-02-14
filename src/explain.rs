@@ -361,7 +361,7 @@ impl<L: Language> Explanation<L> {
 /// An explanation for a term and its equivalent children.
 /// Each child is a proof transforming the initial child into the final child term.
 /// The initial term is given by taking each first sub-term
-/// in each [`child_proofs`](TreeTerm::child_proofs) recursivly.
+/// in each [`child_proofs`](TreeTerm::child_proofs) recursively.
 /// The final term is given by all of the final terms in each [`child_proofs`](TreeTerm::child_proofs).
 ///
 /// If [`forward_rule`](TreeTerm::forward_rule) is provided, then this TreeTerm's initial term
