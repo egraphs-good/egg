@@ -1139,7 +1139,7 @@
 <span class="doccomment">/// Children [`TreeTerm`] can be shared, thus re-using explanations.</span>
 <span class="doccomment">/// This sharing can be checked via Rc pointer equality.</span>
 <span class="doccomment">///</span>
-<span class="doccomment">/// See [`TreeTerm`] for more deatils on how to</span>
+<span class="doccomment">/// See [`TreeTerm`] for more details on how to</span>
 <span class="doccomment">/// interpret each term.</span>
 <span class="kw">pub</span> <span class="kw">type</span> <span class="ident">TreeExplanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>;
 
@@ -1454,7 +1454,7 @@ See [`Explanation`] for more details.
 <span class="doccomment">/// An explanation for a term and its equivalent children.</span>
 <span class="doccomment">/// Each child is a proof transforming the initial child into the final child term.</span>
 <span class="doccomment">/// The initial term is given by taking each first sub-term</span>
-<span class="doccomment">/// in each [`child_proofs`](TreeTerm::child_proofs) recursivly.</span>
+<span class="doccomment">/// in each [`child_proofs`](TreeTerm::child_proofs) recursively.</span>
 <span class="doccomment">/// The final term is given by all of the final terms in each [`child_proofs`](TreeTerm::child_proofs).</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// If [`forward_rule`](TreeTerm::forward_rule) is provided, then this TreeTerm&#39;s initial term</span>
@@ -1469,7 +1469,7 @@ See [`Explanation`] for more details.
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span> {
     <span class="doccomment">/// A node representing this TreeTerm&#39;s operator. The children of the node should be ignored.</span>
     <span class="kw">pub</span> <span class="ident">node</span>: <span class="ident">L</span>,
-    <span class="doccomment">/// A rule rewritting this TreeTerm&#39;s initial term back to the last TreeTerm&#39;s final term.</span>
+    <span class="doccomment">/// A rule rewriting this TreeTerm&#39;s initial term back to the last TreeTerm&#39;s final term.</span>
     <span class="kw">pub</span> <span class="ident">backward_rule</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Symbol</span><span class="op">&gt;</span>,
     <span class="doccomment">/// A rule rewriting the last TreeTerm&#39;s final term to this TreeTerm&#39;s initial term.</span>
     <span class="kw">pub</span> <span class="ident">forward_rule</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Symbol</span><span class="op">&gt;</span>,
