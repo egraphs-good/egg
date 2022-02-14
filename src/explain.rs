@@ -1,7 +1,7 @@
 use crate::Symbol;
 use crate::{
-    util::pretty_print, Analysis, ENodeOrVar, HashMap, HashSet, Id, Language, PatternAst, RecExpr,
-    Rewrite, Subst, UnionFind, Var,
+    util::pretty_print, Analysis, ENodeOrVar, HashMap, HashSet, Id, Language, PatternAst, Rewrite,
+    Var,
 };
 use std::fmt::{self, Debug, Display, Formatter};
 use std::rc::Rc;
@@ -36,7 +36,7 @@ struct ExplainNode<L: Language> {
 pub struct Explain<L: Language> {
     explainfind: Vec<ExplainNode<L>>,
     #[cfg_attr(feature = "serde-1", serde(with = "vectorize"))]
-    uncanon_memo: HashMap<L, Id>,
+    pub uncanon_memo: HashMap<L, Id>,
 }
 
 /// Explanation trees are the compact representation showing
@@ -349,7 +349,8 @@ impl<L: Language> Explanation<L> {
     ) -> bool {
         if let Some(lhs) = rewrite.searcher.get_pattern_ast() {
             if let Some(rhs) = rewrite.applier.get_pattern_ast() {
-                if &current.rewrite(lhs, rhs) != next {
+                let rewritten = current.rewrite(lhs, rhs);
+                if &rewritten != next {
                     return false;
                 }
             }
@@ -712,9 +713,18 @@ impl<L: Language> FlatTerm<L> {
     ) {
         match &pattern[location] {
             ENodeOrVar::Var(var) => {
-                bindings.insert(*var, self);
+                if let Some(existing) = bindings.get(var) {
+                    if existing != &self {
+                        panic!(
+                            "Invalid proof: binding for variable {:?} does not match between {:?} \n and \n {:?}",
+                            var, existing, self);
+                    }
+                } else {
+                    bindings.insert(*var, self);
+                }
             }
             ENodeOrVar::ENode(node) => {
+                // The node must match the rewrite or the proof is invalid.
                 assert!(node.matches(&self.node));
                 let mut counter = 0;
                 node.for_each(|child| {
@@ -819,6 +829,7 @@ impl<L: Language> Explain<L> {
     }
 
     pub(crate) fn add(&mut self, node: L, set: Id, existance_node: Id) -> Id {
+        assert_eq!(self.explainfind.len(), usize::from(set));
         self.uncanon_memo.insert(node.clone(), set);
         self.explainfind.push(ExplainNode {
             node,
@@ -829,87 +840,6 @@ impl<L: Language> Explain<L> {
             is_rewrite_forward: false,
         });
         set
-    }
-
-    fn add_expr(
-        &mut self,
-        expr: &RecExpr<L>,
-        memo: &HashMap<L, Id>,
-        unionfind: &mut UnionFind,
-    ) -> Id {
-        let nodes: Vec<ENodeOrVar<L>> = expr
-            .as_ref()
-            .iter()
-            .map(|node| ENodeOrVar::ENode(node.clone()))
-            .collect();
-        let pattern = PatternAst::from(nodes);
-        self.add_match(&pattern, &Default::default(), memo, unionfind)
-    }
-
-    // add_match uses the memo in order to re-discover matches
-    // given a substitution.
-    // This requires that congruence has been restored and the memo is up to date.
-    pub(crate) fn add_match(
-        &mut self,
-        pattern: &PatternAst<L>,
-        subst: &Subst,
-        memo: &HashMap<L, Id>,
-        unionfind: &mut UnionFind,
-    ) -> Id {
-        let nodes = pattern.as_ref().as_ref();
-        let mut new_ids = Vec::with_capacity(nodes.len());
-        let mut match_ids = Vec::with_capacity(nodes.len());
-        for node in nodes {
-            match node {
-                ENodeOrVar::Var(var) => {
-                    let bottom_id = unionfind.find(subst[*var]);
-                    new_ids.push(unionfind.find(bottom_id));
-                    match_ids.push(bottom_id);
-                }
-                ENodeOrVar::ENode(pattern_node) => {
-                    let node = pattern_node
-                        .clone()
-                        .map_children(|i| new_ids[usize::from(i)]);
-                    let new_congruent_node = pattern_node
-                        .clone()
-                        .map_children(|i| match_ids[usize::from(i)]);
-                    if let Some(existing_id) = self.uncanon_memo.get(&new_congruent_node) {
-                        new_ids.push(unionfind.find(*existing_id));
-                        match_ids.push(*existing_id);
-                    } else {
-                        let congruent_id = *memo.get(&node).unwrap_or_else(|| {
-                            panic!("Internal error! Pattern did not exist for substitution.");
-                        });
-
-                        let congruent_class = unionfind.find(congruent_id);
-
-                        new_ids.push(congruent_class);
-                        assert!(
-                            node == self.explainfind[usize::from(congruent_id)]
-                                .node
-                                .clone()
-                                .map_children(|id| unionfind.find(id))
-                        );
-
-                        let new_congruent_id =
-                            self.add(new_congruent_node, unionfind.make_set(), congruent_id);
-
-                        match_ids.push(new_congruent_id);
-                        // make the congruent_id we found the leader
-                        unionfind.union(congruent_class, new_congruent_id);
-                        self.union(
-                            new_congruent_id,
-                            congruent_id,
-                            Justification::Congruence,
-                            false,
-                        );
-                    }
-                }
-            }
-        }
-
-        let last_id = *match_ids.last().unwrap();
-        last_id
     }
 
     // reverse edges recursively to make this node the leader
@@ -932,6 +862,11 @@ impl<L: Language> Explain<L> {
         justification: Justification,
         new_rhs: bool,
     ) {
+        if let Justification::Congruence = justification {
+            assert!(self.explainfind[usize::from(node1)]
+                .node
+                .matches(&self.explainfind[usize::from(node2)].node));
+        }
         if new_rhs {
             self.set_existance_reason(node2, node1)
         }
@@ -942,65 +877,18 @@ impl<L: Language> Explain<L> {
         self.explainfind[usize::from(node1)].is_rewrite_forward = true;
     }
 
-    pub(crate) fn explain_matches(
-        &mut self,
-        left: &RecExpr<L>,
-        right: &PatternAst<L>,
-        subst: &Subst,
-        memo: &HashMap<L, Id>,
-        unionfind: &mut UnionFind,
-    ) -> Explanation<L> {
-        let left_added = self.add_expr(left, memo, unionfind);
-        let right_added = self.add_match(right, &subst, memo, unionfind);
+    pub(crate) fn explain_equivalence(&mut self, left: Id, right: Id) -> Explanation<L> {
         let mut cache = Default::default();
         let mut enode_cache = Default::default();
-        Explanation::new(self.explain_enodes(left_added, right_added, &mut cache, &mut enode_cache))
+        Explanation::new(self.explain_enodes(left, right, &mut cache, &mut enode_cache))
     }
 
-    pub(crate) fn explain_equivalence(
-        &mut self,
-        left: &RecExpr<L>,
-        right: &RecExpr<L>,
-        memo: &HashMap<L, Id>,
-        unionfind: &mut UnionFind,
-    ) -> Explanation<L> {
-        let left_added = self.add_expr(left, memo, unionfind);
-        let right_added = self.add_expr(right, memo, unionfind);
-        let mut cache = Default::default();
-        let mut enode_cache = Default::default();
-        Explanation::new(self.explain_enodes(left_added, right_added, &mut cache, &mut enode_cache))
-    }
-
-    pub(crate) fn explain_existance(
-        &mut self,
-        left: &RecExpr<L>,
-        memo: &HashMap<L, Id>,
-        unionfind: &mut UnionFind,
-    ) -> Explanation<L> {
-        let left_added = self.add_expr(left, memo, unionfind);
+    pub(crate) fn explain_existance(&mut self, left: Id) -> Explanation<L> {
         let mut cache = Default::default();
         let mut enode_cache = Default::default();
         Explanation::new(self.explain_enode_existance(
-            left_added,
-            self.node_to_explanation(left_added, &mut enode_cache),
-            &mut cache,
-            &mut enode_cache,
-        ))
-    }
-
-    pub(crate) fn explain_existance_pattern(
-        &mut self,
-        left: &PatternAst<L>,
-        subst: &Subst,
-        memo: &HashMap<L, Id>,
-        unionfind: &mut UnionFind,
-    ) -> Explanation<L> {
-        let left_added = self.add_match(left, &subst, memo, unionfind);
-        let mut cache = Default::default();
-        let mut enode_cache = Default::default();
-        Explanation::new(self.explain_enode_existance(
-            left_added,
-            self.node_to_explanation(left_added, &mut enode_cache),
+            left,
+            self.node_to_explanation(left, &mut enode_cache),
             &mut cache,
             &mut enode_cache,
         ))
