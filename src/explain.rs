@@ -47,7 +47,7 @@ pub struct Explain<L: Language> {
 /// Children [`TreeTerm`] can be shared, thus re-using explanations.
 /// This sharing can be checked via Rc pointer equality.
 ///
-/// See [`TreeTerm`] for more deatils on how to
+/// See [`TreeTerm`] for more details on how to
 /// interpret each term.
 pub type TreeExplanation<L> = Vec<Rc<TreeTerm<L>>>;
 
@@ -362,7 +362,7 @@ impl<L: Language> Explanation<L> {
 /// An explanation for a term and its equivalent children.
 /// Each child is a proof transforming the initial child into the final child term.
 /// The initial term is given by taking each first sub-term
-/// in each [`child_proofs`](TreeTerm::child_proofs) recursivly.
+/// in each [`child_proofs`](TreeTerm::child_proofs) recursively.
 /// The final term is given by all of the final terms in each [`child_proofs`](TreeTerm::child_proofs).
 ///
 /// If [`forward_rule`](TreeTerm::forward_rule) is provided, then this TreeTerm's initial term
@@ -377,7 +377,7 @@ impl<L: Language> Explanation<L> {
 pub struct TreeTerm<L: Language> {
     /// A node representing this TreeTerm's operator. The children of the node should be ignored.
     pub node: L,
-    /// A rule rewritting this TreeTerm's initial term back to the last TreeTerm's final term.
+    /// A rule rewriting this TreeTerm's initial term back to the last TreeTerm's final term.
     pub backward_rule: Option<Symbol>,
     /// A rule rewriting the last TreeTerm's final term to this TreeTerm's initial term.
     pub forward_rule: Option<Symbol>,
