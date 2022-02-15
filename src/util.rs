@@ -1,6 +1,6 @@
-use std::fmt;
 use std::str::FromStr;
 use std::sync::RwLock;
+use std::{fmt, hash::Hash};
 use symbolic_expressions::Sexp;
 
 use fmt::{Debug, Display, Formatter};
@@ -59,7 +59,15 @@ pub(crate) fn pretty_print(
     }
 }
 
-static STRINGS: Lazy<RwLock<IndexSet<&'static str>>> = Lazy::new(Default::default);
+const SHARD_BITS: u32 = 7;
+const N_SHARDS: usize = 1 << SHARD_BITS;
+#[allow(clippy::assertions_on_constants)]
+static STRINGS: Lazy<Vec<RwLock<IndexSet<&'static str>>>> = Lazy::new(|| {
+    assert!(SHARD_BITS < 8);
+    let mut vec = Vec::with_capacity(N_SHARDS);
+    vec.resize_with(N_SHARDS, Default::default);
+    vec
+});
 
 /// An interned string.
 ///
@@ -98,27 +106,31 @@ pub struct Symbol([u8; 4]);
 impl Symbol {
     /// Get the string that this symbol represents
     pub fn as_str(&self) -> &str {
-        let len1 = self.0[0]; // len + 1
-        if let Some(len) = len1.checked_sub(1) {
-            assert!(len < 4);
-            let bytes = &self.0[1..1 + len as usize];
+        let byte = self.0[0];
+        if byte & 0x80 == 0x80 {
+            let str_len = (byte & 0x7f) as usize;
+            let bytes = &self.0[1..str_len + 1];
             std::str::from_utf8(bytes).unwrap()
         } else {
-            debug_assert_eq!(self.0[0], 0);
-            let i = u32::from_be_bytes(self.0) as usize;
-            let strings = STRINGS.read().unwrap_or_else(|err| {
+            let shard_i = byte as usize;
+            let mut bytes = self.0;
+            bytes[0] = 0;
+            let i = u32::from_be_bytes(bytes) as usize;
+            let strings = STRINGS[shard_i].read().unwrap_or_else(|err| {
                 panic!("Failed to acquire egg's global string cache: {}", err)
             });
             strings.get_index(i).unwrap()
         }
     }
 
-    fn from_index(i: usize) -> Self {
-        if i >= 1 << (8 * 3) {
-            panic!("Can't represent index {} in a Symbol", i)
-        } else {
-            Self((i as u32).to_be_bytes())
-        }
+    fn from_index(shard_i: usize, i: usize) -> Self {
+        assert!(shard_i < N_SHARDS);
+        let i_limit = 1 << (8 * 3);
+        assert!(i < i_limit, "Can't represent index {} in a Symbol", i);
+        let mut bytes = (i as u32).to_be_bytes();
+        assert_eq!(bytes[0], 0);
+        bytes[0] = shard_i as u8;
+        Self(bytes)
     }
 }
 
@@ -130,27 +142,33 @@ fn intern(s: &str) -> Symbol {
     if s.len() < 4 {
         let mut bytes = [0; 4];
         bytes[1..s.len() + 1].copy_from_slice(s.as_bytes());
-        bytes[0] = (s.len() + 1) as u8;
+        bytes[0] = (s.len() as u8) | 0x80;
         return Symbol(bytes);
     }
 
-    let strings = STRINGS
+    let shard_i = {
+        let mut hasher = std::hash::BuildHasher::build_hasher(&BuildHasher::default());
+        s.hash(&mut hasher);
+        std::hash::Hasher::finish(&hasher) as usize % N_SHARDS
+    };
+
+    let strings = STRINGS[shard_i]
         .read()
         .unwrap_or_else(|err| panic!("Failed to acquire egg's global string cache: {}", err));
     if let Some((i, _)) = strings.get_full(s) {
-        return Symbol::from_index(i);
+        return Symbol::from_index(shard_i, i);
     }
     // Release the read lock.
     drop(strings);
 
-    let mut strings = STRINGS
+    let mut strings = STRINGS[shard_i]
         .write()
         .unwrap_or_else(|err| panic!("Failed to acquire egg's global string cache: {}", err));
     let i = match strings.get_full(s) {
         Some((i, _)) => i, // The string was inserted in the meantime.
         None => strings.insert_full(leak(s)).0,
     };
-    Symbol::from_index(i)
+    Symbol::from_index(shard_i, i)
 }
 
 impl<S: AsRef<str>> From<S> for Symbol {
