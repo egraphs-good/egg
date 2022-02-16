@@ -10,6 +10,8 @@ use std::rc::Rc;
 
 use symbolic_expressions::Sexp;
 
+const CONGRUENCE_LIMIT: usize = 10;
+
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 #[cfg_attr(feature = "serde-1", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) enum Justification {
@@ -1655,7 +1657,7 @@ impl<L: Language> Explain<L> {
                     .iter()
                     .zip(next_node.children().iter())
                 {
-                    if let Some((c, next)) = self
+                    if let Some((c, _next)) = self
                         .shortest_explanation_memo
                         .get(&(*left_child, *right_child))
                     {
@@ -1882,7 +1884,22 @@ impl<L: Language> Explain<L> {
         unionfind: &UnionFind,
     ) {
         let mut counter = 0;
-        for eclass in classes.keys() {
+        // add the normal congruence edges first
+        for node in &self.explainfind {
+            match node.parent_connection.justification {
+                Justification::Congruence => {
+                    let current = node.parent_connection.current;
+                    let next = node.parent_connection.next;
+                    congruence_neighbors[usize::from(current)].push(next);
+                    congruence_neighbors[usize::from(next)].push(current);
+                    counter += 1;
+                }
+                _ => (),
+            }
+        }
+
+        
+        'outer: for eclass in classes.keys() {
             let enodes = self.find_all_enodes(*eclass);
             // find all congruence nodes
             let mut cannon_enodes: HashMap<L, Vec<Id>> = Default::default();
@@ -1901,6 +1918,10 @@ impl<L: Language> Explain<L> {
                 } else {
                     counter += 1;
                     cannon_enodes.insert(cannon, vec![*enode]);
+                }
+                // Don't find every congruence edge because that could be n^2 edges
+                if counter > CONGRUENCE_LIMIT*self.explainfind.len() {
+                    break 'outer;
                 }
             }
         }
@@ -1921,6 +1942,110 @@ impl<L: Language> Explain<L> {
 
     pub fn get_num_nodes(&self) -> usize {
         self.explainfind.len()
+    }
+
+    fn shortest_path_modulo_congruence(
+        &mut self,
+        start: Id,
+        end: Id,
+        congruence_neighbors: &Vec<Vec<Id>>,
+        distance_memo: &mut DistanceMemo,
+        use_estimates: bool) -> Option<(Vec<Connection>, Vec<Connection>)> {
+        let mut todo = BinaryHeap::new();
+        todo.push(HeapState {
+            cost: 0,
+            item: Connection {
+                current: start,
+                next: start,
+                justification: Justification::Congruence,
+                is_rewrite_forward: true,
+            },
+        });
+
+        let mut last = HashMap::default();
+        let total_cost;
+
+        loop {
+            if todo.len() == 0 {
+                return None
+            }
+            let state = todo.pop().unwrap();
+            let connection = state.item;
+            let cost_so_far = state.cost;
+            let current = connection.next;
+
+            if let Some(_) = last.get(&current) {
+                continue;
+            } else {
+                last.insert(current, connection);
+            }
+
+            if current == end {
+                total_cost = cost_so_far;
+                break;
+            }
+
+            for neighbor in &self.explainfind[usize::from(current)].neighbors {
+                if let Justification::Rule(_) = neighbor.justification {
+                    let neighbor_cost = cost_so_far.checked_add(1).unwrap();
+                    todo.push(HeapState {
+                        item: neighbor.clone(),
+                        cost: neighbor_cost,
+                    });
+                }
+            }
+
+            'inner: for other in congruence_neighbors[usize::from(current)].iter() {
+                
+                let distance = if use_estimates {
+                    self.congruence_distance(current, *other, distance_memo)   
+                } else {
+                    if let Some((cost, _next)) = self.shortest_explanation_memo.get(&(current, *other))  {
+                        *cost
+                    } else {
+                        continue 'inner;
+                    }
+                };
+                let other_cost = cost_so_far + distance;
+                todo.push(HeapState {
+                    item: Connection {
+                        current: current,
+                        next: *other,
+                        justification: Justification::Congruence,
+                        is_rewrite_forward: true,
+                    },
+                    cost: other_cost,
+                });
+            }
+        }
+
+        let mut left_connections = vec![];
+        let mut right_connections = vec![];
+        // when we found an equivalent path, avoid cycles by taking the normal route
+        let dist = self.distance_between(start, end, distance_memo);
+
+        if total_cost > dist {
+            panic!(
+                "Found cost greater than baseline {} vs {}",
+                total_cost, dist
+            );
+        }
+
+        if total_cost == dist {
+            let (a_left_connections, a_right_connections) = self.get_path_unoptimized(start, end);
+            left_connections = a_left_connections;
+            right_connections = a_right_connections;
+        } else {
+            let mut current = end;
+            while current != start {
+                let prev_connection = last.get(&current).unwrap();
+                left_connections.push(prev_connection.clone());
+                current = prev_connection.current;
+            }
+            left_connections.reverse();
+            self.populate_path_length(end, &left_connections, distance_memo, total_cost);
+        }
+        Some((left_connections, right_connections))
     }
 
     fn greedy_short_explanations(
@@ -1944,89 +2069,13 @@ impl<L: Language> Explain<L> {
             }
             fuel -= eclass_size;
 
-            let mut todo = BinaryHeap::new();
-            todo.push(HeapState {
-                cost: 0,
-                item: Connection {
-                    current: start,
-                    next: start,
-                    justification: Justification::Congruence,
-                    is_rewrite_forward: true,
-                },
-            });
-
-            let mut last = HashMap::default();
-            let total_cost;
-
-            loop {
-                assert!(todo.len() > 0);
-                let state = todo.pop().unwrap();
-                let connection = state.item;
-                let cost_so_far = state.cost;
-                let current = connection.next;
-
-                if let Some(_) = last.get(&current) {
-                    continue;
-                } else {
-                    last.insert(current, connection);
-                }
-
-                if current == end {
-                    total_cost = cost_so_far;
-                    break;
-                }
-
-                for neighbor in &self.explainfind[usize::from(current)].neighbors {
-                    if let Justification::Rule(_) = neighbor.justification {
-                        let neighbor_cost = cost_so_far.checked_add(1).unwrap();
-                        todo.push(HeapState {
-                            item: neighbor.clone(),
-                            cost: neighbor_cost,
-                        });
-                    }
-                }
-
-                for other in congruence_neighbors[usize::from(current)].iter() {
-                    let distance = self.congruence_distance(current, *other, distance_memo);
-                    let other_cost = cost_so_far + distance;
-                    todo.push(HeapState {
-                        item: Connection {
-                            current: current,
-                            next: *other,
-                            justification: Justification::Congruence,
-                            is_rewrite_forward: true,
-                        },
-                        cost: other_cost,
-                    });
-                }
-            }
-
-            let mut left_connections = vec![];
-            let mut right_connections = vec![];
-            // when we found an equivalent path, avoid cycles by taking the normal route
-            let dist = self.distance_between(start, end, distance_memo);
-
-            if total_cost > dist {
-                panic!(
-                    "Found cost greater than baseline {} vs {}",
-                    total_cost, dist
-                );
-            }
-
-            if total_cost == dist {
-                let (a_left_connections, a_right_connections) = self.get_path_unoptimized(start, end);
-                left_connections = a_left_connections;
-                right_connections = a_right_connections;
-            } else {
-                let mut current = end;
-                while current != start {
-                    let prev_connection = last.get(&current).unwrap();
-                    left_connections.push(prev_connection.clone());
-                    current = prev_connection.current;
-                }
-                left_connections.reverse();
-                self.populate_path_length(end, &left_connections, distance_memo, total_cost);
-            }
+            let (left_connections, right_connections) = self.shortest_path_modulo_congruence(
+                start,
+                end,
+                congruence_neighbors,
+                distance_memo,
+                true,
+            ).unwrap();
 
             //assert!(Explanation::new(self.explain_enodes(start, end, &mut Default::default())).make_flat_explanation().len()-1 <= total_cost);
 
@@ -2041,7 +2090,6 @@ impl<L: Language> Explain<L> {
                     std::mem::swap(&mut next, &mut current);
                 }
                 if let Justification::Congruence = connection.justification {
-                    let mut cost = 0;
                     let current_node = self.explainfind[usize::from(current)].node.clone();
                     let next_node = self.explainfind[usize::from(next)].node.clone();
                     for (left_child, right_child) in current_node
@@ -2181,6 +2229,28 @@ impl<L: Language> Explain<L> {
         }
     }
 
+    fn find_congruence_queries(&self, unionfind: &UnionFind, congruence_neighbors: &Vec<Vec<Id>>) -> HashMap<Id, Vec<(Id, Id)>> {
+        let mut queries: HashMap<Id, Vec<(Id, Id)>> = Default::default();
+        for (i, neighbors) in congruence_neighbors.iter().enumerate() {
+            for neighbor in neighbors {
+                let current = &self.explainfind[usize::from(Id::from(i))].node;
+                let next = &self.explainfind[usize::from(*neighbor)].node;
+                for (left, right) in current
+                    .children()
+                    .iter()
+                    .zip(next.children().iter())
+                {
+                    let class = unionfind.find(*left);
+                    if queries.get(&class).is_none() {
+                        queries.insert(class, vec![]);
+                    }
+                    queries.get_mut(&class).unwrap().push((*left, *right));
+                }
+            }
+        }
+        queries
+    }
+
     fn calculate_shortest_explanations<N: Analysis<L>>(
         &mut self,
         start: Id,
@@ -2218,6 +2288,15 @@ impl<L: Language> Explain<L> {
                 fuel,
             );
         } else {
+
+            let mut eclass_congruence_queries = self.find_congruence_queries(unionfind, &congruence_neighbors);
+            if eclass_congruence_queries.get(&unionfind.find(start)).is_none() {
+                eclass_congruence_queries.insert(unionfind.find(start), vec![]);
+            }
+            // also the original (start, end) is a query
+            eclass_congruence_queries.get_mut(&unionfind.find(start)).unwrap().push((start, end));
+
+
             // clear the memo and start from scratch
             self.shortest_explanation_memo.clear();
             // set rewrite distances to 1
