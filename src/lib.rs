@@ -82,7 +82,7 @@ pub use {
     eclass::EClass,
     egraph::EGraph,
     explain::{
-        Explanation, FlatExplanation, FlatTerm, GroundedEqualities, TreeExplanation, TreeTerm,
+        Explanation, FlatExplanation, FlatTerm, GroundedEqualities, TreeExplanation, TreeTerm, UnionEqualities
     },
     extract::*,
     language::*,
