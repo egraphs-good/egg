@@ -2,6 +2,9 @@
 
 ## [Unreleased] - ReleaseDate
 
+### Changed
+- ([#165](https://github.com/egraphs-good/egg/pull/165)) Unions now happen "instantly", restoring the pre-0.7 behavior. 
+
 ## [0.7.1] - 2021-12-14
 
 This patch fixes a pretty bad e-matching bug introduced in 0.7.0. Please upgrade!

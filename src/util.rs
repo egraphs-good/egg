@@ -1,6 +1,6 @@
 use std::fmt;
 use std::str::FromStr;
-use std::sync::Mutex;
+use std::sync::RwLock;
 use symbolic_expressions::Sexp;
 
 use fmt::{Debug, Display, Formatter};
@@ -59,7 +59,7 @@ pub(crate) fn pretty_print(
     }
 }
 
-static STRINGS: Lazy<Mutex<IndexSet<&'static str>>> = Lazy::new(Default::default);
+static STRINGS: Lazy<RwLock<IndexSet<&'static str>>> = Lazy::new(Default::default);
 
 /// An interned string.
 ///
@@ -100,7 +100,7 @@ impl Symbol {
     pub fn as_str(self) -> &'static str {
         let i = self.0 as usize;
         let strings = STRINGS
-            .lock()
+            .read()
             .unwrap_or_else(|err| panic!("Failed to acquire egg's global string cache: {}", err));
         strings.get_index(i).unwrap()
     }
@@ -111,11 +111,20 @@ fn leak(s: &str) -> &'static str {
 }
 
 fn intern(s: &str) -> Symbol {
+    let strings = STRINGS
+        .read()
+        .unwrap_or_else(|err| panic!("Failed to acquire egg's global string cache: {}", err));
+    if let Some((i, _)) = strings.get_full(s) {
+        return Symbol(i as u32);
+    }
+    // Release the read lock.
+    drop(strings);
+
     let mut strings = STRINGS
-        .lock()
+        .write()
         .unwrap_or_else(|err| panic!("Failed to acquire egg's global string cache: {}", err));
     let i = match strings.get_full(s) {
-        Some((i, _)) => i,
+        Some((i, _)) => i, // The string was inserted in the meantime.
         None => strings.insert_full(leak(s)).0,
     };
     Symbol(i as u32)
