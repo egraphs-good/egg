@@ -1548,43 +1548,6 @@ impl<L: Language> Explain<L> {
         let enodes = self.find_all_enodes(eclass);
         let mut did_anything = false;
 
-        for enode in &enodes {
-            // distance to congruent nodes is the sum of distances between children
-            for other in congruent_nodes[usize::from(*enode)].iter() {
-                let mut cost: usize = 0;
-                let current_node = self.explainfind[usize::from(*enode)].node.clone();
-                let next_node = self.explainfind[usize::from(*other)].node.clone();
-                for (left_child, right_child) in current_node
-                    .children()
-                    .iter()
-                    .zip(next_node.children().iter())
-                {
-                    if let Some((c, _next)) = self
-                        .shortest_explanation_memo
-                        .get(&(*left_child, *right_child))
-                    {
-                        cost = cost.checked_add(*c).unwrap();
-                    } else {
-                        cost = usize::MAX;
-                        break;
-                    }
-                }
-                let old_cost =
-                    if let Some((old, _)) = self.shortest_explanation_memo.get(&(*enode, *other)) {
-                        *old
-                    } else {
-                        usize::MAX
-                    };
-                if cost < old_cost {
-                    self.shortest_explanation_memo
-                        .insert((*enode, *other), (cost, *other));
-                    self.shortest_explanation_memo
-                        .insert((*other, *enode), (cost, *enode));
-                    did_anything = true;
-                }
-            }
-        }
-
         // update the shortest path between all of the queries
         for (start, end) in eclass_congruence_queries.get(&eclass).unwrap_or(&vec![]) {
             let cost_before = self
@@ -2282,8 +2245,6 @@ impl<L: Language> Explain<L> {
 
             // clear the memo and start from scratch
             self.shortest_explanation_memo.clear();
-            // set rewrite distances to 1
-            self.set_rewrite_distances();
 
             for _i in 0..iters {
                 let mut did_something = false;
