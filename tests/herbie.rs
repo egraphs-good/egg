@@ -800,7 +800,7 @@ mod proofbench {
         mut runner_disabled: Runner,
         mut runner_eqcheck: Runner,
         mut runner_upwards: Runner,
-        mut runner_low_node_limit: Runner,
+        mut runner_optimal: Runner,
         start_parsed: RecExpr,
         end_parsed: RecExpr,
         rules: &[Rewrite],
@@ -916,7 +916,7 @@ mod proofbench {
         }
 
         let start_low = Instant::now();
-        runner_low_node_limit = runner_low_node_limit.run(rules);
+        runner_optimal = runner_optimal.run(rules);
         let egg_low_duration = start_egg_run.elapsed().as_millis();
         let low_greedy_time;
         let low_optimal_time;
@@ -925,14 +925,14 @@ mod proofbench {
         let low_greedy_dag_size;
         let low_optimal_dag_size;
         let mut skip_optimal = false;
-        for class in runner_low_node_limit.egraph.classes() {
+        for class in runner_optimal.egraph.classes() {
             if class.len() > 200 {
                 skip_optimal = true;
             }
         }
         if skip_optimal
-            || runner_low_node_limit.egraph.add_expr(&start_parsed)
-                != runner_low_node_limit.egraph.add_expr(&end_parsed)
+            || runner_optimal.egraph.add_expr(&start_parsed)
+                != runner_optimal.egraph.add_expr(&end_parsed)
         {
             low_greedy_time = "#f".to_string();
             low_optimal_time = "#f".to_string();
@@ -943,7 +943,7 @@ mod proofbench {
         } else {
             let low_greedy_instant = Instant::now();
             let mut low_greedy =
-                runner_low_node_limit.explain_equivalence(&start_parsed, &end_parsed, 10, true);
+                runner_optimal.explain_equivalence(&start_parsed, &end_parsed, 10, true);
             low_greedy_time = format!("{}", low_greedy_instant.elapsed().as_millis());
             low_greedy.check_proof(rules);
             low_greedy_flat_size = format!("{}", low_greedy.get_flat_sexps().len());
@@ -953,7 +953,7 @@ mod proofbench {
             );
 
             let low_optimal_instant = Instant::now();
-            let mut low_optimal = runner_low_node_limit.explain_equivalence(
+            let mut low_optimal = runner_optimal.explain_equivalence(
                 &start_parsed,
                 &end_parsed,
                 usize::MAX,
@@ -1118,10 +1118,9 @@ mod proofbench {
                     true,
                     true,
                 );
-                let limit = if skip_copy % 20 == 0 { 5000 } else { 0 };
-                let mut runner_low_limit = herbie_runner(
+                let mut runner_optimal = herbie_runner(
                     &exprs_copy,
-                    limit,
+                    5000,
                     20,
                     &start_parsed,
                     &end_parsed,
@@ -1135,7 +1134,7 @@ mod proofbench {
                     runner_disabled,
                     runner_eqcheck,
                     runner_upwards,
-                    runner_low_limit,
+                    runner_optimal,
                     start_parsed,
                     end_parsed,
                     &rules,
