@@ -193,7 +193,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// Make a copy of the egraph with the same nodes, but no unions between them.
     pub fn copy_without_unions(&self, analysis: N) -> Self {
         if let Some(explain) = &self.explain {
-            let egraph = Self::new(analysis);    
+            let egraph = Self::new(analysis);
             explain.populate_enodes(egraph)
         } else {
             panic!("Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get a copied egraph without unions");
@@ -222,10 +222,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
     pub fn get_num_congr(&mut self) -> usize {
         if let Some(explain) = &self.explain {
-            explain.get_num_congr::<N>(
-                &self.classes,
-                &mut self.unionfind,
-            )
+            explain.get_num_congr::<N>(&self.classes, &mut self.unionfind)
         } else {
             panic!("Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations.")
         }
@@ -245,9 +242,13 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// The [`Explanation`] can be used in it's default tree form or in a less compact
     /// flattened form. Each of these also has a s-expression string representation,
     /// given by [`get_flat_string`](Explanation::get_flat_string) and [`get_string`](Explanation::get_string).
-    pub fn explain_equivalence(&mut self, left: &RecExpr<L>, right: &RecExpr<L>,
+    pub fn explain_equivalence(
+        &mut self,
+        left: &RecExpr<L>,
+        right: &RecExpr<L>,
         optimize_iters: usize,
-        greedy_search: bool) -> Explanation<L> {
+        greedy_search: bool,
+    ) -> Explanation<L> {
         let left = self.add_expr_internal(left);
         let right = self.add_expr_internal(right);
         if let Some(explain) = &mut self.explain {

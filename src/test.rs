@@ -138,11 +138,11 @@ pub fn test_runner<L, A>(
                 println!("Unoptimized {} Optimized {}", vanilla_len, short_len);
                 explained_short.check_proof(rules);
 
-                let mut explained_optimal = runner.explain_matches(&start, &goal.ast, &subst, usize::MAX, false);
+                let mut explained_optimal =
+                    runner.explain_matches(&start, &goal.ast, &subst, usize::MAX, false);
                 let optimal_len = explained_optimal.get_flat_sexps().len();
                 assert!(optimal_len <= short_len);
                 explained_optimal.check_proof(rules);
-
 
                 let mut existance = runner.explain_existance_pattern(&goal.ast, &subst);
                 existance.get_sexp_with_let();

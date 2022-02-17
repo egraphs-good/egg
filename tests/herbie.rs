@@ -828,7 +828,6 @@ mod proofbench {
         let z3_startup_proof = test_z3(&rules, &start_parsed, &start_parsed);
         let z3_startup_proof_duration = start_z3_easy.elapsed().as_millis();
 
-
         let z3_len = if !z3_res.starts_with("unsat\n") {
             "#f".to_string()
         } else {
