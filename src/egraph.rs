@@ -804,7 +804,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     fn process_unions(&mut self) -> usize {
         let mut n_unions = 0;
 
-        while !self.pending.is_empty() {
+        while !self.pending.is_empty() || !self.analysis_pending.is_empty() {
             while let Some((mut node, class)) = self.pending.pop() {
                 node.update_children(|id| self.find_mut(id));
                 if let Some(memo_class) = self.memo.insert(node, class) {
