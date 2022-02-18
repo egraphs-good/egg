@@ -1109,11 +1109,11 @@ impl<L: Language> Explain<L> {
         if node1 == node2 {
             return;
         }
-        /*if let Some((cost, _)) = self.shortest_explanation_memo.get(&(node1, node2)) {
+        if let Some((cost, _)) = self.shortest_explanation_memo.get(&(node1, node2)) {
             if cost <= &1 {
                 return;
             }
-        }*/
+        }
 
         let lconnection = Connection {
             justification: justification.clone(),
@@ -1621,10 +1621,11 @@ impl<L: Language> Explain<L> {
 
     fn populate_path_length(
         &mut self,
+        start: Id,
         right: Id,
         left_connections: &Vec<Connection>,
         distance_memo: &mut DistanceMemo,
-        target_cost: Option<usize>,
+        target_cost: usize,
         use_estimates: bool,
     ) {
         self.shortest_explanation_memo
@@ -1646,9 +1647,9 @@ impl<L: Language> Explain<L> {
             last_cost = dist + next_cost;
             self.replace_distance(current, next, right, next_cost + dist);
         }
-        if let Some(target) = target_cost {
-            assert_eq!(last_cost, target);
-        }
+        assert!(last_cost <= target_cost);    
+            
+        
     }
 
     fn distance_between(&mut self, left: Id, right: Id, distance_memo: &mut DistanceMemo) -> usize {
@@ -1895,12 +1896,8 @@ impl<L: Language> Explain<L> {
         });
 
         let mut last = HashMap::default();
-        let mut total_cost = None;
-        let end = if use_estimates {
-            Some(*ends.iter().next().unwrap())
-        } else {
-            None
-        };
+        let mut path_cost = HashMap::default();
+        let first_end = *ends.iter().next().unwrap(); 
 
         'outer: loop {
             if todo.len() == 0 {
@@ -1915,10 +1912,10 @@ impl<L: Language> Explain<L> {
                 continue;
             } else {
                 last.insert(current, connection);
+                path_cost.insert(current, cost_so_far);
             }
 
-            if Some(current) == end {
-                total_cost = Some(cost_so_far);
+            if use_estimates && current == first_end {
                 break;
             }
 
@@ -1956,21 +1953,23 @@ impl<L: Language> Explain<L> {
             }
         }
 
+        let total_cost = path_cost.get(&first_end);
+
         let mut left_connections = vec![];
         let mut right_connections = vec![];
 
         // assert that we found a path better than the normal one
         if use_estimates {
-            let dist = self.distance_between(start, end.unwrap(), distance_memo);
-            if total_cost.unwrap() > dist {
+            let dist = self.distance_between(start, first_end, distance_memo);
+            if *total_cost.unwrap() > dist {
                 panic!(
                     "Found cost greater than baseline {} vs {}",
                     total_cost.unwrap(), dist
                 );
             }
         }
-        if use_estimates && total_cost.unwrap() == self.distance_between(start, end.unwrap(), distance_memo) {
-            let (a_left_connections, a_right_connections) = self.get_path_unoptimized(start, end.unwrap());
+        if use_estimates && *total_cost.unwrap() == self.distance_between(start, first_end, distance_memo) {
+            let (a_left_connections, a_right_connections) = self.get_path_unoptimized(start, first_end);
             left_connections = a_left_connections;
             right_connections = a_right_connections;
         } else {
@@ -1990,14 +1989,15 @@ impl<L: Language> Explain<L> {
                     }
                 }
                 connections.reverse();
+                
                 self.populate_path_length(
+                    start,
                     *end,
                     &connections,
                     distance_memo,
-                    total_cost,
+                    *path_cost.get(end).unwrap(),
                     use_estimates,
                 );
-
                 if is_first {
                     left_connections = connections;
                     is_first = false;
@@ -2249,6 +2249,11 @@ impl<L: Language> Explain<L> {
                 fuel,
             );
         } else {
+            let mut num_rewrites = 0;
+            for node in &self.explainfind {
+                num_rewrites += node.neighbors.len();
+            }
+            println!("num rewrites {}", num_rewrites);
             let mut eclass_congruence_queries =
                 self.find_congruence_queries(unionfind, &congruence_neighbors);
             eclass_congruence_queries[usize::from(start)].insert(end);
@@ -2262,11 +2267,12 @@ impl<L: Language> Explain<L> {
             }
 
             for i in 0..iters {
-                println!("iteration {} of optimization", i);
                 let mut did_something = false;
-                println!("{}", eclass_congruence_queries.len());
                 for start in 0..eclass_congruence_queries.len() {
                     let ends = &eclass_congruence_queries[start];
+                    if ends.len() == 0 {
+                        continue;
+                    }
                     let costs_before: Vec<Option<usize>> = ends.iter().map(|end| {
                         self
                                         .shortest_explanation_memo
