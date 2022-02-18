@@ -1553,9 +1553,11 @@ impl<L: Language> Explain<L> {
                 .shortest_explanation_memo
                 .get(&(*start, *end))
                 .map(|(cost, _next)| *cost);
+            let mut ends: HashSet<Id> = Default::default();
+            ends.insert(*end);
             self.shortest_path_modulo_congruence(
                 *start,
-                *end,
+                &ends,
                 congruent_nodes,
                 &mut Default::default(),
                 false,
@@ -1622,7 +1624,7 @@ impl<L: Language> Explain<L> {
         right: Id,
         left_connections: &Vec<Connection>,
         distance_memo: &mut DistanceMemo,
-        target_cost: usize,
+        target_cost: Option<usize>,
         use_estimates: bool,
     ) {
         self.shortest_explanation_memo
@@ -1644,7 +1646,9 @@ impl<L: Language> Explain<L> {
             last_cost = dist + next_cost;
             self.replace_distance(current, next, right, next_cost + dist);
         }
-        assert_eq!(last_cost, target_cost);
+        if let Some(target) = target_cost {
+            assert_eq!(last_cost, target);
+        }
     }
 
     fn distance_between(&mut self, left: Id, right: Id, distance_memo: &mut DistanceMemo) -> usize {
@@ -1873,7 +1877,7 @@ impl<L: Language> Explain<L> {
     fn shortest_path_modulo_congruence(
         &mut self,
         start: Id,
-        end: Id,
+        ends: &HashSet<Id>,
         congruence_neighbors: &Vec<Vec<Id>>,
         distance_memo: &mut DistanceMemo,
         // use estimates means use vanilla proof lengths- use this for greedy optimization
@@ -1891,11 +1895,16 @@ impl<L: Language> Explain<L> {
         });
 
         let mut last = HashMap::default();
-        let total_cost;
+        let mut total_cost = None;
+        let end = if use_estimates {
+            Some(*ends.iter().next().unwrap())
+        } else {
+            None
+        };
 
         'outer: loop {
             if todo.len() == 0 {
-                return None;
+                break 'outer;
             }
             let state = todo.pop().unwrap();
             let connection = state.item;
@@ -1908,22 +1917,9 @@ impl<L: Language> Explain<L> {
                 last.insert(current, connection);
             }
 
-            if current == end {
-                total_cost = cost_so_far;
+            if Some(current) == end {
+                total_cost = Some(cost_so_far);
                 break;
-            }
-
-            // check if we've already computed this path before and follow it
-            if !use_estimates {
-                if let Some((_cost, next)) = self.shortest_explanation_memo.get(&(current, end)) {
-                    let n = self.get_neighbor(current, *next);
-                    let cost = cost_so_far.checked_add(self.connection_distance_cached(&n).unwrap()).unwrap();
-                    todo.push(HeapState {
-                       item : n,
-                       cost,
-                    });
-                    continue 'outer;
-                }
             }
 
             for neighbor in &self.explainfind[usize::from(current)].neighbors {
@@ -1965,33 +1961,48 @@ impl<L: Language> Explain<L> {
 
         // assert that we found a path better than the normal one
         if use_estimates {
-            let dist = self.distance_between(start, end, distance_memo);
-            if total_cost > dist {
+            let dist = self.distance_between(start, end.unwrap(), distance_memo);
+            if total_cost.unwrap() > dist {
                 panic!(
                     "Found cost greater than baseline {} vs {}",
-                    total_cost, dist
+                    total_cost.unwrap(), dist
                 );
             }
         }
-        if use_estimates && total_cost == self.distance_between(start, end, distance_memo) {
-            let (a_left_connections, a_right_connections) = self.get_path_unoptimized(start, end);
+        if use_estimates && total_cost.unwrap() == self.distance_between(start, end.unwrap(), distance_memo) {
+            let (a_left_connections, a_right_connections) = self.get_path_unoptimized(start, end.unwrap());
             left_connections = a_left_connections;
             right_connections = a_right_connections;
         } else {
-            let mut current = end;
-            while current != start {
-                let prev_connection = last.get(&current).unwrap();
-                left_connections.push(prev_connection.clone());
-                current = prev_connection.current;
+            let mut is_first = true;
+
+            'ends: for end in ends {
+                let mut current = *end;
+                let mut connections = vec![];
+                while current != start {
+                    let prev = last.get(&current);
+                    if prev.is_none() {
+                        continue 'ends;
+                    } else {
+                        let prev_connection = prev.unwrap();
+                        connections.push(prev_connection.clone());
+                        current = prev_connection.current;
+                    }
+                }
+                connections.reverse();
+                self.populate_path_length(
+                    *end,
+                    &connections,
+                    distance_memo,
+                    total_cost,
+                    use_estimates,
+                );
+
+                if is_first {
+                    left_connections = connections;
+                    is_first = false;
+                }
             }
-            left_connections.reverse();
-            self.populate_path_length(
-                end,
-                &left_connections,
-                distance_memo,
-                total_cost,
-                use_estimates,
-            );
         }
 
         Some((left_connections, right_connections))
@@ -2018,10 +2029,12 @@ impl<L: Language> Explain<L> {
             }
             fuel -= eclass_size;
 
+            let mut ends: HashSet<Id> = Default::default();
+            ends.insert(end);
             let (left_connections, right_connections) = self
                 .shortest_path_modulo_congruence(
                     start,
-                    end,
+                    &ends,
                     congruence_neighbors,
                     distance_memo,
                     true,
@@ -2182,8 +2195,8 @@ impl<L: Language> Explain<L> {
         &self,
         unionfind: &UnionFind,
         congruence_neighbors: &Vec<Vec<Id>>,
-    ) -> HashSet<(Id, Id)> {
-        let mut queries: HashSet<(Id, Id)> = Default::default();
+    ) -> Vec<HashSet<Id>> {
+        let mut queries: Vec<HashSet<Id>> = vec![Default::default(); self.explainfind.len()];
         for (i, neighbors) in congruence_neighbors.iter().enumerate() {
             for neighbor in neighbors {
                 let current = &self.explainfind[usize::from(Id::from(i))].node;
@@ -2192,7 +2205,7 @@ impl<L: Language> Explain<L> {
                     if left == right {
                         continue;
                     }
-                    queries.insert((*left, *right));
+                    queries[usize::from(*left)].insert(*right);
                 }
             }
         }
@@ -2238,7 +2251,7 @@ impl<L: Language> Explain<L> {
         } else {
             let mut eclass_congruence_queries =
                 self.find_congruence_queries(unionfind, &congruence_neighbors);
-            eclass_congruence_queries.insert((start, end));
+            eclass_congruence_queries[usize::from(start)].insert(end);
             // clear the memo and start from scratch
             self.shortest_explanation_memo.clear();
 
@@ -2252,32 +2265,40 @@ impl<L: Language> Explain<L> {
                 println!("iteration {} of optimization", i);
                 let mut did_something = false;
                 println!("{}", eclass_congruence_queries.len());
-                for (start, end) in eclass_congruence_queries.iter() {
-                    let cost_before = self
+                for start in 0..eclass_congruence_queries.len() {
+                    let ends = &eclass_congruence_queries[start];
+                    let costs_before: Vec<Option<usize>> = ends.iter().map(|end| {
+                        self
                                         .shortest_explanation_memo
-                                        .get(&(*start, *end))
-                                        .map(|(cost, _next)| *cost);
+                                        .get(&(Id::from(start), *end))
+                                        .map(|(cost, _next)| *cost)
+                    }).collect();
                     self.shortest_path_modulo_congruence(
-                        *start,
-                        *end,
+                        Id::from(start),
+                        ends,
                         &congruence_neighbors,
                         &mut Default::default(),
                         false,
                     );
-                    let cost_after = self
-                        .shortest_explanation_memo
-                        .get(&(*start, *end))
-                        .map(|(cost, _next)| *cost);
-                    if cost_before != cost_after {
-                        if let (Some(before), Some(after)) = (cost_before, cost_after) {
-                            assert!(after < before);
+
+                    let costs_after: Vec<Option<usize>> = ends.iter().map(|end| {
+                        self
+                                        .shortest_explanation_memo
+                                        .get(&(Id::from(start), *end))
+                                        .map(|(cost, _next)| *cost)
+                    }).collect();
+                    if costs_before != costs_after {
+                        for (cost_before, cost_after) in costs_before.iter().zip(costs_after.iter()) {
+                            if let (Some(before), Some(after)) = (cost_before, cost_after) {
+                                assert!(after <= before);
+                            }
                         }
+                        
                         did_something = true;
                     }
                 }
 
                 if !did_something {
-                    println!("done!");
                     assert!(self.shortest_explanation_memo.get(&(start, end)).is_some());
                     break;
                 }

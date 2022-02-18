@@ -444,7 +444,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         for node in nodes {
             match node {
                 ENodeOrVar::Var(var) => {
-                    let id = subst[*var];
+                    let id = self.find(subst[*var]);
                     new_ids.push(id);
                     new_node_q.push(false);
                 }
