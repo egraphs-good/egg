@@ -21,3 +21,4 @@ cargo test herbie_benchmark --release --features reports -- --nocapture
 
 
 racket eval-results.rkt "$REPORTDIR/herbie-bench-results.txt" "$REPORTDIR"
+# racket eval-results.rkt "$REPORTDIR/herbie-bench-results.txt" "../egg-papers/2021-explanations/proof_report"

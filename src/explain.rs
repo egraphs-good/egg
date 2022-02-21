@@ -3,6 +3,7 @@ use crate::{
     util::pretty_print, Analysis, EClass, EGraph, ENodeOrVar, FromOp, HashMap, HashSet, Id,
     Language, PatternAst, RecExpr, Rewrite, UnionFind, Var,
 };
+use instant::{Duration, Instant};
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, VecDeque};
 use std::fmt::{self, Debug, Display, Formatter};
@@ -1561,6 +1562,7 @@ impl<L: Language> Explain<L> {
                 congruent_nodes,
                 &mut Default::default(),
                 false,
+                true,
             );
             let cost_after = self
                 .shortest_explanation_memo
@@ -1883,6 +1885,7 @@ impl<L: Language> Explain<L> {
         distance_memo: &mut DistanceMemo,
         // use estimates means use vanilla proof lengths- use this for greedy optimization
         use_estimates: bool,
+        update_paths: bool,
     ) -> Option<(Vec<Connection>, Vec<Connection>)> {
         let mut todo = BinaryHeap::new();
         todo.push(HeapState {
@@ -1976,31 +1979,36 @@ impl<L: Language> Explain<L> {
             let mut is_first = true;
 
             'ends: for end in ends {
-                let mut current = *end;
-                let mut connections = vec![];
-                while current != start {
-                    let prev = last.get(&current);
-                    if prev.is_none() {
-                        continue 'ends;
-                    } else {
-                        let prev_connection = prev.unwrap();
-                        connections.push(prev_connection.clone());
-                        current = prev_connection.current;
+                if update_paths {
+                    let mut current = *end;
+                    let mut connections = vec![];
+                    while current != start {
+                        let prev = last.get(&current);
+                        if prev.is_none() {
+                            continue 'ends;
+                        } else {
+                            let prev_connection = prev.unwrap();
+                            connections.push(prev_connection.clone());
+                            current = prev_connection.current;
+                        }
                     }
-                }
-                connections.reverse();
-                
-                self.populate_path_length(
-                    start,
-                    *end,
-                    &connections,
-                    distance_memo,
-                    *path_cost.get(end).unwrap(),
-                    use_estimates,
-                );
-                if is_first {
-                    left_connections = connections;
-                    is_first = false;
+                    connections.reverse();
+                    self.populate_path_length(
+                        start,
+                        *end,
+                        &connections,
+                        distance_memo,
+                        *path_cost.get(end).unwrap(),
+                        use_estimates,
+                    );
+                    if is_first {
+                        left_connections = connections;
+                        is_first = false;
+                    }
+                } else {
+                    if let Some(found_cost) = path_cost.get(end) {
+                        self.shortest_explanation_memo.insert((start, *end), (*found_cost, start));
+                    }
                 }
             }
         }
@@ -2037,6 +2045,7 @@ impl<L: Language> Explain<L> {
                     &ends,
                     congruence_neighbors,
                     distance_memo,
+                    true,
                     true,
                 )
                 .unwrap();
@@ -2249,11 +2258,6 @@ impl<L: Language> Explain<L> {
                 fuel,
             );
         } else {
-            let mut num_rewrites = 0;
-            for node in &self.explainfind {
-                num_rewrites += node.neighbors.len();
-            }
-            println!("num rewrites {}", num_rewrites);
             let mut eclass_congruence_queries =
                 self.find_congruence_queries(unionfind, &congruence_neighbors);
             eclass_congruence_queries[usize::from(start)].insert(end);
@@ -2267,6 +2271,7 @@ impl<L: Language> Explain<L> {
             }
 
             for i in 0..iters {
+                let start_time = Instant::now();
                 let mut did_something = false;
                 for start in 0..eclass_congruence_queries.len() {
                     let ends = &eclass_congruence_queries[start];
@@ -2285,6 +2290,7 @@ impl<L: Language> Explain<L> {
                         &congruence_neighbors,
                         &mut Default::default(),
                         false,
+                        true,
                     );
 
                     let costs_after: Vec<Option<usize>> = ends.iter().map(|end| {
@@ -2303,6 +2309,8 @@ impl<L: Language> Explain<L> {
                         did_something = true;
                     }
                 }
+
+                //println!("iteration {} took {}", i, start_time.elapsed().as_millis());
 
                 if !did_something {
                     assert!(self.shortest_explanation_memo.get(&(start, end)).is_some());
