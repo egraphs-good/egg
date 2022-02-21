@@ -1189,65 +1189,12 @@ impl<L: Language> Explain<L> {
         self.explainfind[usize::from(node1)].parent_connection = pconnection;
     }
 
-    pub(crate) fn get_union_equalities(&self) -> UnionEqualities {
-        let mut equalities = vec![];
-        for node in &self.explainfind {
-            for neighbor in &node.neighbors {
-                if neighbor.is_rewrite_forward {
-                    match neighbor.justification {
-                        Justification::Rule(r) => {
-                            equalities.push((neighbor.current, neighbor.next, r));
-                        }
-                        _ => (),
-                    }
-                }
-            }
-        }
-        equalities
-    }
-
-    pub(crate) fn populate_enodes<N: Analysis<L>>(&self, mut egraph: EGraph<L, N>) -> EGraph<L, N> {
-        for i in 0..self.explainfind.len() {
-            let node = &self.explainfind[i];
-            egraph.add(node.node.clone());
-        }
-
-        egraph
-    }
-
-    pub(crate) fn explain_equivalence<N: Analysis<L>>(
-        &mut self,
-        left: Id,
-        right: Id,
-        memo: &HashMap<L, Id>,
-        unionfind: &mut UnionFind,
-        classes: &HashMap<Id, EClass<L, N::Data>>,
-        optimize_iters: usize,
-        greedy_search: bool,
-    ) -> Explanation<L> {
-        self.calculate_shortest_explanations::<N>(
-            left,
-            right,
-            classes,
-            &unionfind,
-            optimize_iters,
-            greedy_search,
-        );
-
-        let mut cache = Default::default();
-        let mut enode_cache = Default::default();
-        Explanation::new(self.explain_enodes(left, right, &mut cache, &mut enode_cache, false))
-    }
-
-    pub(crate) fn explain_existance(&mut self, left: Id) -> Explanation<L> {
-        let mut cache = Default::default();
         let mut enode_cache = Default::default();
         Explanation::new(self.explain_enode_existance(
             left,
             self.node_to_explanation(left, &mut enode_cache),
             &mut cache,
             &mut enode_cache,
-        ))
     }
 
     fn common_ancestor(&self, mut left: Id, mut right: Id) -> Id {
