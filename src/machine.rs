@@ -192,7 +192,7 @@ impl<'a, L: Language> Compiler<'a, L> {
         let key = |(id, _): &&(Id, Reg)| {
             let n_free = self.free_vars[usize::from(*id)]
                 .iter()
-                .filter(|v| self.v2r.contains_key(*v))
+                .filter(|v| !self.v2r.contains_key(*v))
                 .count() as isize;
             (n_free == 0, n_free)
         };
