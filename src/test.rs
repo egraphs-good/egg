@@ -112,7 +112,12 @@ fn percentile(k: f64, data: &[u128]) -> u128 {
     data[i]
 }
 
-pub fn bench_egraph<L, N>(_name: &str, rules: Vec<Rewrite<L, N>>, exprs: &[&str]) -> EGraph<L, N>
+pub fn bench_egraph<L, N>(
+    _name: &str,
+    rules: Vec<Rewrite<L, N>>,
+    exprs: &[&str],
+    extra_patterns: &[&str],
+) -> EGraph<L, N>
 where
     L: Language + FromOp + 'static + Display,
     N: Analysis<L> + Default + 'static,
@@ -126,6 +131,11 @@ where
             patterns.push(ast.alpha_rename().into())
         }
     }
+    for extra in extra_patterns {
+        let p: Pattern<L> = extra.parse().unwrap();
+        patterns.push(p.ast.alpha_rename().into());
+    }
+
     eprintln!("{} patterns", patterns.len());
 
     patterns.retain(|p| p.ast.as_ref().len() > 1);

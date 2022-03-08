@@ -376,5 +376,26 @@ fn lambda_ematching_bench() {
             (app (var fib) 4))",
     ];
 
-    egg::test::bench_egraph("lambda", rules(), exprs);
+    let extra_patterns = &[
+        "(if (= (var ?x) ?e) ?then ?else)",
+        "(+ (+ ?a ?b) ?c)",
+        "(let ?v (fix ?v ?e) ?e)",
+        "(app (lam ?v ?body) ?e)",
+        "(let ?v ?e (app ?a ?b))",
+        "(app (let ?v ?e ?a) (let ?v ?e ?b))",
+        "(let ?v ?e (+   ?a ?b))",
+        "(+   (let ?v ?e ?a) (let ?v ?e ?b))",
+        "(let ?v ?e (=   ?a ?b))",
+        "(=   (let ?v ?e ?a) (let ?v ?e ?b))",
+        "(let ?v ?e (if ?cond ?then ?else))",
+        "(if (let ?v ?e ?cond) (let ?v ?e ?then) (let ?v ?e ?else))",
+        "(let ?v1 ?e (var ?v1))",
+        "(let ?v1 ?e (var ?v2))",
+        "(let ?v1 ?e (lam ?v1 ?body))",
+        "(let ?v1 ?e (lam ?v2 ?body))",
+        "(lam ?v2 (let ?v1 ?e ?body))",
+        "(lam ?fresh (let ?v1 ?e (let ?v2 (var ?fresh) ?body)))",
+    ];
+
+    egg::test::bench_egraph("lambda", rules(), exprs, extra_patterns);
 }

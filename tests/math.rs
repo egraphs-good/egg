@@ -341,5 +341,40 @@ fn math_ematching_bench() {
         "(/ 1 (- (/ (+ 1 (sqrt five)) 2) (/ (- 1 (sqrt five)) 2)))",
     ];
 
-    egg::test::bench_egraph("math", rules(), exprs);
+    let extra_patterns = &[
+        "(+ ?a (+ ?b ?c))",
+        "(+ (+ ?a ?b) ?c)",
+        "(* ?a (* ?b ?c))",
+        "(* (* ?a ?b) ?c)",
+        "(+ ?a (* -1 ?b))",
+        "(* ?a (pow ?b -1))",
+        "(* ?a (+ ?b ?c))",
+        "(pow ?a (+ ?b ?c))",
+        "(+ (* ?a ?b) (* ?a ?c))",
+        "(* (pow ?a ?b) (pow ?a ?c))",
+        "(* ?x (/ 1 ?x))",
+        "(d ?x (+ ?a ?b))",
+        "(+ (d ?x ?a) (d ?x ?b))",
+        "(d ?x (* ?a ?b))",
+        "(+ (* ?a (d ?x ?b)) (* ?b (d ?x ?a)))",
+        "(d ?x (sin ?x))",
+        "(d ?x (cos ?x))",
+        "(* -1 (sin ?x))",
+        "(* -1 (cos ?x))",
+        "(i (cos ?x) ?x)",
+        "(i (sin ?x) ?x)",
+        "(d ?x (ln ?x))",
+        "(d ?x (pow ?f ?g))",
+        "(* (pow ?f ?g) (+ (* (d ?x ?f) (/ ?g ?f)) (* (d ?x ?g) (ln ?f))))",
+        "(i (pow ?x ?c) ?x)",
+        "(/ (pow ?x (+ ?c 1)) (+ ?c 1))",
+        "(i (+ ?f ?g) ?x)",
+        "(i (- ?f ?g) ?x)",
+        "(+ (i ?f ?x) (i ?g ?x))",
+        "(- (i ?f ?x) (i ?g ?x))",
+        "(i (* ?a ?b) ?x)",
+        "(- (* ?a (i ?b ?x)) (i (* (d ?x ?a) (i ?b ?x)) ?x))",
+    ];
+
+    egg::test::bench_egraph("math", rules(), exprs, extra_patterns);
 }
