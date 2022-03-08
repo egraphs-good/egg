@@ -136,6 +136,7 @@ struct Compiler<'a, L> {
     pattern: &'a PatternAst<L>,
     v2r: IndexMap<Var, Reg>,
     free_vars: Vec<HashSet<Var>>,
+    subtree_size: Vec<usize>,
     todo_nodes: HashMap<(Id, Reg), L>,
     instructions: Vec<Instruction<L>>,
 }
@@ -144,25 +145,31 @@ impl<'a, L: Language> Compiler<'a, L> {
     fn new(pattern: &'a PatternAst<L>) -> Self {
         let len = pattern.as_ref().len();
         let mut free_vars: Vec<HashSet<Var>> = Vec::with_capacity(len);
+        let mut subtree_size = Vec::with_capacity(len);
 
         for node in pattern.as_ref() {
             let mut free = HashSet::default();
+            let mut size = 0;
             match node {
                 ENodeOrVar::ENode(n) => {
+                    size = 1;
                     for &child in n.children() {
-                        free.extend(&free_vars[usize::from(child)])
+                        free.extend(&free_vars[usize::from(child)]);
+                        size += subtree_size[usize::from(child)];
                     }
                 }
                 ENodeOrVar::Var(v) => {
                     free.insert(*v);
                 }
             }
-            free_vars.push(free)
+            free_vars.push(free);
+            subtree_size.push(size);
         }
 
         Self {
             pattern,
             free_vars,
+            subtree_size,
             v2r: Default::default(),
             todo_nodes: Default::default(),
             instructions: Default::default(),
@@ -187,14 +194,17 @@ impl<'a, L: Language> Compiler<'a, L> {
     fn next(&mut self) -> Option<((Id, Reg), L)> {
         // we take the max todo according to this key
         // - prefer grounded
-        // - prefer variables
-        // - prefer more free vars (if not grounded)
+        // - prefer more free variables
+        // - prefer smaller term
         let key = |(id, _): &&(Id, Reg)| {
-            let n_free = self.free_vars[usize::from(*id)]
+            let i = usize::from(*id);
+            let n_bound = self.free_vars[i]
                 .iter()
                 .filter(|v| self.v2r.contains_key(*v))
-                .count() as isize;
-            (n_free == 0, n_free)
+                .count();
+            let n_free = self.free_vars[i].len() - n_bound;
+            let size = self.subtree_size[i] as isize;
+            (n_free == 0, n_free, -size)
         };
 
         self.todo_nodes
