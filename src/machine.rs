@@ -179,7 +179,7 @@ impl<L: Language> Compiler<L> {
         }
     }
 
-    fn queue_pattern(&mut self, pattern: &PatternAst<L>) {
+    fn load_pattern(&mut self, pattern: &PatternAst<L>) {
         let len = pattern.as_ref().len();
         self.free_vars = Vec::with_capacity(len);
         self.subtree_size = Vec::with_capacity(len);
@@ -235,19 +235,39 @@ impl<L: Language> Compiler<L> {
             .all(|v| self.v2r.contains_key(v))
     }
 
-    fn compile(&mut self, pattern: &PatternAst<L>) {
-        self.queue_pattern(pattern);
+    fn compile(&mut self, patternbinder: &Option<Var>, pattern: &PatternAst<L>) {
+        self.load_pattern(pattern);
         let last_i = pattern.as_ref().len() - 1;
 
-        // check if already bound in v2r
-        let mut next_out = Reg(self.next_reg.0 + 1);
+        let mut next_out = self.next_reg;
 
-        if !self.instructions.is_empty() {
-            // After first pattern needs scan
-            self.instructions
-                .push(Instruction::Scan { out: self.next_reg });
+        // Check if patternbinder already bound in v2r
+        // Behavior common to creating a new pattern
+        let add_new_pattern = |comp: &mut Compiler<L>| {
+            if !comp.instructions.is_empty() {
+                // After first pattern needs scan
+                comp.instructions
+                    .push(Instruction::Scan { out: comp.next_reg });
+            }
+            comp.add_todo(pattern, Id::from(last_i), comp.next_reg);
+        };
+
+        // TODO: check is_ground_now
+        if let Some(v) = patternbinder {
+            if let Some(&i) = self.v2r.get(v) {
+                // patternbinder already bound
+                self.add_todo(pattern, Id::from(last_i), i);
+            } else {
+                // patternbinder is new variable
+                next_out.0 += 1;
+                add_new_pattern(self);
+                self.v2r.insert(*v, self.next_reg); //add to known variables.
+            }
+        } else {
+            // No pattern binder
+            next_out.0 += 1;
+            add_new_pattern(self);
         }
-        self.add_todo(pattern, Id::from(last_i), self.next_reg);
 
         while let Some(((id, reg), node)) = self.next() {
             if self.is_ground_now(id) && !node.is_leaf() {
@@ -298,16 +318,16 @@ impl<L: Language> Compiler<L> {
 impl<L: Language> Program<L> {
     pub(crate) fn compile_from_pat(pattern: &PatternAst<L>) -> Self {
         let mut compiler = Compiler::new();
-        compiler.compile(pattern);
+        compiler.compile(&None, pattern);
         let program = compiler.extract();
         log::debug!("Compiled {:?} to {:?}", pattern.as_ref(), program);
         program
     }
 
-    pub(crate) fn compile_from_multi_pat(patterns: &[PatternAst<L>]) -> Self {
+    pub(crate) fn compile_from_multi_pat(patterns: &[(Option<Var>, PatternAst<L>)]) -> Self {
         let mut compiler = Compiler::new();
-        for pattern in patterns {
-            compiler.compile(pattern);
+        for (var, pattern) in patterns {
+            compiler.compile(var, pattern);
         }
         let program = compiler.extract();
         //log::debug!("Compiled {:?} to {:?}", pattern.as_ref(), program);
