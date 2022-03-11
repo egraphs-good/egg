@@ -473,13 +473,13 @@ mod tests {
         crate::init_logger();
         let mut egraph = EGraph::default();
         egraph.add_expr(&"(f a a)".parse().unwrap());
-        egraph.add_expr(&"(f c b)".parse().unwrap());
+        egraph.add_expr(&"(f a b)".parse().unwrap());
         egraph.rebuild();
 
         let n_matches = |pats: &[&str]| -> usize {
             let pats: Vec<_> = pats
                 .iter()
-                .map(|s: &&str| s.parse::<PatternAst<S>>().unwrap())
+                .map(|s: &&str| (None, s.parse::<PatternAst<S>>().unwrap()))
                 .collect();
             let program = machine::Program::compile_from_multi_pat(&pats);
             egraph
@@ -492,8 +492,9 @@ mod tests {
         };
 
         assert_eq!(n_matches(&["(f a a)", "(f ?c b)"]), 1);
-        assert_eq!(n_matches(&["(f a a)", "(f b b)"]), 0);
+        assert_eq!(n_matches(&["(f a a)", "(f a b)"]), 1);
         assert_eq!(n_matches(&["(f a a)", "(f a a)"]), 1);
         assert_eq!(n_matches(&["(f ?a ?b)", "(f ?c ?d)"]), 4);
+        assert_eq!(n_matches(&["(f ?a a)", "(f ?a b)"]), 1);
     }
 }
