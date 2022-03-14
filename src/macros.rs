@@ -285,8 +285,8 @@ macro_rules! rewrite {
         $lhs:tt => $rhs:tt
         $(if $cond:expr)*
     )  => {{
-        let searcher = $crate::__rewrite!(@parse $lhs);
-        let core_applier = $crate::__rewrite!(@parse $rhs);
+        let searcher = $crate::__rewrite!(@parse Pattern $lhs);
+        let core_applier = $crate::__rewrite!(@parse Pattern $rhs);
         let applier = $crate::__rewrite!(@applier core_applier; $($cond,)*);
         $crate::Rewrite::new($name.to_string(), searcher, applier).unwrap()
     }};
@@ -302,15 +302,24 @@ macro_rules! rewrite {
             $crate::rewrite!(name2; $rhs => $lhs $(if $cond)*)
         ]
     }};
+    // limited multipattern support
+    (
+        $name:expr;
+        $lhs:literal ==> $rhs:literal
+    )  => {{
+        let searcher = $crate::__rewrite!(@parse MultiPattern $lhs);
+        let applier = $crate::__rewrite!(@parse MultiPattern $rhs);
+        $crate::Rewrite::new($name.to_string(), searcher, applier).unwrap()
+    }};
 }
 
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __rewrite {
-    (@parse $rhs:literal) => {
-        $rhs.parse::<$crate::Pattern<_>>().unwrap()
+    (@parse $t:ident $rhs:literal) => {
+        $rhs.parse::<$crate::$t<_>>().unwrap()
     };
-    (@parse $rhs:expr) => { $rhs };
+    (@parse $t:ident $rhs:expr) => { $rhs };
     (@applier $applier:expr;) => { $applier };
     (@applier $applier:expr; $cond:expr, $($conds:expr,)*) => {
         $crate::ConditionalApplier {
