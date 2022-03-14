@@ -101,10 +101,9 @@ impl Machine {
                 }
                 Instruction::Scan { out } => {
                     let remaining_instructions = instructions.as_slice();
-                    let nclasses = egraph.number_of_classes() as u32;
-                    for id in 0..nclasses {
+                    for class in egraph.classes() {
                         self.reg.truncate(out.0 as usize);
-                        self.reg.push(Id(id));
+                        self.reg.push(class.id);
                         self.run(egraph, remaining_instructions, subst, yield_fn)
                     }
                     return;
@@ -235,7 +234,7 @@ impl<L: Language> Compiler<L> {
             .all(|v| self.v2r.contains_key(v))
     }
 
-    fn compile(&mut self, patternbinder: &Option<Var>, pattern: &PatternAst<L>) {
+    fn compile(&mut self, patternbinder: Option<Var>, pattern: &PatternAst<L>) {
         self.load_pattern(pattern);
         let last_i = pattern.as_ref().len() - 1;
 
@@ -252,16 +251,15 @@ impl<L: Language> Compiler<L> {
             comp.add_todo(pattern, Id::from(last_i), comp.next_reg);
         };
 
-        // TODO: check is_ground_now
         if let Some(v) = patternbinder {
-            if let Some(&i) = self.v2r.get(v) {
+            if let Some(&i) = self.v2r.get(&v) {
                 // patternbinder already bound
                 self.add_todo(pattern, Id::from(last_i), i);
             } else {
                 // patternbinder is new variable
                 next_out.0 += 1;
                 add_new_pattern(self);
-                self.v2r.insert(*v, self.next_reg); //add to known variables.
+                self.v2r.insert(v, self.next_reg); //add to known variables.
             }
         } else {
             // No pattern binder
@@ -318,20 +316,18 @@ impl<L: Language> Compiler<L> {
 impl<L: Language> Program<L> {
     pub(crate) fn compile_from_pat(pattern: &PatternAst<L>) -> Self {
         let mut compiler = Compiler::new();
-        compiler.compile(&None, pattern);
+        compiler.compile(None, pattern);
         let program = compiler.extract();
         log::debug!("Compiled {:?} to {:?}", pattern.as_ref(), program);
         program
     }
 
-    pub(crate) fn compile_from_multi_pat(patterns: &[(Option<Var>, PatternAst<L>)]) -> Self {
+    pub(crate) fn compile_from_multi_pat(patterns: &[(Var, PatternAst<L>)]) -> Self {
         let mut compiler = Compiler::new();
         for (var, pattern) in patterns {
-            compiler.compile(var, pattern);
+            compiler.compile(Some(*var), pattern);
         }
-        let program = compiler.extract();
-        //log::debug!("Compiled {:?} to {:?}", pattern.as_ref(), program);
-        program
+        compiler.extract()
     }
 
     pub fn run<A>(&self, egraph: &EGraph<L, A>, eclass: Id) -> Vec<Subst>

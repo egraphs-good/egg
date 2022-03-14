@@ -37,6 +37,7 @@ mod explain;
 mod extract;
 mod language;
 mod machine;
+mod multipattern;
 mod pattern;
 mod rewrite;
 mod run;
@@ -84,6 +85,7 @@ pub use {
     explain::{Explanation, FlatExplanation, FlatTerm, TreeExplanation, TreeTerm},
     extract::*,
     language::*,
+    multipattern::*,
     pattern::{ENodeOrVar, Pattern, PatternAst, SearchMatches},
     rewrite::{Applier, Condition, ConditionEqual, ConditionalApplier, Rewrite, Searcher},
     run::*,

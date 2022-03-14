@@ -467,34 +467,4 @@ mod tests {
         assert_eq!(n_matches("(f ?x (g ?x))))"), 1);
         assert_eq!(n_matches("(h ?x 0 0)"), 1);
     }
-
-    #[test]
-    fn multi_patterns() {
-        crate::init_logger();
-        let mut egraph = EGraph::default();
-        egraph.add_expr(&"(f a a)".parse().unwrap());
-        egraph.add_expr(&"(f a b)".parse().unwrap());
-        egraph.rebuild();
-
-        let n_matches = |pats: &[&str]| -> usize {
-            let pats: Vec<_> = pats
-                .iter()
-                .map(|s: &&str| (None, s.parse::<PatternAst<S>>().unwrap()))
-                .collect();
-            let program = machine::Program::compile_from_multi_pat(&pats);
-            egraph
-                .classes()
-                .map(|e| {
-                    let subst = program.run(&egraph, e.id);
-                    subst.len()
-                })
-                .sum()
-        };
-
-        assert_eq!(n_matches(&["(f a a)", "(f ?c b)"]), 1);
-        assert_eq!(n_matches(&["(f a a)", "(f a b)"]), 1);
-        assert_eq!(n_matches(&["(f a a)", "(f a a)"]), 1);
-        assert_eq!(n_matches(&["(f ?a ?b)", "(f ?c ?d)"]), 4);
-        assert_eq!(n_matches(&["(f ?a a)", "(f ?a b)"]), 1);
-    }
 }
