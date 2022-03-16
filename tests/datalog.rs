@@ -38,8 +38,8 @@ fn path() {
     let mut egraph = EGraph::<Lang, ()>::default();
     egraph.assert("(edge 1 2), (edge 2 3), (edge 3 4)");
     let rules = vec![
-        rewrite!("base-case"; "?x = true = (edge ?a ?b)" ==> "?x = (path ?a ?b)"),
-        rewrite!("transitive"; "?x = true = (path ?a ?b) = (edge ?b ?c)" ==> "?x = (path ?a ?c)"),
+        rewrite!("base-case"; "?x = true = (edge ?a ?b)" |- "?x = (path ?a ?b)"),
+        rewrite!("transitive"; "?x = true = (path ?a ?b) = (edge ?b ?c)" |- "?x = (path ?a ?c)"),
     ];
 
     let mut runner = Runner::default().with_egraph(egraph).run(&rules);
