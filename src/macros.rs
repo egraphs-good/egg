@@ -223,6 +223,10 @@ For each of these, the macro will wrap the given applier in a
 [`ConditionalApplier`] with the given condition, with the first condition being
 the outermost, and the last condition being the innermost.
 
+The macro can also be used to create multipatterns
+using the form `rewrite!(name; multipattern |- multipattern)`.
+Currently you cannot combine patterns and multipatterns.
+
 # Example
 ```
 # use egg::*;
@@ -305,7 +309,7 @@ macro_rules! rewrite {
     // limited multipattern support
     (
         $name:expr;
-        $lhs:literal ==> $rhs:literal
+        $lhs:tt |- $rhs:tt
     )  => {{
         let searcher = $crate::__rewrite!(@parse MultiPattern $lhs);
         let applier = $crate::__rewrite!(@parse MultiPattern $rhs);
