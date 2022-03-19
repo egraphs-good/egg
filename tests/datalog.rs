@@ -38,7 +38,7 @@ impl DatalogExtTrait for EGraph<Lang, ()> {
         for e in s.split(',') {
             let exp = e.trim().parse().unwrap();
             let id = self.add_expr(&exp);
-            assert!(true_id != id, "{} is not true", e);
+            assert!(true_id != id, "{} is true", e);
         }
     }
 }
@@ -73,47 +73,4 @@ fn path2() {
     runner.egraph.check_not("(pred (path 3 1))");
 }
 
-#[test]
-fn ctx_transfer() {
-    let mut egraph = EGraph::<Lang, ()>::default();
-    egraph.assert("(lte ctx1 ctx2)");
-    egraph.assert("(lte ctx2 ctx2)");
-    egraph.assert("(lte ctx1 ctx1)");
-    let x2 = egraph.add_expr(&"(tag x ctx2)".parse().unwrap());
-    let y2 = egraph.add_expr(&"(tag y ctx2)".parse().unwrap());
-    let z2 = egraph.add_expr(&"(tag z ctx2)".parse().unwrap());
 
-    let x1 = egraph.add_expr(&"(tag x ctx1)".parse().unwrap());
-    let y1 = egraph.add_expr(&"(tag y ctx1)".parse().unwrap());
-    let z1 = egraph.add_expr(&"(tag z ctx2)".parse().unwrap());
-    egraph.union(x1, y1);
-    egraph.union(y2, z2);
-    let rules = vec![
-        rewrite!("context-transfer"; "?x = (tag ?a ?ctx1) = (tag ?b ?ctx1), ?t = true = (lte ?ctx1 ?ctx2), ?a1 = (tag ?a ?ctx2), ?b1 = (tag ?b ?ctx2)" |- "?a1 = ?b1"),
-    ];
-    let runner = Runner::default().with_egraph(egraph).run(&rules);
-    assert_eq!(runner.egraph.find(x1), runner.egraph.find(y1));
-    assert_eq!(runner.egraph.find(y2), runner.egraph.find(z2));
-
-    assert_eq!(runner.egraph.find(x2), runner.egraph.find(y2));
-    assert_eq!(runner.egraph.find(x2), runner.egraph.find(z2));
-
-    assert!(runner.egraph.find(y1) != runner.egraph.find(z1));
-    assert!(runner.egraph.find(x1) != runner.egraph.find(z1));
-}
-
-#[test]
-fn unbound_rhs() {
-    let mut egraph = EGraph::<Lang, ()>::default();
-    let x = egraph.add_expr(&"(x)".parse().unwrap());
-    let rules = vec![
-        // Rule creates y and z if they don't exist. Crashes with current parsing
-        rewrite!("test"; "?x = (x)" |- "?y = (y), ?y = (z)"),
-        // Can't fire. `y` and `z` don't already exist in egraph
-        rewrite!("test"; "?x = (x), ?y = (y), ?z = (z)" |- "?y = (y), ?y = (z)"),
-    ];
-    let mut runner = Runner::default().with_egraph(egraph).run(&rules);
-    let y = runner.egraph.add_expr(&"(y)".parse().unwrap());
-    let z = runner.egraph.add_expr(&"(z)".parse().unwrap());
-    assert_eq!(runner.egraph.find(y), runner.egraph.find(z));
-}
