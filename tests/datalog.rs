@@ -101,3 +101,19 @@ fn ctx_transfer() {
     assert!(runner.egraph.find(y1) != runner.egraph.find(z1));
     assert!(runner.egraph.find(x1) != runner.egraph.find(z1));
 }
+
+#[test]
+fn unbound_rhs() {
+    let mut egraph = EGraph::<Lang, ()>::default();
+    let x = egraph.add_expr(&"(x)".parse().unwrap());
+    let rules = vec![
+        // Rule creates y and z if they don't exist. Crashes with current parsing
+        rewrite!("test"; "?x = (x)" |- "?y = (y), ?y = (z)"),
+        // Can't fire. `y` and `z` don't already exist in egraph
+        rewrite!("test"; "?x = (x), ?y = (y), ?z = (z)" |- "?y = (y), ?y = (z)"),
+    ];
+    let mut runner = Runner::default().with_egraph(egraph).run(&rules);
+    let y = runner.egraph.add_expr(&"(y)".parse().unwrap());
+    let z = runner.egraph.add_expr(&"(z)".parse().unwrap());
+    assert_eq!(runner.egraph.find(y), runner.egraph.find(z));
+}
