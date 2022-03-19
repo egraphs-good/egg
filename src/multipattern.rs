@@ -222,15 +222,15 @@ mod tests {
         assert_eq!(n_matches("?x = (f a a), ?x = (f a c)"), 0);
         assert_eq!(n_matches("?x = (f a b), ?x = (f a c)"), 1);
     }
-    
+
     #[test]
     fn unbound_rhs() {
         let mut egraph = EGraph::default();
         let _x = egraph.add_expr(&"(x)".parse().unwrap());
         let rules = vec![
-            // Rule creates y and z if they don't exist. Crashes with current parsing
+            // Rule creates y and z if they don't exist.
             rewrite!("rule1"; "?x = (x)" |- "?y = (y), ?y = (z)"),
-            // Can't fire. `y` and `z` don't already exist in egraph
+            // Can't fire without above rule. `y` and `z` don't already exist in egraph
             rewrite!("rule2"; "?x = (x), ?y = (y), ?z = (z)" |- "?y = (y), ?y = (z)"),
         ];
         let mut runner = Runner::default().with_egraph(egraph).run(&rules);
