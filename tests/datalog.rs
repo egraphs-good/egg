@@ -72,5 +72,3 @@ fn path2() {
     runner.egraph.check_not("(pred (path 4 1))");
     runner.egraph.check_not("(pred (path 3 1))");
 }
-
-
