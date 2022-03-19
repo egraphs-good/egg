@@ -153,12 +153,14 @@ impl<L: Language, A: Analysis<L>> Applier<L, A> for MultiPattern<L> {
         let mut added = vec![];
         for mat in matches {
             for subst in &mat.substs {
+                let mut subst = subst.clone();
                 let mut id_buf = vec![];
                 for (i, (v, p)) in self.asts.iter().enumerate() {
                     id_buf.resize(p.as_ref().len(), 0.into());
-                    let id1 = crate::pattern::apply_pat(&mut id_buf, p.as_ref(), egraph, subst);
-                    let id2 = subst[*v];
-                    egraph.union(id1, id2);
+                    let id1 = crate::pattern::apply_pat(&mut id_buf, p.as_ref(), egraph, &subst);
+                    if let Some(id2) = subst.insert(*v, id1) {
+                        egraph.union(id1, id2);
+                    }
                     if i == 0 {
                         added.push(id1)
                     }
@@ -190,6 +192,12 @@ mod tests {
 
     type EGraph = crate::EGraph<S, ()>;
 
+    impl EGraph {
+        fn add_string(self: &mut Self, s: &str) -> Id {
+            self.add_expr(&s.parse().unwrap())
+        }
+    }
+
     #[test]
     fn multi_patterns() {
         crate::init_logger();
@@ -213,5 +221,50 @@ mod tests {
 
         assert_eq!(n_matches("?x = (f a a), ?x = (f a c)"), 0);
         assert_eq!(n_matches("?x = (f a b), ?x = (f a c)"), 1);
+    }
+    
+    #[test]
+    fn unbound_rhs() {
+        let mut egraph = EGraph::default();
+        let _x = egraph.add_expr(&"(x)".parse().unwrap());
+        let rules = vec![
+            // Rule creates y and z if they don't exist. Crashes with current parsing
+            rewrite!("rule1"; "?x = (x)" |- "?y = (y), ?y = (z)"),
+            // Can't fire. `y` and `z` don't already exist in egraph
+            rewrite!("rule2"; "?x = (x), ?y = (y), ?z = (z)" |- "?y = (y), ?y = (z)"),
+        ];
+        let mut runner = Runner::default().with_egraph(egraph).run(&rules);
+        let y = runner.egraph.add_expr(&"(y)".parse().unwrap());
+        let z = runner.egraph.add_expr(&"(z)".parse().unwrap());
+        assert_eq!(runner.egraph.find(y), runner.egraph.find(z));
+    }
+
+    #[test]
+    fn ctx_transfer() {
+        let mut egraph = EGraph::default();
+        egraph.add_string("(lte ctx1 ctx2)");
+        egraph.add_string("(lte ctx2 ctx2)");
+        egraph.add_string("(lte ctx1 ctx1)");
+        let x2 = egraph.add_string("(tag x ctx2)");
+        let y2 = egraph.add_string("(tag y ctx2)");
+        let z2 = egraph.add_string("(tag z ctx2)");
+
+        let x1 = egraph.add_string("(tag x ctx1)");
+        let y1 = egraph.add_string("(tag y ctx1)");
+        let z1 = egraph.add_string("(tag z ctx2)");
+        egraph.union(x1, y1);
+        egraph.union(y2, z2);
+        let rules = vec![
+            rewrite!("context-transfer"; "?x = (tag ?a ?ctx1) = (tag ?b ?ctx1), ?t = (lte ?ctx1 ?ctx2), ?a1 = (tag ?a ?ctx2), ?b1 = (tag ?b ?ctx2)" |- "?a1 = ?b1"),
+        ];
+        let runner = Runner::default().with_egraph(egraph).run(&rules);
+        assert_eq!(runner.egraph.find(x1), runner.egraph.find(y1));
+        assert_eq!(runner.egraph.find(y2), runner.egraph.find(z2));
+
+        assert_eq!(runner.egraph.find(x2), runner.egraph.find(y2));
+        assert_eq!(runner.egraph.find(x2), runner.egraph.find(z2));
+
+        assert!(runner.egraph.find(y1) != runner.egraph.find(z1));
+        assert!(runner.egraph.find(x1) != runner.egraph.find(z1));
     }
 }
