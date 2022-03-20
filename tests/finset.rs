@@ -16,15 +16,15 @@ define_language! {
   //      "i" = Integral([Id; 2]),
 
         "+" = Add([Id; 2]),
-        "-" = Sub([Id; 2]),
+     //   "-" = Sub([Id; 2]),
         "*" = Mul([Id; 2]),
         "/" = Div([Id; 2]),
         "pow" = Pow([Id; 2]),
         "ln" = Ln(Id),
         "sqrt" = Sqrt(Id),
 
-        "sin" = Sin(Id),
-        "cos" = Cos(Id),
+      //  "sin" = Sin(Id),
+     //   "cos" = Cos(Id),
 
         Constant(Constant),
         Symbol(Symbol),
@@ -62,10 +62,10 @@ impl Analysis<Math> for ConstantFold {
                 x(a)? + x(b)?,
                 format!("(+ {} {})", x(a)?, x(b)?).parse().unwrap(),
             ),
-            Math::Sub([a, b]) => (
-                x(a)? - x(b)?,
-                format!("(- {} {})", x(a)?, x(b)?).parse().unwrap(),
-            ),
+         //   Math::Sub([a, b]) => (
+         //       x(a)? - x(b)?,
+         //       format!("(- {} {})", x(a)?, x(b)?).parse().unwrap(),
+         //   ),
             Math::Mul([a, b]) => (
                 x(a)? * x(b)?,
                 format!("(* {} {})", x(a)?, x(b)?).parse().unwrap(),
@@ -163,7 +163,7 @@ pub fn rules() -> Vec<Rewrite> { vec![
     rw!("assoc-add"; "(+ ?a (+ ?b ?c))" => "(+ (+ ?a ?b) ?c)"),
     rw!("assoc-mul"; "(* ?a (* ?b ?c))" => "(* (* ?a ?b) ?c)"),
 
-    rw!("sub-canon"; "(- ?a ?b)" => "(+ ?a (* -1 ?b))"),
+   // rw!("sub-canon"; "(- ?a ?b)" => "(+ ?a (* -1 ?b))"),
     rw!("div-canon"; "(/ ?a ?b)" => "(* ?a (pow ?b -1))" if is_not_zero("?b")),
     // rw!("canon-sub"; "(+ ?a (* -1 ?b))"   => "(- ?a ?b)"),
     // rw!("canon-div"; "(* ?a (pow ?b -1))" => "(/ ?a ?b)" if is_not_zero("?b")),
@@ -175,7 +175,7 @@ pub fn rules() -> Vec<Rewrite> { vec![
     rw!("add-zero"; "?a" => "(+ ?a 0)"),
     rw!("mul-one";  "?a" => "(* ?a 1)"),
 
-    rw!("cancel-sub"; "(- ?a ?a)" => "0"),
+   // rw!("cancel-sub"; "(- ?a ?a)" => "0"),
     rw!("cancel-div"; "(/ ?a ?a)" => "1" if is_not_zero("?a")),
 
     rw!("distribute"; "(* ?a (+ ?b ?c))"        => "(+ (* ?a ?b) (* ?a ?c))"),
@@ -246,11 +246,12 @@ egg::test_fn! {
 egg::test_fn! {math_simplify_add, rules(), "(+ x (+ x (+ x x)))" => "(* 4 x)" }
 egg::test_fn! {math_powers, rules(), "(* (pow 2 x) (pow 2 y))" => "(pow 2 (+ x y))"}
 
-egg::test_fn! {
-    math_simplify_const, rules(),
-    "(+ 1 (- a (* (- 2 1) a)))" => "1"
-}
+//egg::test_fn! {
+//    math_simplify_const, rules(),
+//    "(+ 1 (- a (* (- 2 1) a)))" => "1"
+//}
 
+/*
 egg::test_fn! {
     math_simplify_root, rules(),
     runner = Runner::default().with_node_limit(75_000),
@@ -263,7 +264,7 @@ egg::test_fn! {
     =>
     "(/ 1 (sqrt five))"
 }
-
+*/
 egg::test_fn! {
     math_simplify_factor, rules(),
     "(* (+ x 3) (+ x 1))"
@@ -342,8 +343,8 @@ fn math_ematching_bench() {
    //     "(i (* (cos x) x) x)",
     //    "(d x (+ 1 (* 2 x)))",
     //    "(d x (- (pow x 3) (* 7 (pow x 2))))",
-        "(+ (* y (+ x y)) (- (+ x 2) (+ x x)))",
-        "(/ 1 (- (/ (+ 1 (sqrt five)) 2) (/ (- 1 (sqrt five)) 2)))",
+    //    "(+ (* y (+ x y)) (- (+ x 2) (+ x x)))",
+    //    "(/ 1 (- (/ (+ 1 (sqrt five)) 2) (/ (- 1 (sqrt five)) 2)))",
     ];
 
     let extra_patterns = &[
@@ -351,8 +352,8 @@ fn math_ematching_bench() {
         "(+ (+ ?a ?b) ?c)",
         "(* ?a (* ?b ?c))",
         "(* (* ?a ?b) ?c)",
-        "(+ ?a (* -1 ?b))",
-        "(* ?a (pow ?b -1))",
+      //  "(+ ?a (* -1 ?b))",
+      //  "(* ?a (pow ?b -1))",
         "(* ?a (+ ?b ?c))",
         "(pow ?a (+ ?b ?c))",
         "(+ (* ?a ?b) (* ?a ?c))",
@@ -364,8 +365,8 @@ fn math_ematching_bench() {
      //   "(+ (* ?a (d ?x ?b)) (* ?b (d ?x ?a)))",
      //   "(d ?x (sin ?x))",
      //   "(d ?x (cos ?x))",
-        "(* -1 (sin ?x))",
-        "(* -1 (cos ?x))",
+     //   "(* -1 (sin ?x))",
+      //  "(* -1 (cos ?x))",
      //   "(i (cos ?x) ?x)",
      //   "(i (sin ?x) ?x)",
       //  "(d ?x (ln ?x))",
