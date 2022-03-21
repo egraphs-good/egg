@@ -8,7 +8,7 @@ pub type Constant = NotNan<f64>;
 
 // http://chadbrewbaker.github.io/algebra/haskell/functional/programming/2016/01/27/algebraRules.html
 // Emily Reihl, Category Theory in Context example 1.4.9 
-
+// TODO , after this extend to combinatorial species https://github.com/akc/spe
 
 define_language! {
     pub enum Math {
@@ -18,21 +18,23 @@ define_language! {
         "+" = Add([Id; 2]),
      //   "-" = Sub([Id; 2]),
         "*" = Mul([Id; 2]),
-        "/" = Div([Id; 2]),
+     //   "/" = Div([Id; 2]),
         "pow" = Pow([Id; 2]),
-        "ln" = Ln(Id),
-        "sqrt" = Sqrt(Id),
+      //  "ln" = Ln(Id),
+      //  "sqrt" = Sqrt(Id),
 
       //  "sin" = Sin(Id),
      //   "cos" = Cos(Id),
 
-        Constant(Constant),
+     //   Constant(Constant),
         Symbol(Symbol),
     }
 }
 
 // You could use egg::AstSize, but this is useful for debugging, since
 // it will really try to get rid of the Diff operator
+
+/*
 pub struct MathCostFn;
 impl egg::CostFunction<Math> for MathCostFn {
     type Cost = usize;
@@ -41,13 +43,13 @@ impl egg::CostFunction<Math> for MathCostFn {
         C: FnMut(Id) -> Self::Cost,
     {
         let op_cost = match enode {
-     //       Math::Diff(..) => 100,
+     //      Math::Diff(..) => 100,
      //       Math::Integral(..) => 100,
-            _ => 1,
+     //       _ => 1,
         };
         enode.fold(op_cost, |sum, i| sum + costs(i))
     }
-}
+} */
 
 #[derive(Default)]
 pub struct ConstantFold;
@@ -57,7 +59,7 @@ impl Analysis<Math> for ConstantFold {
     fn make(egraph: &EGraph, enode: &Math) -> Self::Data {
         let x = |i: &Id| egraph[*i].data.as_ref().map(|d| d.0);
         Some(match enode {
-            Math::Constant(c) => (*c, format!("{}", c).parse().unwrap()),
+          //  Math::Constant(c) => (*c, format!("{}", c).parse().unwrap()),
             Math::Add([a, b]) => (
                 x(a)? + x(b)?,
                 format!("(+ {} {})", x(a)?, x(b)?).parse().unwrap(),
@@ -70,10 +72,10 @@ impl Analysis<Math> for ConstantFold {
                 x(a)? * x(b)?,
                 format!("(* {} {})", x(a)?, x(b)?).parse().unwrap(),
             ),
-            Math::Div([a, b]) if x(b) != Some(NotNan::new(0.0).unwrap()) => (
-                x(a)? / x(b)?,
-                format!("(/ {} {})", x(a)?, x(b)?).parse().unwrap(),
-            ),
+          //  Math::Div([a, b]) if x(b) != Some(NotNan::new(0.0).unwrap()) => (
+          //      x(a)? / x(b)?,
+           //     format!("(/ {} {})", x(a)?, x(b)?).parse().unwrap(),
+          //  ),
             _ => return None,
         })
     }
@@ -105,8 +107,8 @@ impl Analysis<Math> for ConstantFold {
                     "constant_fold".to_string(),
                 );
             } else {
-                let added = egraph.add(Math::Constant(c));
-                egraph.union(id, added);
+         //       let added = egraph.add(Math::Constant(c));
+           //     egraph.union(id, added);
             }
             // to not prune, comment this out
             egraph[id].nodes.retain(|n| n.is_leaf());
@@ -164,31 +166,31 @@ pub fn rules() -> Vec<Rewrite> { vec![
     rw!("assoc-mul"; "(* ?a (* ?b ?c))" => "(* (* ?a ?b) ?c)"),
 
    // rw!("sub-canon"; "(- ?a ?b)" => "(+ ?a (* -1 ?b))"),
-    rw!("div-canon"; "(/ ?a ?b)" => "(* ?a (pow ?b -1))" if is_not_zero("?b")),
+   // rw!("div-canon"; "(/ ?a ?b)" => "(* ?a (pow ?b -1))" if is_not_zero("?b")),
     // rw!("canon-sub"; "(+ ?a (* -1 ?b))"   => "(- ?a ?b)"),
     // rw!("canon-div"; "(* ?a (pow ?b -1))" => "(/ ?a ?b)" if is_not_zero("?b")),
 
-    rw!("zero-add"; "(+ ?a 0)" => "?a"),
-    rw!("zero-mul"; "(* ?a 0)" => "0"),
-    rw!("one-mul";  "(* ?a 1)" => "?a"),
+ //   rw!("zero-add"; "(+ ?a 0)" => "?a"),
+ //   rw!("zero-mul"; "(* ?a 0)" => "0"),
+ //   rw!("one-mul";  "(* ?a 1)" => "?a"),
 
-    rw!("add-zero"; "?a" => "(+ ?a 0)"),
-    rw!("mul-one";  "?a" => "(* ?a 1)"),
+  //  rw!("add-zero"; "?a" => "(+ ?a 0)"),
+  //  rw!("mul-one";  "?a" => "(* ?a 1)"),
 
    // rw!("cancel-sub"; "(- ?a ?a)" => "0"),
-    rw!("cancel-div"; "(/ ?a ?a)" => "1" if is_not_zero("?a")),
+  //  rw!("cancel-div"; "(/ ?a ?a)" => "1" if is_not_zero("?a")),
 
     rw!("distribute"; "(* ?a (+ ?b ?c))"        => "(+ (* ?a ?b) (* ?a ?c))"),
     rw!("factor"    ; "(+ (* ?a ?b) (* ?a ?c))" => "(* ?a (+ ?b ?c))"),
 
     rw!("pow-mul"; "(* (pow ?a ?b) (pow ?a ?c))" => "(pow ?a (+ ?b ?c))"),
-    rw!("pow0"; "(pow ?x 0)" => "1"
-        if is_not_zero("?x")),
-    rw!("pow1"; "(pow ?x 1)" => "?x"),
-    rw!("pow2"; "(pow ?x 2)" => "(* ?x ?x)"),
-    rw!("pow-recip"; "(pow ?x -1)" => "(/ 1 ?x)"
-        if is_not_zero("?x")),
-    rw!("recip-mul-div"; "(* ?x (/ 1 ?x))" => "1" if is_not_zero("?x")),
+ //   rw!("pow0"; "(pow ?x 0)" => "1"
+ //       if is_not_zero("?x")),
+ //   rw!("pow1"; "(pow ?x 1)" => "?x"),
+ //   rw!("pow2"; "(pow ?x 2)" => "(* ?x ?x)"),
+  //  rw!("pow-recip"; "(pow ?x -1)" => "(/ 1 ?x)"
+   //     if is_not_zero("?x")),
+  //  rw!("recip-mul-div"; "(* ?x (/ 1 ?x))" => "1" if is_not_zero("?x")),
 
    // rw!("d-variable"; "(d ?x ?x)" => "1" if is_sym("?x")),
    // rw!("d-constant"; "(d ?x ?c)" => "0" if is_sym("?x") if is_const_or_distinct_var("?c", "?x")),
@@ -223,6 +225,8 @@ pub fn rules() -> Vec<Rewrite> { vec![
   //      "(- (* ?a (i ?b ?x)) (i (* (d ?x ?a) (i ?b ?x)) ?x))"),
 ]}
 
+/*
+
 egg::test_fn! {
     math_associate_adds, [
         rw!("comm-add"; "(+ ?a ?b)" => "(+ ?b ?a)"),
@@ -236,15 +240,16 @@ egg::test_fn! {
     "(+ 7 (+ 6 (+ 5 (+ 4 (+ 3 (+ 2 1))))))"
     @check |r: Runner<Math, ()>| assert_eq!(r.egraph.number_of_classes(), 127)
 }
+*/
 
-egg::test_fn! {
-    #[should_panic(expected = "Could not prove goal 0")]
-    math_fail, rules(),
-    "(+ x y)" => "(/ x y)"
-}
+//egg::test_fn! {
+//    #[should_panic(expected = "Could not prove goal 0")]
+//    math_fail, rules(),
+//    "(+ x y)" => "(/ x y)"
+//}
 
-egg::test_fn! {math_simplify_add, rules(), "(+ x (+ x (+ x x)))" => "(* 4 x)" }
-egg::test_fn! {math_powers, rules(), "(* (pow 2 x) (pow 2 y))" => "(pow 2 (+ x y))"}
+//egg::test_fn! {math_simplify_add, rules(), "(+ x (+ x (+ x x)))" => "(* 4 x)" }
+//egg::test_fn! {math_powers, rules(), "(* (pow 2 x) (pow 2 y))" => "(pow 2 (+ x y))"}
 
 //egg::test_fn! {
 //    math_simplify_const, rules(),
@@ -265,12 +270,16 @@ egg::test_fn! {
     "(/ 1 (sqrt five))"
 }
 */
+
+/*
 egg::test_fn! {
     math_simplify_factor, rules(),
     "(* (+ x 3) (+ x 1))"
     =>
     "(+ (+ (* x x) (* 4 x)) 3)"
 }
+*/
+
 
 //egg::test_fn! {math_diff_same,      rules(), "(d x x)" => "1"}
 //egg::test_fn! {math_diff_different, rules(), "(d x y)" => "0"}
@@ -323,6 +332,7 @@ egg::test_fn! {
 //    integ_part3, rules(), "(i (ln x) x)" => "(- (* x (ln x)) x)"
 //}
 
+/*
 #[test]
 fn assoc_mul_saturates() {
     let expr: RecExpr<Math> = "(* x 1)".parse().unwrap();
@@ -333,7 +343,7 @@ fn assoc_mul_saturates() {
         .run(&rules());
 
     assert!(matches!(runner.stop_reason, Some(StopReason::Saturated)));
-}
+} */
 
 #[test]
 fn math_ematching_bench() {
@@ -358,7 +368,7 @@ fn math_ematching_bench() {
         "(pow ?a (+ ?b ?c))",
         "(+ (* ?a ?b) (* ?a ?c))",
         "(* (pow ?a ?b) (pow ?a ?c))",
-        "(* ?x (/ 1 ?x))",
+      //  "(* ?x (/ 1 ?x))",
      //   "(d ?x (+ ?a ?b))",
       //  "(+ (d ?x ?a) (d ?x ?b))",
      //   "(d ?x (* ?a ?b))",
@@ -373,7 +383,7 @@ fn math_ematching_bench() {
      //   "(d ?x (pow ?f ?g))",
       //  "(* (pow ?f ?g) (+ (* (d ?x ?f) (/ ?g ?f)) (* (d ?x ?g) (ln ?f))))",
       //  "(i (pow ?x ?c) ?x)",
-        "(/ (pow ?x (+ ?c 1)) (+ ?c 1))",
+     //   "(/ (pow ?x (+ ?c 1)) (+ ?c 1))",
       //  "(i (+ ?f ?g) ?x)",
       //  "(i (- ?f ?g) ?x)",
       //  "(+ (i ?f ?x) (i ?g ?x))",
