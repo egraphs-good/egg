@@ -165,6 +165,14 @@ pub fn rules() -> Vec<Rewrite> { vec![
     rw!("assoc-add"; "(+ ?a (+ ?b ?c))" => "(+ (+ ?a ?b) ?c)"),
     rw!("assoc-mul"; "(* ?a (* ?b ?c))" => "(* (* ?a ?b) ?c)"),
 
+    rw!("distribute"; "(* ?a (+ ?b ?c))"        => "(+ (* ?a ?b) (* ?a ?c))"),
+    rw!("factor"    ; "(+ (* ?a ?b) (* ?a ?c))" => "(* ?a (+ ?b ?c))"),
+    rw!("pow-mul"; "(* (pow ?a ?b) (pow ?a ?c))" => "(pow ?a (+ ?b ?c))"),
+    rw!("curry"; "(pow (pow ?a ?m) ?n)" => "(pow ?a (* ?m ?n))"),
+    rw!("co-curry"; "(* (pow ?a  ?m) (pow ?b  ?m)  )" => "(pow (* ?a ?b) ?m )"),
+    rw!("domain-split"; "(* (pow ?a  ?m) (pow ?a  ?n)  )" => "(pow a (+ ?m ?n))"), 
+
+
    // rw!("sub-canon"; "(- ?a ?b)" => "(+ ?a (* -1 ?b))"),
    // rw!("div-canon"; "(/ ?a ?b)" => "(* ?a (pow ?b -1))" if is_not_zero("?b")),
     // rw!("canon-sub"; "(+ ?a (* -1 ?b))"   => "(- ?a ?b)"),
@@ -180,10 +188,7 @@ pub fn rules() -> Vec<Rewrite> { vec![
    // rw!("cancel-sub"; "(- ?a ?a)" => "0"),
   //  rw!("cancel-div"; "(/ ?a ?a)" => "1" if is_not_zero("?a")),
 
-    rw!("distribute"; "(* ?a (+ ?b ?c))"        => "(+ (* ?a ?b) (* ?a ?c))"),
-    rw!("factor"    ; "(+ (* ?a ?b) (* ?a ?c))" => "(* ?a (+ ?b ?c))"),
-
-    rw!("pow-mul"; "(* (pow ?a ?b) (pow ?a ?c))" => "(pow ?a (+ ?b ?c))"),
+  
  //   rw!("pow0"; "(pow ?x 0)" => "1"
  //       if is_not_zero("?x")),
  //   rw!("pow1"; "(pow ?x 1)" => "?x"),
@@ -307,9 +312,9 @@ egg::test_fn! {
     "(* x (- (* 3 x) 14))"
 }
 */
-//egg::test_fn! {
-//    integ_one, rules(), "(i 1 x)" => "x"
-//}
+egg::test_fn! {
+    integ_one, rules(), "(x)" => "x"
+}
 
 //egg::test_fn! {
 //    integ_sin, rules(), "(i (cos x) x)" => "(sin x)"
@@ -348,6 +353,7 @@ fn assoc_mul_saturates() {
 #[test]
 fn math_ematching_bench() {
     let exprs = &[
+        "(* ?a (* ?b ?c))",
     //    "(i (ln x) x)",
     //    "(i (+ x (cos x)) x)",
    //     "(i (* (cos x) x) x)",
@@ -392,5 +398,5 @@ fn math_ematching_bench() {
        // "(- (* ?a (i ?b ?x)) (i (* (d ?x ?a) (i ?b ?x)) ?x))",
     ];
 
-    egg::test::bench_egraph("math", rules(), exprs, extra_patterns);
+    egg::test::bench_egraph("finset", rules(), exprs, extra_patterns);
 }
