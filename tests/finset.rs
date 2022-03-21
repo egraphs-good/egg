@@ -8,7 +8,10 @@ pub type Constant = NotNan<f64>;
 
 // http://chadbrewbaker.github.io/algebra/haskell/functional/programming/2016/01/27/algebraRules.html
 // Emily Reihl, Category Theory in Context example 1.4.9 
+
+
 // TODO , after this extend to combinatorial species https://github.com/akc/spe
+// that will allow for stuff like "Seven Trees in One", Andreas Blas https://arxiv.org/abs/math/9405205 
 
 define_language! {
     pub enum Math {
