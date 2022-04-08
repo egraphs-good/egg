@@ -173,7 +173,7 @@ where
             solution.raw().secondary_status()
         );
 
-        let mut todo: Vec<Id> = roots.iter().copied().collect();
+        let mut todo: Vec<Id> = roots.iter().map(|id| self.egraph.find(*id)).collect();
         let mut expr = RecExpr::default();
         // converts e-class ids to e-node ids
         let mut ids: HashMap<Id, Id> = HashMap::default();
@@ -188,7 +188,7 @@ where
             let node_idx = v.nodes.iter().position(|&n| solution.col(n) > 0.0).unwrap();
             let node = &self.egraph[id].nodes[node_idx];
             if node.all(|child| ids.contains_key(&child)) {
-                let new_id = expr.add(node.clone().map_children(|i| ids[&i]));
+                let new_id = expr.add(node.clone().map_children(|i| ids[&self.egraph.find(i)]));
                 ids.insert(id, new_id);
                 todo.pop();
             } else {
@@ -196,7 +196,7 @@ where
             }
         }
 
-        let root_idxs = roots.iter().map(|root| ids[&egraph.find(*root)]).collect();
+        let root_idxs = roots.iter().map(|root| ids[&root]).collect();
 
         assert!(expr.is_dag(), "LpExtract found a cyclic term!: {:?}", expr);
         (expr, root_idxs)
