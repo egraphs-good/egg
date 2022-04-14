@@ -25,6 +25,9 @@ Then, set the environment variable `RUST_LOG=egg=info`, or use `warn` or `debug`
 for less or more logging.
 
 */
+#![doc = "## Simple Example\n```"]
+#![doc = include_str!("../tests/simple.rs")]
+#![doc = "\n```"]
 
 mod macros;
 

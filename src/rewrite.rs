@@ -1,6 +1,6 @@
 use pattern::apply_pat;
 use std::fmt::{self, Debug, Display};
-use std::{any::Any, sync::Arc};
+use std::sync::Arc;
 
 use crate::*;
 
@@ -27,19 +27,20 @@ pub struct Rewrite<L, N> {
 impl<L, N> Debug for Rewrite<L, N>
 where
     L: Language + Display + 'static,
-    N: 'static,
+    N: Analysis<L> + 'static,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut d = f.debug_struct("Rewrite");
         d.field("name", &self.name);
 
-        if let Some(pat) = Any::downcast_ref::<Pattern<L>>(&self.searcher) {
+        // if let Some(pat) = Any::downcast_ref::<dyn Pattern<L>>(&self.searcher) {
+        if let Some(pat) = self.searcher.get_pattern_ast() {
             d.field("searcher", &DisplayAsDebug(pat));
         } else {
             d.field("searcher", &"<< searcher >>");
         }
 
-        if let Some(pat) = Any::downcast_ref::<Pattern<L>>(&self.applier) {
+        if let Some(pat) = self.applier.get_pattern_ast() {
             d.field("applier", &DisplayAsDebug(pat));
         } else {
             d.field("applier", &"<< applier >>");
