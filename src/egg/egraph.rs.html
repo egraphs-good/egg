@@ -1,7 +1,9 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/egraph.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>egraph.rs - source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled ><script id="default-settings"></script><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="icon" type="image/svg+xml" href="../../favicon.svg">
-<link rel="alternate icon" type="image/png" href="../../favicon-16x16.png">
-<link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../egg/index.html'><div class='logo-container rust-logo'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu"><img src="../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices" role="menu"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" class="help-button">?</button>
-                <a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/egraph.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>egraph.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script src="../../crates.js"></script><script defer src="../../main.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script>
+    <noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button><a class="sidebar-logo" href="../../egg/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div>
+        </a><h2 class="location"></h2>
+    </nav>
+    <nav class="sidebar"><a class="sidebar-logo" href="../../egg/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div>
+        </a></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../../egg/index.html"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></a><nav class="sub"><div class="theme-picker hidden"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu" title="themes"><img width="22" height="22" alt="Pick another theme!" src="../../brush.svg"></button><div id="theme-choices" role="menu"></div></div><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><button type="button" id="help-button" title="help">?</button><a id="settings-menu" href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../wheel.svg"></a></div></form></nav></div><section id="main-content" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">  1</span>
 <span id="2">  2</span>
 <span id="3">  3</span>
 <span id="4">  4</span>
@@ -975,15 +977,14 @@
 <span id="972">972</span>
 <span id="973">973</span>
 <span id="974">974</span>
-</pre><div class="example-wrap"><pre class="rust ">
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="kw-2">*</span>;
+</pre><pre class="rust"><code><span class="kw">use</span> <span class="kw">crate</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident">std</span>::{
-    <span class="ident">borrow</span>::<span class="ident">BorrowMut</span>,
+    <span class="ident">borrow::BorrowMut</span>,
     <span class="ident">fmt</span>::{<span class="self">self</span>, <span class="ident">Debug</span>, <span class="ident">Display</span>},
 };
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde-1&quot;</span>)]</span>
-<span class="kw">use</span> ::<span class="ident">serde</span>::{<span class="ident">Deserialize</span>, <span class="ident">Serialize</span>};
+<span class="kw">use</span> <span class="ident">::serde</span>::{<span class="ident">Deserialize</span>, <span class="ident">Serialize</span>};
 
 <span class="kw">use</span> <span class="ident">log</span>::<span class="kw-2">*</span>;
 
@@ -1051,10 +1052,10 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
             <span class="ident">deserialize</span> <span class="op">=</span> <span class="string">&quot;N::Data: for&lt;&#39;a&gt; Deserialize&lt;&#39;a&gt;&quot;</span>,
         ))
     )]</span>
-    <span class="ident">classes</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">Id</span>, <span class="ident">EClass</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span>::<span class="ident">Data</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">classes</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">Id</span>, <span class="ident">EClass</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N::Data</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde-1&quot;</span>, <span class="ident">serde</span>(<span class="ident">skip</span>))]</span>
     <span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde-1&quot;</span>, <span class="ident">serde</span>(<span class="ident">default</span> <span class="op">=</span> <span class="string">&quot;default_classes_by_op&quot;</span>))]</span>
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">classes_by_op</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">Discriminant</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>, <span class="ident">HashSet</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">classes_by_op</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">std::mem::Discriminant</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>, <span class="ident">HashSet</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="doccomment">/// Whether or not reading operation are allowed on this e-graph.</span>
     <span class="doccomment">/// Mutating operations will set this to `false`, and</span>
     <span class="doccomment">/// [`EGraph::rebuild`] will set it to true.</span>
@@ -1065,19 +1066,19 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
 }
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde-1&quot;</span>)]</span>
-<span class="kw">fn</span> <span class="ident">default_classes_by_op</span><span class="op">&lt;</span><span class="ident">K</span><span class="op">&gt;</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">K</span>, <span class="ident">HashSet</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-    <span class="ident">HashMap</span>::<span class="ident">default</span>()
+<span class="kw">fn</span> <span class="ident">default_classes_by_op</span><span class="op">&lt;</span><span class="ident">K</span><span class="op">&gt;</span>() -&gt; <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">K</span>, <span class="ident">HashSet</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="ident">HashMap::default</span>()
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span>, <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Default</span><span class="op">&gt;</span> <span class="ident">Default</span> <span class="kw">for</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">default</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
-        <span class="self">Self</span>::<span class="ident">new</span>(<span class="ident">N</span>::<span class="ident">default</span>())
+    <span class="kw">fn</span> <span class="ident">default</span>() -&gt; <span class="self">Self</span> {
+        <span class="ident"><span class="self">Self</span>::new</span>(<span class="ident">N::default</span>())
     }
 }
 
 <span class="comment">// manual debug impl to avoid L: Language bound on EGraph defn</span>
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span>, <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">Debug</span> <span class="kw">for</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt</span>::<span class="ident">Formatter</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">fmt::Formatter</span>) -&gt; <span class="ident">fmt::Result</span> {
         <span class="ident">f</span>.<span class="ident">debug_struct</span>(<span class="string">&quot;EGraph&quot;</span>)
             .<span class="ident">field</span>(<span class="string">&quot;memo&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">memo</span>)
             .<span class="ident">field</span>(<span class="string">&quot;classes&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">classes</span>)
@@ -1087,27 +1088,27 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span>, <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span> {
     <span class="doccomment">/// Creates a new, empty `EGraph` with the given `Analysis`</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">analysis</span>: <span class="ident">N</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">analysis</span>: <span class="ident">N</span>) -&gt; <span class="self">Self</span> {
         <span class="self">Self</span> {
             <span class="ident">analysis</span>,
-            <span class="ident">classes</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
-            <span class="ident">unionfind</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
+            <span class="ident">classes</span>: <span class="ident">Default::default</span>(),
+            <span class="ident">unionfind</span>: <span class="ident">Default::default</span>(),
             <span class="ident">clean</span>: <span class="bool-val">false</span>,
             <span class="ident">explain</span>: <span class="prelude-val">None</span>,
-            <span class="ident">pending</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
-            <span class="ident">memo</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
-            <span class="ident">analysis_pending</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
-            <span class="ident">classes_by_op</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
+            <span class="ident">pending</span>: <span class="ident">Default::default</span>(),
+            <span class="ident">memo</span>: <span class="ident">Default::default</span>(),
+            <span class="ident">analysis_pending</span>: <span class="ident">Default::default</span>(),
+            <span class="ident">classes_by_op</span>: <span class="ident">Default::default</span>(),
         }
     }
 
     <span class="doccomment">/// Returns an iterator over the eclasses in the egraph.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">classes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">impl</span> <span class="ident">ExactSizeIterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">EClass</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span>::<span class="ident">Data</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">classes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl</span> <span class="ident">ExactSizeIterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">EClass</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N::Data</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">values</span>()
     }
 
     <span class="doccomment">/// Returns an mutating iterator over the eclasses in the egraph.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">classes_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">impl</span> <span class="ident">ExactSizeIterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">EClass</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span>::<span class="ident">Data</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">classes_mut</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) -&gt; <span class="kw">impl</span> <span class="ident">ExactSizeIterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="kw-2">&amp;mut</span> <span class="ident">EClass</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N::Data</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">values_mut</span>()
     }
 
@@ -1120,7 +1121,7 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
     <span class="doccomment">/// egraph.add(S::leaf(&quot;foo&quot;));</span>
     <span class="doccomment">/// assert!(!egraph.is_empty());</span>
     <span class="doccomment">/// ```</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_empty</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_empty</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">bool</span> {
         <span class="self">self</span>.<span class="ident">memo</span>.<span class="ident">is_empty</span>()
     }
 
@@ -1140,42 +1141,42 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
     <span class="doccomment">/// assert_eq!(egraph.total_size(), 2);</span>
     <span class="doccomment">/// assert_eq!(egraph.number_of_classes(), 1);</span>
     <span class="doccomment">/// ```</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">total_size</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">total_size</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">usize</span> {
         <span class="self">self</span>.<span class="ident">memo</span>.<span class="ident">len</span>()
     }
 
     <span class="doccomment">/// Iterates over the classes, returning the total number of nodes.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">total_number_of_nodes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">total_number_of_nodes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">usize</span> {
         <span class="self">self</span>.<span class="ident">classes</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">c</span><span class="op">|</span> <span class="ident">c</span>.<span class="ident">len</span>()).<span class="ident">sum</span>()
     }
 
     <span class="doccomment">/// Returns the number of eclasses in the egraph.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">number_of_classes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">number_of_classes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">usize</span> {
         <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">len</span>()
     }
 
     <span class="doccomment">/// Enable explanations for this `EGraph`.</span>
     <span class="doccomment">/// This allows the egraph to explain why two expressions are</span>
     <span class="doccomment">/// equivalent with the [`explain_equivalence`](EGraph::explain_equivalence) function.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">with_explanations_enabled</span>(<span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">with_explanations_enabled</span>(<span class="kw-2">mut</span> <span class="self">self</span>) -&gt; <span class="self">Self</span> {
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">explain</span>.<span class="ident">is_some</span>() {
             <span class="kw">return</span> <span class="self">self</span>;
         }
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">total_size</span>() <span class="op">&gt;</span> <span class="number">0</span> {
-            <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;Need to set explanations enabled before adding any expressions to the egraph.&quot;</span>);
+            <span class="macro">panic!</span>(<span class="string">&quot;Need to set explanations enabled before adding any expressions to the egraph.&quot;</span>);
         }
-        <span class="self">self</span>.<span class="ident">explain</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">Explain</span>::<span class="ident">new</span>());
+        <span class="self">self</span>.<span class="ident">explain</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">Explain::new</span>());
         <span class="self">self</span>
     }
 
     <span class="doccomment">/// Disable explanations for this `EGraph`.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">with_explanations_disabled</span>(<span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">with_explanations_disabled</span>(<span class="kw-2">mut</span> <span class="self">self</span>) -&gt; <span class="self">Self</span> {
         <span class="self">self</span>.<span class="ident">explain</span> <span class="op">=</span> <span class="prelude-val">None</span>;
         <span class="self">self</span>
     }
 
     <span class="doccomment">/// Check if explanations are enabled.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">are_explanations_enabled</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">are_explanations_enabled</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">bool</span> {
         <span class="self">self</span>.<span class="ident">explain</span>.<span class="ident">is_some</span>()
     }
 
@@ -1185,13 +1186,13 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
     <span class="doccomment">/// The [`Explanation`] can be used in it&#39;s default tree form or in a less compact</span>
     <span class="doccomment">/// flattened form. Each of these also has a s-expression string representation,</span>
     <span class="doccomment">/// given by [`get_flat_string`](Explanation::get_flat_string) and [`get_string`](Explanation::get_string).</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">explain_equivalence</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">left</span>: <span class="kw-2">&amp;</span><span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>, <span class="ident">right</span>: <span class="kw-2">&amp;</span><span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Explanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">explain_equivalence</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">left</span>: <span class="kw-2">&amp;</span><span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>, <span class="ident">right</span>: <span class="kw-2">&amp;</span><span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) -&gt; <span class="ident">Explanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">left</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">add_expr_internal</span>(<span class="ident">left</span>);
         <span class="kw">let</span> <span class="ident">right</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">add_expr_internal</span>(<span class="ident">right</span>);
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">explain</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">explain</span> {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">explain</span>) <span class="op">=</span> <span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">explain</span> {
             <span class="ident">explain</span>.<span class="ident">explain_equivalence</span>(<span class="ident">left</span>, <span class="ident">right</span>)
         } <span class="kw">else</span> {
-            <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations.&quot;</span>)
+            <span class="macro">panic!</span>(<span class="string">&quot;Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations.&quot;</span>)
         }
     }
 
@@ -1203,42 +1204,42 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
     <span class="doccomment">/// into the egraph and ends with the given `expr`.</span>
     <span class="doccomment">/// Note that this function can be called again to explain any intermediate terms</span>
     <span class="doccomment">/// used in the output [`Explanation`].</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">explain_existance</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">expr</span>: <span class="kw-2">&amp;</span><span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Explanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">explain_existance</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">expr</span>: <span class="kw-2">&amp;</span><span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) -&gt; <span class="ident">Explanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">add_expr_internal</span>(<span class="ident">expr</span>);
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">explain</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">explain</span> {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">explain</span>) <span class="op">=</span> <span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">explain</span> {
             <span class="ident">explain</span>.<span class="ident">explain_existance</span>(<span class="ident">id</span>)
         } <span class="kw">else</span> {
-            <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations.&quot;</span>)
+            <span class="macro">panic!</span>(<span class="string">&quot;Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations.&quot;</span>)
         }
     }
 
     <span class="doccomment">/// Return an [`Explanation`] for why a pattern appears in the egraph.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">explain_existance_pattern</span>(
-        <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
+        <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">pattern</span>: <span class="kw-2">&amp;</span><span class="ident">PatternAst</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
         <span class="ident">subst</span>: <span class="kw-2">&amp;</span><span class="ident">Subst</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Explanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="ident">Explanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">add_instantiation_internal</span>(<span class="ident">pattern</span>, <span class="ident">subst</span>);
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">explain</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">explain</span> {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">explain</span>) <span class="op">=</span> <span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">explain</span> {
             <span class="ident">explain</span>.<span class="ident">explain_existance</span>(<span class="ident">id</span>)
         } <span class="kw">else</span> {
-            <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations.&quot;</span>)
+            <span class="macro">panic!</span>(<span class="string">&quot;Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations.&quot;</span>)
         }
     }
 
     <span class="doccomment">/// Get an explanation for why an expression matches a pattern.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">explain_matches</span>(
-        <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
+        <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">left</span>: <span class="kw-2">&amp;</span><span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
         <span class="ident">right</span>: <span class="kw-2">&amp;</span><span class="ident">PatternAst</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
         <span class="ident">subst</span>: <span class="kw-2">&amp;</span><span class="ident">Subst</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Explanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="ident">Explanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">left</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">add_expr_internal</span>(<span class="ident">left</span>);
         <span class="kw">let</span> <span class="ident">right</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">add_instantiation_internal</span>(<span class="ident">right</span>, <span class="ident">subst</span>);
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">explain</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">explain</span> {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">explain</span>) <span class="op">=</span> <span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">explain</span> {
             <span class="ident">explain</span>.<span class="ident">explain_equivalence</span>(<span class="ident">left</span>, <span class="ident">right</span>)
         } <span class="kw">else</span> {
-            <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations.&quot;</span>);
+            <span class="macro">panic!</span>(<span class="string">&quot;Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations.&quot;</span>);
         }
     }
 
@@ -1259,46 +1260,46 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
     <span class="doccomment">/// egraph.rebuild();</span>
     <span class="doccomment">/// assert_eq!(egraph.find(x), egraph.find(y));</span>
     <span class="doccomment">/// ```</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">find</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">id</span>: <span class="ident">Id</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Id</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">find</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">id</span>: <span class="ident">Id</span>) -&gt; <span class="ident">Id</span> {
         <span class="self">self</span>.<span class="ident">unionfind</span>.<span class="ident">find</span>(<span class="ident">id</span>)
     }
 
     <span class="doccomment">/// This is private, but internals should use this whenever</span>
     <span class="doccomment">/// possible because it does path compression.</span>
-    <span class="kw">fn</span> <span class="ident">find_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">id</span>: <span class="ident">Id</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Id</span> {
+    <span class="kw">fn</span> <span class="ident">find_mut</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">id</span>: <span class="ident">Id</span>) -&gt; <span class="ident">Id</span> {
         <span class="self">self</span>.<span class="ident">unionfind</span>.<span class="ident">find_mut</span>(<span class="ident">id</span>)
     }
 
     <span class="doccomment">/// Creates a [`Dot`] to visualize this egraph. See [`Dot`].</span>
     <span class="doccomment">///</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">dot</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Dot</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">dot</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Dot</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span> {
         <span class="ident">Dot</span> {
             <span class="ident">egraph</span>: <span class="self">self</span>,
-            <span class="ident">config</span>: <span class="macro">vec</span><span class="macro">!</span>[],
+            <span class="ident">config</span>: <span class="macro">vec!</span>[],
             <span class="ident">use_anchors</span>: <span class="bool-val">true</span>,
         }
     }
 }
 
 <span class="doccomment">/// Given an `Id` using the `egraph[id]` syntax, retrieve the e-class.</span>
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span>, <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">std</span>::<span class="ident">ops</span>::<span class="ident">Index</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span> {
-    <span class="kw">type</span> <span class="ident">Output</span> <span class="op">=</span> <span class="ident">EClass</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span>::<span class="ident">Data</span><span class="op">&gt;</span>;
-    <span class="kw">fn</span> <span class="ident">index</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">id</span>: <span class="ident">Id</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">Output</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span>, <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">std::ops::Index</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span> {
+    <span class="kw">type</span> <span class="ident">Output</span> <span class="op">=</span> <span class="ident">EClass</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N::Data</span><span class="op">&gt;</span>;
+    <span class="kw">fn</span> <span class="ident">index</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">id</span>: <span class="ident">Id</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident"><span class="self">Self</span>::Output</span> {
         <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">find</span>(<span class="ident">id</span>);
         <span class="self">self</span>.<span class="ident">classes</span>
             .<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">id</span>)
-            .<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;Invalid id {}&quot;</span>, <span class="ident">id</span>))
+            .<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="macro">panic!</span>(<span class="string">&quot;Invalid id {}&quot;</span>, <span class="ident">id</span>))
     }
 }
 
 <span class="doccomment">/// Given an `Id` using the `&amp;mut egraph[id]` syntax, retrieve a mutable</span>
 <span class="doccomment">/// reference to the e-class.</span>
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span>, <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">std</span>::<span class="ident">ops</span>::<span class="ident">IndexMut</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">index_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">id</span>: <span class="ident">Id</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span>::<span class="ident">Output</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span>, <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">std::ops::IndexMut</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">index_mut</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">id</span>: <span class="ident">Id</span>) -&gt; <span class="kw-2">&amp;mut</span> <span class="ident"><span class="self">Self</span>::Output</span> {
         <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">find_mut</span>(<span class="ident">id</span>);
         <span class="self">self</span>.<span class="ident">classes</span>
             .<span class="ident">get_mut</span>(<span class="kw-2">&amp;</span><span class="ident">id</span>)
-            .<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;Invalid id {}&quot;</span>, <span class="ident">id</span>))
+            .<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="macro">panic!</span>(<span class="string">&quot;Invalid id {}&quot;</span>, <span class="ident">id</span>))
     }
 }
 
@@ -1317,18 +1318,18 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
     <span class="doccomment">/// ```</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// [`add_expr`]: EGraph::add_expr()</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_expr</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">expr</span>: <span class="kw-2">&amp;</span><span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Id</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_expr</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">expr</span>: <span class="kw-2">&amp;</span><span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) -&gt; <span class="ident">Id</span> {
         <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">add_expr_internal</span>(<span class="ident">expr</span>);
         <span class="self">self</span>.<span class="ident">find</span>(<span class="ident">id</span>)
     }
 
     <span class="doccomment">/// Adds an expr to the egraph, and returns the uncanonicalized id of the top enode.</span>
-    <span class="kw">fn</span> <span class="ident">add_expr_internal</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">expr</span>: <span class="kw-2">&amp;</span><span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Id</span> {
+    <span class="kw">fn</span> <span class="ident">add_expr_internal</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">expr</span>: <span class="kw-2">&amp;</span><span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) -&gt; <span class="ident">Id</span> {
         <span class="kw">let</span> <span class="ident">nodes</span> <span class="op">=</span> <span class="ident">expr</span>.<span class="ident">as_ref</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">new_ids</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="ident">nodes</span>.<span class="ident">len</span>());
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">new_node_q</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="ident">nodes</span>.<span class="ident">len</span>());
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">new_ids</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="ident">nodes</span>.<span class="ident">len</span>());
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">new_node_q</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="ident">nodes</span>.<span class="ident">len</span>());
         <span class="kw">for</span> <span class="ident">node</span> <span class="kw">in</span> <span class="ident">nodes</span> {
-            <span class="kw">let</span> <span class="ident">new_node</span> <span class="op">=</span> <span class="ident">node</span>.<span class="ident">clone</span>().<span class="ident">map_children</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="ident">new_ids</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">i</span>)]);
+            <span class="kw">let</span> <span class="ident">new_node</span> <span class="op">=</span> <span class="ident">node</span>.<span class="ident">clone</span>().<span class="ident">map_children</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="ident">new_ids</span>[<span class="ident">usize::from</span>(<span class="ident">i</span>)]);
             <span class="kw">let</span> <span class="ident">size_before</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">unionfind</span>.<span class="ident">size</span>();
             <span class="kw">let</span> <span class="ident">next_id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">add_internal</span>(<span class="ident">new_node</span>);
             <span class="kw">if</span> <span class="self">self</span>.<span class="ident">unionfind</span>.<span class="ident">size</span>() <span class="op">&gt;</span> <span class="ident">size_before</span> {
@@ -1336,11 +1337,11 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
             } <span class="kw">else</span> {
                 <span class="ident">new_node_q</span>.<span class="ident">push</span>(<span class="bool-val">false</span>);
             }
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">explain</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">explain</span> {
+            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">explain</span>) <span class="op">=</span> <span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">explain</span> {
                 <span class="ident">node</span>.<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">child</span><span class="op">|</span> {
                     <span class="comment">// Set the existance reason for new nodes to their parent node.</span>
-                    <span class="kw">if</span> <span class="ident">new_node_q</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">child</span>)] {
-                        <span class="ident">explain</span>.<span class="ident">set_existance_reason</span>(<span class="ident">new_ids</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">child</span>)], <span class="ident">next_id</span>);
+                    <span class="kw">if</span> <span class="ident">new_node_q</span>[<span class="ident">usize::from</span>(<span class="ident">child</span>)] {
+                        <span class="ident">explain</span>.<span class="ident">set_existance_reason</span>(<span class="ident">new_ids</span>[<span class="ident">usize::from</span>(<span class="ident">child</span>)], <span class="ident">next_id</span>);
                     }
                 });
             }
@@ -1351,24 +1352,24 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
 
     <span class="doccomment">/// Adds a [`Pattern`] and a substitution to the [`EGraph`], returning</span>
     <span class="doccomment">/// the eclass of the instantiated pattern.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_instantiation</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">pat</span>: <span class="kw-2">&amp;</span><span class="ident">PatternAst</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>, <span class="ident">subst</span>: <span class="kw-2">&amp;</span><span class="ident">Subst</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Id</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_instantiation</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">pat</span>: <span class="kw-2">&amp;</span><span class="ident">PatternAst</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>, <span class="ident">subst</span>: <span class="kw-2">&amp;</span><span class="ident">Subst</span>) -&gt; <span class="ident">Id</span> {
         <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">add_instantiation_internal</span>(<span class="ident">pat</span>, <span class="ident">subst</span>);
         <span class="self">self</span>.<span class="ident">find</span>(<span class="ident">id</span>)
     }
 
-    <span class="kw">fn</span> <span class="ident">add_instantiation_internal</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">pat</span>: <span class="kw-2">&amp;</span><span class="ident">PatternAst</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>, <span class="ident">subst</span>: <span class="kw-2">&amp;</span><span class="ident">Subst</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Id</span> {
-        <span class="kw">let</span> <span class="ident">nodes</span> <span class="op">=</span> <span class="ident">pat</span>.<span class="ident">as_ref</span>().<span class="ident">as_ref</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">new_ids</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="ident">nodes</span>.<span class="ident">len</span>());
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">new_node_q</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="ident">nodes</span>.<span class="ident">len</span>());
+    <span class="kw">fn</span> <span class="ident">add_instantiation_internal</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">pat</span>: <span class="kw-2">&amp;</span><span class="ident">PatternAst</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>, <span class="ident">subst</span>: <span class="kw-2">&amp;</span><span class="ident">Subst</span>) -&gt; <span class="ident">Id</span> {
+        <span class="kw">let</span> <span class="ident">nodes</span> <span class="op">=</span> <span class="ident">pat</span>.<span class="ident">as_ref</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">new_ids</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="ident">nodes</span>.<span class="ident">len</span>());
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">new_node_q</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="ident">nodes</span>.<span class="ident">len</span>());
         <span class="kw">for</span> <span class="ident">node</span> <span class="kw">in</span> <span class="ident">nodes</span> {
             <span class="kw">match</span> <span class="ident">node</span> {
-                <span class="ident">ENodeOrVar</span>::<span class="ident">Var</span>(<span class="ident">var</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="ident">ENodeOrVar::Var</span>(<span class="ident">var</span>) =&gt; {
                     <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="ident">subst</span>[<span class="kw-2">*</span><span class="ident">var</span>];
                     <span class="ident">new_ids</span>.<span class="ident">push</span>(<span class="ident">id</span>);
                     <span class="ident">new_node_q</span>.<span class="ident">push</span>(<span class="bool-val">false</span>);
                 }
-                <span class="ident">ENodeOrVar</span>::<span class="ident">ENode</span>(<span class="ident">node</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                    <span class="kw">let</span> <span class="ident">new_node</span> <span class="op">=</span> <span class="ident">node</span>.<span class="ident">clone</span>().<span class="ident">map_children</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="ident">new_ids</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">i</span>)]);
+                <span class="ident">ENodeOrVar::ENode</span>(<span class="ident">node</span>) =&gt; {
+                    <span class="kw">let</span> <span class="ident">new_node</span> <span class="op">=</span> <span class="ident">node</span>.<span class="ident">clone</span>().<span class="ident">map_children</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="ident">new_ids</span>[<span class="ident">usize::from</span>(<span class="ident">i</span>)]);
                     <span class="kw">let</span> <span class="ident">size_before</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">unionfind</span>.<span class="ident">size</span>();
                     <span class="kw">let</span> <span class="ident">next_id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">add_internal</span>(<span class="ident">new_node</span>);
                     <span class="kw">if</span> <span class="self">self</span>.<span class="ident">unionfind</span>.<span class="ident">size</span>() <span class="op">&gt;</span> <span class="ident">size_before</span> {
@@ -1377,10 +1378,10 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
                         <span class="ident">new_node_q</span>.<span class="ident">push</span>(<span class="bool-val">false</span>);
                     }
 
-                    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">explain</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">explain</span> {
+                    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">explain</span>) <span class="op">=</span> <span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">explain</span> {
                         <span class="ident">node</span>.<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">child</span><span class="op">|</span> {
-                            <span class="kw">if</span> <span class="ident">new_node_q</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">child</span>)] {
-                                <span class="ident">explain</span>.<span class="ident">set_existance_reason</span>(<span class="ident">new_ids</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">child</span>)], <span class="ident">next_id</span>);
+                            <span class="kw">if</span> <span class="ident">new_node_q</span>[<span class="ident">usize::from</span>(<span class="ident">child</span>)] {
+                                <span class="ident">explain</span>.<span class="ident">set_existance_reason</span>(<span class="ident">new_ids</span>[<span class="ident">usize::from</span>(<span class="ident">child</span>)], <span class="ident">next_id</span>);
                             }
                         });
                     }
@@ -1416,14 +1417,14 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
     <span class="doccomment">/// assert_eq!(egraph.lookup(&amp;mut node_f_ab), Some(id));</span>
     <span class="doccomment">/// assert_eq!(node_f_ab, SymbolLang::new(&quot;f&quot;, vec![a, a]));</span>
     <span class="doccomment">/// ```</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">lookup</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">enode</span>: <span class="ident">B</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">lookup</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">enode</span>: <span class="ident">B</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span>
     <span class="kw">where</span>
         <span class="ident">B</span>: <span class="ident">BorrowMut</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
     {
         <span class="self">self</span>.<span class="ident">lookup_internal</span>(<span class="ident">enode</span>).<span class="ident">map</span>(<span class="op">|</span><span class="ident">id</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">find</span>(<span class="ident">id</span>))
     }
 
-    <span class="kw">fn</span> <span class="ident">lookup_internal</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">enode</span>: <span class="ident">B</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span>
+    <span class="kw">fn</span> <span class="ident">lookup_internal</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">enode</span>: <span class="ident">B</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span>
     <span class="kw">where</span>
         <span class="ident">B</span>: <span class="ident">BorrowMut</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
     {
@@ -1435,17 +1436,17 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
     <span class="doccomment">/// Lookup the eclass of the given [`RecExpr`].</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// Equivalent to the last value in [`EGraph::lookup_expr_ids`].</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">lookup_expr</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">expr</span>: <span class="kw-2">&amp;</span><span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">lookup_expr</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">expr</span>: <span class="kw-2">&amp;</span><span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">lookup_expr_ids</span>(<span class="ident">expr</span>)
             .<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">ids</span><span class="op">|</span> <span class="ident">ids</span>.<span class="ident">last</span>().<span class="ident">copied</span>())
     }
 
     <span class="doccomment">/// Lookup the eclasses of all the nodes in the given [`RecExpr`].</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">lookup_expr_ids</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">expr</span>: <span class="kw-2">&amp;</span><span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">lookup_expr_ids</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">expr</span>: <span class="kw-2">&amp;</span><span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">nodes</span> <span class="op">=</span> <span class="ident">expr</span>.<span class="ident">as_ref</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">new_ids</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="ident">nodes</span>.<span class="ident">len</span>());
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">new_ids</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="ident">nodes</span>.<span class="ident">len</span>());
         <span class="kw">for</span> <span class="ident">node</span> <span class="kw">in</span> <span class="ident">nodes</span> {
-            <span class="kw">let</span> <span class="ident">node</span> <span class="op">=</span> <span class="ident">node</span>.<span class="ident">clone</span>().<span class="ident">map_children</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="ident">new_ids</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">i</span>)]);
+            <span class="kw">let</span> <span class="ident">node</span> <span class="op">=</span> <span class="ident">node</span>.<span class="ident">clone</span>().<span class="ident">map_children</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="ident">new_ids</span>[<span class="ident">usize::from</span>(<span class="ident">i</span>)]);
             <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">lookup</span>(<span class="ident">node</span>)<span class="question-mark">?</span>;
             <span class="ident">new_ids</span>.<span class="ident">push</span>(<span class="ident">id</span>)
         }
@@ -1464,15 +1465,15 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
     <span class="doccomment">/// Like [`union`](EGraph::union), this modifies the e-graph.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// [`add`]: EGraph::add()</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">enode</span>: <span class="ident">L</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Id</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">enode</span>: <span class="ident">L</span>) -&gt; <span class="ident">Id</span> {
         <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">add_internal</span>(<span class="ident">enode</span>);
         <span class="self">self</span>.<span class="ident">find</span>(<span class="ident">id</span>)
     }
 
     <span class="doccomment">/// Adds an enode to the egraph and also returns the the enode&#39;s id (uncanonicalized).</span>
-    <span class="kw">fn</span> <span class="ident">add_internal</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">enode</span>: <span class="ident">L</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Id</span> {
+    <span class="kw">fn</span> <span class="ident">add_internal</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">enode</span>: <span class="ident">L</span>) -&gt; <span class="ident">Id</span> {
         <span class="kw">let</span> <span class="ident">original</span> <span class="op">=</span> <span class="ident">enode</span>.<span class="ident">clone</span>();
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">existing_id</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">lookup_internal</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">enode</span>) {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">existing_id</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">lookup_internal</span>(<span class="kw-2">&amp;mut</span> <span class="ident">enode</span>) {
             <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">find</span>(<span class="ident">existing_id</span>);
             <span class="comment">// when explanations are enabled, we need a new representative for this expr</span>
             <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">explain</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">explain</span>.<span class="ident">as_mut</span>() {
@@ -1482,7 +1483,7 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
                     <span class="kw">let</span> <span class="ident">new_id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">unionfind</span>.<span class="ident">make_set</span>();
                     <span class="ident">explain</span>.<span class="ident">add</span>(<span class="ident">original</span>, <span class="ident">new_id</span>, <span class="ident">new_id</span>);
                     <span class="self">self</span>.<span class="ident">unionfind</span>.<span class="ident">union</span>(<span class="ident">id</span>, <span class="ident">new_id</span>);
-                    <span class="ident">explain</span>.<span class="ident">union</span>(<span class="ident">existing_id</span>, <span class="ident">new_id</span>, <span class="ident">Justification</span>::<span class="ident">Congruence</span>, <span class="bool-val">true</span>);
+                    <span class="ident">explain</span>.<span class="ident">union</span>(<span class="ident">existing_id</span>, <span class="ident">new_id</span>, <span class="ident">Justification::Congruence</span>, <span class="bool-val">true</span>);
                     <span class="ident">new_id</span>
                 }
             } <span class="kw">else</span> {
@@ -1495,21 +1496,21 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
             }
 
             <span class="comment">// now that we updated explanations, run the analysis for the new eclass</span>
-            <span class="ident">N</span>::<span class="ident">modify</span>(<span class="self">self</span>, <span class="ident">id</span>);
+            <span class="ident">N::modify</span>(<span class="self">self</span>, <span class="ident">id</span>);
             <span class="self">self</span>.<span class="ident">clean</span> <span class="op">=</span> <span class="bool-val">false</span>;
             <span class="ident">id</span>
         }
     }
 
     <span class="doccomment">/// This function makes a new eclass in the egraph (but doesn&#39;t touch explanations)</span>
-    <span class="kw">fn</span> <span class="ident">make_new_eclass</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">enode</span>: <span class="ident">L</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Id</span> {
+    <span class="kw">fn</span> <span class="ident">make_new_eclass</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">enode</span>: <span class="ident">L</span>) -&gt; <span class="ident">Id</span> {
         <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">unionfind</span>.<span class="ident">make_set</span>();
-        <span class="ident">log</span>::<span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;  ...adding to {}&quot;</span>, <span class="ident">id</span>);
+        <span class="macro">log::trace!</span>(<span class="string">&quot;  ...adding to {}&quot;</span>, <span class="ident">id</span>);
         <span class="kw">let</span> <span class="ident">class</span> <span class="op">=</span> <span class="ident">EClass</span> {
             <span class="ident">id</span>,
-            <span class="ident">nodes</span>: <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">enode</span>.<span class="ident">clone</span>()],
-            <span class="ident">data</span>: <span class="ident">N</span>::<span class="ident">make</span>(<span class="self">self</span>, <span class="kw-2">&amp;</span><span class="ident">enode</span>),
-            <span class="ident">parents</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
+            <span class="ident">nodes</span>: <span class="macro">vec!</span>[<span class="ident">enode</span>.<span class="ident">clone</span>()],
+            <span class="ident">data</span>: <span class="ident">N::make</span>(<span class="self">self</span>, <span class="kw-2">&amp;</span><span class="ident">enode</span>),
+            <span class="ident">parents</span>: <span class="ident">Default::default</span>(),
         };
 
         <span class="comment">// add this enode to the parent lists of its children</span>
@@ -1522,7 +1523,7 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
         <span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">push</span>((<span class="ident">enode</span>.<span class="ident">clone</span>(), <span class="ident">id</span>));
 
         <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">insert</span>(<span class="ident">id</span>, <span class="ident">class</span>);
-        <span class="macro">assert</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">memo</span>.<span class="ident">insert</span>(<span class="ident">enode</span>, <span class="ident">id</span>).<span class="ident">is_none</span>());
+        <span class="macro">assert!</span>(<span class="self">self</span>.<span class="ident">memo</span>.<span class="ident">insert</span>(<span class="ident">enode</span>, <span class="ident">id</span>).<span class="ident">is_none</span>());
 
         <span class="ident">id</span>
     }
@@ -1531,20 +1532,20 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
     <span class="doccomment">/// Returns a list of id where both expression are represented.</span>
     <span class="doccomment">/// In most cases, there will none or exactly one id.</span>
     <span class="doccomment">///</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">equivs</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">expr1</span>: <span class="kw-2">&amp;</span><span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>, <span class="ident">expr2</span>: <span class="kw-2">&amp;</span><span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">pat1</span> <span class="op">=</span> <span class="ident">Pattern</span>::<span class="ident">from</span>(<span class="ident">expr1</span>.<span class="ident">as_ref</span>());
-        <span class="kw">let</span> <span class="ident">pat2</span> <span class="op">=</span> <span class="ident">Pattern</span>::<span class="ident">from</span>(<span class="ident">expr2</span>.<span class="ident">as_ref</span>());
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">equivs</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">expr1</span>: <span class="kw-2">&amp;</span><span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>, <span class="ident">expr2</span>: <span class="kw-2">&amp;</span><span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">pat1</span> <span class="op">=</span> <span class="ident">Pattern::from</span>(<span class="ident">expr1</span>.<span class="ident">as_ref</span>());
+        <span class="kw">let</span> <span class="ident">pat2</span> <span class="op">=</span> <span class="ident">Pattern::from</span>(<span class="ident">expr2</span>.<span class="ident">as_ref</span>());
         <span class="kw">let</span> <span class="ident">matches1</span> <span class="op">=</span> <span class="ident">pat1</span>.<span class="ident">search</span>(<span class="self">self</span>);
-        <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;Matches1: {:?}&quot;</span>, <span class="ident">matches1</span>);
+        <span class="macro">trace!</span>(<span class="string">&quot;Matches1: {:?}&quot;</span>, <span class="ident">matches1</span>);
 
         <span class="kw">let</span> <span class="ident">matches2</span> <span class="op">=</span> <span class="ident">pat2</span>.<span class="ident">search</span>(<span class="self">self</span>);
-        <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;Matches2: {:?}&quot;</span>, <span class="ident">matches2</span>);
+        <span class="macro">trace!</span>(<span class="string">&quot;Matches2: {:?}&quot;</span>, <span class="ident">matches2</span>);
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">equiv_eclasses</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">equiv_eclasses</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
 
         <span class="kw">for</span> <span class="ident">m1</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">matches1</span> {
             <span class="kw">for</span> <span class="ident">m2</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">matches2</span> {
-                <span class="kw">if</span> <span class="self">self</span>.<span class="ident">find</span>(<span class="ident">m1</span>.<span class="ident">eclass</span>) <span class="op">=</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">find</span>(<span class="ident">m2</span>.<span class="ident">eclass</span>) {
+                <span class="kw">if</span> <span class="self">self</span>.<span class="ident">find</span>(<span class="ident">m1</span>.<span class="ident">eclass</span>) <span class="op">==</span> <span class="self">self</span>.<span class="ident">find</span>(<span class="ident">m2</span>.<span class="ident">eclass</span>) {
                     <span class="ident">equiv_eclasses</span>.<span class="ident">push</span>(<span class="ident">m1</span>.<span class="ident">eclass</span>)
                 }
             }
@@ -1562,12 +1563,12 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
     <span class="doccomment">/// Returns the id of the new eclass, along with</span>
     <span class="doccomment">/// a `bool` indicating whether a union occured.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">union_instantiations</span>(
-        <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
+        <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">from_pat</span>: <span class="kw-2">&amp;</span><span class="ident">PatternAst</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
         <span class="ident">to_pat</span>: <span class="kw-2">&amp;</span><span class="ident">PatternAst</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
         <span class="ident">subst</span>: <span class="kw-2">&amp;</span><span class="ident">Subst</span>,
         <span class="ident">rule_name</span>: <span class="kw">impl</span> <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">Symbol</span><span class="op">&gt;</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> (<span class="ident">Id</span>, <span class="ident">bool</span>) {
+    ) -&gt; (<span class="ident">Id</span>, <span class="ident">bool</span>) {
         <span class="kw">let</span> <span class="ident">id1</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">add_instantiation_internal</span>(<span class="ident">from_pat</span>, <span class="ident">subst</span>);
         <span class="kw">let</span> <span class="ident">size_before</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">unionfind</span>.<span class="ident">size</span>();
         <span class="kw">let</span> <span class="ident">id2</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">add_instantiation_internal</span>(<span class="ident">to_pat</span>, <span class="ident">subst</span>);
@@ -1576,7 +1577,7 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
         <span class="kw">let</span> <span class="ident">did_union</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">perform_union</span>(
             <span class="ident">id1</span>,
             <span class="ident">id2</span>,
-            <span class="prelude-val">Some</span>(<span class="ident">Justification</span>::<span class="ident">Rule</span>(<span class="ident">rule_name</span>.<span class="ident">into</span>())),
+            <span class="prelude-val">Some</span>(<span class="ident">Justification::Rule</span>(<span class="ident">rule_name</span>.<span class="ident">into</span>())),
             <span class="ident">rhs_new</span>,
         );
         (<span class="self">self</span>.<span class="ident">find</span>(<span class="ident">id1</span>), <span class="ident">did_union</span>)
@@ -1594,49 +1595,49 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
     <span class="doccomment">/// explanation of the feature.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">///</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">union</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">id1</span>: <span class="ident">Id</span>, <span class="ident">id2</span>: <span class="ident">Id</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">union</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">id1</span>: <span class="ident">Id</span>, <span class="ident">id2</span>: <span class="ident">Id</span>) -&gt; <span class="ident">bool</span> {
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">explain</span>.<span class="ident">is_some</span>() {
-            <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;Use union_instantiations when explanation mode is enabled.&quot;</span>);
+            <span class="macro">panic!</span>(<span class="string">&quot;Use union_instantiations when explanation mode is enabled.&quot;</span>);
         }
         <span class="self">self</span>.<span class="ident">perform_union</span>(<span class="ident">id1</span>, <span class="ident">id2</span>, <span class="prelude-val">None</span>, <span class="bool-val">false</span>)
     }
 
     <span class="kw">fn</span> <span class="ident">perform_union</span>(
-        <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
+        <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">enode_id1</span>: <span class="ident">Id</span>,
         <span class="ident">enode_id2</span>: <span class="ident">Id</span>,
         <span class="ident">rule</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Justification</span><span class="op">&gt;</span>,
         <span class="ident">any_new_rhs</span>: <span class="ident">bool</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+    ) -&gt; <span class="ident">bool</span> {
         <span class="self">self</span>.<span class="ident">clean</span> <span class="op">=</span> <span class="bool-val">false</span>;
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">id1</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">find_mut</span>(<span class="ident">enode_id1</span>);
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">id2</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">find_mut</span>(<span class="ident">enode_id2</span>);
-        <span class="kw">if</span> <span class="ident">id1</span> <span class="op">=</span><span class="op">=</span> <span class="ident">id2</span> {
+        <span class="kw">if</span> <span class="ident">id1</span> <span class="op">==</span> <span class="ident">id2</span> {
             <span class="kw">return</span> <span class="bool-val">false</span>;
         }
         <span class="comment">// make sure class2 has fewer parents</span>
         <span class="kw">let</span> <span class="ident">class1_parents</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">classes</span>[<span class="kw-2">&amp;</span><span class="ident">id1</span>].<span class="ident">parents</span>.<span class="ident">len</span>();
         <span class="kw">let</span> <span class="ident">class2_parents</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">classes</span>[<span class="kw-2">&amp;</span><span class="ident">id2</span>].<span class="ident">parents</span>.<span class="ident">len</span>();
         <span class="kw">if</span> <span class="ident">class1_parents</span> <span class="op">&lt;</span> <span class="ident">class2_parents</span> {
-            <span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">swap</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">id1</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">id2</span>);
+            <span class="ident">std::mem::swap</span>(<span class="kw-2">&amp;mut</span> <span class="ident">id1</span>, <span class="kw-2">&amp;mut</span> <span class="ident">id2</span>);
         }
 
-        <span class="ident">N</span>::<span class="ident">pre_union</span>(<span class="self">self</span>, <span class="ident">id1</span>, <span class="ident">id2</span>);
+        <span class="ident">N::pre_union</span>(<span class="self">self</span>, <span class="ident">id1</span>, <span class="ident">id2</span>);
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">explain</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">explain</span> {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">explain</span>) <span class="op">=</span> <span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">explain</span> {
             <span class="ident">explain</span>.<span class="ident">union</span>(<span class="ident">enode_id1</span>, <span class="ident">enode_id2</span>, <span class="ident">rule</span>.<span class="ident">unwrap</span>(), <span class="ident">any_new_rhs</span>);
         }
 
         <span class="comment">// make id1 the new root</span>
         <span class="self">self</span>.<span class="ident">unionfind</span>.<span class="ident">union</span>(<span class="ident">id1</span>, <span class="ident">id2</span>);
 
-        <span class="macro">assert_ne</span><span class="macro">!</span>(<span class="ident">id1</span>, <span class="ident">id2</span>);
+        <span class="macro">assert_ne!</span>(<span class="ident">id1</span>, <span class="ident">id2</span>);
         <span class="kw">let</span> <span class="ident">class2</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">remove</span>(<span class="kw-2">&amp;</span><span class="ident">id2</span>).<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="ident">class1</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">get_mut</span>(<span class="kw-2">&amp;</span><span class="ident">id1</span>).<span class="ident">unwrap</span>();
-        <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">id1</span>, <span class="ident">class1</span>.<span class="ident">id</span>);
+        <span class="macro">assert_eq!</span>(<span class="ident">id1</span>, <span class="ident">class1</span>.<span class="ident">id</span>);
 
         <span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">extend</span>(<span class="ident">class2</span>.<span class="ident">parents</span>.<span class="ident">iter</span>().<span class="ident">cloned</span>());
-        <span class="kw">let</span> <span class="ident">did_merge</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">analysis</span>.<span class="ident">merge</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">class1</span>.<span class="ident">data</span>, <span class="ident">class2</span>.<span class="ident">data</span>);
+        <span class="kw">let</span> <span class="ident">did_merge</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">analysis</span>.<span class="ident">merge</span>(<span class="kw-2">&amp;mut</span> <span class="ident">class1</span>.<span class="ident">data</span>, <span class="ident">class2</span>.<span class="ident">data</span>);
         <span class="kw">if</span> <span class="ident">did_merge</span>.<span class="number">0</span> {
             <span class="self">self</span>.<span class="ident">analysis_pending</span>.<span class="ident">extend</span>(<span class="ident">class1</span>.<span class="ident">parents</span>.<span class="ident">iter</span>().<span class="ident">cloned</span>());
         }
@@ -1644,10 +1645,10 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
             <span class="self">self</span>.<span class="ident">analysis_pending</span>.<span class="ident">extend</span>(<span class="ident">class2</span>.<span class="ident">parents</span>.<span class="ident">iter</span>().<span class="ident">cloned</span>());
         }
 
-        <span class="ident">concat_vecs</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">class1</span>.<span class="ident">nodes</span>, <span class="ident">class2</span>.<span class="ident">nodes</span>);
-        <span class="ident">concat_vecs</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">class1</span>.<span class="ident">parents</span>, <span class="ident">class2</span>.<span class="ident">parents</span>);
+        <span class="ident">concat_vecs</span>(<span class="kw-2">&amp;mut</span> <span class="ident">class1</span>.<span class="ident">nodes</span>, <span class="ident">class2</span>.<span class="ident">nodes</span>);
+        <span class="ident">concat_vecs</span>(<span class="kw-2">&amp;mut</span> <span class="ident">class1</span>.<span class="ident">parents</span>, <span class="ident">class2</span>.<span class="ident">parents</span>);
 
-        <span class="ident">N</span>::<span class="ident">modify</span>(<span class="self">self</span>, <span class="ident">id1</span>);
+        <span class="ident">N::modify</span>(<span class="self">self</span>, <span class="ident">id1</span>);
         <span class="bool-val">true</span>
     }
 
@@ -1659,7 +1660,7 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
     <span class="doccomment">/// slightly nicer way, just dumping enodes in each eclass.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// [`Debug`]: std::fmt::Debug</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">dump</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">impl</span> <span class="ident">Debug</span> <span class="op">+</span> <span class="lifetime">&#39;_</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">dump</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl</span> <span class="ident">Debug</span> <span class="op">+</span> <span class="lifetime">&#39;_</span> {
         <span class="ident">EGraphDump</span>(<span class="self">self</span>)
     }
 }
@@ -1669,15 +1670,15 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
     <span class="doccomment">///</span>
     <span class="doccomment">/// Useful for testing.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">check_goals</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">id</span>: <span class="ident">Id</span>, <span class="ident">goals</span>: <span class="kw-2">&amp;</span>[<span class="ident">Pattern</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>]) {
-        <span class="kw">let</span> (<span class="ident">cost</span>, <span class="ident">best</span>) <span class="op">=</span> <span class="ident">Extractor</span>::<span class="ident">new</span>(<span class="self">self</span>, <span class="ident">AstSize</span>).<span class="ident">find_best</span>(<span class="ident">id</span>);
-        <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;End ({}): {}&quot;</span>, <span class="ident">cost</span>, <span class="ident">best</span>.<span class="ident">pretty</span>(<span class="number">80</span>));
+        <span class="kw">let</span> (<span class="ident">cost</span>, <span class="ident">best</span>) <span class="op">=</span> <span class="ident">Extractor::new</span>(<span class="self">self</span>, <span class="ident">AstSize</span>).<span class="ident">find_best</span>(<span class="ident">id</span>);
+        <span class="macro">println!</span>(<span class="string">&quot;End ({}): {}&quot;</span>, <span class="ident">cost</span>, <span class="ident">best</span>.<span class="ident">pretty</span>(<span class="number">80</span>));
 
         <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">goal</span>) <span class="kw">in</span> <span class="ident">goals</span>.<span class="ident">iter</span>().<span class="ident">enumerate</span>() {
-            <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;Trying to prove goal {}: {}&quot;</span>, <span class="ident">i</span>, <span class="ident">goal</span>.<span class="ident">pretty</span>(<span class="number">40</span>));
-            <span class="kw">let</span> <span class="ident">matches</span> <span class="op">=</span> <span class="ident">goal</span>.<span class="ident">search_eclass</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">id</span>);
+            <span class="macro">println!</span>(<span class="string">&quot;Trying to prove goal {}: {}&quot;</span>, <span class="ident">i</span>, <span class="ident">goal</span>.<span class="ident">pretty</span>(<span class="number">40</span>));
+            <span class="kw">let</span> <span class="ident">matches</span> <span class="op">=</span> <span class="ident">goal</span>.<span class="ident">search_eclass</span>(<span class="self">self</span>, <span class="ident">id</span>);
             <span class="kw">if</span> <span class="ident">matches</span>.<span class="ident">is_none</span>() {
-                <span class="kw">let</span> <span class="ident">best</span> <span class="op">=</span> <span class="ident">Extractor</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">AstSize</span>).<span class="ident">find_best</span>(<span class="ident">id</span>).<span class="number">1</span>;
-                <span class="macro">panic</span><span class="macro">!</span>(
+                <span class="kw">let</span> <span class="ident">best</span> <span class="op">=</span> <span class="ident">Extractor::new</span>(<span class="self">self</span>, <span class="ident">AstSize</span>).<span class="ident">find_best</span>(<span class="ident">id</span>).<span class="number">1</span>;
+                <span class="macro">panic!</span>(
                     <span class="string">&quot;Could not prove goal {}:\n\
                      {}\n\
                      Best thing found:\n\
@@ -1694,12 +1695,12 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
 <span class="comment">// All the rebuilding stuff</span>
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span>, <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span> {
     <span class="attribute">#[<span class="ident">inline</span>(<span class="ident">never</span>)]</span>
-    <span class="kw">fn</span> <span class="ident">rebuild_classes</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">classes_by_op</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">take</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">classes_by_op</span>);
+    <span class="kw">fn</span> <span class="ident">rebuild_classes</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) -&gt; <span class="ident">usize</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">classes_by_op</span> <span class="op">=</span> <span class="ident">std::mem::take</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">classes_by_op</span>);
         <span class="ident">classes_by_op</span>.<span class="ident">values_mut</span>().<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">ids</span><span class="op">|</span> <span class="ident">ids</span>.<span class="ident">clear</span>());
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">trimmed</span> <span class="op">=</span> <span class="number">0</span>;
-        <span class="kw">let</span> <span class="ident">uf</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">unionfind</span>;
+        <span class="kw">let</span> <span class="ident">uf</span> <span class="op">=</span> <span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">unionfind</span>;
 
         <span class="kw">for</span> <span class="ident">class</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">values_mut</span>() {
             <span class="kw">let</span> <span class="ident">old_len</span> <span class="op">=</span> <span class="ident">class</span>.<span class="ident">len</span>();
@@ -1713,9 +1714,9 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
             <span class="ident">trimmed</span> <span class="op">+</span><span class="op">=</span> <span class="ident">old_len</span> <span class="op">-</span> <span class="ident">class</span>.<span class="ident">nodes</span>.<span class="ident">len</span>();
 
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">add</span> <span class="op">=</span> <span class="op">|</span><span class="ident">n</span>: <span class="kw-2">&amp;</span><span class="ident">L</span><span class="op">|</span> {
-                <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy</span>::<span class="ident">mem_discriminant_non_enum</span>)]</span>
+                <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">enum_intrinsics_non_enums</span>)]</span>
                 <span class="ident">classes_by_op</span>
-                    .<span class="ident">entry</span>(<span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">discriminant</span>(<span class="kw-2">&amp;</span><span class="ident">n</span>))
+                    .<span class="ident">entry</span>(<span class="ident">std::mem::discriminant</span>(<span class="ident">n</span>))
                     .<span class="ident">or_default</span>()
                     .<span class="ident">insert</span>(<span class="ident">class</span>.<span class="ident">id</span>)
             };
@@ -1737,7 +1738,7 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
         <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">debug_assertions</span>)]</span>
         <span class="kw">for</span> <span class="ident">ids</span> <span class="kw">in</span> <span class="ident">classes_by_op</span>.<span class="ident">values_mut</span>() {
             <span class="kw">let</span> <span class="ident">unique</span>: <span class="ident">HashSet</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">ids</span>.<span class="ident">iter</span>().<span class="ident">copied</span>().<span class="ident">collect</span>();
-            <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">ids</span>.<span class="ident">len</span>(), <span class="ident">unique</span>.<span class="ident">len</span>());
+            <span class="macro">assert_eq!</span>(<span class="ident">ids</span>.<span class="ident">len</span>(), <span class="ident">unique</span>.<span class="ident">len</span>());
         }
 
         <span class="self">self</span>.<span class="ident">classes_by_op</span> <span class="op">=</span> <span class="ident">classes_by_op</span>;
@@ -1745,14 +1746,14 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
     }
 
     <span class="attribute">#[<span class="ident">inline</span>(<span class="ident">never</span>)]</span>
-    <span class="kw">fn</span> <span class="ident">check_memo</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">test_memo</span> <span class="op">=</span> <span class="ident">HashMap</span>::<span class="ident">default</span>();
+    <span class="kw">fn</span> <span class="ident">check_memo</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">bool</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">test_memo</span> <span class="op">=</span> <span class="ident">HashMap::default</span>();
 
         <span class="kw">for</span> (<span class="kw-2">&amp;</span><span class="ident">id</span>, <span class="ident">class</span>) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">iter</span>() {
-            <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">class</span>.<span class="ident">id</span>, <span class="ident">id</span>);
+            <span class="macro">assert_eq!</span>(<span class="ident">class</span>.<span class="ident">id</span>, <span class="ident">id</span>);
             <span class="kw">for</span> <span class="ident">node</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">class</span>.<span class="ident">nodes</span> {
                 <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">old</span>) <span class="op">=</span> <span class="ident">test_memo</span>.<span class="ident">insert</span>(<span class="ident">node</span>, <span class="ident">id</span>) {
-                    <span class="macro">assert_eq</span><span class="macro">!</span>(
+                    <span class="macro">assert_eq!</span>(
                         <span class="self">self</span>.<span class="ident">find</span>(<span class="ident">old</span>),
                         <span class="self">self</span>.<span class="ident">find</span>(<span class="ident">id</span>),
                         <span class="string">&quot;Found unexpected equivalence for {:?}\n{:?}\nvs\n{:?}&quot;</span>,
@@ -1765,8 +1766,8 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
         }
 
         <span class="kw">for</span> (<span class="ident">n</span>, <span class="ident">e</span>) <span class="kw">in</span> <span class="ident">test_memo</span> {
-            <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">e</span>, <span class="self">self</span>.<span class="ident">find</span>(<span class="ident">e</span>));
-            <span class="macro">assert_eq</span><span class="macro">!</span>(
+            <span class="macro">assert_eq!</span>(<span class="ident">e</span>, <span class="self">self</span>.<span class="ident">find</span>(<span class="ident">e</span>));
+            <span class="macro">assert_eq!</span>(
                 <span class="prelude-val">Some</span>(<span class="ident">e</span>),
                 <span class="self">self</span>.<span class="ident">memo</span>.<span class="ident">get</span>(<span class="ident">n</span>).<span class="ident">map</span>(<span class="op">|</span><span class="ident">id</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">find</span>(<span class="kw-2">*</span><span class="ident">id</span>)),
                 <span class="string">&quot;Entry for {:?} at {} in test_memo was incorrect&quot;</span>,
@@ -1779,7 +1780,7 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
     }
 
     <span class="attribute">#[<span class="ident">inline</span>(<span class="ident">never</span>)]</span>
-    <span class="kw">fn</span> <span class="ident">process_unions</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
+    <span class="kw">fn</span> <span class="ident">process_unions</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) -&gt; <span class="ident">usize</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">n_unions</span> <span class="op">=</span> <span class="number">0</span>;
 
         <span class="kw">while</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">is_empty</span>() <span class="op">|</span><span class="op">|</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">analysis_pending</span>.<span class="ident">is_empty</span>() {
@@ -1789,7 +1790,7 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
                     <span class="kw">let</span> <span class="ident">did_something</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">perform_union</span>(
                         <span class="ident">memo_class</span>,
                         <span class="ident">class</span>,
-                        <span class="prelude-val">Some</span>(<span class="ident">Justification</span>::<span class="ident">Congruence</span>),
+                        <span class="prelude-val">Some</span>(<span class="ident">Justification::Congruence</span>),
                         <span class="bool-val">false</span>,
                     );
                     <span class="ident">n_unions</span> <span class="op">+</span><span class="op">=</span> <span class="ident">did_something</span> <span class="kw">as</span> <span class="ident">usize</span>;
@@ -1798,19 +1799,19 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
 
             <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">node</span>, <span class="ident">class_id</span>)) <span class="op">=</span> <span class="self">self</span>.<span class="ident">analysis_pending</span>.<span class="ident">pop</span>() {
                 <span class="kw">let</span> <span class="ident">class_id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">find_mut</span>(<span class="ident">class_id</span>);
-                <span class="kw">let</span> <span class="ident">node_data</span> <span class="op">=</span> <span class="ident">N</span>::<span class="ident">make</span>(<span class="self">self</span>, <span class="kw-2">&amp;</span><span class="ident">node</span>);
+                <span class="kw">let</span> <span class="ident">node_data</span> <span class="op">=</span> <span class="ident">N::make</span>(<span class="self">self</span>, <span class="kw-2">&amp;</span><span class="ident">node</span>);
                 <span class="kw">let</span> <span class="ident">class</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">get_mut</span>(<span class="kw-2">&amp;</span><span class="ident">class_id</span>).<span class="ident">unwrap</span>();
 
-                <span class="kw">let</span> <span class="ident">did_merge</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">analysis</span>.<span class="ident">merge</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">class</span>.<span class="ident">data</span>, <span class="ident">node_data</span>);
+                <span class="kw">let</span> <span class="ident">did_merge</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">analysis</span>.<span class="ident">merge</span>(<span class="kw-2">&amp;mut</span> <span class="ident">class</span>.<span class="ident">data</span>, <span class="ident">node_data</span>);
                 <span class="kw">if</span> <span class="ident">did_merge</span>.<span class="number">0</span> {
                     <span class="self">self</span>.<span class="ident">analysis_pending</span>.<span class="ident">extend</span>(<span class="ident">class</span>.<span class="ident">parents</span>.<span class="ident">iter</span>().<span class="ident">cloned</span>());
-                    <span class="ident">N</span>::<span class="ident">modify</span>(<span class="self">self</span>, <span class="ident">class_id</span>)
+                    <span class="ident">N::modify</span>(<span class="self">self</span>, <span class="ident">class_id</span>)
                 }
             }
         }
 
-        <span class="macro">assert</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">is_empty</span>());
-        <span class="macro">assert</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">analysis_pending</span>.<span class="ident">is_empty</span>());
+        <span class="macro">assert!</span>(<span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">is_empty</span>());
+        <span class="macro">assert!</span>(<span class="self">self</span>.<span class="ident">analysis_pending</span>.<span class="ident">is_empty</span>());
 
         <span class="ident">n_unions</span>
     }
@@ -1852,18 +1853,18 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
     <span class="doccomment">/// assert_eq!(egraph.number_of_classes(), 3);</span>
     <span class="doccomment">/// assert_eq!(egraph.find(ax), egraph.find(ay));</span>
     <span class="doccomment">/// ```</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">rebuild</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">rebuild</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) -&gt; <span class="ident">usize</span> {
         <span class="kw">let</span> <span class="ident">old_hc_size</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">memo</span>.<span class="ident">len</span>();
         <span class="kw">let</span> <span class="ident">old_n_eclasses</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">number_of_classes</span>();
 
-        <span class="kw">let</span> <span class="ident">start</span> <span class="op">=</span> <span class="ident">Instant</span>::<span class="ident">now</span>();
+        <span class="kw">let</span> <span class="ident">start</span> <span class="op">=</span> <span class="ident">Instant::now</span>();
 
         <span class="kw">let</span> <span class="ident">n_unions</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">process_unions</span>();
         <span class="kw">let</span> <span class="ident">trimmed_nodes</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">rebuild_classes</span>();
 
         <span class="kw">let</span> <span class="ident">elapsed</span> <span class="op">=</span> <span class="ident">start</span>.<span class="ident">elapsed</span>();
-        <span class="macro">info</span><span class="macro">!</span>(
-            <span class="macro">concat</span><span class="macro">!</span>(
+        <span class="macro">info!</span>(
+            <span class="macro">concat!</span>(
                 <span class="string">&quot;REBUILT! in {}.{:03}s\n&quot;</span>,
                 <span class="string">&quot;  Old: hc size {}, eclasses: {}\n&quot;</span>,
                 <span class="string">&quot;  New: hc size {}, eclasses: {}\n&quot;</span>,
@@ -1879,16 +1880,16 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
             <span class="ident">trimmed_nodes</span>,
         );
 
-        <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">check_memo</span>());
+        <span class="macro">debug_assert!</span>(<span class="self">self</span>.<span class="ident">check_memo</span>());
         <span class="self">self</span>.<span class="ident">clean</span> <span class="op">=</span> <span class="bool-val">true</span>;
         <span class="ident">n_unions</span>
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">check_each_explain</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">rules</span>: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="ident">Rewrite</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">check_each_explain</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">rules</span>: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="ident">Rewrite</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>]) -&gt; <span class="ident">bool</span> {
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">explain</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">explain</span> {
             <span class="ident">explain</span>.<span class="ident">check_each_explain</span>(<span class="ident">rules</span>)
         } <span class="kw">else</span> {
-            <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;Can&#39;t check explain when explanations are off&quot;</span>);
+            <span class="macro">panic!</span>(<span class="string">&quot;Can&#39;t check explain when explanations are off&quot;</span>);
         }
     }
 }
@@ -1896,13 +1897,13 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
 <span class="kw">struct</span> <span class="ident">EGraphDump</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">L</span>: <span class="ident">Language</span>, <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>);
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">L</span>: <span class="ident">Language</span>, <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">Debug</span> <span class="kw">for</span> <span class="ident">EGraphDump</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt</span>::<span class="ident">Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">fmt::Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="ident">fmt::Result</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ids</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> <span class="op">=</span> <span class="self">self</span>.<span class="number">0</span>.<span class="ident">classes</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">c</span><span class="op">|</span> <span class="ident">c</span>.<span class="ident">id</span>).<span class="ident">collect</span>();
         <span class="ident">ids</span>.<span class="ident">sort</span>();
         <span class="kw">for</span> <span class="ident">id</span> <span class="kw">in</span> <span class="ident">ids</span> {
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">nodes</span> <span class="op">=</span> <span class="self">self</span>.<span class="number">0</span>[<span class="ident">id</span>].<span class="ident">nodes</span>.<span class="ident">clone</span>();
             <span class="ident">nodes</span>.<span class="ident">sort</span>();
-            <span class="macro">writeln</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;{} ({:?}): {:?}&quot;</span>, <span class="ident">id</span>, <span class="self">self</span>.<span class="number">0</span>[<span class="ident">id</span>].<span class="ident">data</span>, <span class="ident">nodes</span>)<span class="question-mark">?</span>
+            <span class="macro">writeln!</span>(<span class="ident">f</span>, <span class="string">&quot;{} ({:?}): {:?}&quot;</span>, <span class="ident">id</span>, <span class="self">self</span>.<span class="number">0</span>[<span class="ident">id</span>].<span class="ident">data</span>, <span class="ident">nodes</span>)<span class="question-mark">?</span>
         }
         <span class="prelude-val">Ok</span>(())
     }
@@ -1917,17 +1918,17 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
     <span class="kw">fn</span> <span class="ident">simple_add</span>() {
         <span class="kw">use</span> <span class="ident">SymbolLang</span> <span class="kw">as</span> <span class="ident">S</span>;
 
-        <span class="kw">crate</span>::<span class="ident">init_logger</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">egraph</span> <span class="op">=</span> <span class="ident">EGraph</span>::<span class="op">&lt;</span><span class="ident">S</span>, ()<span class="op">&gt;</span>::<span class="ident">default</span>();
+        <span class="ident"><span class="kw">crate</span>::init_logger</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">egraph</span> <span class="op">=</span> <span class="ident">EGraph</span>::<span class="op">&lt;</span><span class="ident">S</span>, ()<span class="op">&gt;</span><span class="ident">::default</span>();
 
-        <span class="kw">let</span> <span class="ident">x</span> <span class="op">=</span> <span class="ident">egraph</span>.<span class="ident">add</span>(<span class="ident">S</span>::<span class="ident">leaf</span>(<span class="string">&quot;x&quot;</span>));
-        <span class="kw">let</span> <span class="ident">x2</span> <span class="op">=</span> <span class="ident">egraph</span>.<span class="ident">add</span>(<span class="ident">S</span>::<span class="ident">leaf</span>(<span class="string">&quot;x&quot;</span>));
-        <span class="kw">let</span> <span class="ident">_plus</span> <span class="op">=</span> <span class="ident">egraph</span>.<span class="ident">add</span>(<span class="ident">S</span>::<span class="ident">new</span>(<span class="string">&quot;+&quot;</span>, <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">x</span>, <span class="ident">x2</span>]));
+        <span class="kw">let</span> <span class="ident">x</span> <span class="op">=</span> <span class="ident">egraph</span>.<span class="ident">add</span>(<span class="ident">S::leaf</span>(<span class="string">&quot;x&quot;</span>));
+        <span class="kw">let</span> <span class="ident">x2</span> <span class="op">=</span> <span class="ident">egraph</span>.<span class="ident">add</span>(<span class="ident">S::leaf</span>(<span class="string">&quot;x&quot;</span>));
+        <span class="kw">let</span> <span class="ident">_plus</span> <span class="op">=</span> <span class="ident">egraph</span>.<span class="ident">add</span>(<span class="ident">S::new</span>(<span class="string">&quot;+&quot;</span>, <span class="macro">vec!</span>[<span class="ident">x</span>, <span class="ident">x2</span>]));
 
         <span class="ident">egraph</span>.<span class="ident">union_instantiations</span>(
             <span class="kw-2">&amp;</span><span class="string">&quot;x&quot;</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>(),
             <span class="kw-2">&amp;</span><span class="string">&quot;y&quot;</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>(),
-            <span class="kw-2">&amp;</span><span class="ident">Default</span>::<span class="ident">default</span>(),
+            <span class="kw-2">&amp;</span><span class="ident">Default::default</span>(),
             <span class="string">&quot;union x and y&quot;</span>.<span class="ident">to_string</span>(),
         );
         <span class="ident">egraph</span>.<span class="ident">rebuild</span>();
@@ -1941,15 +1942,15 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
         <span class="kw">fn</span> <span class="ident">ser</span>(<span class="kw">_</span>: <span class="kw-2">&amp;</span><span class="kw">impl</span> <span class="ident">Serialize</span>) {}
         <span class="kw">fn</span> <span class="ident">de</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>(<span class="kw">_</span>: <span class="kw-2">&amp;</span><span class="kw">impl</span> <span class="ident">Deserialize</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>) {}
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">egraph</span> <span class="op">=</span> <span class="ident">EGraph</span>::<span class="op">&lt;</span><span class="ident">SymbolLang</span>, ()<span class="op">&gt;</span>::<span class="ident">default</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">egraph</span> <span class="op">=</span> <span class="ident">EGraph</span>::<span class="op">&lt;</span><span class="ident">SymbolLang</span>, ()<span class="op">&gt;</span><span class="ident">::default</span>();
         <span class="ident">egraph</span>.<span class="ident">add_expr</span>(<span class="kw-2">&amp;</span><span class="string">&quot;(foo bar baz)&quot;</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>());
         <span class="ident">ser</span>(<span class="kw-2">&amp;</span><span class="ident">egraph</span>);
         <span class="ident">de</span>(<span class="kw-2">&amp;</span><span class="ident">egraph</span>);
 
-        <span class="kw">let</span> <span class="ident">json_rep</span> <span class="op">=</span> <span class="ident">serde_json</span>::<span class="ident">to_string_pretty</span>(<span class="kw-2">&amp;</span><span class="ident">egraph</span>).<span class="ident">unwrap</span>();
-        <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">json_rep</span>);
+        <span class="kw">let</span> <span class="ident">json_rep</span> <span class="op">=</span> <span class="ident">serde_json::to_string_pretty</span>(<span class="kw-2">&amp;</span><span class="ident">egraph</span>).<span class="ident">unwrap</span>();
+        <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">json_rep</span>);
     }
 }
-</pre></div>
-</section><section id="search" class="content hidden"></section><section class="footer"></section><div id="rustdoc-vars" data-root-path="../../" data-current-crate="egg"></div>
-    <script src="../../main.js"></script><script src="../../source-script.js"></script><script src="../../source-files.js"></script><script defer src="../../search-index.js"></script></body></html>
+</code></pre></div>
+</section><section id="search" class="content hidden"></section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="egg" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.60.0 (7737e0b5c 2022-04-04)" ></div>
+</body></html>

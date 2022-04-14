@@ -1,7 +1,9 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/rewrite.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>rewrite.rs - source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled ><script id="default-settings"></script><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="icon" type="image/svg+xml" href="../../favicon.svg">
-<link rel="alternate icon" type="image/png" href="../../favicon-16x16.png">
-<link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../egg/index.html'><div class='logo-container rust-logo'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu"><img src="../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices" role="menu"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" class="help-button">?</button>
-                <a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/rewrite.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>rewrite.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script src="../../crates.js"></script><script defer src="../../main.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script>
+    <noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button><a class="sidebar-logo" href="../../egg/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div>
+        </a><h2 class="location"></h2>
+    </nav>
+    <nav class="sidebar"><a class="sidebar-logo" href="../../egg/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div>
+        </a></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../../egg/index.html"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></a><nav class="sub"><div class="theme-picker hidden"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu" title="themes"><img width="22" height="22" alt="Pick another theme!" src="../../brush.svg"></button><div id="theme-choices" role="menu"></div></div><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><button type="button" id="help-button" title="help">?</button><a id="settings-menu" href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../wheel.svg"></a></div></form></nav></div><section id="main-content" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">  1</span>
 <span id="2">  2</span>
 <span id="3">  3</span>
 <span id="4">  4</span>
@@ -592,10 +594,9 @@
 <span id="589">589</span>
 <span id="590">590</span>
 <span id="591">591</span>
-</pre><div class="example-wrap"><pre class="rust ">
-<span class="kw">use</span> <span class="ident">pattern</span>::<span class="ident">apply_pat</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fmt</span>::{<span class="self">self</span>, <span class="ident">Debug</span>, <span class="ident">Display</span>};
-<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">any</span>::<span class="ident">Any</span>, <span class="ident">sync</span>::<span class="ident">Arc</span>};
+</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">pattern::apply_pat</span>;
+<span class="kw">use</span> <span class="ident">std::fmt</span>::{<span class="self">self</span>, <span class="ident">Debug</span>, <span class="ident">Display</span>};
+<span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="kw-2">*</span>;
 
@@ -622,19 +623,20 @@
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span> <span class="ident">Debug</span> <span class="kw">for</span> <span class="ident">Rewrite</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>
 <span class="kw">where</span>
     <span class="ident">L</span>: <span class="ident">Language</span> <span class="op">+</span> <span class="ident">Display</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-    <span class="ident">N</span>: <span class="lifetime">&#39;static</span>,
+    <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt</span>::<span class="ident">Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">fmt::Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="ident">fmt::Result</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">d</span> <span class="op">=</span> <span class="ident">f</span>.<span class="ident">debug_struct</span>(<span class="string">&quot;Rewrite&quot;</span>);
         <span class="ident">d</span>.<span class="ident">field</span>(<span class="string">&quot;name&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">name</span>);
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">pat</span>) <span class="op">=</span> <span class="ident">Any</span>::<span class="ident">downcast_ref</span>::<span class="op">&lt;</span><span class="ident">Pattern</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">searcher</span>) {
+        <span class="comment">// if let Some(pat) = Any::downcast_ref::&lt;dyn Pattern&lt;L&gt;&gt;(&amp;self.searcher) {</span>
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">pat</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">searcher</span>.<span class="ident">get_pattern_ast</span>() {
             <span class="ident">d</span>.<span class="ident">field</span>(<span class="string">&quot;searcher&quot;</span>, <span class="kw-2">&amp;</span><span class="ident">DisplayAsDebug</span>(<span class="ident">pat</span>));
         } <span class="kw">else</span> {
             <span class="ident">d</span>.<span class="ident">field</span>(<span class="string">&quot;searcher&quot;</span>, <span class="kw-2">&amp;</span><span class="string">&quot;&lt;&lt; searcher &gt;&gt;&quot;</span>);
         }
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">pat</span>) <span class="op">=</span> <span class="ident">Any</span>::<span class="ident">downcast_ref</span>::<span class="op">&lt;</span><span class="ident">Pattern</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">applier</span>) {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">pat</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">applier</span>.<span class="ident">get_pattern_ast</span>() {
             <span class="ident">d</span>.<span class="ident">field</span>(<span class="string">&quot;applier&quot;</span>, <span class="kw-2">&amp;</span><span class="ident">DisplayAsDebug</span>(<span class="ident">pat</span>));
         } <span class="kw">else</span> {
             <span class="ident">d</span>.<span class="ident">field</span>(<span class="string">&quot;applier&quot;</span>, <span class="kw-2">&amp;</span><span class="string">&quot;&lt;&lt; applier &gt;&gt;&quot;</span>);
@@ -652,15 +654,15 @@
         <span class="ident">name</span>: <span class="kw">impl</span> <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">Symbol</span><span class="op">&gt;</span>,
         <span class="ident">searcher</span>: <span class="kw">impl</span> <span class="ident">Searcher</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
         <span class="ident">applier</span>: <span class="kw">impl</span> <span class="ident">Applier</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">String</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">String</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">name</span> <span class="op">=</span> <span class="ident">name</span>.<span class="ident">into</span>();
-        <span class="kw">let</span> <span class="ident">searcher</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">searcher</span>);
-        <span class="kw">let</span> <span class="ident">applier</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">applier</span>);
+        <span class="kw">let</span> <span class="ident">searcher</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">searcher</span>);
+        <span class="kw">let</span> <span class="ident">applier</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">applier</span>);
 
         <span class="kw">let</span> <span class="ident">bound_vars</span> <span class="op">=</span> <span class="ident">searcher</span>.<span class="ident">vars</span>();
         <span class="kw">for</span> <span class="ident">v</span> <span class="kw">in</span> <span class="ident">applier</span>.<span class="ident">vars</span>() {
             <span class="kw">if</span> <span class="op">!</span><span class="ident">bound_vars</span>.<span class="ident">contains</span>(<span class="kw-2">&amp;</span><span class="ident">v</span>) {
-                <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Rewrite {} refers to unbound var {}&quot;</span>, <span class="ident">name</span>, <span class="ident">v</span>));
+                <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="macro">format!</span>(<span class="string">&quot;Rewrite {} refers to unbound var {}&quot;</span>, <span class="ident">name</span>, <span class="ident">v</span>));
             }
         }
 
@@ -674,29 +676,29 @@
     <span class="doccomment">/// Call [`search`] on the [`Searcher`].</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// [`search`]: Searcher::search()</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">search</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">SearchMatches</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">search</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">SearchMatches</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">searcher</span>.<span class="ident">search</span>(<span class="ident">egraph</span>)
     }
 
     <span class="doccomment">/// Call [`apply_matches`] on the [`Applier`].</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// [`apply_matches`]: Applier::apply_matches()</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">apply</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>, <span class="ident">matches</span>: <span class="kw-2">&amp;</span>[<span class="ident">SearchMatches</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">apply</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">egraph</span>: <span class="kw-2">&amp;mut</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>, <span class="ident">matches</span>: <span class="kw-2">&amp;</span>[<span class="ident">SearchMatches</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>]) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">applier</span>.<span class="ident">apply_matches</span>(<span class="ident">egraph</span>, <span class="ident">matches</span>, <span class="self">self</span>.<span class="ident">name</span>)
     }
 
     <span class="doccomment">/// This `run` is for testing use only. You should use things</span>
     <span class="doccomment">/// from the `egg::run` module</span>
     <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">run</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">start</span> <span class="op">=</span> <span class="kw">crate</span>::<span class="ident">util</span>::<span class="ident">Instant</span>::<span class="ident">now</span>();
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">run</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">egraph</span>: <span class="kw-2">&amp;mut</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">start</span> <span class="op">=</span> <span class="ident"><span class="kw">crate</span>::util::Instant::now</span>();
 
         <span class="kw">let</span> <span class="ident">matches</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">search</span>(<span class="ident">egraph</span>);
-        <span class="ident">log</span>::<span class="macro">debug</span><span class="macro">!</span>(<span class="string">&quot;Found rewrite {} {} times&quot;</span>, <span class="self">self</span>.<span class="ident">name</span>, <span class="ident">matches</span>.<span class="ident">len</span>());
+        <span class="macro">log::debug!</span>(<span class="string">&quot;Found rewrite {} {} times&quot;</span>, <span class="self">self</span>.<span class="ident">name</span>, <span class="ident">matches</span>.<span class="ident">len</span>());
 
         <span class="kw">let</span> <span class="ident">ids</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">apply</span>(<span class="ident">egraph</span>, <span class="kw-2">&amp;</span><span class="ident">matches</span>);
         <span class="kw">let</span> <span class="ident">elapsed</span> <span class="op">=</span> <span class="ident">start</span>.<span class="ident">elapsed</span>();
-        <span class="ident">log</span>::<span class="macro">debug</span><span class="macro">!</span>(
+        <span class="macro">log::debug!</span>(
             <span class="string">&quot;Applied rewrite {} {} times in {}.{:03}&quot;</span>,
             <span class="self">self</span>.<span class="ident">name</span>,
             <span class="ident">ids</span>.<span class="ident">len</span>(),
@@ -722,14 +724,14 @@
 {
     <span class="doccomment">/// Search one eclass, returning None if no matches can be found.</span>
     <span class="doccomment">/// This should not return a SearchMatches with no substs.</span>
-    <span class="kw">fn</span> <span class="ident">search_eclass</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>, <span class="ident">eclass</span>: <span class="ident">Id</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">SearchMatches</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span>;
+    <span class="kw">fn</span> <span class="ident">search_eclass</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>, <span class="ident">eclass</span>: <span class="ident">Id</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">SearchMatches</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span>;
 
     <span class="doccomment">/// Search the whole [`EGraph`], returning a list of all the</span>
     <span class="doccomment">/// [`SearchMatches`] where something was found.</span>
     <span class="doccomment">/// This just calls [`search_eclass`] on each eclass.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// [`search_eclass`]: Searcher::search_eclass</span>
-    <span class="kw">fn</span> <span class="ident">search</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">SearchMatches</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">search</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">SearchMatches</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="ident">egraph</span>
             .<span class="ident">classes</span>()
             .<span class="ident">filter_map</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">search_eclass</span>(<span class="ident">egraph</span>, <span class="ident">e</span>.<span class="ident">id</span>))
@@ -737,17 +739,17 @@
     }
 
     <span class="doccomment">/// Returns the number of matches in the e-graph</span>
-    <span class="kw">fn</span> <span class="ident">n_matches</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
+    <span class="kw">fn</span> <span class="ident">n_matches</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>) -&gt; <span class="ident">usize</span> {
         <span class="self">self</span>.<span class="ident">search</span>(<span class="ident">egraph</span>).<span class="ident">iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">m</span><span class="op">|</span> <span class="ident">m</span>.<span class="ident">substs</span>.<span class="ident">len</span>()).<span class="ident">sum</span>()
     }
 
     <span class="doccomment">/// For patterns, return the ast directly as a reference</span>
-    <span class="kw">fn</span> <span class="ident">get_pattern_ast</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">PatternAst</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">get_pattern_ast</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">PatternAst</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="prelude-val">None</span>
     }
 
     <span class="doccomment">/// Returns a list of the variables bound by this Searcher</span>
-    <span class="kw">fn</span> <span class="ident">vars</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Var</span><span class="op">&gt;</span>;
+    <span class="kw">fn</span> <span class="ident">vars</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Var</span><span class="op">&gt;</span>;
 }
 
 <span class="doccomment">/// The righthand side of a [`Rewrite`].</span>
@@ -870,18 +872,17 @@
     <span class="doccomment">/// [`apply_one`]: Applier::apply_one()</span>
     <span class="kw">fn</span> <span class="ident">apply_matches</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>,
+        <span class="ident">egraph</span>: <span class="kw-2">&amp;mut</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>,
         <span class="ident">matches</span>: <span class="kw-2">&amp;</span>[<span class="ident">SearchMatches</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>],
         <span class="ident">rule_name</span>: <span class="ident">Symbol</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">added</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[];
+    ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">added</span> <span class="op">=</span> <span class="macro">vec!</span>[];
         <span class="kw">for</span> <span class="ident">mat</span> <span class="kw">in</span> <span class="ident">matches</span> {
-            <span class="kw">let</span> <span class="ident">ast</span>;
-            <span class="kw">if</span> <span class="ident">egraph</span>.<span class="ident">are_explanations_enabled</span>() {
-                <span class="ident">ast</span> <span class="op">=</span> <span class="ident">mat</span>.<span class="ident">ast</span>.<span class="ident">as_ref</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">cow</span><span class="op">|</span> <span class="ident">cow</span>.<span class="ident">as_ref</span>());
+            <span class="kw">let</span> <span class="ident">ast</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">egraph</span>.<span class="ident">are_explanations_enabled</span>() {
+                <span class="ident">mat</span>.<span class="ident">ast</span>.<span class="ident">as_ref</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">cow</span><span class="op">|</span> <span class="ident">cow</span>.<span class="ident">as_ref</span>())
             } <span class="kw">else</span> {
-                <span class="ident">ast</span> <span class="op">=</span> <span class="prelude-val">None</span>;
-            }
+                <span class="prelude-val">None</span>
+            };
             <span class="kw">for</span> <span class="ident">subst</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">mat</span>.<span class="ident">substs</span> {
                 <span class="kw">let</span> <span class="ident">ids</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">apply_one</span>(<span class="ident">egraph</span>, <span class="ident">mat</span>.<span class="ident">eclass</span>, <span class="ident">subst</span>, <span class="ident">ast</span>, <span class="ident">rule_name</span>);
                 <span class="ident">added</span>.<span class="ident">extend</span>(<span class="ident">ids</span>)
@@ -891,7 +892,7 @@
     }
 
     <span class="doccomment">/// For patterns, get the ast directly as a reference.</span>
-    <span class="kw">fn</span> <span class="ident">get_pattern_ast</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">PatternAst</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">get_pattern_ast</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">PatternAst</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="prelude-val">None</span>
     }
 
@@ -909,12 +910,12 @@
     <span class="doccomment">/// [`apply_matches`]: Applier::apply_matches()</span>
     <span class="kw">fn</span> <span class="ident">apply_one</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>,
+        <span class="ident">egraph</span>: <span class="kw-2">&amp;mut</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>,
         <span class="ident">eclass</span>: <span class="ident">Id</span>,
         <span class="ident">subst</span>: <span class="kw-2">&amp;</span><span class="ident">Subst</span>,
         <span class="ident">searcher_ast</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">PatternAst</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">rule_name</span>: <span class="ident">Symbol</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span>;
+    ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span>;
 
     <span class="doccomment">/// Returns a list of variables that this Applier assumes are bound.</span>
     <span class="doccomment">///</span>
@@ -922,8 +923,8 @@
     <span class="doccomment">/// variables.</span>
     <span class="doccomment">/// By default this return an empty `Vec`, which basically turns off the</span>
     <span class="doccomment">/// checking.</span>
-    <span class="kw">fn</span> <span class="ident">vars</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Var</span><span class="op">&gt;</span> {
-        <span class="macro">vec</span><span class="macro">!</span>[]
+    <span class="kw">fn</span> <span class="ident">vars</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Var</span><span class="op">&gt;</span> {
+        <span class="macro">vec!</span>[]
     }
 }
 
@@ -959,21 +960,21 @@
 {
     <span class="kw">fn</span> <span class="ident">apply_one</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>,
+        <span class="ident">egraph</span>: <span class="kw-2">&amp;mut</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>,
         <span class="ident">eclass</span>: <span class="ident">Id</span>,
         <span class="ident">subst</span>: <span class="kw-2">&amp;</span><span class="ident">Subst</span>,
         <span class="ident">searcher_ast</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">PatternAst</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">rule_name</span>: <span class="ident">Symbol</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">condition</span>.<span class="ident">check</span>(<span class="ident">egraph</span>, <span class="ident">eclass</span>, <span class="ident">subst</span>) {
             <span class="self">self</span>.<span class="ident">applier</span>
                 .<span class="ident">apply_one</span>(<span class="ident">egraph</span>, <span class="ident">eclass</span>, <span class="ident">subst</span>, <span class="ident">searcher_ast</span>, <span class="ident">rule_name</span>)
         } <span class="kw">else</span> {
-            <span class="macro">vec</span><span class="macro">!</span>[]
+            <span class="macro">vec!</span>[]
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">vars</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Var</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">vars</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Var</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">vars</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">applier</span>.<span class="ident">vars</span>();
         <span class="ident">vars</span>.<span class="ident">extend</span>(<span class="self">self</span>.<span class="ident">condition</span>.<span class="ident">vars</span>());
         <span class="ident">vars</span>
@@ -999,7 +1000,7 @@
     <span class="doccomment">/// `eclass` is the eclass [`Id`] where the match (`subst`) occured.</span>
     <span class="doccomment">/// If this is true, then the [`ConditionalApplier`] will fire.</span>
     <span class="doccomment">///</span>
-    <span class="kw">fn</span> <span class="ident">check</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>, <span class="ident">eclass</span>: <span class="ident">Id</span>, <span class="ident">subst</span>: <span class="kw-2">&amp;</span><span class="ident">Subst</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span>;
+    <span class="kw">fn</span> <span class="ident">check</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">egraph</span>: <span class="kw-2">&amp;mut</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>, <span class="ident">eclass</span>: <span class="ident">Id</span>, <span class="ident">subst</span>: <span class="kw-2">&amp;</span><span class="ident">Subst</span>) -&gt; <span class="ident">bool</span>;
 
     <span class="doccomment">/// Returns a list of variables that this Condition assumes are bound.</span>
     <span class="doccomment">///</span>
@@ -1007,8 +1008,8 @@
     <span class="doccomment">/// variables.</span>
     <span class="doccomment">/// By default this return an empty `Vec`, which basically turns off the</span>
     <span class="doccomment">/// checking.</span>
-    <span class="kw">fn</span> <span class="ident">vars</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Var</span><span class="op">&gt;</span> {
-        <span class="macro">vec</span><span class="macro">!</span>[]
+    <span class="kw">fn</span> <span class="ident">vars</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Var</span><span class="op">&gt;</span> {
+        <span class="macro">vec!</span>[]
     }
 }
 
@@ -1016,9 +1017,9 @@
 <span class="kw">where</span>
     <span class="ident">L</span>: <span class="ident">Language</span>,
     <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
-    <span class="ident">F</span>: <span class="ident">Fn</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>, <span class="ident">Id</span>, <span class="kw-2">&amp;</span><span class="ident">Subst</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span>,
+    <span class="ident">F</span>: <span class="ident">Fn</span>(<span class="kw-2">&amp;mut</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>, <span class="ident">Id</span>, <span class="kw-2">&amp;</span><span class="ident">Subst</span>) -&gt; <span class="ident">bool</span>,
 {
-    <span class="kw">fn</span> <span class="ident">check</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>, <span class="ident">eclass</span>: <span class="ident">Id</span>, <span class="ident">subst</span>: <span class="kw-2">&amp;</span><span class="ident">Subst</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+    <span class="kw">fn</span> <span class="ident">check</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">egraph</span>: <span class="kw-2">&amp;mut</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>, <span class="ident">eclass</span>: <span class="ident">Id</span>, <span class="ident">subst</span>: <span class="kw-2">&amp;</span><span class="ident">Subst</span>) -&gt; <span class="ident">bool</span> {
         <span class="self">self</span>(<span class="ident">egraph</span>, <span class="ident">eclass</span>, <span class="ident">subst</span>)
     }
 }
@@ -1036,7 +1037,7 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span> <span class="ident">ConditionEqual</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
     <span class="doccomment">/// Create a new [`ConditionEqual`] condition given two patterns.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">p1</span>: <span class="ident">Pattern</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>, <span class="ident">p2</span>: <span class="ident">Pattern</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">p1</span>: <span class="ident">Pattern</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>, <span class="ident">p2</span>: <span class="ident">Pattern</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) -&gt; <span class="self">Self</span> {
         <span class="ident">ConditionEqual</span> { <span class="ident">p1</span>, <span class="ident">p2</span> }
     }
 }
@@ -1045,7 +1046,7 @@
     <span class="doccomment">/// Create a ConditionEqual by parsing two pattern strings.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// This panics if the parsing fails.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">parse</span>(<span class="ident">a1</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>, <span class="ident">a2</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">parse</span>(<span class="ident">a1</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>, <span class="ident">a2</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) -&gt; <span class="self">Self</span> {
         <span class="self">Self</span> {
             <span class="ident">p1</span>: <span class="ident">a1</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>(),
             <span class="ident">p2</span>: <span class="ident">a2</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>(),
@@ -1058,15 +1059,15 @@
     <span class="ident">L</span>: <span class="ident">Language</span>,
     <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
 {
-    <span class="kw">fn</span> <span class="ident">check</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>, <span class="ident">_eclass</span>: <span class="ident">Id</span>, <span class="ident">subst</span>: <span class="kw-2">&amp;</span><span class="ident">Subst</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">id_buf_1</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[<span class="number">0</span>.<span class="ident">into</span>(); <span class="self">self</span>.<span class="ident">p1</span>.<span class="ident">ast</span>.<span class="ident">as_ref</span>().<span class="ident">len</span>()];
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">id_buf_2</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[<span class="number">0</span>.<span class="ident">into</span>(); <span class="self">self</span>.<span class="ident">p2</span>.<span class="ident">ast</span>.<span class="ident">as_ref</span>().<span class="ident">len</span>()];
-        <span class="kw">let</span> <span class="ident">a1</span> <span class="op">=</span> <span class="ident">apply_pat</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">id_buf_1</span>, <span class="self">self</span>.<span class="ident">p1</span>.<span class="ident">ast</span>.<span class="ident">as_ref</span>(), <span class="ident">egraph</span>, <span class="ident">subst</span>);
-        <span class="kw">let</span> <span class="ident">a2</span> <span class="op">=</span> <span class="ident">apply_pat</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">id_buf_2</span>, <span class="self">self</span>.<span class="ident">p2</span>.<span class="ident">ast</span>.<span class="ident">as_ref</span>(), <span class="ident">egraph</span>, <span class="ident">subst</span>);
-        <span class="ident">a1</span> <span class="op">=</span><span class="op">=</span> <span class="ident">a2</span>
+    <span class="kw">fn</span> <span class="ident">check</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">egraph</span>: <span class="kw-2">&amp;mut</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>, <span class="ident">_eclass</span>: <span class="ident">Id</span>, <span class="ident">subst</span>: <span class="kw-2">&amp;</span><span class="ident">Subst</span>) -&gt; <span class="ident">bool</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">id_buf_1</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="number">0</span>.<span class="ident">into</span>(); <span class="self">self</span>.<span class="ident">p1</span>.<span class="ident">ast</span>.<span class="ident">as_ref</span>().<span class="ident">len</span>()];
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">id_buf_2</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="number">0</span>.<span class="ident">into</span>(); <span class="self">self</span>.<span class="ident">p2</span>.<span class="ident">ast</span>.<span class="ident">as_ref</span>().<span class="ident">len</span>()];
+        <span class="kw">let</span> <span class="ident">a1</span> <span class="op">=</span> <span class="ident">apply_pat</span>(<span class="kw-2">&amp;mut</span> <span class="ident">id_buf_1</span>, <span class="self">self</span>.<span class="ident">p1</span>.<span class="ident">ast</span>.<span class="ident">as_ref</span>(), <span class="ident">egraph</span>, <span class="ident">subst</span>);
+        <span class="kw">let</span> <span class="ident">a2</span> <span class="op">=</span> <span class="ident">apply_pat</span>(<span class="kw-2">&amp;mut</span> <span class="ident">id_buf_2</span>, <span class="self">self</span>.<span class="ident">p2</span>.<span class="ident">ast</span>.<span class="ident">as_ref</span>(), <span class="ident">egraph</span>, <span class="ident">subst</span>);
+        <span class="ident">a1</span> <span class="op">==</span> <span class="ident">a2</span>
     }
 
-    <span class="kw">fn</span> <span class="ident">vars</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Var</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">vars</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Var</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">vars</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">p1</span>.<span class="ident">vars</span>();
         <span class="ident">vars</span>.<span class="ident">extend</span>(<span class="self">self</span>.<span class="ident">p2</span>.<span class="ident">vars</span>());
         <span class="ident">vars</span>
@@ -1077,113 +1078,113 @@
 <span class="kw">mod</span> <span class="ident">tests</span> {
 
     <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">SymbolLang</span> <span class="kw">as</span> <span class="ident">S</span>, <span class="kw-2">*</span>};
-    <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">str</span>::<span class="ident">FromStr</span>;
+    <span class="kw">use</span> <span class="ident">std::str::FromStr</span>;
 
-    <span class="kw">type</span> <span class="ident">EGraph</span> <span class="op">=</span> <span class="kw">crate</span>::<span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">S</span>, ()<span class="op">&gt;</span>;
+    <span class="kw">type</span> <span class="ident">EGraph</span> <span class="op">=</span> <span class="ident"><span class="kw">crate</span>::EGraph</span><span class="op">&lt;</span><span class="ident">S</span>, ()<span class="op">&gt;</span>;
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">conditional_rewrite</span>() {
-        <span class="kw">crate</span>::<span class="ident">init_logger</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">egraph</span> <span class="op">=</span> <span class="ident">EGraph</span>::<span class="ident">default</span>();
+        <span class="ident"><span class="kw">crate</span>::init_logger</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">egraph</span> <span class="op">=</span> <span class="ident">EGraph::default</span>();
 
-        <span class="kw">let</span> <span class="ident">x</span> <span class="op">=</span> <span class="ident">egraph</span>.<span class="ident">add</span>(<span class="ident">S</span>::<span class="ident">leaf</span>(<span class="string">&quot;x&quot;</span>));
-        <span class="kw">let</span> <span class="ident">y</span> <span class="op">=</span> <span class="ident">egraph</span>.<span class="ident">add</span>(<span class="ident">S</span>::<span class="ident">leaf</span>(<span class="string">&quot;2&quot;</span>));
-        <span class="kw">let</span> <span class="ident">mul</span> <span class="op">=</span> <span class="ident">egraph</span>.<span class="ident">add</span>(<span class="ident">S</span>::<span class="ident">new</span>(<span class="string">&quot;*&quot;</span>, <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">x</span>, <span class="ident">y</span>]));
+        <span class="kw">let</span> <span class="ident">x</span> <span class="op">=</span> <span class="ident">egraph</span>.<span class="ident">add</span>(<span class="ident">S::leaf</span>(<span class="string">&quot;x&quot;</span>));
+        <span class="kw">let</span> <span class="ident">y</span> <span class="op">=</span> <span class="ident">egraph</span>.<span class="ident">add</span>(<span class="ident">S::leaf</span>(<span class="string">&quot;2&quot;</span>));
+        <span class="kw">let</span> <span class="ident">mul</span> <span class="op">=</span> <span class="ident">egraph</span>.<span class="ident">add</span>(<span class="ident">S::new</span>(<span class="string">&quot;*&quot;</span>, <span class="macro">vec!</span>[<span class="ident">x</span>, <span class="ident">y</span>]));
 
-        <span class="kw">let</span> <span class="ident">true_pat</span> <span class="op">=</span> <span class="ident">Pattern</span>::<span class="ident">from_str</span>(<span class="string">&quot;TRUE&quot;</span>).<span class="ident">unwrap</span>();
-        <span class="ident">egraph</span>.<span class="ident">add</span>(<span class="ident">S</span>::<span class="ident">leaf</span>(<span class="string">&quot;TRUE&quot;</span>));
+        <span class="kw">let</span> <span class="ident">true_pat</span> <span class="op">=</span> <span class="ident">Pattern::from_str</span>(<span class="string">&quot;TRUE&quot;</span>).<span class="ident">unwrap</span>();
+        <span class="ident">egraph</span>.<span class="ident">add</span>(<span class="ident">S::leaf</span>(<span class="string">&quot;TRUE&quot;</span>));
 
-        <span class="kw">let</span> <span class="ident">pow2b</span> <span class="op">=</span> <span class="ident">Pattern</span>::<span class="ident">from_str</span>(<span class="string">&quot;(is-power2 ?b)&quot;</span>).<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="ident">mul_to_shift</span> <span class="op">=</span> <span class="macro">rewrite</span><span class="macro">!</span>(
+        <span class="kw">let</span> <span class="ident">pow2b</span> <span class="op">=</span> <span class="ident">Pattern::from_str</span>(<span class="string">&quot;(is-power2 ?b)&quot;</span>).<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">mul_to_shift</span> <span class="op">=</span> <span class="macro">rewrite!</span>(
             <span class="string">&quot;mul_to_shift&quot;</span>;
-            <span class="string">&quot;(* ?a ?b)&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="string">&quot;(&gt;&gt; ?a (log2 ?b))&quot;</span>
-            <span class="kw">if</span> <span class="ident">ConditionEqual</span>::<span class="ident">new</span>(<span class="ident">pow2b</span>, <span class="ident">true_pat</span>)
+            <span class="string">&quot;(* ?a ?b)&quot;</span> =&gt; <span class="string">&quot;(&gt;&gt; ?a (log2 ?b))&quot;</span>
+            <span class="kw">if</span> <span class="ident">ConditionEqual::new</span>(<span class="ident">pow2b</span>, <span class="ident">true_pat</span>)
         );
 
-        <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;rewrite shouldn&#39;t do anything yet&quot;</span>);
+        <span class="macro">println!</span>(<span class="string">&quot;rewrite shouldn&#39;t do anything yet&quot;</span>);
         <span class="ident">egraph</span>.<span class="ident">rebuild</span>();
-        <span class="kw">let</span> <span class="ident">apps</span> <span class="op">=</span> <span class="ident">mul_to_shift</span>.<span class="ident">run</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">egraph</span>);
-        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">apps</span>.<span class="ident">is_empty</span>());
+        <span class="kw">let</span> <span class="ident">apps</span> <span class="op">=</span> <span class="ident">mul_to_shift</span>.<span class="ident">run</span>(<span class="kw-2">&amp;mut</span> <span class="ident">egraph</span>);
+        <span class="macro">assert!</span>(<span class="ident">apps</span>.<span class="ident">is_empty</span>());
 
-        <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;Add the needed equality&quot;</span>);
+        <span class="macro">println!</span>(<span class="string">&quot;Add the needed equality&quot;</span>);
         <span class="ident">egraph</span>.<span class="ident">union_instantiations</span>(
             <span class="kw-2">&amp;</span><span class="string">&quot;(is-power2 2)&quot;</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>(),
             <span class="kw-2">&amp;</span><span class="string">&quot;TRUE&quot;</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>(),
-            <span class="kw-2">&amp;</span><span class="ident">Default</span>::<span class="ident">default</span>(),
+            <span class="kw-2">&amp;</span><span class="ident">Default::default</span>(),
             <span class="string">&quot;direct-union&quot;</span>.<span class="ident">to_string</span>(),
         );
 
-        <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;Should fire now&quot;</span>);
+        <span class="macro">println!</span>(<span class="string">&quot;Should fire now&quot;</span>);
         <span class="ident">egraph</span>.<span class="ident">rebuild</span>();
-        <span class="kw">let</span> <span class="ident">apps</span> <span class="op">=</span> <span class="ident">mul_to_shift</span>.<span class="ident">run</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">egraph</span>);
-        <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">apps</span>, <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">egraph</span>.<span class="ident">find</span>(<span class="ident">mul</span>)]);
+        <span class="kw">let</span> <span class="ident">apps</span> <span class="op">=</span> <span class="ident">mul_to_shift</span>.<span class="ident">run</span>(<span class="kw-2">&amp;mut</span> <span class="ident">egraph</span>);
+        <span class="macro">assert_eq!</span>(<span class="ident">apps</span>, <span class="macro">vec!</span>[<span class="ident">egraph</span>.<span class="ident">find</span>(<span class="ident">mul</span>)]);
     }
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">fn_rewrite</span>() {
-        <span class="kw">crate</span>::<span class="ident">init_logger</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">egraph</span> <span class="op">=</span> <span class="ident">EGraph</span>::<span class="ident">default</span>();
+        <span class="ident"><span class="kw">crate</span>::init_logger</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">egraph</span> <span class="op">=</span> <span class="ident">EGraph::default</span>();
 
-        <span class="kw">let</span> <span class="ident">start</span> <span class="op">=</span> <span class="ident">RecExpr</span>::<span class="ident">from_str</span>(<span class="string">&quot;(+ x y)&quot;</span>).<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="ident">goal</span> <span class="op">=</span> <span class="ident">RecExpr</span>::<span class="ident">from_str</span>(<span class="string">&quot;xy&quot;</span>).<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">start</span> <span class="op">=</span> <span class="ident">RecExpr::from_str</span>(<span class="string">&quot;(+ x y)&quot;</span>).<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">goal</span> <span class="op">=</span> <span class="ident">RecExpr::from_str</span>(<span class="string">&quot;xy&quot;</span>).<span class="ident">unwrap</span>();
 
         <span class="kw">let</span> <span class="ident">root</span> <span class="op">=</span> <span class="ident">egraph</span>.<span class="ident">add_expr</span>(<span class="kw-2">&amp;</span><span class="ident">start</span>);
 
-        <span class="kw">fn</span> <span class="ident">get</span>(<span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="ident">EGraph</span>, <span class="ident">id</span>: <span class="ident">Id</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Symbol</span> {
+        <span class="kw">fn</span> <span class="ident">get</span>(<span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="ident">EGraph</span>, <span class="ident">id</span>: <span class="ident">Id</span>) -&gt; <span class="ident">Symbol</span> {
             <span class="ident">egraph</span>[<span class="ident">id</span>].<span class="ident">nodes</span>[<span class="number">0</span>].<span class="ident">op</span>
         }
 
         <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
         <span class="kw">struct</span> <span class="ident">Appender</span> {
-            <span class="ident">rhs</span>: <span class="ident">PatternAst</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>,
+            <span class="ident">_rhs</span>: <span class="ident">PatternAst</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>,
         }
 
         <span class="kw">impl</span> <span class="ident">Applier</span><span class="op">&lt;</span><span class="ident">SymbolLang</span>, ()<span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Appender</span> {
             <span class="kw">fn</span> <span class="ident">apply_one</span>(
                 <span class="kw-2">&amp;</span><span class="self">self</span>,
-                <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">EGraph</span>,
+                <span class="ident">egraph</span>: <span class="kw-2">&amp;mut</span> <span class="ident">EGraph</span>,
                 <span class="ident">eclass</span>: <span class="ident">Id</span>,
                 <span class="ident">subst</span>: <span class="kw-2">&amp;</span><span class="ident">Subst</span>,
                 <span class="ident">searcher_ast</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">PatternAst</span><span class="op">&lt;</span><span class="ident">SymbolLang</span><span class="op">&gt;</span><span class="op">&gt;</span>,
                 <span class="ident">rule_name</span>: <span class="ident">Symbol</span>,
-            ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> {
+            ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> {
                 <span class="kw">let</span> <span class="ident">a</span>: <span class="ident">Var</span> <span class="op">=</span> <span class="string">&quot;?a&quot;</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>();
                 <span class="kw">let</span> <span class="ident">b</span>: <span class="ident">Var</span> <span class="op">=</span> <span class="string">&quot;?b&quot;</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>();
-                <span class="kw">let</span> <span class="ident">a</span> <span class="op">=</span> <span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">egraph</span>, <span class="ident">subst</span>[<span class="ident">a</span>]);
-                <span class="kw">let</span> <span class="ident">b</span> <span class="op">=</span> <span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">egraph</span>, <span class="ident">subst</span>[<span class="ident">b</span>]);
-                <span class="kw">let</span> <span class="ident">s</span> <span class="op">=</span> <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{}{}&quot;</span>, <span class="ident">a</span>, <span class="ident">b</span>);
+                <span class="kw">let</span> <span class="ident">a</span> <span class="op">=</span> <span class="ident">get</span>(<span class="ident">egraph</span>, <span class="ident">subst</span>[<span class="ident">a</span>]);
+                <span class="kw">let</span> <span class="ident">b</span> <span class="op">=</span> <span class="ident">get</span>(<span class="ident">egraph</span>, <span class="ident">subst</span>[<span class="ident">b</span>]);
+                <span class="kw">let</span> <span class="ident">s</span> <span class="op">=</span> <span class="macro">format!</span>(<span class="string">&quot;{}{}&quot;</span>, <span class="ident">a</span>, <span class="ident">b</span>);
                 <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">ast</span>) <span class="op">=</span> <span class="ident">searcher_ast</span> {
                     <span class="kw">let</span> (<span class="ident">id</span>, <span class="ident">did_something</span>) <span class="op">=</span> <span class="ident">egraph</span>.<span class="ident">union_instantiations</span>(
                         <span class="ident">ast</span>,
-                        <span class="kw-2">&amp;</span><span class="ident">PatternAst</span>::<span class="ident">from_str</span>(<span class="kw-2">&amp;</span><span class="ident">s</span>).<span class="ident">unwrap</span>(),
+                        <span class="kw-2">&amp;</span><span class="ident">PatternAst::from_str</span>(<span class="kw-2">&amp;</span><span class="ident">s</span>).<span class="ident">unwrap</span>(),
                         <span class="ident">subst</span>,
                         <span class="ident">rule_name</span>,
                     );
                     <span class="kw">if</span> <span class="ident">did_something</span> {
-                        <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">id</span>]
+                        <span class="macro">vec!</span>[<span class="ident">id</span>]
                     } <span class="kw">else</span> {
-                        <span class="macro">vec</span><span class="macro">!</span>[]
+                        <span class="macro">vec!</span>[]
                     }
                 } <span class="kw">else</span> {
-                    <span class="kw">let</span> <span class="ident">added</span> <span class="op">=</span> <span class="ident">egraph</span>.<span class="ident">add</span>(<span class="ident">S</span>::<span class="ident">leaf</span>(<span class="kw-2">&amp;</span><span class="ident">s</span>));
+                    <span class="kw">let</span> <span class="ident">added</span> <span class="op">=</span> <span class="ident">egraph</span>.<span class="ident">add</span>(<span class="ident">S::leaf</span>(<span class="kw-2">&amp;</span><span class="ident">s</span>));
                     <span class="kw">if</span> <span class="ident">egraph</span>.<span class="ident">union</span>(<span class="ident">added</span>, <span class="ident">eclass</span>) {
-                        <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">eclass</span>]
+                        <span class="macro">vec!</span>[<span class="ident">eclass</span>]
                     } <span class="kw">else</span> {
-                        <span class="macro">vec</span><span class="macro">!</span>[]
+                        <span class="macro">vec!</span>[]
                     }
                 }
             }
         }
 
-        <span class="kw">let</span> <span class="ident">fold_add</span> <span class="op">=</span> <span class="macro">rewrite</span><span class="macro">!</span>(
-            <span class="string">&quot;fold_add&quot;</span>; <span class="string">&quot;(+ ?a ?b)&quot;</span> <span class="op">=</span><span class="op">&gt;</span> { <span class="ident">Appender</span> { <span class="ident">rhs</span>: <span class="string">&quot;?a&quot;</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>()}}
+        <span class="kw">let</span> <span class="ident">fold_add</span> <span class="op">=</span> <span class="macro">rewrite!</span>(
+            <span class="string">&quot;fold_add&quot;</span>; <span class="string">&quot;(+ ?a ?b)&quot;</span> =&gt; { <span class="ident">Appender</span> { <span class="ident">_rhs</span>: <span class="string">&quot;?a&quot;</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>()}}
         );
 
         <span class="ident">egraph</span>.<span class="ident">rebuild</span>();
-        <span class="ident">fold_add</span>.<span class="ident">run</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">egraph</span>);
-        <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">egraph</span>.<span class="ident">equivs</span>(<span class="kw-2">&amp;</span><span class="ident">start</span>, <span class="kw-2">&amp;</span><span class="ident">goal</span>), <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">egraph</span>.<span class="ident">find</span>(<span class="ident">root</span>)]);
+        <span class="ident">fold_add</span>.<span class="ident">run</span>(<span class="kw-2">&amp;mut</span> <span class="ident">egraph</span>);
+        <span class="macro">assert_eq!</span>(<span class="ident">egraph</span>.<span class="ident">equivs</span>(<span class="kw-2">&amp;</span><span class="ident">start</span>, <span class="kw-2">&amp;</span><span class="ident">goal</span>), <span class="macro">vec!</span>[<span class="ident">egraph</span>.<span class="ident">find</span>(<span class="ident">root</span>)]);
     }
 }
-</pre></div>
-</section><section id="search" class="content hidden"></section><section class="footer"></section><div id="rustdoc-vars" data-root-path="../../" data-current-crate="egg"></div>
-    <script src="../../main.js"></script><script src="../../source-script.js"></script><script src="../../source-files.js"></script><script defer src="../../search-index.js"></script></body></html>
+</code></pre></div>
+</section><section id="search" class="content hidden"></section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="egg" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.60.0 (7737e0b5c 2022-04-04)" ></div>
+</body></html>

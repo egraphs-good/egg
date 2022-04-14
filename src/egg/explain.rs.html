@@ -1,7 +1,9 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/explain.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>explain.rs - source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled ><script id="default-settings"></script><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="icon" type="image/svg+xml" href="../../favicon.svg">
-<link rel="alternate icon" type="image/png" href="../../favicon-16x16.png">
-<link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../egg/index.html'><div class='logo-container rust-logo'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu"><img src="../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices" role="menu"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" class="help-button">?</button>
-                <a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">   1</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/explain.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>explain.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script src="../../crates.js"></script><script defer src="../../main.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script>
+    <noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button><a class="sidebar-logo" href="../../egg/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div>
+        </a><h2 class="location"></h2>
+    </nav>
+    <nav class="sidebar"><a class="sidebar-logo" href="../../egg/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div>
+        </a></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../../egg/index.html"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></a><nav class="sub"><div class="theme-picker hidden"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu" title="themes"><img width="22" height="22" alt="Pick another theme!" src="../../brush.svg"></button><div id="theme-choices" role="menu"></div></div><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><button type="button" id="help-button" title="help">?</button><a id="settings-menu" href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../wheel.svg"></a></div></form></nav></div><section id="main-content" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">   1</span>
 <span id="2">   2</span>
 <span id="3">   3</span>
 <span id="4">   4</span>
@@ -1089,26 +1091,25 @@
 <span id="1086">1086</span>
 <span id="1087">1087</span>
 <span id="1088">1088</span>
-</pre><div class="example-wrap"><pre class="rust ">
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">Symbol</span>;
+</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::Symbol</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::{
-    <span class="ident">util</span>::<span class="ident">pretty_print</span>, <span class="ident">Analysis</span>, <span class="ident">ENodeOrVar</span>, <span class="ident">HashMap</span>, <span class="ident">HashSet</span>, <span class="ident">Id</span>, <span class="ident">Language</span>, <span class="ident">PatternAst</span>, <span class="ident">Rewrite</span>,
+    <span class="ident">util::pretty_print</span>, <span class="ident">Analysis</span>, <span class="ident">ENodeOrVar</span>, <span class="ident">HashMap</span>, <span class="ident">HashSet</span>, <span class="ident">Id</span>, <span class="ident">Language</span>, <span class="ident">PatternAst</span>, <span class="ident">Rewrite</span>,
     <span class="ident">Var</span>,
 };
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fmt</span>::{<span class="self">self</span>, <span class="ident">Debug</span>, <span class="ident">Display</span>, <span class="ident">Formatter</span>};
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">rc</span>::<span class="ident">Rc</span>;
+<span class="kw">use</span> <span class="ident">std::fmt</span>::{<span class="self">self</span>, <span class="ident">Debug</span>, <span class="ident">Display</span>, <span class="ident">Formatter</span>};
+<span class="kw">use</span> <span class="ident">std::rc::Rc</span>;
 
-<span class="kw">use</span> <span class="ident">symbolic_expressions</span>::<span class="ident">Sexp</span>;
+<span class="kw">use</span> <span class="ident">symbolic_expressions::Sexp</span>;
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>)]</span>
-<span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde-1&quot;</span>, <span class="ident">derive</span>(<span class="ident">serde</span>::<span class="ident">Serialize</span>, <span class="ident">serde</span>::<span class="ident">Deserialize</span>))]</span>
+<span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde-1&quot;</span>, <span class="ident">derive</span>(<span class="ident">serde::Serialize</span>, <span class="ident">serde::Deserialize</span>))]</span>
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum</span> <span class="ident">Justification</span> {
     <span class="ident">Rule</span>(<span class="ident">Symbol</span>),
     <span class="ident">Congruence</span>,
 }
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>)]</span>
-<span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde-1&quot;</span>, <span class="ident">derive</span>(<span class="ident">serde</span>::<span class="ident">Serialize</span>, <span class="ident">serde</span>::<span class="ident">Deserialize</span>))]</span>
+<span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde-1&quot;</span>, <span class="ident">derive</span>(<span class="ident">serde::Serialize</span>, <span class="ident">serde::Deserialize</span>))]</span>
 <span class="kw">struct</span> <span class="ident">ExplainNode</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span> {
     <span class="ident">node</span>: <span class="ident">L</span>,
     <span class="ident">next</span>: <span class="ident">Id</span>,
@@ -1124,7 +1125,7 @@
 }
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>)]</span>
-<span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde-1&quot;</span>, <span class="ident">derive</span>(<span class="ident">serde</span>::<span class="ident">Serialize</span>, <span class="ident">serde</span>::<span class="ident">Deserialize</span>))]</span>
+<span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde-1&quot;</span>, <span class="ident">derive</span>(<span class="ident">serde::Serialize</span>, <span class="ident">serde::Deserialize</span>))]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Explain</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span> {
     <span class="ident">explainfind</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">ExplainNode</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde-1&quot;</span>, <span class="ident">serde</span>(<span class="ident">with</span> <span class="op">=</span> <span class="string">&quot;vectorize&quot;</span>))]</span>
@@ -1168,34 +1169,34 @@ See [`Explanation`] for more details.
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span> <span class="op">+</span> <span class="ident">Display</span><span class="op">&gt;</span> <span class="ident">Display</span> <span class="kw">for</span> <span class="ident">Explanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="ident">fmt::Result</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">s</span> <span class="op">=</span> <span class="string">&quot;&quot;</span>.<span class="ident">to_string</span>();
-        <span class="ident">pretty_print</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">s</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">get_sexp</span>(), <span class="number">100</span>, <span class="number">0</span>).<span class="ident">unwrap</span>();
+        <span class="ident">pretty_print</span>(<span class="kw-2">&amp;mut</span> <span class="ident">s</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">get_sexp</span>(), <span class="number">100</span>, <span class="number">0</span>).<span class="ident">unwrap</span>();
         <span class="ident">f</span>.<span class="ident">write_str</span>(<span class="kw-2">&amp;</span><span class="ident">s</span>)
     }
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span> <span class="op">+</span> <span class="ident">Display</span><span class="op">&gt;</span> <span class="ident">Explanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
     <span class="doccomment">/// Get the flattened explanation as a string.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_flat_string</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">String</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_flat_string</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) -&gt; <span class="ident">String</span> {
         <span class="self">self</span>.<span class="ident">get_flat_strings</span>().<span class="ident">join</span>(<span class="string">&quot;\n&quot;</span>)
     }
 
     <span class="doccomment">/// Get the tree-style explanation as a string.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">String</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">String</span> {
         <span class="self">self</span>.<span class="ident">to_string</span>()
     }
 
     <span class="doccomment">/// Get the tree-style explanation with let binding as a string.</span>
     <span class="doccomment">/// See [`get_sexp_with_let`](Explanation::get_sexp_with_let) for the format of these strings.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_string_with_let</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">String</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_string_with_let</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">String</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">s</span> <span class="op">=</span> <span class="string">&quot;&quot;</span>.<span class="ident">to_string</span>();
-        <span class="ident">pretty_print</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">s</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">get_sexp_with_let</span>(), <span class="number">100</span>, <span class="number">0</span>).<span class="ident">unwrap</span>();
+        <span class="ident">pretty_print</span>(<span class="kw-2">&amp;mut</span> <span class="ident">s</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">get_sexp_with_let</span>(), <span class="number">100</span>, <span class="number">0</span>).<span class="ident">unwrap</span>();
         <span class="ident">s</span>
     }
 
     <span class="doccomment">/// Get each term in the explanation as a string.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_flat_strings</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_flat_strings</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">make_flat_explanation</span>()
             .<span class="ident">iter</span>()
             .<span class="ident">map</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">e</span>.<span class="ident">to_string</span>())
@@ -1231,13 +1232,13 @@ See [`Explanation`] for more details.
     <span class="doccomment">///      (Rewrite=&gt; cancel-sub 0)))</span>
     <span class="doccomment">/// (Rewrite=&gt; constant_fold 1)</span>
     <span class="doccomment">/// ```</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_sexp</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Sexp</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">items</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">Sexp</span>::<span class="ident">String</span>(<span class="string">&quot;Explanation&quot;</span>.<span class="ident">to_string</span>())];
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_sexp</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Sexp</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">items</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="ident">Sexp::String</span>(<span class="string">&quot;Explanation&quot;</span>.<span class="ident">to_string</span>())];
         <span class="kw">for</span> <span class="ident">e</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">explanation_trees</span>.<span class="ident">iter</span>() {
             <span class="ident">items</span>.<span class="ident">push</span>(<span class="ident">e</span>.<span class="ident">get_sexp</span>());
         }
 
-        <span class="ident">Sexp</span>::<span class="ident">List</span>(<span class="ident">items</span>)
+        <span class="ident">Sexp::List</span>(<span class="ident">items</span>)
     }
 
     <span class="doccomment">/// Get the tree-style explanation as an s-expression with let binding</span>
@@ -1271,38 +1272,38 @@ See [`Explanation`] for more details.
     <span class="doccomment">///                 (Rewrite=&gt; constant_fold 4))</span>
     <span class="doccomment">///               x))))))</span>
     <span class="doccomment">/// ```</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_sexp_with_let</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Sexp</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">shared</span>: <span class="ident">HashSet</span><span class="op">&lt;</span><span class="kw-2">*</span><span class="kw">const</span> <span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Default</span>::<span class="ident">default</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">to_let_bind</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[];
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_sexp_with_let</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Sexp</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">shared</span>: <span class="ident">HashSet</span><span class="op">&lt;</span><span class="kw-2">*const</span> <span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Default::default</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">to_let_bind</span> <span class="op">=</span> <span class="macro">vec!</span>[];
         <span class="kw">for</span> <span class="ident">term</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">explanation_trees</span> {
-            <span class="self">self</span>.<span class="ident">find_to_let_bind</span>(<span class="ident">term</span>.<span class="ident">clone</span>(), <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">shared</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">to_let_bind</span>);
+            <span class="self">self</span>.<span class="ident">find_to_let_bind</span>(<span class="ident">term</span>.<span class="ident">clone</span>(), <span class="kw-2">&amp;mut</span> <span class="ident">shared</span>, <span class="kw-2">&amp;mut</span> <span class="ident">to_let_bind</span>);
         }
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">bindings</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="kw-2">*</span><span class="kw">const</span> <span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>, <span class="ident">Sexp</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Default</span>::<span class="ident">default</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">generated_bindings</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">Sexp</span>, <span class="ident">Sexp</span>)<span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Default</span>::<span class="ident">default</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">bindings</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="kw-2">*const</span> <span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>, <span class="ident">Sexp</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Default::default</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">generated_bindings</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">Sexp</span>, <span class="ident">Sexp</span>)<span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Default::default</span>();
         <span class="kw">for</span> <span class="ident">to_bind</span> <span class="kw">in</span> <span class="ident">to_let_bind</span> {
-            <span class="kw">if</span> <span class="ident">bindings</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">to_bind</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>)).<span class="ident">is_none</span>() {
-                <span class="kw">let</span> <span class="ident">name</span> <span class="op">=</span> <span class="ident">Sexp</span>::<span class="ident">String</span>(<span class="string">&quot;v_&quot;</span>.<span class="ident">to_string</span>() <span class="op">+</span> <span class="kw-2">&amp;</span><span class="ident">generated_bindings</span>.<span class="ident">len</span>().<span class="ident">to_string</span>());
+            <span class="kw">if</span> <span class="ident">bindings</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">to_bind</span> <span class="kw">as</span> <span class="kw-2">*const</span> <span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>)).<span class="ident">is_none</span>() {
+                <span class="kw">let</span> <span class="ident">name</span> <span class="op">=</span> <span class="ident">Sexp::String</span>(<span class="string">&quot;v_&quot;</span>.<span class="ident">to_string</span>() <span class="op">+</span> <span class="kw-2">&amp;</span><span class="ident">generated_bindings</span>.<span class="ident">len</span>().<span class="ident">to_string</span>());
                 <span class="kw">let</span> <span class="ident">ast</span> <span class="op">=</span> <span class="ident">to_bind</span>.<span class="ident">get_sexp_with_bindings</span>(<span class="kw-2">&amp;</span><span class="ident">bindings</span>);
                 <span class="ident">generated_bindings</span>.<span class="ident">push</span>((<span class="ident">name</span>.<span class="ident">clone</span>(), <span class="ident">ast</span>));
-                <span class="ident">bindings</span>.<span class="ident">insert</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">to_bind</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>, <span class="ident">name</span>);
+                <span class="ident">bindings</span>.<span class="ident">insert</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">to_bind</span> <span class="kw">as</span> <span class="kw-2">*const</span> <span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>, <span class="ident">name</span>);
             }
         }
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">items</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">Sexp</span>::<span class="ident">String</span>(<span class="string">&quot;Explanation&quot;</span>.<span class="ident">to_string</span>())];
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">items</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="ident">Sexp::String</span>(<span class="string">&quot;Explanation&quot;</span>.<span class="ident">to_string</span>())];
         <span class="kw">for</span> <span class="ident">e</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">explanation_trees</span>.<span class="ident">iter</span>() {
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">existing</span>) <span class="op">=</span> <span class="ident">bindings</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">e</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>)) {
+            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">existing</span>) <span class="op">=</span> <span class="ident">bindings</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">e</span> <span class="kw">as</span> <span class="kw-2">*const</span> <span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>)) {
                 <span class="ident">items</span>.<span class="ident">push</span>(<span class="ident">existing</span>.<span class="ident">clone</span>());
             } <span class="kw">else</span> {
                 <span class="ident">items</span>.<span class="ident">push</span>(<span class="ident">e</span>.<span class="ident">get_sexp_with_bindings</span>(<span class="kw-2">&amp;</span><span class="ident">bindings</span>));
             }
         }
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">Sexp</span>::<span class="ident">List</span>(<span class="ident">items</span>);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">Sexp::List</span>(<span class="ident">items</span>);
 
         <span class="kw">for</span> (<span class="ident">name</span>, <span class="ident">expr</span>) <span class="kw">in</span> <span class="ident">generated_bindings</span>.<span class="ident">into_iter</span>().<span class="ident">rev</span>() {
-            <span class="kw">let</span> <span class="ident">let_expr</span> <span class="op">=</span> <span class="ident">Sexp</span>::<span class="ident">List</span>(<span class="macro">vec</span><span class="macro">!</span>[<span class="ident">name</span>, <span class="ident">expr</span>]);
-            <span class="ident">result</span> <span class="op">=</span> <span class="ident">Sexp</span>::<span class="ident">List</span>(<span class="macro">vec</span><span class="macro">!</span>[<span class="ident">Sexp</span>::<span class="ident">String</span>(<span class="string">&quot;let&quot;</span>.<span class="ident">to_string</span>()), <span class="ident">let_expr</span>, <span class="ident">result</span>]);
+            <span class="kw">let</span> <span class="ident">let_expr</span> <span class="op">=</span> <span class="ident">Sexp::List</span>(<span class="macro">vec!</span>[<span class="ident">name</span>, <span class="ident">expr</span>]);
+            <span class="ident">result</span> <span class="op">=</span> <span class="ident">Sexp::List</span>(<span class="macro">vec!</span>[<span class="ident">Sexp::String</span>(<span class="string">&quot;let&quot;</span>.<span class="ident">to_string</span>()), <span class="ident">let_expr</span>, <span class="ident">result</span>]);
         }
 
         <span class="ident">result</span>
@@ -1311,8 +1312,8 @@ See [`Explanation`] for more details.
     <span class="kw">fn</span> <span class="ident">find_to_let_bind</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">term</span>: <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="ident">shared</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">HashSet</span><span class="op">&lt;</span><span class="kw-2">*</span><span class="kw">const</span> <span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="ident">to_let_bind</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">shared</span>: <span class="kw-2">&amp;mut</span> <span class="ident">HashSet</span><span class="op">&lt;</span><span class="kw-2">*const</span> <span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">to_let_bind</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     ) {
         <span class="kw">for</span> <span class="ident">proof</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">term</span>.<span class="ident">child_proofs</span> {
             <span class="kw">for</span> <span class="ident">child</span> <span class="kw">in</span> <span class="ident">proof</span> {
@@ -1320,7 +1321,7 @@ See [`Explanation`] for more details.
             }
         }
 
-        <span class="kw">if</span> <span class="op">!</span><span class="ident">term</span>.<span class="ident">child_proofs</span>.<span class="ident">is_empty</span>() <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="ident">shared</span>.<span class="ident">insert</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">term</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) {
+        <span class="kw">if</span> <span class="op">!</span><span class="ident">term</span>.<span class="ident">child_proofs</span>.<span class="ident">is_empty</span>() <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="ident">shared</span>.<span class="ident">insert</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">term</span> <span class="kw">as</span> <span class="kw-2">*const</span> <span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) {
             <span class="ident">to_let_bind</span>.<span class="ident">push</span>(<span class="ident">term</span>);
         }
     }
@@ -1344,7 +1345,7 @@ See [`Explanation`] for more details.
     <span class="doccomment">/// (+ 1 (Rewrite=&gt; cancel-sub 0))</span>
     <span class="doccomment">/// (Rewrite=&gt; constant_fold 1)</span>
     <span class="doccomment">/// ```</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_flat_sexps</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Sexp</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_flat_sexps</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Sexp</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">make_flat_explanation</span>()
             .<span class="ident">iter</span>()
             .<span class="ident">map</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">e</span>.<span class="ident">get_sexp</span>())
@@ -1354,7 +1355,7 @@ See [`Explanation`] for more details.
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span> <span class="ident">Explanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
     <span class="doccomment">/// Construct a new explanation given its tree representation.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">explanation_trees</span>: <span class="ident">TreeExplanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Explanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">explanation_trees</span>: <span class="ident">TreeExplanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) -&gt; <span class="ident">Explanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
         <span class="ident">Explanation</span> {
             <span class="ident">explanation_trees</span>,
             <span class="ident">flat_explanation</span>: <span class="prelude-val">None</span>,
@@ -1362,41 +1363,41 @@ See [`Explanation`] for more details.
     }
 
     <span class="doccomment">/// Construct the flat representation of the explanation and return it.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">make_flat_explanation</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">FlatExplanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">make_flat_explanation</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">FlatExplanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">flat_explanation</span>.<span class="ident">is_some</span>() {
             <span class="kw">return</span> <span class="self">self</span>.<span class="ident">flat_explanation</span>.<span class="ident">as_ref</span>().<span class="ident">unwrap</span>();
         } <span class="kw">else</span> {
-            <span class="self">self</span>.<span class="ident">flat_explanation</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">TreeTerm</span>::<span class="ident">flatten_proof</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">explanation_trees</span>));
+            <span class="self">self</span>.<span class="ident">flat_explanation</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">TreeTerm::flatten_proof</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">explanation_trees</span>));
             <span class="self">self</span>.<span class="ident">flat_explanation</span>.<span class="ident">as_ref</span>().<span class="ident">unwrap</span>()
         }
     }
 
     <span class="doccomment">/// Check the validity of the explanation with respect to the given rules.</span>
     <span class="doccomment">/// This only is able to check rule applications when the rules are implement `get_pattern_ast`.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">check_proof</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">R</span>, <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">rules</span>: <span class="ident">R</span>)
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">check_proof</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">R</span>, <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">rules</span>: <span class="ident">R</span>)
     <span class="kw">where</span>
         <span class="ident">R</span>: <span class="ident">IntoIterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Rewrite</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">L</span>: <span class="lifetime">&#39;a</span>,
         <span class="ident">N</span>: <span class="lifetime">&#39;a</span>,
     {
         <span class="kw">let</span> <span class="ident">rules</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Rewrite</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">rules</span>.<span class="ident">into_iter</span>().<span class="ident">collect</span>();
-        <span class="kw">let</span> <span class="ident">rule_table</span> <span class="op">=</span> <span class="ident">Explain</span>::<span class="ident">make_rule_table</span>(<span class="ident">rules</span>.<span class="ident">as_slice</span>());
+        <span class="kw">let</span> <span class="ident">rule_table</span> <span class="op">=</span> <span class="ident">Explain::make_rule_table</span>(<span class="ident">rules</span>.<span class="ident">as_slice</span>());
         <span class="self">self</span>.<span class="ident">make_flat_explanation</span>();
         <span class="kw">let</span> <span class="ident">flat_explanation</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">flat_explanation</span>.<span class="ident">as_ref</span>().<span class="ident">unwrap</span>();
-        <span class="macro">assert</span><span class="macro">!</span>(<span class="op">!</span><span class="ident">flat_explanation</span>[<span class="number">0</span>].<span class="ident">has_rewrite_forward</span>());
-        <span class="macro">assert</span><span class="macro">!</span>(<span class="op">!</span><span class="ident">flat_explanation</span>[<span class="number">0</span>].<span class="ident">has_rewrite_backward</span>());
+        <span class="macro">assert!</span>(<span class="op">!</span><span class="ident">flat_explanation</span>[<span class="number">0</span>].<span class="ident">has_rewrite_forward</span>());
+        <span class="macro">assert!</span>(<span class="op">!</span><span class="ident">flat_explanation</span>[<span class="number">0</span>].<span class="ident">has_rewrite_backward</span>());
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">flat_explanation</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="number">1</span> {
             <span class="kw">let</span> <span class="ident">current</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">flat_explanation</span>[<span class="ident">i</span>];
             <span class="kw">let</span> <span class="ident">next</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">flat_explanation</span>[<span class="ident">i</span> <span class="op">+</span> <span class="number">1</span>];
 
             <span class="kw">let</span> <span class="ident">has_forward</span> <span class="op">=</span> <span class="ident">next</span>.<span class="ident">has_rewrite_forward</span>();
             <span class="kw">let</span> <span class="ident">has_backward</span> <span class="op">=</span> <span class="ident">next</span>.<span class="ident">has_rewrite_backward</span>();
-            <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">has_forward</span> <span class="op">^</span> <span class="ident">has_backward</span>);
+            <span class="macro">assert!</span>(<span class="ident">has_forward</span> <span class="op">^</span> <span class="ident">has_backward</span>);
 
             <span class="kw">if</span> <span class="ident">has_forward</span> {
-                <span class="macro">assert</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">check_rewrite_at</span>(<span class="ident">current</span>, <span class="ident">next</span>, <span class="kw-2">&amp;</span><span class="ident">rule_table</span>, <span class="bool-val">true</span>));
+                <span class="macro">assert!</span>(<span class="self">self</span>.<span class="ident">check_rewrite_at</span>(<span class="ident">current</span>, <span class="ident">next</span>, <span class="kw-2">&amp;</span><span class="ident">rule_table</span>, <span class="bool-val">true</span>));
             } <span class="kw">else</span> {
-                <span class="macro">assert</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">check_rewrite_at</span>(<span class="ident">current</span>, <span class="ident">next</span>, <span class="kw-2">&amp;</span><span class="ident">rule_table</span>, <span class="bool-val">false</span>));
+                <span class="macro">assert!</span>(<span class="self">self</span>.<span class="ident">check_rewrite_at</span>(<span class="ident">current</span>, <span class="ident">next</span>, <span class="kw-2">&amp;</span><span class="ident">rule_table</span>, <span class="bool-val">false</span>));
             }
         }
     }
@@ -1407,11 +1408,11 @@ See [`Explanation`] for more details.
         <span class="ident">next</span>: <span class="kw-2">&amp;</span><span class="ident">FlatTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
         <span class="ident">table</span>: <span class="kw-2">&amp;</span><span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">Symbol</span>, <span class="kw-2">&amp;</span><span class="ident">Rewrite</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">is_forward</span>: <span class="ident">bool</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+    ) -&gt; <span class="ident">bool</span> {
         <span class="kw">if</span> <span class="ident">is_forward</span> <span class="op">&amp;&amp;</span> <span class="ident">next</span>.<span class="ident">forward_rule</span>.<span class="ident">is_some</span>() {
             <span class="kw">let</span> <span class="ident">rule_name</span> <span class="op">=</span> <span class="ident">next</span>.<span class="ident">forward_rule</span>.<span class="ident">as_ref</span>().<span class="ident">unwrap</span>();
             <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">rule</span>) <span class="op">=</span> <span class="ident">table</span>.<span class="ident">get</span>(<span class="ident">rule_name</span>) {
-                <span class="ident">Explanation</span>::<span class="ident">check_rewrite</span>(<span class="ident">current</span>, <span class="ident">next</span>, <span class="ident">rule</span>)
+                <span class="ident">Explanation::check_rewrite</span>(<span class="ident">current</span>, <span class="ident">next</span>, <span class="ident">rule</span>)
             } <span class="kw">else</span> {
                 <span class="comment">// give up when the rule is not provided</span>
                 <span class="bool-val">true</span>
@@ -1419,7 +1420,7 @@ See [`Explanation`] for more details.
         } <span class="kw">else</span> <span class="kw">if</span> <span class="op">!</span><span class="ident">is_forward</span> <span class="op">&amp;&amp;</span> <span class="ident">next</span>.<span class="ident">backward_rule</span>.<span class="ident">is_some</span>() {
             <span class="kw">let</span> <span class="ident">rule_name</span> <span class="op">=</span> <span class="ident">next</span>.<span class="ident">backward_rule</span>.<span class="ident">as_ref</span>().<span class="ident">unwrap</span>();
             <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">rule</span>) <span class="op">=</span> <span class="ident">table</span>.<span class="ident">get</span>(<span class="ident">rule_name</span>) {
-                <span class="ident">Explanation</span>::<span class="ident">check_rewrite</span>(<span class="ident">next</span>, <span class="ident">current</span>, <span class="ident">rule</span>)
+                <span class="ident">Explanation::check_rewrite</span>(<span class="ident">next</span>, <span class="ident">current</span>, <span class="ident">rule</span>)
             } <span class="kw">else</span> {
                 <span class="bool-val">true</span>
             }
@@ -1438,7 +1439,7 @@ See [`Explanation`] for more details.
         <span class="ident">current</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">FlatTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
         <span class="ident">next</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">FlatTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
         <span class="ident">rewrite</span>: <span class="kw-2">&amp;</span><span class="ident">Rewrite</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+    ) -&gt; <span class="ident">bool</span> {
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">lhs</span>) <span class="op">=</span> <span class="ident">rewrite</span>.<span class="ident">searcher</span>.<span class="ident">get_pattern_ast</span>() {
             <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">rhs</span>) <span class="op">=</span> <span class="ident">rewrite</span>.<span class="ident">applier</span>.<span class="ident">get_pattern_ast</span>() {
                 <span class="kw">let</span> <span class="ident">rewritten</span> <span class="op">=</span> <span class="ident">current</span>.<span class="ident">rewrite</span>(<span class="ident">lhs</span>, <span class="ident">rhs</span>);
@@ -1479,7 +1480,7 @@ See [`Explanation`] for more details.
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span> <span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
     <span class="doccomment">/// Construct a new TreeTerm given its node and child_proofs.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">node</span>: <span class="ident">L</span>, <span class="ident">child_proofs</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">TreeExplanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">node</span>: <span class="ident">L</span>, <span class="ident">child_proofs</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">TreeExplanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span>) -&gt; <span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
         <span class="ident">TreeTerm</span> {
             <span class="ident">node</span>,
             <span class="ident">backward_rule</span>: <span class="prelude-val">None</span>,
@@ -1488,8 +1489,8 @@ See [`Explanation`] for more details.
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">flatten_proof</span>(<span class="ident">proof</span>: <span class="kw-2">&amp;</span>[<span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">FlatExplanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">flat_proof</span>: <span class="ident">FlatExplanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[];
+    <span class="kw">fn</span> <span class="ident">flatten_proof</span>(<span class="ident">proof</span>: <span class="kw-2">&amp;</span>[<span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span>]) -&gt; <span class="ident">FlatExplanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">flat_proof</span>: <span class="ident">FlatExplanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> <span class="op">=</span> <span class="macro">vec!</span>[];
         <span class="kw">for</span> <span class="ident">tree</span> <span class="kw">in</span> <span class="ident">proof</span> {
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">explanation</span> <span class="op">=</span> <span class="ident">tree</span>.<span class="ident">flatten_explanation</span>();
 
@@ -1508,17 +1509,17 @@ See [`Explanation`] for more details.
     }
 
     <span class="doccomment">/// Construct the [`FlatExplanation`] for this TreeTerm.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">flatten_explanation</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">FlatExplanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">proof</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[];
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">child_proofs</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[];
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">representative_terms</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[];
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">flatten_explanation</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">FlatExplanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">proof</span> <span class="op">=</span> <span class="macro">vec!</span>[];
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">child_proofs</span> <span class="op">=</span> <span class="macro">vec!</span>[];
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">representative_terms</span> <span class="op">=</span> <span class="macro">vec!</span>[];
         <span class="kw">for</span> <span class="ident">child_explanation</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">child_proofs</span> {
-            <span class="kw">let</span> <span class="ident">flat_proof</span> <span class="op">=</span> <span class="ident">TreeTerm</span>::<span class="ident">flatten_proof</span>(<span class="ident">child_explanation</span>);
+            <span class="kw">let</span> <span class="ident">flat_proof</span> <span class="op">=</span> <span class="ident">TreeTerm::flatten_proof</span>(<span class="ident">child_explanation</span>);
             <span class="ident">representative_terms</span>.<span class="ident">push</span>(<span class="ident">flat_proof</span>[<span class="number">0</span>].<span class="ident">remove_rewrites</span>());
             <span class="ident">child_proofs</span>.<span class="ident">push</span>(<span class="ident">flat_proof</span>);
         }
 
-        <span class="ident">proof</span>.<span class="ident">push</span>(<span class="ident">FlatTerm</span>::<span class="ident">new</span>(
+        <span class="ident">proof</span>.<span class="ident">push</span>(<span class="ident">FlatTerm::new</span>(
             <span class="self">self</span>.<span class="ident">node</span>.<span class="ident">clone</span>(),
             <span class="ident">representative_terms</span>.<span class="ident">clone</span>(),
         ));
@@ -1528,16 +1529,16 @@ See [`Explanation`] for more details.
             <span class="ident">proof</span>.<span class="ident">last_mut</span>().<span class="ident">unwrap</span>().<span class="ident">children</span>[<span class="ident">i</span>] <span class="op">=</span> <span class="ident">child_proof</span>[<span class="number">0</span>].<span class="ident">clone</span>();
 
             <span class="kw">for</span> <span class="ident">child</span> <span class="kw">in</span> <span class="ident">child_proof</span>.<span class="ident">iter</span>().<span class="ident">skip</span>(<span class="number">1</span>) {
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">children</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[];
+                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">children</span> <span class="op">=</span> <span class="macro">vec!</span>[];
                 <span class="kw">for</span> (<span class="ident">j</span>, <span class="ident">rep_term</span>) <span class="kw">in</span> <span class="ident">representative_terms</span>.<span class="ident">iter</span>().<span class="ident">enumerate</span>() {
-                    <span class="kw">if</span> <span class="ident">j</span> <span class="op">=</span><span class="op">=</span> <span class="ident">i</span> {
+                    <span class="kw">if</span> <span class="ident">j</span> <span class="op">==</span> <span class="ident">i</span> {
                         <span class="ident">children</span>.<span class="ident">push</span>(<span class="ident">child</span>.<span class="ident">clone</span>());
                     } <span class="kw">else</span> {
                         <span class="ident">children</span>.<span class="ident">push</span>(<span class="ident">rep_term</span>.<span class="ident">clone</span>());
                     }
                 }
 
-                <span class="ident">proof</span>.<span class="ident">push</span>(<span class="ident">FlatTerm</span>::<span class="ident">new</span>(<span class="self">self</span>.<span class="ident">node</span>.<span class="ident">clone</span>(), <span class="ident">children</span>));
+                <span class="ident">proof</span>.<span class="ident">push</span>(<span class="ident">FlatTerm::new</span>(<span class="self">self</span>.<span class="ident">node</span>.<span class="ident">clone</span>(), <span class="ident">children</span>));
             }
             <span class="ident">representative_terms</span>[<span class="ident">i</span>] <span class="op">=</span> <span class="ident">child_proof</span>.<span class="ident">last</span>().<span class="ident">unwrap</span>().<span class="ident">remove_rewrites</span>();
         }
@@ -1576,20 +1577,20 @@ See [`Explanation`] for more details.
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span> <span class="op">+</span> <span class="ident">Display</span><span class="op">&gt;</span> <span class="ident">Display</span> <span class="kw">for</span> <span class="ident">FlatTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="ident">fmt::Result</span> {
         <span class="kw">let</span> <span class="ident">s</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_sexp</span>().<span class="ident">to_string</span>();
-        <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">s</span>)
+        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">s</span>)
     }
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span> <span class="ident">PartialEq</span> <span class="kw">for</span> <span class="ident">FlatTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">eq</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="ident">FlatTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+    <span class="kw">fn</span> <span class="ident">eq</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="ident">FlatTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) -&gt; <span class="ident">bool</span> {
         <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">node</span>.<span class="ident">matches</span>(<span class="kw-2">&amp;</span><span class="ident">other</span>.<span class="ident">node</span>) {
             <span class="kw">return</span> <span class="bool-val">false</span>;
         }
 
         <span class="kw">for</span> (<span class="ident">child1</span>, <span class="ident">child2</span>) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">children</span>.<span class="ident">iter</span>().<span class="ident">zip</span>(<span class="ident">other</span>.<span class="ident">children</span>.<span class="ident">iter</span>()) {
-            <span class="kw">if</span> <span class="op">!</span><span class="ident">child1</span>.<span class="ident">eq</span>(<span class="kw-2">&amp;</span><span class="ident">child2</span>) {
+            <span class="kw">if</span> <span class="op">!</span><span class="ident">child1</span>.<span class="ident">eq</span>(<span class="ident">child2</span>) {
                 <span class="kw">return</span> <span class="bool-val">false</span>;
             }
         }
@@ -1598,8 +1599,8 @@ See [`Explanation`] for more details.
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span> <span class="ident">FlatTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">remove_rewrites</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">FlatTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
-        <span class="ident">FlatTerm</span>::<span class="ident">new</span>(
+    <span class="kw">fn</span> <span class="ident">remove_rewrites</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">FlatTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
+        <span class="ident">FlatTerm::new</span>(
             <span class="self">self</span>.<span class="ident">node</span>.<span class="ident">clone</span>(),
             <span class="self">self</span>.<span class="ident">children</span>
                 .<span class="ident">iter</span>()
@@ -1608,14 +1609,14 @@ See [`Explanation`] for more details.
         )
     }
 
-    <span class="kw">fn</span> <span class="ident">combine_rewrites</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="ident">FlatTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) {
+    <span class="kw">fn</span> <span class="ident">combine_rewrites</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="ident">FlatTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) {
         <span class="kw">if</span> <span class="ident">other</span>.<span class="ident">forward_rule</span>.<span class="ident">is_some</span>() {
-            <span class="macro">assert</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">forward_rule</span>.<span class="ident">is_none</span>());
+            <span class="macro">assert!</span>(<span class="self">self</span>.<span class="ident">forward_rule</span>.<span class="ident">is_none</span>());
             <span class="self">self</span>.<span class="ident">forward_rule</span> <span class="op">=</span> <span class="ident">other</span>.<span class="ident">forward_rule</span>;
         }
 
         <span class="kw">if</span> <span class="ident">other</span>.<span class="ident">backward_rule</span>.<span class="ident">is_some</span>() {
-            <span class="macro">assert</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">backward_rule</span>.<span class="ident">is_none</span>());
+            <span class="macro">assert!</span>(<span class="self">self</span>.<span class="ident">backward_rule</span>.<span class="ident">is_none</span>());
             <span class="self">self</span>.<span class="ident">backward_rule</span> <span class="op">=</span> <span class="ident">other</span>.<span class="ident">backward_rule</span>;
         }
 
@@ -1626,38 +1627,38 @@ See [`Explanation`] for more details.
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span> <span class="ident">Default</span> <span class="kw">for</span> <span class="ident">Explain</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">default</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
-        <span class="self">Self</span>::<span class="ident">new</span>()
+    <span class="kw">fn</span> <span class="ident">default</span>() -&gt; <span class="self">Self</span> {
+        <span class="ident"><span class="self">Self</span>::new</span>()
     }
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span> <span class="op">+</span> <span class="ident">Display</span><span class="op">&gt;</span> <span class="ident">FlatTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
     <span class="doccomment">/// Convert this FlatTerm to an S-expression.</span>
     <span class="doccomment">/// See [`get_flat_sexps`](Explanation::get_flat_sexps) for the format of these expressions.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_sexp</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Sexp</span> {
-        <span class="kw">let</span> <span class="ident">op</span> <span class="op">=</span> <span class="ident">Sexp</span>::<span class="ident">String</span>(<span class="self">self</span>.<span class="ident">node</span>.<span class="ident">to_string</span>());
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_sexp</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Sexp</span> {
+        <span class="kw">let</span> <span class="ident">op</span> <span class="op">=</span> <span class="ident">Sexp::String</span>(<span class="self">self</span>.<span class="ident">node</span>.<span class="ident">to_string</span>());
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">expr</span> <span class="op">=</span> <span class="kw">if</span> <span class="self">self</span>.<span class="ident">node</span>.<span class="ident">is_leaf</span>() {
             <span class="ident">op</span>
         } <span class="kw">else</span> {
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">vec</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">op</span>];
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">vec</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="ident">op</span>];
             <span class="kw">for</span> <span class="ident">child</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">children</span> {
                 <span class="ident">vec</span>.<span class="ident">push</span>(<span class="ident">child</span>.<span class="ident">get_sexp</span>());
             }
-            <span class="ident">Sexp</span>::<span class="ident">List</span>(<span class="ident">vec</span>)
+            <span class="ident">Sexp::List</span>(<span class="ident">vec</span>)
         };
 
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">rule_name</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">backward_rule</span> {
-            <span class="ident">expr</span> <span class="op">=</span> <span class="ident">Sexp</span>::<span class="ident">List</span>(<span class="macro">vec</span><span class="macro">!</span>[
-                <span class="ident">Sexp</span>::<span class="ident">String</span>(<span class="string">&quot;Rewrite&lt;=&quot;</span>.<span class="ident">to_string</span>()),
-                <span class="ident">Sexp</span>::<span class="ident">String</span>((<span class="kw-2">*</span><span class="ident">rule_name</span>).<span class="ident">to_string</span>()),
+            <span class="ident">expr</span> <span class="op">=</span> <span class="ident">Sexp::List</span>(<span class="macro">vec!</span>[
+                <span class="ident">Sexp::String</span>(<span class="string">&quot;Rewrite&lt;=&quot;</span>.<span class="ident">to_string</span>()),
+                <span class="ident">Sexp::String</span>((<span class="kw-2">*</span><span class="ident">rule_name</span>).<span class="ident">to_string</span>()),
                 <span class="ident">expr</span>,
             ]);
         }
 
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">rule_name</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">forward_rule</span> {
-            <span class="ident">expr</span> <span class="op">=</span> <span class="ident">Sexp</span>::<span class="ident">List</span>(<span class="macro">vec</span><span class="macro">!</span>[
-                <span class="ident">Sexp</span>::<span class="ident">String</span>(<span class="string">&quot;Rewrite=&gt;&quot;</span>.<span class="ident">to_string</span>()),
-                <span class="ident">Sexp</span>::<span class="ident">String</span>((<span class="kw-2">*</span><span class="ident">rule_name</span>).<span class="ident">to_string</span>()),
+            <span class="ident">expr</span> <span class="op">=</span> <span class="ident">Sexp::List</span>(<span class="macro">vec!</span>[
+                <span class="ident">Sexp::String</span>(<span class="string">&quot;Rewrite=&gt;&quot;</span>.<span class="ident">to_string</span>()),
+                <span class="ident">Sexp::String</span>((<span class="kw-2">*</span><span class="ident">rule_name</span>).<span class="ident">to_string</span>()),
                 <span class="ident">expr</span>,
             ]);
         }
@@ -1667,43 +1668,43 @@ See [`Explanation`] for more details.
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span> <span class="op">+</span> <span class="ident">Display</span><span class="op">&gt;</span> <span class="ident">Display</span> <span class="kw">for</span> <span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">buf</span> <span class="op">=</span> <span class="ident">String</span>::<span class="ident">new</span>();
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="ident">fmt::Result</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">buf</span> <span class="op">=</span> <span class="ident">String::new</span>();
         <span class="kw">let</span> <span class="ident">width</span> <span class="op">=</span> <span class="number">80</span>;
-        <span class="ident">pretty_print</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">buf</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">get_sexp</span>(), <span class="ident">width</span>, <span class="number">1</span>).<span class="ident">unwrap</span>();
-        <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">buf</span>)
+        <span class="ident">pretty_print</span>(<span class="kw-2">&amp;mut</span> <span class="ident">buf</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">get_sexp</span>(), <span class="ident">width</span>, <span class="number">1</span>).<span class="ident">unwrap</span>();
+        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">buf</span>)
     }
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span> <span class="op">+</span> <span class="ident">Display</span><span class="op">&gt;</span> <span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
     <span class="doccomment">/// Convert this TreeTerm to an S-expression.</span>
     <span class="doccomment">/// See [`get_sexp`](Explanation::get_sexp) for the format of these expressions.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_sexp</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Sexp</span> {
-        <span class="self">self</span>.<span class="ident">get_sexp_with_bindings</span>(<span class="kw-2">&amp;</span><span class="ident">Default</span>::<span class="ident">default</span>())
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_sexp</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Sexp</span> {
+        <span class="self">self</span>.<span class="ident">get_sexp_with_bindings</span>(<span class="kw-2">&amp;</span><span class="ident">Default::default</span>())
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">get_sexp_with_bindings</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">bindings</span>: <span class="kw-2">&amp;</span><span class="ident">HashMap</span><span class="op">&lt;</span><span class="kw-2">*</span><span class="kw">const</span> <span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>, <span class="ident">Sexp</span><span class="op">&gt;</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Sexp</span> {
-        <span class="kw">let</span> <span class="ident">op</span> <span class="op">=</span> <span class="ident">Sexp</span>::<span class="ident">String</span>(<span class="self">self</span>.<span class="ident">node</span>.<span class="ident">to_string</span>());
+        <span class="ident">bindings</span>: <span class="kw-2">&amp;</span><span class="ident">HashMap</span><span class="op">&lt;</span><span class="kw-2">*const</span> <span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>, <span class="ident">Sexp</span><span class="op">&gt;</span>,
+    ) -&gt; <span class="ident">Sexp</span> {
+        <span class="kw">let</span> <span class="ident">op</span> <span class="op">=</span> <span class="ident">Sexp::String</span>(<span class="self">self</span>.<span class="ident">node</span>.<span class="ident">to_string</span>());
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">expr</span> <span class="op">=</span> <span class="kw">if</span> <span class="self">self</span>.<span class="ident">node</span>.<span class="ident">is_leaf</span>() {
             <span class="ident">op</span>
         } <span class="kw">else</span> {
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">vec</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">op</span>];
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">vec</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="ident">op</span>];
             <span class="kw">for</span> <span class="ident">child</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">child_proofs</span> {
-                <span class="macro">assert</span><span class="macro">!</span>(<span class="op">!</span><span class="ident">child</span>.<span class="ident">is_empty</span>());
-                <span class="kw">if</span> <span class="ident">child</span>.<span class="ident">len</span>() <span class="op">=</span><span class="op">=</span> <span class="number">1</span> {
-                    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">existing</span>) <span class="op">=</span> <span class="ident">bindings</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">child</span>[<span class="number">0</span>] <span class="kw">as</span> <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>)) {
+                <span class="macro">assert!</span>(<span class="op">!</span><span class="ident">child</span>.<span class="ident">is_empty</span>());
+                <span class="kw">if</span> <span class="ident">child</span>.<span class="ident">len</span>() <span class="op">==</span> <span class="number">1</span> {
+                    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">existing</span>) <span class="op">=</span> <span class="ident">bindings</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">child</span>[<span class="number">0</span>] <span class="kw">as</span> <span class="kw-2">*const</span> <span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>)) {
                         <span class="ident">vec</span>.<span class="ident">push</span>(<span class="ident">existing</span>.<span class="ident">clone</span>());
                     } <span class="kw">else</span> {
                         <span class="ident">vec</span>.<span class="ident">push</span>(<span class="ident">child</span>[<span class="number">0</span>].<span class="ident">get_sexp_with_bindings</span>(<span class="ident">bindings</span>));
                     }
                 } <span class="kw">else</span> {
-                    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">child_expressions</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">Sexp</span>::<span class="ident">String</span>(<span class="string">&quot;Explanation&quot;</span>.<span class="ident">to_string</span>())];
+                    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">child_expressions</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="ident">Sexp::String</span>(<span class="string">&quot;Explanation&quot;</span>.<span class="ident">to_string</span>())];
                     <span class="kw">for</span> <span class="ident">child_explanation</span> <span class="kw">in</span> <span class="ident">child</span>.<span class="ident">iter</span>() {
                         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">existing</span>) <span class="op">=</span>
-                            <span class="ident">bindings</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">child_explanation</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>))
+                            <span class="ident">bindings</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">child_explanation</span> <span class="kw">as</span> <span class="kw-2">*const</span> <span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>))
                         {
                             <span class="ident">child_expressions</span>.<span class="ident">push</span>(<span class="ident">existing</span>.<span class="ident">clone</span>());
                         } <span class="kw">else</span> {
@@ -1711,24 +1712,24 @@ See [`Explanation`] for more details.
                                 .<span class="ident">push</span>(<span class="ident">child_explanation</span>.<span class="ident">get_sexp_with_bindings</span>(<span class="ident">bindings</span>));
                         }
                     }
-                    <span class="ident">vec</span>.<span class="ident">push</span>(<span class="ident">Sexp</span>::<span class="ident">List</span>(<span class="ident">child_expressions</span>));
+                    <span class="ident">vec</span>.<span class="ident">push</span>(<span class="ident">Sexp::List</span>(<span class="ident">child_expressions</span>));
                 }
             }
-            <span class="ident">Sexp</span>::<span class="ident">List</span>(<span class="ident">vec</span>)
+            <span class="ident">Sexp::List</span>(<span class="ident">vec</span>)
         };
 
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">rule_name</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">backward_rule</span> {
-            <span class="ident">expr</span> <span class="op">=</span> <span class="ident">Sexp</span>::<span class="ident">List</span>(<span class="macro">vec</span><span class="macro">!</span>[
-                <span class="ident">Sexp</span>::<span class="ident">String</span>(<span class="string">&quot;Rewrite&lt;=&quot;</span>.<span class="ident">to_string</span>()),
-                <span class="ident">Sexp</span>::<span class="ident">String</span>((<span class="kw-2">*</span><span class="ident">rule_name</span>).<span class="ident">to_string</span>()),
+            <span class="ident">expr</span> <span class="op">=</span> <span class="ident">Sexp::List</span>(<span class="macro">vec!</span>[
+                <span class="ident">Sexp::String</span>(<span class="string">&quot;Rewrite&lt;=&quot;</span>.<span class="ident">to_string</span>()),
+                <span class="ident">Sexp::String</span>((<span class="kw-2">*</span><span class="ident">rule_name</span>).<span class="ident">to_string</span>()),
                 <span class="ident">expr</span>,
             ]);
         }
 
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">rule_name</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">forward_rule</span> {
-            <span class="ident">expr</span> <span class="op">=</span> <span class="ident">Sexp</span>::<span class="ident">List</span>(<span class="macro">vec</span><span class="macro">!</span>[
-                <span class="ident">Sexp</span>::<span class="ident">String</span>(<span class="string">&quot;Rewrite=&gt;&quot;</span>.<span class="ident">to_string</span>()),
-                <span class="ident">Sexp</span>::<span class="ident">String</span>((<span class="kw-2">*</span><span class="ident">rule_name</span>).<span class="ident">to_string</span>()),
+            <span class="ident">expr</span> <span class="op">=</span> <span class="ident">Sexp::List</span>(<span class="macro">vec!</span>[
+                <span class="ident">Sexp::String</span>(<span class="string">&quot;Rewrite=&gt;&quot;</span>.<span class="ident">to_string</span>()),
+                <span class="ident">Sexp::String</span>((<span class="kw-2">*</span><span class="ident">rule_name</span>).<span class="ident">to_string</span>()),
                 <span class="ident">expr</span>,
             ]);
         }
@@ -1739,7 +1740,7 @@ See [`Explanation`] for more details.
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span> <span class="ident">FlatTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
     <span class="doccomment">/// Construct a new FlatTerm given a node and its children.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">node</span>: <span class="ident">L</span>, <span class="ident">children</span>: <span class="ident">FlatExplanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">FlatTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">node</span>: <span class="ident">L</span>, <span class="ident">children</span>: <span class="ident">FlatExplanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) -&gt; <span class="ident">FlatTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
         <span class="ident">FlatTerm</span> {
             <span class="ident">node</span>,
             <span class="ident">backward_rule</span>: <span class="prelude-val">None</span>,
@@ -1750,16 +1751,16 @@ See [`Explanation`] for more details.
 
     <span class="doccomment">/// Rewrite the FlatTerm by matching the lhs and substituting the rhs.</span>
     <span class="doccomment">/// The lhs must be guaranteed to match.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">rewrite</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">lhs</span>: <span class="kw-2">&amp;</span><span class="ident">PatternAst</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>, <span class="ident">rhs</span>: <span class="kw-2">&amp;</span><span class="ident">PatternAst</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">FlatTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">lhs_nodes</span> <span class="op">=</span> <span class="ident">lhs</span>.<span class="ident">as_ref</span>().<span class="ident">as_ref</span>();
-        <span class="kw">let</span> <span class="ident">rhs_nodes</span> <span class="op">=</span> <span class="ident">rhs</span>.<span class="ident">as_ref</span>().<span class="ident">as_ref</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">bindings</span> <span class="op">=</span> <span class="ident">Default</span>::<span class="ident">default</span>();
-        <span class="self">self</span>.<span class="ident">make_bindings</span>(<span class="ident">lhs_nodes</span>, <span class="ident">lhs_nodes</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="number">1</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">bindings</span>);
-        <span class="ident">FlatTerm</span>::<span class="ident">from_pattern</span>(<span class="ident">rhs_nodes</span>, <span class="ident">rhs_nodes</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="number">1</span>, <span class="kw-2">&amp;</span><span class="ident">bindings</span>)
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">rewrite</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">lhs</span>: <span class="kw-2">&amp;</span><span class="ident">PatternAst</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>, <span class="ident">rhs</span>: <span class="kw-2">&amp;</span><span class="ident">PatternAst</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) -&gt; <span class="ident">FlatTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">lhs_nodes</span> <span class="op">=</span> <span class="ident">lhs</span>.<span class="ident">as_ref</span>();
+        <span class="kw">let</span> <span class="ident">rhs_nodes</span> <span class="op">=</span> <span class="ident">rhs</span>.<span class="ident">as_ref</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">bindings</span> <span class="op">=</span> <span class="ident">Default::default</span>();
+        <span class="self">self</span>.<span class="ident">make_bindings</span>(<span class="ident">lhs_nodes</span>, <span class="ident">lhs_nodes</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="number">1</span>, <span class="kw-2">&amp;mut</span> <span class="ident">bindings</span>);
+        <span class="ident">FlatTerm::from_pattern</span>(<span class="ident">rhs_nodes</span>, <span class="ident">rhs_nodes</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="number">1</span>, <span class="kw-2">&amp;</span><span class="ident">bindings</span>)
     }
 
     <span class="doccomment">/// Checks if this term or any child has a [`forward_rule`](FlatTerm::forward_rule).</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">has_rewrite_forward</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">has_rewrite_forward</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">bool</span> {
         <span class="self">self</span>.<span class="ident">forward_rule</span>.<span class="ident">is_some</span>()
             <span class="op">|</span><span class="op">|</span> <span class="self">self</span>
                 .<span class="ident">children</span>
@@ -1768,7 +1769,7 @@ See [`Explanation`] for more details.
     }
 
     <span class="doccomment">/// Checks if this term or any child has a [`backward_rule`](FlatTerm::backward_rule).</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">has_rewrite_backward</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">has_rewrite_backward</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">bool</span> {
         <span class="self">self</span>.<span class="ident">backward_rule</span>.<span class="ident">is_some</span>()
             <span class="op">|</span><span class="op">|</span> <span class="self">self</span>
                 .<span class="ident">children</span>
@@ -1780,19 +1781,19 @@ See [`Explanation`] for more details.
         <span class="ident">pattern</span>: <span class="kw-2">&amp;</span>[<span class="ident">ENodeOrVar</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>],
         <span class="ident">location</span>: <span class="ident">usize</span>,
         <span class="ident">bindings</span>: <span class="kw-2">&amp;</span><span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">Var</span>, <span class="kw-2">&amp;</span><span class="ident">FlatTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">FlatTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="ident">FlatTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
         <span class="kw">match</span> <span class="kw-2">&amp;</span><span class="ident">pattern</span>[<span class="ident">location</span>] {
-            <span class="ident">ENodeOrVar</span>::<span class="ident">Var</span>(<span class="ident">var</span>) <span class="op">=</span><span class="op">&gt;</span> (<span class="kw-2">*</span><span class="ident">bindings</span>.<span class="ident">get</span>(<span class="ident">var</span>).<span class="ident">unwrap</span>()).<span class="ident">clone</span>(),
-            <span class="ident">ENodeOrVar</span>::<span class="ident">ENode</span>(<span class="ident">node</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                <span class="kw">let</span> <span class="ident">children</span> <span class="op">=</span> <span class="ident">node</span>.<span class="ident">fold</span>(<span class="macro">vec</span><span class="macro">!</span>[], <span class="op">|</span><span class="kw-2">mut</span> <span class="ident">acc</span>, <span class="ident">child</span><span class="op">|</span> {
-                    <span class="ident">acc</span>.<span class="ident">push</span>(<span class="ident">FlatTerm</span>::<span class="ident">from_pattern</span>(
+            <span class="ident">ENodeOrVar::Var</span>(<span class="ident">var</span>) =&gt; (<span class="kw-2">*</span><span class="ident">bindings</span>.<span class="ident">get</span>(<span class="ident">var</span>).<span class="ident">unwrap</span>()).<span class="ident">clone</span>(),
+            <span class="ident">ENodeOrVar::ENode</span>(<span class="ident">node</span>) =&gt; {
+                <span class="kw">let</span> <span class="ident">children</span> <span class="op">=</span> <span class="ident">node</span>.<span class="ident">fold</span>(<span class="macro">vec!</span>[], <span class="op">|</span><span class="kw-2">mut</span> <span class="ident">acc</span>, <span class="ident">child</span><span class="op">|</span> {
+                    <span class="ident">acc</span>.<span class="ident">push</span>(<span class="ident">FlatTerm::from_pattern</span>(
                         <span class="ident">pattern</span>,
-                        <span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">child</span>),
+                        <span class="ident">usize::from</span>(<span class="ident">child</span>),
                         <span class="ident">bindings</span>,
                     ));
                     <span class="ident">acc</span>
                 });
-                <span class="ident">FlatTerm</span>::<span class="ident">new</span>(<span class="ident">node</span>.<span class="ident">clone</span>(), <span class="ident">children</span>)
+                <span class="ident">FlatTerm::new</span>(<span class="ident">node</span>.<span class="ident">clone</span>(), <span class="ident">children</span>)
             }
         }
     }
@@ -1801,13 +1802,13 @@ See [`Explanation`] for more details.
         <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="self">self</span>,
         <span class="ident">pattern</span>: <span class="kw-2">&amp;</span>[<span class="ident">ENodeOrVar</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>],
         <span class="ident">location</span>: <span class="ident">usize</span>,
-        <span class="ident">bindings</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">Var</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">FlatTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">bindings</span>: <span class="kw-2">&amp;mut</span> <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">Var</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">FlatTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     ) {
         <span class="kw">match</span> <span class="kw-2">&amp;</span><span class="ident">pattern</span>[<span class="ident">location</span>] {
-            <span class="ident">ENodeOrVar</span>::<span class="ident">Var</span>(<span class="ident">var</span>) <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="ident">ENodeOrVar::Var</span>(<span class="ident">var</span>) =&gt; {
                 <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">existing</span>) <span class="op">=</span> <span class="ident">bindings</span>.<span class="ident">get</span>(<span class="ident">var</span>) {
                     <span class="kw">if</span> <span class="ident">existing</span> <span class="op">!</span><span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span> {
-                        <span class="macro">panic</span><span class="macro">!</span>(
+                        <span class="macro">panic!</span>(
                             <span class="string">&quot;Invalid proof: binding for variable {:?} does not match between {:?} \n and \n {:?}&quot;</span>,
                             <span class="ident">var</span>, <span class="ident">existing</span>, <span class="self">self</span>);
                     }
@@ -1815,12 +1816,12 @@ See [`Explanation`] for more details.
                     <span class="ident">bindings</span>.<span class="ident">insert</span>(<span class="kw-2">*</span><span class="ident">var</span>, <span class="self">self</span>);
                 }
             }
-            <span class="ident">ENodeOrVar</span>::<span class="ident">ENode</span>(<span class="ident">node</span>) <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="ident">ENodeOrVar::ENode</span>(<span class="ident">node</span>) =&gt; {
                 <span class="comment">// The node must match the rewrite or the proof is invalid.</span>
-                <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">node</span>.<span class="ident">matches</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">node</span>));
+                <span class="macro">assert!</span>(<span class="ident">node</span>.<span class="ident">matches</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">node</span>));
                 <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">counter</span> <span class="op">=</span> <span class="number">0</span>;
                 <span class="ident">node</span>.<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">child</span><span class="op">|</span> {
-                    <span class="self">self</span>.<span class="ident">children</span>[<span class="ident">counter</span>].<span class="ident">make_bindings</span>(<span class="ident">pattern</span>, <span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">child</span>), <span class="ident">bindings</span>);
+                    <span class="self">self</span>.<span class="ident">children</span>[<span class="ident">counter</span>].<span class="ident">make_bindings</span>(<span class="ident">pattern</span>, <span class="ident">usize::from</span>(<span class="ident">child</span>), <span class="ident">bindings</span>);
                     <span class="ident">counter</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
                 });
             }
@@ -1832,70 +1833,70 @@ See [`Explanation`] for more details.
     <span class="kw">fn</span> <span class="ident">node_to_explanation</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">node_id</span>: <span class="ident">Id</span>,
-        <span class="ident">cache</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">NodeExplanationCache</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="ident">cache</span>: <span class="kw-2">&amp;mut</span> <span class="ident">NodeExplanationCache</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
+    ) -&gt; <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">existing</span>) <span class="op">=</span> <span class="ident">cache</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">node_id</span>) {
             <span class="ident">existing</span>.<span class="ident">clone</span>()
         } <span class="kw">else</span> {
-            <span class="kw">let</span> <span class="ident">node</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">node_id</span>)].<span class="ident">node</span>.<span class="ident">clone</span>();
-            <span class="kw">let</span> <span class="ident">children</span> <span class="op">=</span> <span class="ident">node</span>.<span class="ident">fold</span>(<span class="macro">vec</span><span class="macro">!</span>[], <span class="op">|</span><span class="kw-2">mut</span> <span class="ident">sofar</span>, <span class="ident">child</span><span class="op">|</span> {
-                <span class="ident">sofar</span>.<span class="ident">push</span>(<span class="macro">vec</span><span class="macro">!</span>[<span class="self">self</span>.<span class="ident">node_to_explanation</span>(<span class="ident">child</span>, <span class="ident">cache</span>)]);
+            <span class="kw">let</span> <span class="ident">node</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize::from</span>(<span class="ident">node_id</span>)].<span class="ident">node</span>.<span class="ident">clone</span>();
+            <span class="kw">let</span> <span class="ident">children</span> <span class="op">=</span> <span class="ident">node</span>.<span class="ident">fold</span>(<span class="macro">vec!</span>[], <span class="op">|</span><span class="kw-2">mut</span> <span class="ident">sofar</span>, <span class="ident">child</span><span class="op">|</span> {
+                <span class="ident">sofar</span>.<span class="ident">push</span>(<span class="macro">vec!</span>[<span class="self">self</span>.<span class="ident">node_to_explanation</span>(<span class="ident">child</span>, <span class="ident">cache</span>)]);
                 <span class="ident">sofar</span>
             });
-            <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">Rc</span>::<span class="ident">new</span>(<span class="ident">TreeTerm</span>::<span class="ident">new</span>(<span class="ident">node</span>, <span class="ident">children</span>));
+            <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">Rc::new</span>(<span class="ident">TreeTerm::new</span>(<span class="ident">node</span>, <span class="ident">children</span>));
             <span class="ident">cache</span>.<span class="ident">insert</span>(<span class="ident">node_id</span>, <span class="ident">res</span>.<span class="ident">clone</span>());
             <span class="ident">res</span>
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">node_to_flat_explanation</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">node_id</span>: <span class="ident">Id</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">FlatTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">node</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">node_id</span>)].<span class="ident">node</span>.<span class="ident">clone</span>();
-        <span class="kw">let</span> <span class="ident">children</span> <span class="op">=</span> <span class="ident">node</span>.<span class="ident">fold</span>(<span class="macro">vec</span><span class="macro">!</span>[], <span class="op">|</span><span class="kw-2">mut</span> <span class="ident">sofar</span>, <span class="ident">child</span><span class="op">|</span> {
+    <span class="kw">fn</span> <span class="ident">node_to_flat_explanation</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">node_id</span>: <span class="ident">Id</span>) -&gt; <span class="ident">FlatTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">node</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize::from</span>(<span class="ident">node_id</span>)].<span class="ident">node</span>.<span class="ident">clone</span>();
+        <span class="kw">let</span> <span class="ident">children</span> <span class="op">=</span> <span class="ident">node</span>.<span class="ident">fold</span>(<span class="macro">vec!</span>[], <span class="op">|</span><span class="kw-2">mut</span> <span class="ident">sofar</span>, <span class="ident">child</span><span class="op">|</span> {
             <span class="ident">sofar</span>.<span class="ident">push</span>(<span class="self">self</span>.<span class="ident">node_to_flat_explanation</span>(<span class="ident">child</span>));
             <span class="ident">sofar</span>
         });
-        <span class="ident">FlatTerm</span>::<span class="ident">new</span>(<span class="ident">node</span>, <span class="ident">children</span>)
+        <span class="ident">FlatTerm::new</span>(<span class="ident">node</span>, <span class="ident">children</span>)
     }
 
     <span class="kw">fn</span> <span class="ident">make_rule_table</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span>(
         <span class="ident">rules</span>: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Rewrite</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>],
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">Symbol</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Rewrite</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">table</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">Symbol</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Rewrite</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Default</span>::<span class="ident">default</span>();
+    ) -&gt; <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">Symbol</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Rewrite</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">table</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">Symbol</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Rewrite</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Default::default</span>();
         <span class="kw">for</span> <span class="ident">r</span> <span class="kw">in</span> <span class="ident">rules</span> {
             <span class="ident">table</span>.<span class="ident">insert</span>(<span class="ident">r</span>.<span class="ident">name</span>, <span class="ident">r</span>);
         }
         <span class="ident">table</span>
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">check_each_explain</span><span class="op">&lt;</span><span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">rules</span>: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="ident">Rewrite</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
-        <span class="kw">let</span> <span class="ident">rule_table</span> <span class="op">=</span> <span class="ident">Explain</span>::<span class="ident">make_rule_table</span>(<span class="ident">rules</span>);
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">check_each_explain</span><span class="op">&lt;</span><span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">rules</span>: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="ident">Rewrite</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>]) -&gt; <span class="ident">bool</span> {
+        <span class="kw">let</span> <span class="ident">rule_table</span> <span class="op">=</span> <span class="ident">Explain::make_rule_table</span>(<span class="ident">rules</span>);
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="self">self</span>.<span class="ident">explainfind</span>.<span class="ident">len</span>() {
             <span class="kw">let</span> <span class="ident">explain_node</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">i</span>];
 
             <span class="comment">// check that explanation reasons never form a cycle</span>
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">existance</span> <span class="op">=</span> <span class="ident">i</span>;
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">seen_existance</span>: <span class="ident">HashSet</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Default</span>::<span class="ident">default</span>();
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">seen_existance</span>: <span class="ident">HashSet</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Default::default</span>();
             <span class="kw">loop</span> {
                 <span class="ident">seen_existance</span>.<span class="ident">insert</span>(<span class="ident">existance</span>);
-                <span class="kw">let</span> <span class="ident">next</span> <span class="op">=</span> <span class="ident">usize</span>::<span class="ident">from</span>(<span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">existance</span>].<span class="ident">existance_node</span>);
-                <span class="kw">if</span> <span class="ident">existance</span> <span class="op">=</span><span class="op">=</span> <span class="ident">next</span> {
+                <span class="kw">let</span> <span class="ident">next</span> <span class="op">=</span> <span class="ident">usize::from</span>(<span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">existance</span>].<span class="ident">existance_node</span>);
+                <span class="kw">if</span> <span class="ident">existance</span> <span class="op">==</span> <span class="ident">next</span> {
                     <span class="kw">break</span>;
                 }
                 <span class="ident">existance</span> <span class="op">=</span> <span class="ident">next</span>;
                 <span class="kw">if</span> <span class="ident">seen_existance</span>.<span class="ident">contains</span>(<span class="kw-2">&amp;</span><span class="ident">existance</span>) {
-                    <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;Cycle in existance!&quot;</span>);
+                    <span class="macro">panic!</span>(<span class="string">&quot;Cycle in existance!&quot;</span>);
                 }
             }
 
-            <span class="kw">if</span> <span class="ident">explain_node</span>.<span class="ident">next</span> <span class="op">!</span><span class="op">=</span> <span class="ident">Id</span>::<span class="ident">from</span>(<span class="ident">i</span>) {
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">current_explanation</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">node_to_flat_explanation</span>(<span class="ident">Id</span>::<span class="ident">from</span>(<span class="ident">i</span>));
+            <span class="kw">if</span> <span class="ident">explain_node</span>.<span class="ident">next</span> <span class="op">!</span><span class="op">=</span> <span class="ident">Id::from</span>(<span class="ident">i</span>) {
+                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">current_explanation</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">node_to_flat_explanation</span>(<span class="ident">Id::from</span>(<span class="ident">i</span>));
                 <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">next_explanation</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">node_to_flat_explanation</span>(<span class="ident">explain_node</span>.<span class="ident">next</span>);
-                <span class="kw">if</span> <span class="kw">let</span> <span class="ident">Justification</span>::<span class="ident">Rule</span>(<span class="ident">rule_name</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">explain_node</span>.<span class="ident">justification</span> {
+                <span class="kw">if</span> <span class="kw">let</span> <span class="ident">Justification::Rule</span>(<span class="ident">rule_name</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">explain_node</span>.<span class="ident">justification</span> {
                     <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">rule</span>) <span class="op">=</span> <span class="ident">rule_table</span>.<span class="ident">get</span>(<span class="ident">rule_name</span>) {
                         <span class="kw">if</span> <span class="op">!</span><span class="ident">explain_node</span>.<span class="ident">is_rewrite_forward</span> {
-                            <span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">swap</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">current_explanation</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">next_explanation</span>);
+                            <span class="ident">std::mem::swap</span>(<span class="kw-2">&amp;mut</span> <span class="ident">current_explanation</span>, <span class="kw-2">&amp;mut</span> <span class="ident">next_explanation</span>);
                         }
-                        <span class="kw">if</span> <span class="op">!</span><span class="ident">Explanation</span>::<span class="ident">check_rewrite</span>(
+                        <span class="kw">if</span> <span class="op">!</span><span class="ident">Explanation::check_rewrite</span>(
                             <span class="kw-2">&amp;</span><span class="ident">current_explanation</span>,
                             <span class="kw-2">&amp;</span><span class="ident">next_explanation</span>,
                             <span class="ident">rule</span>,
@@ -1909,23 +1910,23 @@ See [`Explanation`] for more details.
         <span class="bool-val">true</span>
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>() -&gt; <span class="self">Self</span> {
         <span class="ident">Explain</span> {
-            <span class="ident">explainfind</span>: <span class="macro">vec</span><span class="macro">!</span>[],
-            <span class="ident">uncanon_memo</span>: <span class="ident">Default</span>::<span class="ident">default</span>(),
+            <span class="ident">explainfind</span>: <span class="macro">vec!</span>[],
+            <span class="ident">uncanon_memo</span>: <span class="ident">Default::default</span>(),
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">set_existance_reason</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">node</span>: <span class="ident">Id</span>, <span class="ident">existance_node</span>: <span class="ident">Id</span>) {
-        <span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">node</span>)].<span class="ident">existance_node</span> <span class="op">=</span> <span class="ident">existance_node</span>;
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">set_existance_reason</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">node</span>: <span class="ident">Id</span>, <span class="ident">existance_node</span>: <span class="ident">Id</span>) {
+        <span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize::from</span>(<span class="ident">node</span>)].<span class="ident">existance_node</span> <span class="op">=</span> <span class="ident">existance_node</span>;
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">add</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">node</span>: <span class="ident">L</span>, <span class="ident">set</span>: <span class="ident">Id</span>, <span class="ident">existance_node</span>: <span class="ident">Id</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Id</span> {
-        <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">explainfind</span>.<span class="ident">len</span>(), <span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">set</span>));
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">add</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">node</span>: <span class="ident">L</span>, <span class="ident">set</span>: <span class="ident">Id</span>, <span class="ident">existance_node</span>: <span class="ident">Id</span>) -&gt; <span class="ident">Id</span> {
+        <span class="macro">assert_eq!</span>(<span class="self">self</span>.<span class="ident">explainfind</span>.<span class="ident">len</span>(), <span class="ident">usize::from</span>(<span class="ident">set</span>));
         <span class="self">self</span>.<span class="ident">uncanon_memo</span>.<span class="ident">insert</span>(<span class="ident">node</span>.<span class="ident">clone</span>(), <span class="ident">set</span>);
         <span class="self">self</span>.<span class="ident">explainfind</span>.<span class="ident">push</span>(<span class="ident">ExplainNode</span> {
             <span class="ident">node</span>,
-            <span class="ident">justification</span>: <span class="ident">Justification</span>::<span class="ident">Congruence</span>,
+            <span class="ident">justification</span>: <span class="ident">Justification::Congruence</span>,
             <span class="ident">next</span>: <span class="ident">set</span>,
             <span class="ident">current</span>: <span class="ident">set</span>,
             <span class="ident">existance_node</span>,
@@ -1935,60 +1936,60 @@ See [`Explanation`] for more details.
     }
 
     <span class="comment">// reverse edges recursively to make this node the leader</span>
-    <span class="kw">fn</span> <span class="ident">make_leader</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">node</span>: <span class="ident">Id</span>) {
-        <span class="kw">let</span> <span class="ident">next</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">node</span>)].<span class="ident">next</span>;
+    <span class="kw">fn</span> <span class="ident">make_leader</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">node</span>: <span class="ident">Id</span>) {
+        <span class="kw">let</span> <span class="ident">next</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize::from</span>(<span class="ident">node</span>)].<span class="ident">next</span>;
         <span class="kw">if</span> <span class="ident">next</span> <span class="op">!</span><span class="op">=</span> <span class="ident">node</span> {
             <span class="self">self</span>.<span class="ident">make_leader</span>(<span class="ident">next</span>);
-            <span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">next</span>)].<span class="ident">justification</span> <span class="op">=</span>
-                <span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">node</span>)].<span class="ident">justification</span>.<span class="ident">clone</span>();
-            <span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">next</span>)].<span class="ident">is_rewrite_forward</span> <span class="op">=</span>
-                <span class="op">!</span><span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">node</span>)].<span class="ident">is_rewrite_forward</span>;
-            <span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">next</span>)].<span class="ident">next</span> <span class="op">=</span> <span class="ident">node</span>;
+            <span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize::from</span>(<span class="ident">next</span>)].<span class="ident">justification</span> <span class="op">=</span>
+                <span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize::from</span>(<span class="ident">node</span>)].<span class="ident">justification</span>.<span class="ident">clone</span>();
+            <span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize::from</span>(<span class="ident">next</span>)].<span class="ident">is_rewrite_forward</span> <span class="op">=</span>
+                <span class="op">!</span><span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize::from</span>(<span class="ident">node</span>)].<span class="ident">is_rewrite_forward</span>;
+            <span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize::from</span>(<span class="ident">next</span>)].<span class="ident">next</span> <span class="op">=</span> <span class="ident">node</span>;
         }
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">union</span>(
-        <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
+        <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">node1</span>: <span class="ident">Id</span>,
         <span class="ident">node2</span>: <span class="ident">Id</span>,
         <span class="ident">justification</span>: <span class="ident">Justification</span>,
         <span class="ident">new_rhs</span>: <span class="ident">bool</span>,
     ) {
-        <span class="kw">if</span> <span class="kw">let</span> <span class="ident">Justification</span>::<span class="ident">Congruence</span> <span class="op">=</span> <span class="ident">justification</span> {
-            <span class="macro">assert</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">node1</span>)]
+        <span class="kw">if</span> <span class="kw">let</span> <span class="ident">Justification::Congruence</span> <span class="op">=</span> <span class="ident">justification</span> {
+            <span class="macro">assert!</span>(<span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize::from</span>(<span class="ident">node1</span>)]
                 .<span class="ident">node</span>
-                .<span class="ident">matches</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">node2</span>)].<span class="ident">node</span>));
+                .<span class="ident">matches</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize::from</span>(<span class="ident">node2</span>)].<span class="ident">node</span>));
         }
         <span class="kw">if</span> <span class="ident">new_rhs</span> {
             <span class="self">self</span>.<span class="ident">set_existance_reason</span>(<span class="ident">node2</span>, <span class="ident">node1</span>)
         }
 
         <span class="self">self</span>.<span class="ident">make_leader</span>(<span class="ident">node1</span>);
-        <span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">node1</span>)].<span class="ident">next</span> <span class="op">=</span> <span class="ident">node2</span>;
-        <span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">node1</span>)].<span class="ident">justification</span> <span class="op">=</span> <span class="ident">justification</span>;
-        <span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">node1</span>)].<span class="ident">is_rewrite_forward</span> <span class="op">=</span> <span class="bool-val">true</span>;
+        <span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize::from</span>(<span class="ident">node1</span>)].<span class="ident">next</span> <span class="op">=</span> <span class="ident">node2</span>;
+        <span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize::from</span>(<span class="ident">node1</span>)].<span class="ident">justification</span> <span class="op">=</span> <span class="ident">justification</span>;
+        <span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize::from</span>(<span class="ident">node1</span>)].<span class="ident">is_rewrite_forward</span> <span class="op">=</span> <span class="bool-val">true</span>;
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">explain_equivalence</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">left</span>: <span class="ident">Id</span>, <span class="ident">right</span>: <span class="ident">Id</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Explanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">cache</span> <span class="op">=</span> <span class="ident">Default</span>::<span class="ident">default</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">enode_cache</span> <span class="op">=</span> <span class="ident">Default</span>::<span class="ident">default</span>();
-        <span class="ident">Explanation</span>::<span class="ident">new</span>(<span class="self">self</span>.<span class="ident">explain_enodes</span>(<span class="ident">left</span>, <span class="ident">right</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">cache</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">enode_cache</span>))
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">explain_equivalence</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">left</span>: <span class="ident">Id</span>, <span class="ident">right</span>: <span class="ident">Id</span>) -&gt; <span class="ident">Explanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">cache</span> <span class="op">=</span> <span class="ident">Default::default</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">enode_cache</span> <span class="op">=</span> <span class="ident">Default::default</span>();
+        <span class="ident">Explanation::new</span>(<span class="self">self</span>.<span class="ident">explain_enodes</span>(<span class="ident">left</span>, <span class="ident">right</span>, <span class="kw-2">&amp;mut</span> <span class="ident">cache</span>, <span class="kw-2">&amp;mut</span> <span class="ident">enode_cache</span>))
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">explain_existance</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">left</span>: <span class="ident">Id</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Explanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">cache</span> <span class="op">=</span> <span class="ident">Default</span>::<span class="ident">default</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">enode_cache</span> <span class="op">=</span> <span class="ident">Default</span>::<span class="ident">default</span>();
-        <span class="ident">Explanation</span>::<span class="ident">new</span>(<span class="self">self</span>.<span class="ident">explain_enode_existance</span>(
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">explain_existance</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">left</span>: <span class="ident">Id</span>) -&gt; <span class="ident">Explanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">cache</span> <span class="op">=</span> <span class="ident">Default::default</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">enode_cache</span> <span class="op">=</span> <span class="ident">Default::default</span>();
+        <span class="ident">Explanation::new</span>(<span class="self">self</span>.<span class="ident">explain_enode_existance</span>(
             <span class="ident">left</span>,
-            <span class="self">self</span>.<span class="ident">node_to_explanation</span>(<span class="ident">left</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">enode_cache</span>),
-            <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">cache</span>,
-            <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">enode_cache</span>,
+            <span class="self">self</span>.<span class="ident">node_to_explanation</span>(<span class="ident">left</span>, <span class="kw-2">&amp;mut</span> <span class="ident">enode_cache</span>),
+            <span class="kw-2">&amp;mut</span> <span class="ident">cache</span>,
+            <span class="kw-2">&amp;mut</span> <span class="ident">enode_cache</span>,
         ))
     }
 
-    <span class="kw">fn</span> <span class="ident">common_ancestor</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">left</span>: <span class="ident">Id</span>, <span class="kw-2">mut</span> <span class="ident">right</span>: <span class="ident">Id</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Id</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">seen_left</span>: <span class="ident">HashSet</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Default</span>::<span class="ident">default</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">seen_right</span>: <span class="ident">HashSet</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Default</span>::<span class="ident">default</span>();
+    <span class="kw">fn</span> <span class="ident">common_ancestor</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">left</span>: <span class="ident">Id</span>, <span class="kw-2">mut</span> <span class="ident">right</span>: <span class="ident">Id</span>) -&gt; <span class="ident">Id</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">seen_left</span>: <span class="ident">HashSet</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Default::default</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">seen_right</span>: <span class="ident">HashSet</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Default::default</span>();
         <span class="kw">loop</span> {
             <span class="ident">seen_left</span>.<span class="ident">insert</span>(<span class="ident">left</span>);
             <span class="kw">if</span> <span class="ident">seen_right</span>.<span class="ident">contains</span>(<span class="kw-2">&amp;</span><span class="ident">left</span>) {
@@ -2000,27 +2001,27 @@ See [`Explanation`] for more details.
                 <span class="kw">return</span> <span class="ident">right</span>;
             }
 
-            <span class="kw">let</span> <span class="ident">next_left</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">left</span>)].<span class="ident">next</span>;
-            <span class="kw">let</span> <span class="ident">next_right</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">right</span>)].<span class="ident">next</span>;
-            <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">next_left</span> <span class="op">!</span><span class="op">=</span> <span class="ident">left</span> <span class="op">|</span><span class="op">|</span> <span class="ident">next_right</span> <span class="op">!</span><span class="op">=</span> <span class="ident">right</span>);
+            <span class="kw">let</span> <span class="ident">next_left</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize::from</span>(<span class="ident">left</span>)].<span class="ident">next</span>;
+            <span class="kw">let</span> <span class="ident">next_right</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize::from</span>(<span class="ident">right</span>)].<span class="ident">next</span>;
+            <span class="macro">assert!</span>(<span class="ident">next_left</span> <span class="op">!</span><span class="op">=</span> <span class="ident">left</span> <span class="op">|</span><span class="op">|</span> <span class="ident">next_right</span> <span class="op">!</span><span class="op">=</span> <span class="ident">right</span>);
             <span class="ident">left</span> <span class="op">=</span> <span class="ident">next_left</span>;
             <span class="ident">right</span> <span class="op">=</span> <span class="ident">next_right</span>;
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">get_nodes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">node</span>: <span class="ident">Id</span>, <span class="ident">ancestor</span>: <span class="ident">Id</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">ExplainNode</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="kw">if</span> <span class="ident">node</span> <span class="op">=</span><span class="op">=</span> <span class="ident">ancestor</span> {
-            <span class="kw">return</span> <span class="macro">vec</span><span class="macro">!</span>[];
+    <span class="kw">fn</span> <span class="ident">get_nodes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">node</span>: <span class="ident">Id</span>, <span class="ident">ancestor</span>: <span class="ident">Id</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">ExplainNode</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="kw">if</span> <span class="ident">node</span> <span class="op">==</span> <span class="ident">ancestor</span> {
+            <span class="kw">return</span> <span class="macro">vec!</span>[];
         }
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">nodes</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[];
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">nodes</span> <span class="op">=</span> <span class="macro">vec!</span>[];
         <span class="kw">loop</span> {
-            <span class="kw">let</span> <span class="ident">next</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">node</span>)].<span class="ident">next</span>;
-            <span class="ident">nodes</span>.<span class="ident">push</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">node</span>)]);
-            <span class="kw">if</span> <span class="ident">next</span> <span class="op">=</span><span class="op">=</span> <span class="ident">ancestor</span> {
+            <span class="kw">let</span> <span class="ident">next</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize::from</span>(<span class="ident">node</span>)].<span class="ident">next</span>;
+            <span class="ident">nodes</span>.<span class="ident">push</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize::from</span>(<span class="ident">node</span>)]);
+            <span class="kw">if</span> <span class="ident">next</span> <span class="op">==</span> <span class="ident">ancestor</span> {
                 <span class="kw">return</span> <span class="ident">nodes</span>;
             }
-            <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">next</span> <span class="op">!</span><span class="op">=</span> <span class="ident">node</span>);
+            <span class="macro">assert!</span>(<span class="ident">next</span> <span class="op">!</span><span class="op">=</span> <span class="ident">node</span>);
             <span class="ident">node</span> <span class="op">=</span> <span class="ident">next</span>;
         }
     }
@@ -2029,22 +2030,22 @@ See [`Explanation`] for more details.
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">node</span>: <span class="ident">Id</span>,
         <span class="ident">rest_of_proof</span>: <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="ident">cache</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">ExplainCache</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
-        <span class="ident">enode_cache</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">NodeExplanationCache</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">TreeExplanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">graphnode</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">node</span>)];
+        <span class="ident">cache</span>: <span class="kw-2">&amp;mut</span> <span class="ident">ExplainCache</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
+        <span class="ident">enode_cache</span>: <span class="kw-2">&amp;mut</span> <span class="ident">NodeExplanationCache</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
+    ) -&gt; <span class="ident">TreeExplanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">graphnode</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize::from</span>(<span class="ident">node</span>)];
         <span class="kw">let</span> <span class="ident">existance</span> <span class="op">=</span> <span class="ident">graphnode</span>.<span class="ident">existance_node</span>;
-        <span class="kw">let</span> <span class="ident">existance_node</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">existance</span>)];
+        <span class="kw">let</span> <span class="ident">existance_node</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize::from</span>(<span class="ident">existance</span>)];
         <span class="comment">// case 1)</span>
-        <span class="kw">if</span> <span class="ident">existance</span> <span class="op">=</span><span class="op">=</span> <span class="ident">node</span> {
-            <span class="kw">return</span> <span class="macro">vec</span><span class="macro">!</span>[<span class="self">self</span>.<span class="ident">node_to_explanation</span>(<span class="ident">node</span>, <span class="ident">enode_cache</span>), <span class="ident">rest_of_proof</span>];
+        <span class="kw">if</span> <span class="ident">existance</span> <span class="op">==</span> <span class="ident">node</span> {
+            <span class="kw">return</span> <span class="macro">vec!</span>[<span class="self">self</span>.<span class="ident">node_to_explanation</span>(<span class="ident">node</span>, <span class="ident">enode_cache</span>), <span class="ident">rest_of_proof</span>];
         }
 
         <span class="comment">// case 2)</span>
-        <span class="kw">if</span> <span class="ident">graphnode</span>.<span class="ident">next</span> <span class="op">=</span><span class="op">=</span> <span class="ident">existance</span> <span class="op">|</span><span class="op">|</span> <span class="ident">existance_node</span>.<span class="ident">next</span> <span class="op">=</span><span class="op">=</span> <span class="ident">node</span> {
+        <span class="kw">if</span> <span class="ident">graphnode</span>.<span class="ident">next</span> <span class="op">==</span> <span class="ident">existance</span> <span class="op">|</span><span class="op">|</span> <span class="ident">existance_node</span>.<span class="ident">next</span> <span class="op">==</span> <span class="ident">node</span> {
             <span class="kw">let</span> <span class="ident">direction</span>;
             <span class="kw">let</span> <span class="ident">justification</span>;
-            <span class="kw">if</span> <span class="ident">graphnode</span>.<span class="ident">next</span> <span class="op">=</span><span class="op">=</span> <span class="ident">existance</span> {
+            <span class="kw">if</span> <span class="ident">graphnode</span>.<span class="ident">next</span> <span class="op">==</span> <span class="ident">existance</span> {
                 <span class="ident">direction</span> <span class="op">=</span> <span class="op">!</span><span class="ident">graphnode</span>.<span class="ident">is_rewrite_forward</span>;
                 <span class="ident">justification</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">graphnode</span>.<span class="ident">justification</span>;
             } <span class="kw">else</span> {
@@ -2074,26 +2075,26 @@ See [`Explanation`] for more details.
             <span class="kw">if</span> <span class="ident">found</span> {
                 <span class="kw">return</span>;
             }
-            <span class="kw">if</span> <span class="ident">child</span> <span class="op">=</span><span class="op">=</span> <span class="ident">node</span> {
+            <span class="kw">if</span> <span class="ident">child</span> <span class="op">==</span> <span class="ident">node</span> {
                 <span class="ident">found</span> <span class="op">=</span> <span class="bool-val">true</span>;
             } <span class="kw">else</span> {
                 <span class="ident">index_of_child</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
             }
         });
-        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">found</span>);
+        <span class="macro">assert!</span>(<span class="ident">found</span>);
         <span class="ident">new_rest_of_proof</span>.<span class="ident">child_proofs</span>[<span class="ident">index_of_child</span>].<span class="ident">push</span>(<span class="ident">rest_of_proof</span>);
 
-        <span class="self">self</span>.<span class="ident">explain_enode_existance</span>(<span class="ident">existance</span>, <span class="ident">Rc</span>::<span class="ident">new</span>(<span class="ident">new_rest_of_proof</span>), <span class="ident">cache</span>, <span class="ident">enode_cache</span>)
+        <span class="self">self</span>.<span class="ident">explain_enode_existance</span>(<span class="ident">existance</span>, <span class="ident">Rc::new</span>(<span class="ident">new_rest_of_proof</span>), <span class="ident">cache</span>, <span class="ident">enode_cache</span>)
     }
 
     <span class="kw">fn</span> <span class="ident">explain_enodes</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">left</span>: <span class="ident">Id</span>,
         <span class="ident">right</span>: <span class="ident">Id</span>,
-        <span class="ident">cache</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">ExplainCache</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
-        <span class="ident">node_explanation_cache</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">NodeExplanationCache</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">TreeExplanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">proof</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[<span class="self">self</span>.<span class="ident">node_to_explanation</span>(<span class="ident">left</span>, <span class="ident">node_explanation_cache</span>)];
+        <span class="ident">cache</span>: <span class="kw-2">&amp;mut</span> <span class="ident">ExplainCache</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
+        <span class="ident">node_explanation_cache</span>: <span class="kw-2">&amp;mut</span> <span class="ident">NodeExplanationCache</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
+    ) -&gt; <span class="ident">TreeExplanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">proof</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="self">self</span>.<span class="ident">node_to_explanation</span>(<span class="ident">left</span>, <span class="ident">node_explanation_cache</span>)];
         <span class="kw">let</span> <span class="ident">ancestor</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">common_ancestor</span>(<span class="ident">left</span>, <span class="ident">right</span>);
         <span class="kw">let</span> <span class="ident">left_nodes</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_nodes</span>(<span class="ident">left</span>, <span class="ident">ancestor</span>);
         <span class="kw">let</span> <span class="ident">right_nodes</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_nodes</span>(<span class="ident">right</span>, <span class="ident">ancestor</span>);
@@ -2108,7 +2109,7 @@ See [`Explanation`] for more details.
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">current</span> <span class="op">=</span> <span class="ident">node</span>.<span class="ident">current</span>;
             <span class="kw">if</span> <span class="ident">i</span> <span class="op">&gt;</span><span class="op">=</span> <span class="ident">left_nodes</span>.<span class="ident">len</span>() {
                 <span class="ident">direction</span> <span class="op">=</span> <span class="op">!</span><span class="ident">direction</span>;
-                <span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">swap</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">next</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">current</span>);
+                <span class="ident">std::mem::swap</span>(<span class="kw-2">&amp;mut</span> <span class="ident">next</span>, <span class="kw-2">&amp;mut</span> <span class="ident">current</span>);
             }
 
             <span class="ident">proof</span>.<span class="ident">push</span>(<span class="self">self</span>.<span class="ident">explain_adjacent</span>(
@@ -2129,9 +2130,9 @@ See [`Explanation`] for more details.
         <span class="ident">next</span>: <span class="ident">Id</span>,
         <span class="ident">rule_direction</span>: <span class="ident">bool</span>,
         <span class="ident">justification</span>: <span class="kw-2">&amp;</span><span class="ident">Justification</span>,
-        <span class="ident">cache</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">ExplainCache</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
-        <span class="ident">node_explanation_cache</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">NodeExplanationCache</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="ident">cache</span>: <span class="kw-2">&amp;mut</span> <span class="ident">ExplainCache</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
+        <span class="ident">node_explanation_cache</span>: <span class="kw-2">&amp;mut</span> <span class="ident">NodeExplanationCache</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
+    ) -&gt; <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">fingerprint</span> <span class="op">=</span> (<span class="ident">current</span>, <span class="ident">next</span>);
 
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">answer</span>) <span class="op">=</span> <span class="ident">cache</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">fingerprint</span>) {
@@ -2139,7 +2140,7 @@ See [`Explanation`] for more details.
         }
 
         <span class="kw">let</span> <span class="ident">term</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">justification</span> {
-            <span class="ident">Justification</span>::<span class="ident">Rule</span>(<span class="ident">name</span>) <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="ident">Justification::Rule</span>(<span class="ident">name</span>) =&gt; {
                 <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">rewritten</span> <span class="op">=</span>
                     (<span class="kw-2">*</span><span class="self">self</span>.<span class="ident">node_to_explanation</span>(<span class="ident">next</span>, <span class="ident">node_explanation_cache</span>)).<span class="ident">clone</span>();
                 <span class="kw">if</span> <span class="ident">rule_direction</span> {
@@ -2148,14 +2149,14 @@ See [`Explanation`] for more details.
                     <span class="ident">rewritten</span>.<span class="ident">backward_rule</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="kw-2">*</span><span class="ident">name</span>);
                 }
 
-                <span class="ident">Rc</span>::<span class="ident">new</span>(<span class="ident">rewritten</span>)
+                <span class="ident">Rc::new</span>(<span class="ident">rewritten</span>)
             }
-            <span class="ident">Justification</span>::<span class="ident">Congruence</span> <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="ident">Justification::Congruence</span> =&gt; {
                 <span class="comment">// add the children proofs to the last explanation</span>
-                <span class="kw">let</span> <span class="ident">current_node</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">current</span>)].<span class="ident">node</span>;
-                <span class="kw">let</span> <span class="ident">next_node</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize</span>::<span class="ident">from</span>(<span class="ident">next</span>)].<span class="ident">node</span>;
-                <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">current_node</span>.<span class="ident">matches</span>(<span class="ident">next_node</span>));
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">subproofs</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[];
+                <span class="kw">let</span> <span class="ident">current_node</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize::from</span>(<span class="ident">current</span>)].<span class="ident">node</span>;
+                <span class="kw">let</span> <span class="ident">next_node</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize::from</span>(<span class="ident">next</span>)].<span class="ident">node</span>;
+                <span class="macro">assert!</span>(<span class="ident">current_node</span>.<span class="ident">matches</span>(<span class="ident">next_node</span>));
+                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">subproofs</span> <span class="op">=</span> <span class="macro">vec!</span>[];
 
                 <span class="kw">for</span> (<span class="ident">left_child</span>, <span class="ident">right_child</span>) <span class="kw">in</span> <span class="ident">current_node</span>
                     .<span class="ident">children</span>()
@@ -2169,7 +2170,7 @@ See [`Explanation`] for more details.
                         <span class="ident">node_explanation_cache</span>,
                     ));
                 }
-                <span class="ident">Rc</span>::<span class="ident">new</span>(<span class="ident">TreeTerm</span>::<span class="ident">new</span>(<span class="ident">current_node</span>.<span class="ident">clone</span>(), <span class="ident">subproofs</span>))
+                <span class="ident">Rc::new</span>(<span class="ident">TreeTerm::new</span>(<span class="ident">current_node</span>.<span class="ident">clone</span>(), <span class="ident">subproofs</span>))
             }
         };
 
@@ -2178,6 +2179,6 @@ See [`Explanation`] for more details.
         <span class="ident">term</span>
     }
 }
-</pre></div>
-</section><section id="search" class="content hidden"></section><section class="footer"></section><div id="rustdoc-vars" data-root-path="../../" data-current-crate="egg"></div>
-    <script src="../../main.js"></script><script src="../../source-script.js"></script><script src="../../source-files.js"></script><script defer src="../../search-index.js"></script></body></html>
+</code></pre></div>
+</section><section id="search" class="content hidden"></section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="egg" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.60.0 (7737e0b5c 2022-04-04)" ></div>
+</body></html>
