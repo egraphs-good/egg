@@ -590,7 +590,7 @@ where
             apply_time,
             rebuild_time,
             n_rebuilds,
-            data: IterData::make(&self),
+            data: IterData::make(self),
             total_time: start_time.elapsed().as_secs_f64(),
             stop_reason: result.err(),
         }

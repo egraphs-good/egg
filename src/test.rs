@@ -79,7 +79,7 @@ pub fn test_runner<L, A>(
 
     if should_check {
         runner.print_report();
-        runner.egraph.check_goals(id, &goals);
+        runner.egraph.check_goals(id, goals);
 
         if runner.egraph.are_explanations_enabled() {
             for goal in goals {

@@ -34,7 +34,7 @@ fn for_each_matching_node<L, D>(eclass: &EClass<L, D>, node: &L, mut f: impl FnM
 where
     L: Language,
 {
-    #[allow(clippy::mem_discriminant_non_enum)]
+    #[allow(enum_intrinsics_non_enums)]
     if eclass.nodes.len() < 50 {
         eclass.nodes.iter().filter(|n| node.matches(n)).for_each(f)
     } else {

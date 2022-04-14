@@ -189,7 +189,7 @@ impl Applier<Lambda, LambdaAnalysis> for CaptureAvoid {
                 .apply_one(egraph, eclass, &subst, searcher_ast, rule_name)
         } else {
             self.if_not_free
-                .apply_one(egraph, eclass, &subst, searcher_ast, rule_name)
+                .apply_one(egraph, eclass, subst, searcher_ast, rule_name)
         }
     }
 }

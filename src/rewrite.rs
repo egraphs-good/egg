@@ -282,12 +282,11 @@ where
     ) -> Vec<Id> {
         let mut added = vec![];
         for mat in matches {
-            let ast;
-            if egraph.are_explanations_enabled() {
-                ast = mat.ast.as_ref().map(|cow| cow.as_ref());
+            let ast = if egraph.are_explanations_enabled() {
+                mat.ast.as_ref().map(|cow| cow.as_ref())
             } else {
-                ast = None;
-            }
+                None
+            };
             for subst in &mat.substs {
                 let ids = self.apply_one(egraph, mat.eclass, subst, ast, rule_name);
                 added.extend(ids)
@@ -541,7 +540,7 @@ mod tests {
 
         #[derive(Debug)]
         struct Appender {
-            rhs: PatternAst<S>,
+            _rhs: PatternAst<S>,
         }
 
         impl Applier<SymbolLang, ()> for Appender {
@@ -555,8 +554,8 @@ mod tests {
             ) -> Vec<Id> {
                 let a: Var = "?a".parse().unwrap();
                 let b: Var = "?b".parse().unwrap();
-                let a = get(&egraph, subst[a]);
-                let b = get(&egraph, subst[b]);
+                let a = get(egraph, subst[a]);
+                let b = get(egraph, subst[b]);
                 let s = format!("{}{}", a, b);
                 if let Some(ast) = searcher_ast {
                     let (id, did_something) = egraph.union_instantiations(
@@ -582,7 +581,7 @@ mod tests {
         }
 
         let fold_add = rewrite!(
-            "fold_add"; "(+ ?a ?b)" => { Appender { rhs: "?a".parse().unwrap()}}
+            "fold_add"; "(+ ?a ?b)" => { Appender { _rhs: "?a".parse().unwrap()}}
         );
 
         egraph.rebuild();

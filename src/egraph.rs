@@ -379,7 +379,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     }
 
     fn add_instantiation_internal(&mut self, pat: &PatternAst<L>, subst: &Subst) -> Id {
-        let nodes = pat.as_ref().as_ref();
+        let nodes = pat.as_ref();
         let mut new_ids = Vec::with_capacity(nodes.len());
         let mut new_node_q = Vec::with_capacity(nodes.len());
         for node in nodes {
@@ -696,9 +696,9 @@ impl<L: Language + Display, N: Analysis<L>> EGraph<L, N> {
 
         for (i, goal) in goals.iter().enumerate() {
             println!("Trying to prove goal {}: {}", i, goal.pretty(40));
-            let matches = goal.search_eclass(&self, id);
+            let matches = goal.search_eclass(self, id);
             if matches.is_none() {
-                let best = Extractor::new(&self, AstSize).find_best(id).1;
+                let best = Extractor::new(self, AstSize).find_best(id).1;
                 panic!(
                     "Could not prove goal {}:\n\
                      {}\n\
@@ -735,9 +735,9 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             trimmed += old_len - class.nodes.len();
 
             let mut add = |n: &L| {
-                #[allow(clippy::mem_discriminant_non_enum)]
+                #[allow(enum_intrinsics_non_enums)]
                 classes_by_op
-                    .entry(std::mem::discriminant(&n))
+                    .entry(std::mem::discriminant(n))
                     .or_default()
                     .insert(class.id)
             };
