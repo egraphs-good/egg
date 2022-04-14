@@ -24,7 +24,7 @@ The simplest way to enable `env_logger` is to put the following line near the to
 Then, set the environment variable `RUST_LOG=egg=info`, or use `warn` or `debug` instead of info
 for less or more logging.
 
-!*/
+*/
 
 mod macros;
 
