@@ -2,6 +2,9 @@
 
 ## [Unreleased] - ReleaseDate
 
+### Added
+- ([#128](https://github.com/egraphs-good/egg/pull/128)) Add an ILP-based extractor.
+
 ### Changed
 - ([#165](https://github.com/egraphs-good/egg/pull/165)) Unions now happen "instantly", restoring the pre-0.7 behavior. 
 - MSRV is now 1.60.0.

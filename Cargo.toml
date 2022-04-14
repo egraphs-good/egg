@@ -21,6 +21,9 @@ fxhash = "0.2"
 hashbrown = { version = "0.11", default-features = false, features = ["inline-more"] }
 thiserror = "1"
 
+# for the lp feature
+coin_cbc = { version = "0.1.6", optional = true }
+
 # for the serde-1 feature
 serde = { version = "1", features = ["derive"], optional = true }
 vectorize = { version = "0.2", optional = true }
@@ -33,6 +36,7 @@ env_logger = {version = "0.9", default-features = false}
 ordered-float = "2"
 
 [features]
+lp = [ "coin_cbc" ]
 wasm-bindgen = [ "instant/wasm-bindgen" ]
 serde-1 = [ "serde", "indexmap/serde-1", "hashbrown/serde", "vectorize" ]
 reports = [ "serde-1", "serde_json" ]

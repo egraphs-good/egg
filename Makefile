@@ -2,8 +2,8 @@ all: test nits
 
 .PHONY: test
 test:
-	cargo build --release
 	cargo test --release
+	cargo test --release --features=lp
 	# don't run examples in proof-production mode
 	cargo test --release --features "test-explanations"
 	
