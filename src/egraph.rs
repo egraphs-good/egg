@@ -953,8 +953,6 @@ mod tests {
             "union x and y".to_string(),
         );
         egraph.rebuild();
-
-        egraph.dot().to_dot("target/foo.dot").unwrap();
     }
 
     #[cfg(all(feature = "serde-1", feature = "serde_json"))]

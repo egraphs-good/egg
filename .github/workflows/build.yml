@@ -11,8 +11,8 @@ jobs:
       with:
         path: ~/.cargo/bin
         key: ${{ runner.os }}-cargo-bin
-    - name: Install graphviz and cbc
-      run: sudo apt-get install graphviz coinor-libcbc-dev 
+    - name: Install cbc
+      run: sudo apt-get install coinor-libcbc-dev 
     - name: Test
       run: make test
   nits:

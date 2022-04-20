@@ -21,7 +21,7 @@ The [`EGraph::dot`](EGraph::dot()) method creates `Dot`s.
 
 # Example
 
-```
+```no_run
 use egg::{*, rewrite as rw};
 
 let rules = &[
@@ -38,9 +38,9 @@ println!("My egraph dot file: {}", egraph.dot());
 
 // create a Dot and then compile it assuming `dot` is on the system
 egraph.dot().to_svg("target/foo.svg").unwrap();
-// egraph.dot().to_png("target/foo.png").unwrap();
-// egraph.dot().to_pdf("target/foo.pdf").unwrap();
-// egraph.dot().to_dot("target/foo.dot").unwrap();
+egraph.dot().to_png("target/foo.png").unwrap();
+egraph.dot().to_pdf("target/foo.pdf").unwrap();
+egraph.dot().to_dot("target/foo.dot").unwrap();
 ```
 
 Note that self-edges (from an enode to its containing eclass) will be
