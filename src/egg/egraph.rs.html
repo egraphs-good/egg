@@ -975,8 +975,6 @@
 <span id="970">970</span>
 <span id="971">971</span>
 <span id="972">972</span>
-<span id="973">973</span>
-<span id="974">974</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="kw">crate</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident">std</span>::{
     <span class="ident">borrow::BorrowMut</span>,
@@ -1932,8 +1930,6 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
             <span class="string">&quot;union x and y&quot;</span>.<span class="ident">to_string</span>(),
         );
         <span class="ident">egraph</span>.<span class="ident">rebuild</span>();
-
-        <span class="ident">egraph</span>.<span class="ident">dot</span>().<span class="ident">to_dot</span>(<span class="string">&quot;target/foo.dot&quot;</span>).<span class="ident">unwrap</span>();
     }
 
     <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">all</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde-1&quot;</span>, <span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde_json&quot;</span>))]</span>

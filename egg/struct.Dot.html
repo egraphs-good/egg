@@ -28,9 +28,9 @@ visualization.</p>
 
 <span class="comment">// create a Dot and then compile it assuming `dot` is on the system</span>
 <span class="ident">egraph</span>.<span class="ident">dot</span>().<span class="ident">to_svg</span>(<span class="string">&quot;target/foo.svg&quot;</span>).<span class="ident">unwrap</span>();
-<span class="comment">// egraph.dot().to_png(&quot;target/foo.png&quot;).unwrap();</span>
-<span class="comment">// egraph.dot().to_pdf(&quot;target/foo.pdf&quot;).unwrap();</span>
-<span class="comment">// egraph.dot().to_dot(&quot;target/foo.dot&quot;).unwrap();</span></code></pre></div>
+<span class="ident">egraph</span>.<span class="ident">dot</span>().<span class="ident">to_png</span>(<span class="string">&quot;target/foo.png&quot;</span>).<span class="ident">unwrap</span>();
+<span class="ident">egraph</span>.<span class="ident">dot</span>().<span class="ident">to_pdf</span>(<span class="string">&quot;target/foo.pdf&quot;</span>).<span class="ident">unwrap</span>();
+<span class="ident">egraph</span>.<span class="ident">dot</span>().<span class="ident">to_dot</span>(<span class="string">&quot;target/foo.dot&quot;</span>).<span class="ident">unwrap</span>();</code></pre></div>
 <p>Note that self-edges (from an enode to its containing eclass) will be
 rendered improperly due to a deficiency in GraphViz.
 So the example above will render with an from the “+” enode to itself
