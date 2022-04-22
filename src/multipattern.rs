@@ -12,7 +12,7 @@ use crate::*;
 /// Multipatterns are good for writing graph rewrites or datalog-style rules.
 ///
 /// You can create multipatterns via the [`MultiPattern::new`] function or the
-/// [`rewrite!`] macro.
+/// [`multi_rewrite!`] macro.
 ///
 /// [`MultiPattern`] implements both [`Searcher`] and [`Applier`].
 /// When searching a multipattern, the result ensures that
@@ -205,12 +205,12 @@ mod tests {
     #[test]
     #[should_panic = "unbound var ?z"]
     fn bad_unbound_var() {
-        let _: Rewrite<S, ()> = rewrite!("foo"; "?x = (foo ?y)" |- "?x = ?z");
+        let _: Rewrite<S, ()> = multi_rewrite!("foo"; "?x = (foo ?y)" => "?x = ?z");
     }
 
     #[test]
     fn ok_unbound_var() {
-        let _: Rewrite<S, ()> = rewrite!("foo"; "?x = (foo ?y)" |- "?z = (baz ?y), ?x = ?z");
+        let _: Rewrite<S, ()> = multi_rewrite!("foo"; "?x = (foo ?y)" => "?z = (baz ?y), ?x = ?z");
     }
 
     #[test]
@@ -244,9 +244,9 @@ mod tests {
         let _x = egraph.add_expr(&"(x)".parse().unwrap());
         let rules = vec![
             // Rule creates y and z if they don't exist.
-            rewrite!("rule1"; "?x = (x)" |- "?y = (y), ?y = (z)"),
+            multi_rewrite!("rule1"; "?x = (x)" => "?y = (y), ?y = (z)"),
             // Can't fire without above rule. `y` and `z` don't already exist in egraph
-            rewrite!("rule2"; "?x = (x), ?y = (y), ?z = (z)" |- "?y = (y), ?y = (z)"),
+            multi_rewrite!("rule2"; "?x = (x), ?y = (y), ?z = (z)" => "?y = (y), ?y = (z)"),
         ];
         let mut runner = Runner::default().with_egraph(egraph).run(&rules);
         let y = runner.egraph.add_expr(&"(y)".parse().unwrap());
@@ -269,12 +269,12 @@ mod tests {
         let z1 = egraph.add_string("(tag z ctx2)");
         egraph.union(x1, y1);
         egraph.union(y2, z2);
-        let rules = vec![rewrite!("context-transfer"; 
+        let rules = vec![multi_rewrite!("context-transfer"; 
                      "?x = (tag ?a ?ctx1) = (tag ?b ?ctx1), 
                       ?t = (lte ?ctx1 ?ctx2), 
                       ?a1 = (tag ?a ?ctx2), 
                       ?b1 = (tag ?b ?ctx2)" 
-                      |- 
+                      =>
                       "?a1 = ?b1")];
         let runner = Runner::default().with_egraph(egraph).run(&rules);
         assert_eq!(runner.egraph.find(x1), runner.egraph.find(y1));
