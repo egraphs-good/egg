@@ -48,8 +48,8 @@ fn path() {
     let mut egraph = EGraph::<Lang, ()>::default();
     egraph.assert("(edge 1 2), (edge 2 3), (edge 3 4)");
     let rules = vec![
-        rewrite!("base-case"; "?x = true = (edge ?a ?b)" |- "?x = (path ?a ?b)"),
-        rewrite!("transitive"; "?x = true = (path ?a ?b) = (edge ?b ?c)" |- "?x = (path ?a ?c)"),
+        multi_rewrite!("base-case"; "?x = true = (edge ?a ?b)" => "?x = (path ?a ?b)"),
+        multi_rewrite!("transitive"; "?x = true = (path ?a ?b) = (edge ?b ?c)" => "?x = (path ?a ?c)"),
     ];
 
     let mut runner = Runner::default().with_egraph(egraph).run(&rules);
@@ -63,8 +63,8 @@ fn path2() {
     let mut egraph = EGraph::<Lang, ()>::default();
     egraph.assert("(edge 1 2), (edge 2 3), (edge 3 4), (edge 1 4)");
     let rules = vec![
-        rewrite!("base-case"; "?x = (edge ?a ?b), ?t = true" |- "?t = (pred (path ?a ?b))"),
-        rewrite!("transitive"; "?x = (path ?a ?b), ?y = (edge ?b ?c), ?t = true" |- "?t = (pred (path ?a ?c))"),
+        multi_rewrite!("base-case"; "?x = (edge ?a ?b), ?t = true" => "?t = (pred (path ?a ?b))"),
+        multi_rewrite!("transitive"; "?x = (path ?a ?b), ?y = (edge ?b ?c), ?t = true" => "?t = (pred (path ?a ?c))"),
     ];
     let mut runner = Runner::default().with_egraph(egraph).run(&rules);
     runner.egraph.check("(pred (path 1 4))");
