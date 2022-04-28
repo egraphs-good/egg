@@ -39,7 +39,7 @@ Check out the [web demo](https://egraphs-good.github.io/egg-web-demo) for some q
 Add `egg` to your `Cargo.toml` like this:
 ```toml
 [dependencies]
-egg = "0.7.1"
+egg = "0.8.0"
 ```
 
 ## Developing
