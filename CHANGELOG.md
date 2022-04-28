@@ -9,7 +9,8 @@
 - ([#165](https://github.com/egraphs-good/egg/pull/165)) Unions now happen "instantly", restoring the pre-0.7 behavior. 
 - MSRV is now 1.60.0.
 - Several small documentation enhancements.
-- ([#162](https://github.com/egraphs-good/egg/pull/162)) Replace Mutex with RwLock in string interning code.
+- ([#162](https://github.com/egraphs-good/egg/pull/162), [#163](https://github.com/egraphs-good/egg/pull/163))
+  Extracted the `Symbol` logic into the [`symbol_table`](https://crates.io/crates/symbol_table) crate.
 
 ## [0.7.1] - 2021-12-14
 
