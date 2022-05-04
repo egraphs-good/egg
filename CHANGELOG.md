@@ -2,6 +2,11 @@
 
 ## [Unreleased] - ReleaseDate
 
+## [0.8.1] - 2022-05-04
+
+### Changed
+- Improved documentation for features.
+
 ## [0.8.0] - 2022-04-28
 
 ### Added
@@ -185,7 +190,8 @@ But hopefully things will be a little more stable from here on out
 since the API is a lot nicer.
 
 <!-- next-url -->
-[Unreleased]: https://github.com/egraphs-good/egg/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/egraphs-good/egg/compare/v0.8.1...HEAD
+[0.8.1]: https://github.com/egraphs-good/egg/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/egraphs-good/egg/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/egraphs-good/egg/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/egraphs-good/egg/compare/v0.6.0...v0.7.0

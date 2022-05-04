@@ -1,6 +1,6 @@
 [package]
 name = "egg"
-version = "0.8.0"
+version = "0.8.1"
 authors = ["Max Willsey <me@mwillsey.com>"]
 edition = "2018"
 description = "An implementation of egraphs"
@@ -49,3 +49,7 @@ reports = ["serde-1", "serde_json"]
 
 # private features for testing
 test-explanations = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

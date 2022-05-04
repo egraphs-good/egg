@@ -3,6 +3,7 @@ use coin_cbc::{Col, Model, Sense};
 use crate::*;
 
 /// A cost function to be used by an [`LpExtractor`].
+#[cfg_attr(docsrs, doc(cfg(feature = "lp")))]
 pub trait LpCostFunction<L: Language, N: Analysis<L>> {
     /// Returns the cost of the given e-node.
     ///
@@ -11,6 +12,7 @@ pub trait LpCostFunction<L: Language, N: Analysis<L>> {
     fn node_cost(&mut self, egraph: &EGraph<L, N>, eclass: Id, enode: &L) -> f64;
 }
 
+#[cfg_attr(docsrs, doc(cfg(feature = "lp")))]
 impl<L: Language, N: Analysis<L>> LpCostFunction<L, N> for AstSize {
     fn node_cost(&mut self, _egraph: &EGraph<L, N>, _eclass: Id, _enode: &L) -> f64 {
         1.0
@@ -49,6 +51,7 @@ impl<L: Language, N: Analysis<L>> LpCostFunction<L, N> for AstSize {
 /// assert_eq!(lp_best.to_string(), "(f x x x)");
 /// assert_eq!(lp_best.as_ref().len(), 2);
 /// ```
+#[cfg_attr(docsrs, doc(cfg(feature = "lp")))]
 pub struct LpExtractor<'a, L: Language, N: Analysis<L>> {
     egraph: &'a EGraph<L, N>,
     model: Model,
@@ -148,7 +151,7 @@ where
 
     /// Extract a single rooted term.
     ///
-    /// This is just a shortcut for [`LpExtractor::solve_multiple_using`].
+    /// This is just a shortcut for [`LpExtractor::solve_multiple`].
     pub fn solve(&mut self, root: Id) -> RecExpr<L> {
         self.solve_multiple(&[root]).0
     }
