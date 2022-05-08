@@ -1,7 +1,7 @@
 use crate::Symbol;
 use crate::{
     util::pretty_print, Analysis, EClass, EGraph, ENodeOrVar, FromOp, HashMap, HashSet, Id,
-    Language, PatternAst, RecExpr, Rewrite, UnionFind, Var,
+    Language, PatternAst, RecExpr, Rewrite, UnionFind, Var, Pattern, Subst
 };
 use instant::{Duration, Instant};
 use std::cmp::Ordering;
@@ -996,6 +996,52 @@ impl<L: Language> Explain<L> {
             res
         }
     }
+
+    pub(crate) fn node_to_recexpr(&self, node_id: Id) -> RecExpr<L> {
+        let mut res = Default::default();
+        let mut cache = Default::default();
+        self.node_to_recexpr_internal(&mut res, node_id, &mut cache);
+        res
+    }
+
+    fn node_to_recexpr_internal(&self, res: &mut RecExpr<L>, node_id: Id, cache: &mut HashMap<Id, Id>) {
+        let new_node = self.explainfind[usize::from(node_id)].node.clone().map_children(|child| {
+            if let Some(existing) = cache.get(&child) {
+                *existing
+            } else {
+                self.node_to_recexpr_internal(res, child, cache);
+                Id::from(res.as_ref().len() - 1)
+            }
+        });
+        res.add(new_node);
+    }
+
+    pub(crate) fn node_to_pattern(&self, node_id: Id, substitutions: &HashMap<Id, Id>) -> (Pattern<L>, Subst) {
+        let mut res = Default::default();
+        let mut subst = Default::default();
+        let mut cache = Default::default();
+        self.node_to_pattern_internal(&mut res, node_id, substitutions, &mut subst, &mut cache);
+        (Pattern::new(res), subst)
+    }
+
+    fn node_to_pattern_internal(&self, res: &mut PatternAst<L>, node_id: Id, var_substitutions: &HashMap<Id, Id>, subst: &mut Subst, cache: &mut HashMap<Id, Id>) {
+        if let Some(existing) = var_substitutions.get(&node_id) {
+            let var = format!("?{}", node_id).parse().unwrap();
+            res.add(ENodeOrVar::Var(var));
+            subst.insert(var, *existing);
+        } else {
+            let new_node = self.explainfind[usize::from(node_id)].node.clone().map_children(|child| {
+                if let Some(existing) = cache.get(&child) {
+                    *existing
+                } else {
+                    self.node_to_pattern_internal(res, child, var_substitutions, subst, cache);
+                    Id::from(res.as_ref().len() - 1)
+                }
+            });
+            res.add(ENodeOrVar::ENode(new_node));
+        }
+    }
+
 
     fn node_to_flat_explanation(&self, node_id: Id) -> FlatTerm<L> {
         let node = self.explainfind[usize::from(node_id)].node.clone();
