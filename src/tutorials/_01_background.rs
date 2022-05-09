@@ -262,7 +262,7 @@ Most of this was covered above, but we need to define two new terms:
   If all the rewrites are in this state, we say the e-graph is _saturated_,
     meaning that the e-graph encodes all possible equivalences derivable from
     the given rewrites.
-- _Extraction_ is a procedure for picking a single represented from an e-class
+- _Extraction_ is a procedure for picking a single represented term from an e-class
   that is optimal according to some cost function.
   `egg`'s [`Extractor`]s provide this functionality.
 
