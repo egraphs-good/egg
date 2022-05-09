@@ -209,12 +209,6 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     }
 
     pub fn egraph_intersect(&mut self, other: &mut EGraph<L, N>, resulting: &mut EGraph<L, N>) {
-        self.add_shared_to(other, resulting);
-        other.add_shared_to(self, resulting);
-        resulting.rebuild();
-    }
-
-    fn add_shared_to(&mut self, other: &mut EGraph<L, N>, resulting: &mut EGraph<L, N>) {
         let left_unions = self.get_union_equalities();
         for (left, right, _why) in &left_unions {
             other.add_expr(&self.id_to_expr(*left));
@@ -228,6 +222,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                 resulting.union_instantiations(&self.id_to_pattern(left, &Default::default()).0.ast, &self.id_to_pattern(right, &Default::default()).0.ast, &Default::default(), why);
             }
         }
+        resulting.rebuild();
     }
 
     pub fn id_to_expr(&self, id: Id) -> RecExpr<L> {
