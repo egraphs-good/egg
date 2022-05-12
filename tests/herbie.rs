@@ -925,11 +925,7 @@ mod proofbench {
         let low_greedy_dag_size;
         let low_optimal_dag_size;
         let mut skip_optimal = false;
-        for class in runner_optimal.egraph.classes() {
-            if class.len() > 200 {
-                skip_optimal = true;
-            }
-        }
+        
         if skip_optimal
             || runner_optimal.egraph.add_expr(&start_parsed)
                 != runner_optimal.egraph.add_expr(&end_parsed)

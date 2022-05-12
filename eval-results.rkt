@@ -124,7 +124,7 @@
     ,(list  (two-average 'egg-run-duration 'vanilla-duration) (get-average 'z3-duration)
            (two-average 'egg-run-duration 'reduce-duration) (two-average 'egg-run-duration 'greedy-duration)
            (two-average 'egg-run-duration 'optimal-time) "Ave Run Time (ms)")
-    ,(list  "$O(n \\log(n))$" "$O(n \\log(n) + k^2 \\log(k))$" "$O(n \\log(n) + k^2 \\log(k))$" "$O(n \\log(n))$" "$O(n ^ 4)$" "Complexity"))))
+    ,(list  "$O(n \\log(n))$" "$O(n \\log(n) + k^2 \\log(k))$" "$O(n \\log(n) + k^2 \\log(k))$" "$O(n \\log(n))$" "$O(n ^ 5)$" "Complexity"))))
   output-port))
 
 (define (extra-macro-results output-port content tag)
@@ -154,6 +154,8 @@
                 filtered-optimal)))
   (define filtered-z3
     (filter (getter 'z3-dag-size) content))
+  (define filtered-optimal-z3
+    (filter (lambda (row) ((getter 'optimal-time) row)) filtered-z3))
   (define best-dag-reduction-greedy-vs-z3
     (apply max (cons 0 (for/list ([row filtered-z3])
                           (if (equal? ((getter 'z3-dag-size) row) 0)
@@ -203,6 +205,7 @@
                                                    (length filtered-z3)) output-port) 
   (output "bestdagreductiongreedyvsz" best-dag-reduction-greedy-vs-z3 output-port #:output-percent #t)
   (output "bestdagreductiongreedyvsvanillaegg" best-dag-reduction-greedy-vs-vanilla output-port #:output-percent #t)
+  (output "maxtimeoptimal" (apply max (map (getter 'optimal-time) filtered-optimal)) output-port)
 )
 
 (define (make-proof-len-scatter output-file cutoff results getter-normal getter-greedy x-str y-str [scale 0.4])
@@ -406,7 +409,7 @@
     (extra-macro-results macro-port (filter (lambda (row) (> ((getter 'dag-size) row) 10)) results) "vanilladagsizegrtten")
     
 
-    (make-algorithms-table (open-output-file (build-path report-dir "algorithms-table.tex") #:exists 'replace)filtered-optimal-z3)    
+    (make-algorithms-table (open-output-file (build-path report-dir "algorithms-table.tex") #:exists 'replace) filtered-optimal-z3)
     
 
 
