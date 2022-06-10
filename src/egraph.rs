@@ -207,9 +207,19 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// The [`Explanation`] can be used in it's default tree form or in a less compact
     /// flattened form. Each of these also has a s-expression string representation,
     /// given by [`get_flat_string`](Explanation::get_flat_string) and [`get_string`](Explanation::get_string).
-    pub fn explain_equivalence(&mut self, left: &RecExpr<L>, right: &RecExpr<L>) -> Explanation<L> {
-        let left = self.add_expr_internal(left);
-        let right = self.add_expr_internal(right);
+    pub fn explain_equivalence(
+        &mut self,
+        left_expr: &RecExpr<L>,
+        right_expr: &RecExpr<L>,
+    ) -> Explanation<L> {
+        let left = self.add_expr_internal(left_expr);
+        let right = self.add_expr_internal(right_expr);
+        if self.find(left) != self.find(right) {
+            panic!(
+                "Tried to explain equivalence between non-equal terms {:?} and {:?}",
+                left_expr, right_expr
+            );
+        }
         if let Some(explain) = &mut self.explain {
             explain.explain_equivalence(left, right)
         } else {
@@ -251,12 +261,19 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// Get an explanation for why an expression matches a pattern.
     pub fn explain_matches(
         &mut self,
-        left: &RecExpr<L>,
-        right: &PatternAst<L>,
+        left_expr: &RecExpr<L>,
+        right_pattern: &PatternAst<L>,
         subst: &Subst,
     ) -> Explanation<L> {
-        let left = self.add_expr_internal(left);
-        let right = self.add_instantiation_internal(right, subst);
+        let left = self.add_expr_internal(left_expr);
+        let right = self.add_instantiation_internal(right_pattern, subst);
+
+        if self.find(left) != self.find(right) {
+            panic!(
+                "Tried to explain equivalence between non-equal terms {:?} and {:?}",
+                left_expr, right_pattern
+            );
+        }
         if let Some(explain) = &mut self.explain {
             explain.explain_equivalence(left, right)
         } else {
@@ -602,6 +619,22 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             rhs_new,
         );
         (self.find(id1), did_union)
+    }
+
+    /// When possible, use [`union_instantiations`](EGraph::union_instantiations)
+    /// when explanations are enabled or [`union`](EGraph::union) when they are not.
+    ///
+    /// In the rare case that the reason that two eclasses are unioned does not depend
+    /// on any specific term from either eclass, this method can be used.
+    /// A justification is added between a representative term for the first eclass
+    /// and a representative term for the second eclass.
+    pub fn unsound_union_classes(
+        &mut self,
+        from: Id,
+        to: Id,
+        rule_name: impl Into<Symbol>,
+    ) -> bool {
+        self.perform_union(from, to, Some(Justification::Rule(rule_name.into())), false)
     }
 
     /// Unions two eclasses given their ids.

@@ -329,6 +329,30 @@ fn assoc_mul_saturates() {
     assert!(matches!(runner.stop_reason, Some(StopReason::Saturated)));
 }
 
+#[test]
+fn test_unsound_union() {
+    let expr: RecExpr<Math> = "(+ (* x 1) y)".parse().unwrap();
+    let expr2 = "20".parse().unwrap();
+    let mut runner: Runner<Math, ConstantFold> = Runner::default()
+        .with_explanations_enabled()
+        .with_iter_limit(3)
+        .with_expr(&expr)
+        .run(&rules());
+    let lhs = runner.egraph.add_expr(&expr);
+    let rhs = runner.egraph.add_expr(&expr2);
+    runner.egraph.unsound_union_classes(lhs, rhs, "whatever");
+    let proof = runner.explain_equivalence(&expr, &expr2).get_flat_strings();
+    assert_eq!(
+        proof,
+        vec![
+            "(+ (* x 1) y)",
+            "(+ (Rewrite<= mul-one x) y)",
+            "(+ (Rewrite<= one-mul (* x 1)) y)",
+            "(Rewrite=> whatever 20)"
+        ]
+    );
+}
+
 #[cfg(feature = "lp")]
 #[test]
 fn math_lp_extract() {
