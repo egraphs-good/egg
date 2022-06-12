@@ -207,9 +207,19 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// The [`Explanation`] can be used in it's default tree form or in a less compact
     /// flattened form. Each of these also has a s-expression string representation,
     /// given by [`get_flat_string`](Explanation::get_flat_string) and [`get_string`](Explanation::get_string).
-    pub fn explain_equivalence(&mut self, left: &RecExpr<L>, right: &RecExpr<L>) -> Explanation<L> {
-        let left = self.add_expr_internal(left);
-        let right = self.add_expr_internal(right);
+    pub fn explain_equivalence(
+        &mut self,
+        left_expr: &RecExpr<L>,
+        right_expr: &RecExpr<L>,
+    ) -> Explanation<L> {
+        let left = self.add_expr_internal(left_expr);
+        let right = self.add_expr_internal(right_expr);
+        if self.find(left) != self.find(right) {
+            panic!(
+                "Tried to explain equivalence between non-equal terms {:?} and {:?}",
+                left_expr, right_expr
+            );
+        }
         if let Some(explain) = &mut self.explain {
             explain.explain_equivalence(left, right)
         } else {
@@ -251,12 +261,19 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// Get an explanation for why an expression matches a pattern.
     pub fn explain_matches(
         &mut self,
-        left: &RecExpr<L>,
-        right: &PatternAst<L>,
+        left_expr: &RecExpr<L>,
+        right_pattern: &PatternAst<L>,
         subst: &Subst,
     ) -> Explanation<L> {
-        let left = self.add_expr_internal(left);
-        let right = self.add_instantiation_internal(right, subst);
+        let left = self.add_expr_internal(left_expr);
+        let right = self.add_instantiation_internal(right_pattern, subst);
+
+        if self.find(left) != self.find(right) {
+            panic!(
+                "Tried to explain equivalence between non-equal terms {:?} and {:?}",
+                left_expr, right_pattern
+            );
+        }
         if let Some(explain) = &mut self.explain {
             explain.explain_equivalence(left, right)
         } else {
@@ -604,23 +621,38 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         (self.find(id1), did_union)
     }
 
+    /// Unions two e-classes, using a given reason to justify it.
+    ///
+    ///
+    /// Unlike `union_instantiations`, this function picks arbitrary representatives
+    /// from either e-class.
+    /// When possible, use [`union_instantiations`](EGraph::union_instantiations),
+    /// since that ensures that the proof rewrites between the terms you are
+    /// actually proving equivalent.
+    pub fn union_trusted(&mut self, from: Id, to: Id, reason: impl Into<Symbol>) -> bool {
+        self.perform_union(from, to, Some(Justification::Rule(reason.into())), false)
+    }
+
     /// Unions two eclasses given their ids.
     ///
     /// The given ids need not be canonical.
     /// The returned `bool` indicates whether a union is necessary,
     /// so it's `false` if they were already equivalent.
     ///
-    /// When explanations are enabled, this function is not available.
-    /// Instead, use [`union_instantiations`](EGraph::union_instantiations).
+    /// When explanations are enabled, this function behaves like [`EGraph::union_trusted`],
+    ///  and it lists the call site as the proof reason.
+    /// You should prefer [`union_instantiations`](EGraph::union_instantiations) when
+    ///  you want the proofs to always be meaningful.
     /// See [`explain_equivalence`](Runner::explain_equivalence) for a more detailed
     /// explanation of the feature.
-    ///
-    ///
+    #[track_caller]
     pub fn union(&mut self, id1: Id, id2: Id) -> bool {
         if self.explain.is_some() {
-            panic!("Use union_instantiations when explanation mode is enabled.");
+            let caller = std::panic::Location::caller();
+            self.union_trusted(id1, id2, caller.to_string())
+        } else {
+            self.perform_union(id1, id2, None, false)
         }
-        self.perform_union(id1, id2, None, false)
     }
 
     fn perform_union(
