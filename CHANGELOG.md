@@ -2,6 +2,16 @@
 
 ## [Unreleased] - ReleaseDate
 
+## [0.9.0] - 2022-06-12
+
+### Added
+- Added a way to update analysis data and have it propagate through the e-graph
+
+### Changed
+- Improved documentation
+- Updated dependencies
+- `union` is now allowed when explanations are on
+
 ## [0.8.1] - 2022-05-04
 
 ### Changed
@@ -190,7 +200,8 @@ But hopefully things will be a little more stable from here on out
 since the API is a lot nicer.
 
 <!-- next-url -->
-[Unreleased]: https://github.com/egraphs-good/egg/compare/v0.8.1...HEAD
+[Unreleased]: https://github.com/egraphs-good/egg/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/egraphs-good/egg/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/egraphs-good/egg/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/egraphs-good/egg/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/egraphs-good/egg/compare/v0.7.0...v0.7.1
