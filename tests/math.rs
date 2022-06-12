@@ -74,20 +74,11 @@ impl Analysis<Math> for ConstantFold {
         })
     }
 
-    fn merge(&mut self, a: &mut Self::Data, b: Self::Data) -> DidMerge {
-        match (a.as_mut(), &b) {
-            (None, None) => DidMerge(false, false),
-            (None, Some(_)) => {
-                *a = b;
-                DidMerge(true, false)
-            }
-            (Some(_), None) => DidMerge(false, true),
-            (Some(_), Some(_)) => DidMerge(false, false),
-        }
-        // if a.is_none() && b.is_some() {
-        //     *a = b
-        // }
-        // cmp
+    fn merge(&mut self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
+        merge_option(to, from, |a, b| {
+            assert_eq!(a.0, b.0, "Merged non-equal constants");
+            DidMerge(false, false)
+        })
     }
 
     fn modify(egraph: &mut EGraph, id: Id) {

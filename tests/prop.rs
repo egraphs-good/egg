@@ -19,7 +19,10 @@ struct ConstantFold;
 impl Analysis<Prop> for ConstantFold {
     type Data = Option<(bool, PatternAst<Prop>)>;
     fn merge(&mut self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
-        merge_max(to, from)
+        merge_option(to, from, |a, b| {
+            assert_eq!(a.0, b.0, "Merged non-equal constants");
+            DidMerge(false, false)
+        })
     }
 
     fn make(egraph: &EGraph, enode: &Prop) -> Self::Data {

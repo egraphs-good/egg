@@ -6,7 +6,7 @@ use crate::*;
 
 /// A rewrite that searches for the lefthand side and applies the righthand side.
 ///
-/// The [`rewrite!`] is the easiest way to create rewrites.
+/// The [`rewrite!`] macro is the easiest way to create rewrites.
 ///
 /// A [`Rewrite`] consists principally of a [`Searcher`] (the lefthand
 /// side) and an [`Applier`] (the righthand side).

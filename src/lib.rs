@@ -32,6 +32,9 @@ for less or more logging.
 
 mod macros;
 
+#[doc(hidden)]
+pub mod test;
+
 pub mod tutorials;
 
 mod dot;
@@ -106,6 +109,3 @@ pub use lp_extract::*;
 fn init_logger() {
     let _ = env_logger::builder().is_test(true).try_init();
 }
-
-#[doc(hidden)]
-pub mod test;

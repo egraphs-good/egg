@@ -673,6 +673,19 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         true
     }
 
+    /// Update the analysis data of an e-class.
+    ///
+    /// This also propagates the changes through the e-graph,
+    /// so [`Analysis::make`] and [`Analysis::merge`] will get
+    /// called for other parts of the e-graph on rebuild.
+    pub fn set_analysis_data(&mut self, id: Id, new_data: N::Data) {
+        let id = self.find_mut(id);
+        let class = self.classes.get_mut(&id).unwrap();
+        class.data = new_data;
+        self.analysis_pending.extend(class.parents.iter().cloned());
+        N::modify(self, id)
+    }
+
     /// Returns a more debug-able representation of the egraph.
     ///
     /// [`EGraph`]s implement [`Debug`], but it ain't pretty. It

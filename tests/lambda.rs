@@ -65,12 +65,14 @@ impl Analysis<Lambda> for LambdaAnalysis {
         let before_len = to.free.len();
         // to.free.extend(from.free);
         to.free.retain(|i| from.free.contains(i));
-        if to.constant.is_none() && from.constant.is_some() {
-            to.constant = from.constant;
-            DidMerge(true, to.free.len() != from.free.len())
-        } else {
-            DidMerge(before_len != to.free.len(), true)
-        }
+        // compare lengths to see if I changed to or from
+        DidMerge(
+            before_len != to.free.len(),
+            to.free.len() != from.free.len(),
+        ) | merge_option(&mut to.constant, from.constant, |a, b| {
+            assert_eq!(a.0, b.0, "Merged non-equal constants");
+            DidMerge(false, false)
+        })
     }
 
     fn make(egraph: &EGraph, enode: &Lambda) -> Data {
@@ -328,7 +330,7 @@ egg::test_fn! {
     lambda_fib, rules(),
     runner = Runner::default()
         .with_iter_limit(60)
-        .with_node_limit(50_000),
+        .with_node_limit(500_000),
     "(let fib (fix fib (lam n
         (if (= (var n) 0)
             0

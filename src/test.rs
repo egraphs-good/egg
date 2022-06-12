@@ -37,6 +37,7 @@ pub fn test_runner<L, A>(
     L: Language + Display + 'static,
     A: Analysis<L> + Default,
 {
+    let _ = env_logger::builder().is_test(true).try_init();
     let mut runner = runner.unwrap_or_default();
 
     if let Some(lim) = env_var("EGG_NODE_LIMIT") {
@@ -49,10 +50,9 @@ pub fn test_runner<L, A>(
         runner = runner.with_time_limit(std::time::Duration::from_secs(lim))
     }
 
+    // Force sure explanations on if feature is on
     if cfg!(feature = "test-explanations") {
         runner = runner.with_explanations_enabled();
-    } else {
-        runner = runner.with_explanations_disabled();
     }
 
     runner = runner.with_expr(&start);
@@ -69,7 +69,7 @@ pub fn test_runner<L, A>(
                 .iter()
                 .all(|g: &Pattern<_>| g.search_eclass(&r.egraph, id).is_some())
             {
-                Err("Done".into())
+                Err("Proved all goals".into())
             } else {
                 Ok(())
             }
@@ -202,7 +202,31 @@ where
     egraph
 }
 
-/// Make a test function
+/// Utility to make a test proving expressions equivalent
+///
+/// # Example
+///
+/// ```
+/// # use egg::*;
+/// egg::test_fn! {
+///     // name of the generated test function
+///     my_test_name,
+///     // the rules to use
+///     [
+///         rewrite!("my_silly_rewrite"; "(foo ?a)" => "(bar ?a)"),
+///         rewrite!("my_other_rewrite"; "(bar ?a)" => "(baz ?a)"),
+///     ],
+///     // the `runner = ...` is optional
+///     // if included, this must come right after the rules
+///     runner = Runner::<SymbolLang, (), _>::default(),
+///     // the initial expression
+///     "(foo 1)" =>
+///     // 1 or more goal expressions, all of which will be check to be
+///     // equivalent to the initial one
+///     "(bar 1)",
+///     "(baz 1)",
+/// }
+/// ```
 #[macro_export]
 macro_rules! test_fn {
     (
@@ -214,25 +238,20 @@ macro_rules! test_fn {
         $($goal:literal),+ $(,)?
         $(@check $check_fn:expr)?
     ) => {
-        mod $name {
-            use super::*;
-            pub fn run(check: bool) {
-                let _ = env_logger::builder().is_test(true).try_init();
 
-                $crate::test::test_runner(
-                    stringify!($name),
-                    None $(.or(Some($runner)))?,
-                    &$rules,
-                    $start.parse().unwrap(),
-                    &[$( $goal.parse().unwrap() ),+],
-                    None $(.or(Some($check_fn)))?,
-                    check,
-                )
-            }
-
-            $(#[$meta])* #[test] fn test() { run(true) }
-        }
-
-        pub fn $name() { $name::run(false) }
-    };
+    $(#[$meta])*
+    #[test]
+    pub fn $name() {
+        // NOTE this is no longer needed, we always check
+        let check = true;
+        $crate::test::test_runner(
+            stringify!($name),
+            None $(.or(Some($runner)))?,
+            &$rules,
+            $start.parse().unwrap(),
+            &[$( $goal.parse().unwrap() ),+],
+            None $(.or(Some($check_fn)))?,
+            check,
+        )
+    }};
 }

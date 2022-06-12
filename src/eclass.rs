@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 use std::iter::ExactSizeIterator;
 
-use crate::{Id, Language};
+use crate::*;
 
 /// An equivalence class of enodes.
 #[non_exhaustive]
@@ -13,6 +13,9 @@ pub struct EClass<L, D> {
     /// The equivalent enodes in this equivalence class.
     pub nodes: Vec<L>,
     /// The analysis data associated with this eclass.
+    ///
+    /// Modifying this field will _not_ cause changes to propagate through the e-graph.
+    /// Prefer [`EGraph::set_analysis_data`] instead.
     pub data: D,
     /// The parent enodes and their original Ids.
     pub(crate) parents: Vec<(L, Id)>,
