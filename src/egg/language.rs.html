@@ -826,6 +826,31 @@
 <span id="821">821</span>
 <span id="822">822</span>
 <span id="823">823</span>
+<span id="824">824</span>
+<span id="825">825</span>
+<span id="826">826</span>
+<span id="827">827</span>
+<span id="828">828</span>
+<span id="829">829</span>
+<span id="830">830</span>
+<span id="831">831</span>
+<span id="832">832</span>
+<span id="833">833</span>
+<span id="834">834</span>
+<span id="835">835</span>
+<span id="836">836</span>
+<span id="837">837</span>
+<span id="838">838</span>
+<span id="839">839</span>
+<span id="840">840</span>
+<span id="841">841</span>
+<span id="842">842</span>
+<span id="843">843</span>
+<span id="844">844</span>
+<span id="845">845</span>
+<span id="846">846</span>
+<span id="847">847</span>
+<span id="848">848</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::ops</span>::{<span class="ident">BitOr</span>, <span class="ident">Index</span>, <span class="ident">IndexMut</span>};
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">cmp::Ordering</span>, <span class="ident">convert::TryFrom</span>};
 <span class="kw">use</span> <span class="ident">std</span>::{
@@ -1411,11 +1436,14 @@
 <span class="doccomment">/// Result of [`Analysis::merge`] indicating which of the inputs</span>
 <span class="doccomment">/// are different from the merged result.</span>
 <span class="doccomment">///</span>
-<span class="doccomment">/// The fields correspond to whether the `a` and `b` inputs to [`Analysis::merge`]</span>
-<span class="doccomment">/// were changed in any way by the merge.</span>
+<span class="doccomment">/// The fields correspond to whether the initial `a` and `b` inputs to [`Analysis::merge`]</span>
+<span class="doccomment">/// were different from the final merged value.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// In both cases the result may be conservative -- they may indicate `true` even</span>
 <span class="doccomment">/// when there is no difference between the input and the result.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// `DidMerge`s can be &quot;or&quot;ed together using the `|` operator.</span>
+<span class="doccomment">/// This can be useful for composing analyses.</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">DidMerge</span>(<span class="kw">pub</span> <span class="ident">bool</span>, <span class="kw">pub</span> <span class="ident">bool</span>);
 
 <span class="kw">impl</span> <span class="ident">BitOr</span> <span class="kw">for</span> <span class="ident">DidMerge</span> {
@@ -1596,6 +1624,28 @@ assert_eq!(runner.egraph.find(runner.roots[0]), runner.egraph.find(just_foo));
         }
     }
 }
+
+<span class="doccomment">/// A utility for implementing [`Analysis::merge`]</span>
+<span class="doccomment">/// when the `Data` type is an [`Option`].</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// Always take a `Some` over a `None`</span>
+<span class="doccomment">/// and calls the given function to merge two `Some`s.</span>
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">merge_option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(
+    <span class="ident">to</span>: <span class="kw-2">&amp;mut</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>,
+    <span class="ident">from</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>,
+    <span class="ident">merge_fn</span>: <span class="kw">impl</span> <span class="ident">FnOnce</span>(<span class="kw-2">&amp;mut</span> <span class="ident">T</span>, <span class="ident">T</span>) -&gt; <span class="ident">DidMerge</span>,
+) -&gt; <span class="ident">DidMerge</span> {
+    <span class="kw">match</span> (<span class="ident">to</span>.<span class="ident">as_mut</span>(), <span class="ident">from</span>) {
+        (<span class="prelude-val">None</span>, <span class="prelude-val">None</span>) =&gt; <span class="ident">DidMerge</span>(<span class="bool-val">false</span>, <span class="bool-val">false</span>),
+        (<span class="prelude-val">None</span>, <span class="ident">from</span> @ <span class="prelude-val">Some</span>(<span class="kw">_</span>)) =&gt; {
+            <span class="kw-2">*</span><span class="ident">to</span> <span class="op">=</span> <span class="ident">from</span>;
+            <span class="ident">DidMerge</span>(<span class="bool-val">true</span>, <span class="bool-val">false</span>)
+        }
+        (<span class="prelude-val">Some</span>(<span class="kw">_</span>), <span class="prelude-val">None</span>) =&gt; <span class="ident">DidMerge</span>(<span class="bool-val">false</span>, <span class="bool-val">true</span>),
+        (<span class="prelude-val">Some</span>(<span class="ident">a</span>), <span class="prelude-val">Some</span>(<span class="ident">b</span>)) =&gt; <span class="ident">merge_fn</span>(<span class="ident">a</span>, <span class="ident">b</span>),
+    }
+}
+
 <span class="doccomment">/// A simple language used for testing.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Hash</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>, <span class="ident">Clone</span>, <span class="ident">PartialOrd</span>, <span class="ident">Ord</span>)]</span>
 <span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde-1&quot;</span>, <span class="ident">derive</span>(<span class="ident">serde::Serialize</span>, <span class="ident">serde::Deserialize</span>))]</span>

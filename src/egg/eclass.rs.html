@@ -62,10 +62,13 @@
 <span id="57">57</span>
 <span id="58">58</span>
 <span id="59">59</span>
+<span id="60">60</span>
+<span id="61">61</span>
+<span id="62">62</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::fmt::Debug</span>;
 <span class="kw">use</span> <span class="ident">std::iter::ExactSizeIterator</span>;
 
-<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">Id</span>, <span class="ident">Language</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="kw-2">*</span>;
 
 <span class="doccomment">/// An equivalence class of enodes.</span>
 <span class="attribute">#[<span class="ident">non_exhaustive</span>]</span>
@@ -77,6 +80,9 @@
     <span class="doccomment">/// The equivalent enodes in this equivalence class.</span>
     <span class="kw">pub</span> <span class="ident">nodes</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
     <span class="doccomment">/// The analysis data associated with this eclass.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Modifying this field will _not_ cause changes to propagate through the e-graph.</span>
+    <span class="doccomment">/// Prefer [`EGraph::set_analysis_data`] instead.</span>
     <span class="kw">pub</span> <span class="ident">data</span>: <span class="ident">D</span>,
     <span class="doccomment">/// The parent enodes and their original Ids.</span>
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">parents</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">L</span>, <span class="ident">Id</span>)<span class="op">&gt;</span>,

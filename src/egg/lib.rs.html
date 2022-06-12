@@ -148,6 +148,9 @@ for less or more logging.
 
 <span class="kw">mod</span> <span class="ident">macros</span>;
 
+<span class="attribute">#[<span class="ident">doc</span>(<span class="ident">hidden</span>)]</span>
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">test</span>;
+
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">tutorials</span>;
 
 <span class="kw">mod</span> <span class="ident">dot</span>;
@@ -222,9 +225,6 @@ for less or more logging.
 <span class="kw">fn</span> <span class="ident">init_logger</span>() {
     <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">env_logger::builder</span>().<span class="ident">is_test</span>(<span class="bool-val">true</span>).<span class="ident">try_init</span>();
 }
-
-<span class="attribute">#[<span class="ident">doc</span>(<span class="ident">hidden</span>)]</span>
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">test</span>;
 </code></pre></div>
 </section><section id="search" class="content hidden"></section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="egg" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.60.0 (7737e0b5c 2022-04-04)" ></div>
 </body></html>
