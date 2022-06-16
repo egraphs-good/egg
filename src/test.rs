@@ -5,8 +5,6 @@ These are not considered part of the public api.
 
 use std::fmt::Display;
 use std::io::{self, Write};
-use std::process::{Command, Stdio};
-use symbolic_expressions::Sexp;
 
 use crate::*;
 

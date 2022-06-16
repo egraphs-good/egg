@@ -203,6 +203,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         }
     }
 
+    /// Performs the union between two egraphs.
     pub fn egraph_union(&self, other: &mut EGraph<L, N>) {
         let mut left_unions = self.get_union_equalities();
         for (left, right, why) in left_unions {
@@ -211,7 +212,17 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         other.rebuild();
     }
 
-    pub fn egraph_intersect(&mut self, other: &mut EGraph<L, N>, resulting: &mut EGraph<L, N>) {
+    /// A best-effort intersection algorithm between two egraphs.
+    /// The intersection is guaranteed to be correct for all direct
+    /// equalities found in the original two egraphs.
+    /// Implied equalities due to congruence, however, may not be preserved.
+    pub fn egraph_intersect_incomplete(&mut self, other: &mut EGraph<L, N>, resulting: &mut EGraph<L, N>) {
+        self.intersect_one_way(other, resulting);
+        other.intersect_one_way(self, resulting);
+        resulting.rebuild();
+    }
+
+    fn intersect_one_way(&mut self, other: &mut EGraph<L, N>, resulting: &mut EGraph<L, N>) {
         let left_unions = self.get_union_equalities();
         for (left, right, _why) in &left_unions {
             other.add_expr(&self.id_to_expr(*left));
@@ -225,7 +236,6 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                 resulting.union_instantiations(&self.id_to_pattern(left, &Default::default()).0.ast, &self.id_to_pattern(right, &Default::default()).0.ast, &Default::default(), why);
             }
         }
-        resulting.rebuild();
     }
 
     pub fn id_to_expr(&self, id: Id) -> RecExpr<L> {

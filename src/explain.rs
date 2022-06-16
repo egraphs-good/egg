@@ -3,7 +3,6 @@ use crate::{
     util::pretty_print, Analysis, EClass, EGraph, ENodeOrVar, FromOp, HashMap, HashSet, Id,
     Language, PatternAst, RecExpr, Rewrite, UnionFind, Var, Pattern, Subst
 };
-use instant::{Duration, Instant};
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, VecDeque};
 use std::fmt::{self, Debug, Display, Formatter};
