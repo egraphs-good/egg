@@ -466,6 +466,7 @@ impl<L: Language + Display> Display for RecExpr<L> {
 }
 
 impl<L: Language + Display> RecExpr<L> {
+    /// Convert this RecExpr into an Sexp
     pub fn to_sexp(&self) -> Sexp {
         let last = self.nodes.len() - 1;
         if !self.is_dag() {

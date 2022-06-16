@@ -28,7 +28,7 @@ let start = "(/ (* (/ 2 3) (/ 3 2)) 1)".parse().unwrap();
 let end = "1".parse().unwrap();
 let mut runner = Runner::default().with_explanations_enabled().with_expr(&start).run(rules);
 
-println!("{}", runner.explain_equivalence(&start, &end, 0, false).get_flat_string());
+println!("{}", runner.explain_equivalence(&start, &end).get_flat_string());
 ```
 
 The output of the program is a series of s-expressions annotated

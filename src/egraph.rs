@@ -205,7 +205,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
     /// Performs the union between two egraphs.
     pub fn egraph_union(&self, other: &mut EGraph<L, N>) {
-        let mut left_unions = self.get_union_equalities();
+        let left_unions = self.get_union_equalities();
         for (left, right, why) in left_unions {
             other.union_instantiations(&self.id_to_pattern(left, &Default::default()).0.ast, &self.id_to_pattern(right, &Default::default()).0.ast, &Default::default(), why);
         }
@@ -238,6 +238,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         }
     }
 
+    /// Pick a representative term for a given Id.
     pub fn id_to_expr(&self, id: Id) -> RecExpr<L> {
         if let Some(explain) = &self.explain {
             explain.node_to_recexpr(id)
@@ -246,6 +247,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         }
     }
 
+    /// Pick a representative pattern for a given id and substitutions for particular eclasses.
     pub fn id_to_pattern(&self, id: Id, substitutions: &HashMap<Id, Id>) -> (Pattern<L>, Subst) {
         if let Some(explain) = &self.explain {
             explain.node_to_pattern(id, substitutions)
@@ -274,6 +276,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         self.explain.is_some()
     }
 
+    /// Get the nunber of congruences between nodes in the egraph.
+    /// Only available when explanations are enabled.
     pub fn get_num_congr(&mut self) -> usize {
         if let Some(explain) = &self.explain {
             explain.get_num_congr::<N>(&self.classes, &mut self.unionfind)
@@ -282,7 +286,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         }
     }
 
-    pub fn get_num_nodes(&mut self) -> usize {
+    /// Get the number of nodes in the egraph used for explanations.
+    pub fn get_explanation_num_nodes(&mut self) -> usize {
         if let Some(explain) = &self.explain {
             explain.get_num_nodes()
         } else {
@@ -313,7 +318,6 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             explain.explain_equivalence::<N>(
                 left,
                 right,
-                &self.memo,
                 &mut self.unionfind,
                 &self.classes,
                 self.optimize_explanation_lengths,
@@ -374,7 +378,6 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             explain.explain_equivalence::<N>(
                 left,
                 right,
-                &self.memo,
                 &mut self.unionfind,
                 &self.classes,
                 self.optimize_explanation_lengths,

@@ -1265,7 +1265,6 @@ impl<L: Language> Explain<L> {
         &mut self,
         left: Id,
         right: Id,
-        memo: &HashMap<L, Id>,
         unionfind: &mut UnionFind,
         classes: &HashMap<Id, EClass<L, N::Data>>,
         optimize_length: bool,
@@ -1582,85 +1581,6 @@ impl<L: Language> Explain<L> {
         return depths;
     }
 
-    // For every possible proof length query for this eclass, find the best path.
-    // When congruence proof sizes are absent, ignore them.
-    fn shortest_explanations_eclass(
-        &mut self,
-        eclass: Id,
-        congruent_nodes: &Vec<Vec<Id>>,
-        eclass_congruence_queries: &HashMap<Id, Vec<(Id, Id)>>,
-    ) -> bool {
-        let enodes = self.find_all_enodes(eclass);
-        let mut did_anything = false;
-
-        // update the shortest path between all of the queries
-        for (start, end) in eclass_congruence_queries.get(&eclass).unwrap_or(&vec![]) {
-            let cost_before = self
-                .shortest_explanation_memo
-                .get(&(*start, *end))
-                .map(|(cost, _next)| *cost);
-            let mut ends: HashSet<Id> = Default::default();
-            ends.insert(*end);
-            self.shortest_path_modulo_congruence(
-                *start,
-                &ends,
-                congruent_nodes,
-                &mut Default::default(),
-                false,
-                true,
-            );
-            let cost_after = self
-                .shortest_explanation_memo
-                .get(&(*start, *end))
-                .map(|(cost, _next)| *cost);
-            if cost_before != cost_after {
-                if let (Some(before), Some(after)) = (cost_before, cost_after) {
-                    assert!(after < before);
-                }
-                did_anything = true;
-            }
-        }
-
-        // updates shortest paths based on all possible intermediates
-        /*for intermediate in &enodes {
-            for start in &enodes {
-                for end in &enodes {
-                    let start_to_intermediate = if let Some(v) =
-                        self.shortest_explanation_memo.get(&(*start, *intermediate))
-                    {
-                        *v
-                    } else {
-                        continue;
-                    };
-                    let intermediate_to_end = if let Some(v) =
-                        self.shortest_explanation_memo.get(&(*intermediate, *end))
-                    {
-                        *v
-                    } else {
-                        continue;
-                    };
-                    let old =
-                        if let Some((c, _)) = self.shortest_explanation_memo.get(&(*start, *end)) {
-                            *c
-                        } else {
-                            usize::MAX
-                        };
-                    let new = start_to_intermediate
-                        .0
-                        .checked_add(intermediate_to_end.0)
-                        .unwrap();
-                    if new < old {
-                        self.shortest_explanation_memo
-                            .insert((*start, *end), (new, start_to_intermediate.1));
-                        did_anything = true;
-                    }
-                }
-            }
-        }*/
-
-        did_anything
-    }
-
     fn replace_distance(&mut self, current: Id, next: Id, right: Id, distance: usize) {
         self.shortest_explanation_memo
             .insert((current, right), (distance, next));
@@ -1668,12 +1588,10 @@ impl<L: Language> Explain<L> {
 
     fn populate_path_length(
         &mut self,
-        start: Id,
         right: Id,
         left_connections: &Vec<Connection>,
         distance_memo: &mut DistanceMemo,
         target_cost: usize,
-        use_estimates: bool,
     ) {
         self.shortest_explanation_memo
             .insert((right, right), (0, right));
@@ -1686,11 +1604,8 @@ impl<L: Language> Explain<L> {
                 .get(&(next, right))
                 .unwrap()
                 .0;
-            let dist = if use_estimates {
-                self.connection_distance(connection, distance_memo)
-            } else {
-                self.connection_distance_cached(connection).unwrap()
-            };
+            let dist = 
+                self.connection_distance(connection, distance_memo);
             last_cost = dist + next_cost;
             self.replace_distance(current, next, right, next_cost + dist);
         }
@@ -1742,27 +1657,6 @@ impl<L: Language> Explain<L> {
         return dist;
     }
 
-    fn congruence_distance_cached(&self, current: Id, next: Id) -> Option<usize> {
-        let current_node = self.explainfind[usize::from(current)].node.clone();
-        let next_node = self.explainfind[usize::from(next)].node.clone();
-        let mut cost: usize = 0;
-        for (left_child, right_child) in current_node
-            .children()
-            .iter()
-            .zip(next_node.children().iter())
-        {
-            if let Some((cached_cost, _next)) = self
-                .shortest_explanation_memo
-                .get(&(*left_child, *right_child))
-            {
-                cost = cost.checked_add(*cached_cost).unwrap();
-            } else {
-                return None;
-            }
-        }
-        Some(cost)
-    }
-
     // TODO use bigint because this overflows easily
     fn congruence_distance(
         &mut self,
@@ -1795,15 +1689,6 @@ impl<L: Language> Explain<L> {
                 self.congruence_distance(connection.current, connection.next, distance_memo)
             }
             Justification::Rule(_) => 1,
-        }
-    }
-
-    fn connection_distance_cached(&mut self, connection: &Connection) -> Option<usize> {
-        match connection.justification {
-            Justification::Congruence => {
-                self.congruence_distance_cached(connection.current, connection.next)
-            }
-            Justification::Rule(_) => Some(1),
         }
     }
 
@@ -1928,8 +1813,6 @@ impl<L: Language> Explain<L> {
         ends: &HashSet<Id>,
         congruence_neighbors: &Vec<Vec<Id>>,
         distance_memo: &mut DistanceMemo,
-        // use estimates means use vanilla proof lengths- use this for greedy optimization
-        use_estimates: bool,
         update_paths: bool,
     ) -> Option<(Vec<Connection>, Vec<Connection>)> {
         let mut todo = BinaryHeap::new();
@@ -1963,7 +1846,7 @@ impl<L: Language> Explain<L> {
                 path_cost.insert(current, cost_so_far);
             }
 
-            if use_estimates && current == first_end {
+            if current == first_end {
                 break;
             }
 
@@ -1977,17 +1860,10 @@ impl<L: Language> Explain<L> {
                 }
             }
 
-            'inner: for other in congruence_neighbors[usize::from(current)].iter() {
+            for other in congruence_neighbors[usize::from(current)].iter() {
                 let next = other;
-                let distance = if use_estimates {
-                    self.congruence_distance(current, *next, distance_memo)
-                } else {
-                    if let Some(dist) = self.congruence_distance_cached(current, *next) {
-                        dist
-                    } else {
-                        continue 'inner;
-                    }
-                };
+                let distance = 
+                    self.congruence_distance(current, *next, distance_memo);
                 let next_cost = cost_so_far + distance;
                 todo.push(HeapState {
                     item: Connection {
@@ -2007,16 +1883,14 @@ impl<L: Language> Explain<L> {
         let mut right_connections = vec![];
 
         // assert that we found a path better than the normal one
-        if use_estimates {
-            let dist = self.distance_between(start, first_end, distance_memo);
-            if *total_cost.unwrap() > dist {
-                panic!(
-                    "Found cost greater than baseline {} vs {}",
-                    total_cost.unwrap(), dist
-                );
-            }
+        let dist = self.distance_between(start, first_end, distance_memo);
+        if *total_cost.unwrap() > dist {
+            panic!(
+                "Found cost greater than baseline {} vs {}",
+                total_cost.unwrap(), dist
+            );
         }
-        if use_estimates && *total_cost.unwrap() == self.distance_between(start, first_end, distance_memo) {
+        if *total_cost.unwrap() == self.distance_between(start, first_end, distance_memo) {
             let (a_left_connections, a_right_connections) = self.get_path_unoptimized(start, first_end);
             left_connections = a_left_connections;
             right_connections = a_right_connections;
@@ -2039,12 +1913,10 @@ impl<L: Language> Explain<L> {
                     }
                     connections.reverse();
                     self.populate_path_length(
-                        start,
                         *end,
                         &connections,
                         distance_memo,
                         *path_cost.get(end).unwrap(),
-                        use_estimates,
                     );
                     if is_first {
                         left_connections = connections;
@@ -2066,9 +1938,7 @@ impl<L: Language> Explain<L> {
         start: Id,
         end: Id,
         congruence_neighbors: &Vec<Vec<Id>>,
-        unionfind: &UnionFind,
         distance_memo: &mut DistanceMemo,
-        eclass_seen_memo: &mut HashSet<Id>,
         mut fuel: usize,
     ) {
         let mut todo_congruence = VecDeque::new();
@@ -2090,7 +1960,6 @@ impl<L: Language> Explain<L> {
                     &ends,
                     congruence_neighbors,
                     distance_memo,
-                    true,
                     true,
                 )
                 .unwrap();
@@ -2232,40 +2101,6 @@ impl<L: Language> Explain<L> {
         common_ancestor
     }
 
-    fn set_rewrite_distances(&mut self) {
-        for i in 0..self.explainfind.len() {
-            self.shortest_explanation_memo
-                .insert((Id::from(i), Id::from(i)), (0, Id::from(0)));
-            for child in &self.explainfind[i].neighbors {
-                if let Justification::Rule(_) = child.justification {
-                    self.shortest_explanation_memo
-                        .insert((child.current, child.next), (1, child.next));
-                }
-            }
-        }
-    }
-
-    fn find_congruence_queries(
-        &self,
-        unionfind: &UnionFind,
-        congruence_neighbors: &Vec<Vec<Id>>,
-    ) -> Vec<HashSet<Id>> {
-        let mut queries: Vec<HashSet<Id>> = vec![Default::default(); self.explainfind.len()];
-        for (i, neighbors) in congruence_neighbors.iter().enumerate() {
-            for neighbor in neighbors {
-                let current = &self.explainfind[usize::from(Id::from(i))].node;
-                let next = &self.explainfind[usize::from(*neighbor)].node;
-                for (left, right) in current.children().iter().zip(next.children().iter()) {
-                    if left == right {
-                        continue;
-                    }
-                    queries[usize::from(*left)].insert(*right);
-                }
-            }
-        }
-        queries
-    }
-
     fn calculate_shortest_explanations<N: Analysis<L>>(
         &mut self,
         start: Id,
@@ -2285,15 +2120,12 @@ impl<L: Language> Explain<L> {
             tree_depth: self.calculate_tree_depths(),
         };
 
-        let mut eclass_seen_memo = HashSet::default();
         let fuel = GREEDY_NUM_ITERS * self.explainfind.len();
         self.greedy_short_explanations(
             start,
             end,
             &congruence_neighbors,
-            &unionfind,
             &mut distance_memo,
-            &mut eclass_seen_memo,
             fuel,
         );
     }
@@ -2343,21 +2175,21 @@ mod tests {
 
         assert_eq!(
             egraph
-                .explain_equivalence(&fa, &fb, 0, false)
+                .explain_equivalence(&fa, &fb)
                 .get_flat_sexps()
                 .len(),
             4
         );
         assert_eq!(
             egraph
-                .explain_equivalence(&fa, &fb, 100, false)
+                .explain_equivalence(&fa, &fb)
                 .get_flat_sexps()
                 .len(),
             4
         );
         assert_eq!(
             egraph
-                .explain_equivalence(&fa, &fb, 0, true)
+                .explain_equivalence(&fa, &fb)
                 .get_flat_sexps()
                 .len(),
             4
@@ -2378,16 +2210,18 @@ mod tests {
 
         egraph.rebuild();
 
+        egraph.optimize_explanation_lengths = false;
         assert_eq!(
             egraph
-                .explain_equivalence(&fa, &fb, 0, false)
+                .explain_equivalence(&fa, &fb)
                 .get_flat_sexps()
                 .len(),
             4
         );
+        egraph.optimize_explanation_lengths = true;
         assert_eq!(
             egraph
-                .explain_equivalence(&fa, &fb, 1, true)
+                .explain_equivalence(&fa, &fb)
                 .get_flat_sexps()
                 .len(),
             3
@@ -2395,7 +2229,7 @@ mod tests {
 
         assert_eq!(
             egraph
-                .explain_equivalence(&fa, &fb, 100, false)
+                .explain_equivalence(&fa, &fb)
                 .get_flat_sexps()
                 .len(),
             3

@@ -337,8 +337,6 @@ fn test_union_trusted() {
         proof,
         vec![
             "(+ (* x 1) y)",
-            "(+ (Rewrite<= mul-one x) y)",
-            "(+ (Rewrite<= one-mul (* x 1)) y)",
             "(Rewrite=> whatever 20)"
         ]
     );
@@ -426,7 +424,7 @@ fn test_basic_egraph_union_intersect() {
     egraph2.union_instantiations(&"x".parse().unwrap(), &"a".parse().unwrap(), &Default::default(), "");
 
     let mut egraph3 = EGraph::new(ConstantFold {}).with_explanations_enabled();
-    egraph1.egraph_intersect(&mut egraph2, &mut egraph3);
+    egraph1.egraph_intersect_incomplete(&mut egraph2, &mut egraph3);
 
     egraph1.egraph_union(&mut egraph2);
 
