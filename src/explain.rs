@@ -703,7 +703,7 @@ impl<L: Language> PartialEq for FlatTerm<L> {
         }
 
         for (child1, child2) in self.children.iter().zip(other.children.iter()) {
-            if !child1.eq(&child2) {
+            if !child1.eq(child2) {
                 return false;
             }
         }
@@ -872,8 +872,8 @@ impl<L: Language> FlatTerm<L> {
     /// Rewrite the FlatTerm by matching the lhs and substituting the rhs.
     /// The lhs must be guaranteed to match.
     pub fn rewrite(&self, lhs: &PatternAst<L>, rhs: &PatternAst<L>) -> FlatTerm<L> {
-        let lhs_nodes = lhs.as_ref().as_ref();
-        let rhs_nodes = rhs.as_ref().as_ref();
+        let lhs_nodes = lhs.as_ref();
+        let rhs_nodes = rhs.as_ref();
         let mut bindings = Default::default();
         self.make_bindings(lhs_nodes, lhs_nodes.len() - 1, &mut bindings);
         FlatTerm::from_pattern(rhs_nodes, rhs_nodes.len() - 1, &bindings)

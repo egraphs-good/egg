@@ -1,3 +1,4 @@
+#![cfg_attr(docsrs, feature(doc_cfg))]
 #![warn(missing_docs)]
 /*!
 
@@ -24,9 +25,15 @@ The simplest way to enable `env_logger` is to put the following line near the to
 Then, set the environment variable `RUST_LOG=egg=info`, or use `warn` or `debug` instead of info
 for less or more logging.
 
-!*/
+*/
+#![doc = "## Simple Example\n```"]
+#![doc = include_str!("../tests/simple.rs")]
+#![doc = "\n```"]
 
 mod macros;
+
+#[doc(hidden)]
+pub mod test;
 
 pub mod tutorials;
 
@@ -36,7 +43,10 @@ mod egraph;
 mod explain;
 mod extract;
 mod language;
+#[cfg(feature = "lp")]
+mod lp_extract;
 mod machine;
+mod multipattern;
 mod pattern;
 mod rewrite;
 mod run;
@@ -87,6 +97,7 @@ pub use {
     },
     extract::*,
     language::*,
+    multipattern::*,
     pattern::{ENodeOrVar, Pattern, PatternAst, SearchMatches},
     rewrite::{Applier, Condition, ConditionEqual, ConditionalApplier, Rewrite, Searcher},
     run::*,
@@ -94,10 +105,10 @@ pub use {
     util::*,
 };
 
+#[cfg(feature = "lp")]
+pub use lp_extract::*;
+
 #[cfg(test)]
 fn init_logger() {
     let _ = env_logger::builder().is_test(true).try_init();
 }
-
-#[doc(hidden)]
-pub mod test;

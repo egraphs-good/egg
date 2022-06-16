@@ -60,7 +60,7 @@ mod tests {
     #[test]
     fn union_find() {
         let n = 10;
-        let id = |u: usize| Id::from(u);
+        let id = Id::from;
 
         let mut uf = UnionFind::default();
         for _ in 0..n {

@@ -65,12 +65,14 @@ impl Analysis<Lambda> for LambdaAnalysis {
         let before_len = to.free.len();
         // to.free.extend(from.free);
         to.free.retain(|i| from.free.contains(i));
-        if to.constant.is_none() && from.constant.is_some() {
-            to.constant = from.constant;
-            DidMerge(true, to.free.len() != from.free.len())
-        } else {
-            DidMerge(before_len != to.free.len(), true)
-        }
+        // compare lengths to see if I changed to or from
+        DidMerge(
+            before_len != to.free.len(),
+            to.free.len() != from.free.len(),
+        ) | merge_option(&mut to.constant, from.constant, |a, b| {
+            assert_eq!(a.0, b.0, "Merged non-equal constants");
+            DidMerge(false, false)
+        })
     }
 
     fn make(egraph: &EGraph, enode: &Lambda) -> Data {
@@ -189,7 +191,7 @@ impl Applier<Lambda, LambdaAnalysis> for CaptureAvoid {
                 .apply_one(egraph, eclass, &subst, searcher_ast, rule_name)
         } else {
             self.if_not_free
-                .apply_one(egraph, eclass, &subst, searcher_ast, rule_name)
+                .apply_one(egraph, eclass, subst, searcher_ast, rule_name)
         }
     }
 }
@@ -328,7 +330,7 @@ egg::test_fn! {
     lambda_fib, rules(),
     runner = Runner::default()
         .with_iter_limit(60)
-        .with_node_limit(50_000),
+        .with_node_limit(500_000),
     "(let fib (fix fib (lam n
         (if (= (var n) 0)
             0
@@ -376,5 +378,26 @@ fn lambda_ematching_bench() {
             (app (var fib) 4))",
     ];
 
-    egg::test::bench_egraph("lambda", rules(), exprs);
+    let extra_patterns = &[
+        "(if (= (var ?x) ?e) ?then ?else)",
+        "(+ (+ ?a ?b) ?c)",
+        "(let ?v (fix ?v ?e) ?e)",
+        "(app (lam ?v ?body) ?e)",
+        "(let ?v ?e (app ?a ?b))",
+        "(app (let ?v ?e ?a) (let ?v ?e ?b))",
+        "(let ?v ?e (+   ?a ?b))",
+        "(+   (let ?v ?e ?a) (let ?v ?e ?b))",
+        "(let ?v ?e (=   ?a ?b))",
+        "(=   (let ?v ?e ?a) (let ?v ?e ?b))",
+        "(let ?v ?e (if ?cond ?then ?else))",
+        "(if (let ?v ?e ?cond) (let ?v ?e ?then) (let ?v ?e ?else))",
+        "(let ?v1 ?e (var ?v1))",
+        "(let ?v1 ?e (var ?v2))",
+        "(let ?v1 ?e (lam ?v1 ?body))",
+        "(let ?v1 ?e (lam ?v2 ?body))",
+        "(lam ?v2 (let ?v1 ?e ?body))",
+        "(lam ?fresh (let ?v1 ?e (let ?v2 (var ?fresh) ?body)))",
+    ];
+
+    egg::test::bench_egraph("lambda", rules(), exprs, extra_patterns);
 }

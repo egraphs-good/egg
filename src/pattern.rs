@@ -265,7 +265,7 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
     fn search(&self, egraph: &EGraph<L, A>) -> Vec<SearchMatches<L>> {
         match self.ast.as_ref().last().unwrap() {
             ENodeOrVar::ENode(e) => {
-                #[allow(clippy::mem_discriminant_non_enum)]
+                #[allow(enum_intrinsics_non_enums)]
                 let key = std::mem::discriminant(e);
                 match egraph.classes_by_op.get(&key) {
                     None => vec![],

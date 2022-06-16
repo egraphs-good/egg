@@ -39,7 +39,7 @@ Check out the [web demo](https://egraphs-good.github.io/egg-web-demo) for some q
 Add `egg` to your `Cargo.toml` like this:
 ```toml
 [dependencies]
-egg = "0.7.1"
+egg = "0.9.0"
 ```
 
 ## Developing
@@ -49,11 +49,13 @@ Typically, you install Rust using [`rustup`](https://www.rust-lang.org/tools/ins
 
 Run `cargo doc --open` to build and open the documentation in a browser.
 
-Before committing/pushing, make sure to run `make`, which runs all the tests and lints that CI will.
+Before committing/pushing, make sure to run `make`, 
+ which runs all the tests and lints that CI will (including those under feature flags).
+This requires the [`cbc`](https://projects.coin-or.org/Cbc) solver
+ due to the `lp` feature.
 
 ### Tests
 
-You will need [`graphviz`](https://www.graphviz.org/download/) to run the tests.
 Running `cargo test` will run the tests.
 Some tests may time out; try `cargo test --release` if that happens.
 

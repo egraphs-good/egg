@@ -285,13 +285,19 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// given by [`get_flat_string`](Explanation::get_flat_string) and [`get_string`](Explanation::get_string).
     pub fn explain_equivalence(
         &mut self,
-        left: &RecExpr<L>,
-        right: &RecExpr<L>,
+        left_expr: &RecExpr<L>,
+        right_expr: &RecExpr<L>,
         optimize_iters: usize,
         greedy_search: bool,
     ) -> Explanation<L> {
-        let left = self.add_expr_internal(left);
-        let right = self.add_expr_internal(right);
+        let left = self.add_expr_internal(left_expr);
+        let right = self.add_expr_internal(right_expr);
+        if self.find(left) != self.find(right) {
+            panic!(
+                "Tried to explain equivalence between non-equal terms {:?} and {:?}",
+                left_expr, right_expr
+            );
+        }
         if let Some(explain) = &mut self.explain {
             explain.explain_equivalence::<N>(
                 left,
@@ -341,14 +347,21 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// Get an explanation for why an expression matches a pattern.
     pub fn explain_matches(
         &mut self,
-        left: &RecExpr<L>,
-        right: &PatternAst<L>,
+        left_expr: &RecExpr<L>,
+        right_pattern: &PatternAst<L>,
         subst: &Subst,
         optimize_iters: usize,
         greedy_search: bool,
     ) -> Explanation<L> {
-        let left = self.add_expr_internal(left);
-        let right = self.add_instantiation_internal(right, subst);
+        let left = self.add_expr_internal(left_expr);
+        let right = self.add_instantiation_internal(right_pattern, subst);
+
+        if self.find(left) != self.find(right) {
+            panic!(
+                "Tried to explain equivalence between non-equal terms {:?} and {:?}",
+                left_expr, right_pattern
+            );
+        }
         if let Some(explain) = &mut self.explain {
             explain.explain_equivalence::<N>(
                 left,
@@ -479,7 +492,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     }
 
     fn add_instantiation_internal(&mut self, pat: &PatternAst<L>, subst: &Subst) -> Id {
-        let nodes = pat.as_ref().as_ref();
+        let nodes = pat.as_ref();
         let mut new_ids = Vec::with_capacity(nodes.len());
         let mut new_node_q = Vec::with_capacity(nodes.len());
         for node in nodes {
@@ -704,23 +717,38 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         (self.find(id1), did_union)
     }
 
+    /// Unions two e-classes, using a given reason to justify it.
+    ///
+    ///
+    /// Unlike `union_instantiations`, this function picks arbitrary representatives
+    /// from either e-class.
+    /// When possible, use [`union_instantiations`](EGraph::union_instantiations),
+    /// since that ensures that the proof rewrites between the terms you are
+    /// actually proving equivalent.
+    pub fn union_trusted(&mut self, from: Id, to: Id, reason: impl Into<Symbol>) -> bool {
+        self.perform_union(from, to, Some(Justification::Rule(reason.into())), false)
+    }
+
     /// Unions two eclasses given their ids.
     ///
     /// The given ids need not be canonical.
     /// The returned `bool` indicates whether a union is necessary,
     /// so it's `false` if they were already equivalent.
     ///
-    /// When explanations are enabled, this function is not available.
-    /// Instead, use [`union_instantiations`](EGraph::union_instantiations).
+    /// When explanations are enabled, this function behaves like [`EGraph::union_trusted`],
+    ///  and it lists the call site as the proof reason.
+    /// You should prefer [`union_instantiations`](EGraph::union_instantiations) when
+    ///  you want the proofs to always be meaningful.
     /// See [`explain_equivalence`](Runner::explain_equivalence) for a more detailed
     /// explanation of the feature.
-    ///
-    ///
+    #[track_caller]
     pub fn union(&mut self, id1: Id, id2: Id) -> bool {
         if self.explain.is_some() {
-            panic!("Use union_instantiations when explanation mode is enabled.");
+            let caller = std::panic::Location::caller();
+            self.union_trusted(id1, id2, caller.to_string())
+        } else {
+            self.perform_union(id1, id2, None, false)
         }
-        self.perform_union(id1, id2, None, false)
     }
 
     fn perform_union(
@@ -778,6 +806,19 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         true
     }
 
+    /// Update the analysis data of an e-class.
+    ///
+    /// This also propagates the changes through the e-graph,
+    /// so [`Analysis::make`] and [`Analysis::merge`] will get
+    /// called for other parts of the e-graph on rebuild.
+    pub fn set_analysis_data(&mut self, id: Id, new_data: N::Data) {
+        let id = self.find_mut(id);
+        let class = self.classes.get_mut(&id).unwrap();
+        class.data = new_data;
+        self.analysis_pending.extend(class.parents.iter().cloned());
+        N::modify(self, id)
+    }
+
     /// Returns a more debug-able representation of the egraph.
     ///
     /// [`EGraph`]s implement [`Debug`], but it ain't pretty. It
@@ -801,9 +842,9 @@ impl<L: Language + Display, N: Analysis<L>> EGraph<L, N> {
 
         for (i, goal) in goals.iter().enumerate() {
             println!("Trying to prove goal {}: {}", i, goal.pretty(40));
-            let matches = goal.search_eclass(&self, id);
+            let matches = goal.search_eclass(self, id);
             if matches.is_none() {
-                let best = Extractor::new(&self, AstSize).find_best(id).1;
+                let best = Extractor::new(self, AstSize).find_best(id).1;
                 panic!(
                     "Could not prove goal {}:\n\
                      {}\n\
@@ -840,9 +881,9 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             trimmed += old_len - class.nodes.len();
 
             let mut add = |n: &L| {
-                #[allow(clippy::mem_discriminant_non_enum)]
+                #[allow(enum_intrinsics_non_enums)]
                 classes_by_op
-                    .entry(std::mem::discriminant(&n))
+                    .entry(std::mem::discriminant(n))
                     .or_default()
                     .insert(class.id)
             };
@@ -1058,8 +1099,6 @@ mod tests {
             "union x and y".to_string(),
         );
         egraph.rebuild();
-
-        egraph.dot().to_dot("target/foo.dot").unwrap();
     }
 
     #[cfg(all(feature = "serde-1", feature = "serde_json"))]

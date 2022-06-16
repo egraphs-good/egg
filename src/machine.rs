@@ -21,6 +21,7 @@ enum Instruction<L> {
     Bind { node: L, i: Reg, out: Reg },
     Compare { i: Reg, j: Reg },
     Lookup { term: Vec<ENodeOrReg<L>>, i: Reg },
+    Scan { out: Reg },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -34,7 +35,7 @@ fn for_each_matching_node<L, D>(eclass: &EClass<L, D>, node: &L, mut f: impl FnM
 where
     L: Language,
 {
-    #[allow(clippy::mem_discriminant_non_enum)]
+    #[allow(enum_intrinsics_non_enums)]
     if eclass.nodes.len() < 50 {
         eclass.nodes.iter().filter(|n| node.matches(n)).for_each(f)
     } else {
@@ -98,6 +99,15 @@ impl Machine {
                         self.run(egraph, remaining_instructions, subst, yield_fn)
                     });
                 }
+                Instruction::Scan { out } => {
+                    let remaining_instructions = instructions.as_slice();
+                    for class in egraph.classes() {
+                        self.reg.truncate(out.0 as usize);
+                        self.reg.push(class.id);
+                        self.run(egraph, remaining_instructions, subst, yield_fn)
+                    }
+                    return;
+                }
                 Instruction::Compare { i, j } => {
                     if egraph.find(self.reg(*i)) != egraph.find(self.reg(*j)) {
                         return;
@@ -132,45 +142,29 @@ impl Machine {
     }
 }
 
-struct Compiler<'a, L> {
-    pattern: &'a PatternAst<L>,
+struct Compiler<L> {
     v2r: IndexMap<Var, Reg>,
     free_vars: Vec<HashSet<Var>>,
+    subtree_size: Vec<usize>,
     todo_nodes: HashMap<(Id, Reg), L>,
     instructions: Vec<Instruction<L>>,
+    next_reg: Reg,
 }
 
-impl<'a, L: Language> Compiler<'a, L> {
-    fn new(pattern: &'a PatternAst<L>) -> Self {
-        let len = pattern.as_ref().len();
-        let mut free_vars: Vec<HashSet<Var>> = Vec::with_capacity(len);
-
-        for node in pattern.as_ref() {
-            let mut free = HashSet::default();
-            match node {
-                ENodeOrVar::ENode(n) => {
-                    for &child in n.children() {
-                        free.extend(&free_vars[usize::from(child)])
-                    }
-                }
-                ENodeOrVar::Var(v) => {
-                    free.insert(*v);
-                }
-            }
-            free_vars.push(free)
-        }
-
+impl<L: Language> Compiler<L> {
+    fn new() -> Self {
         Self {
-            pattern,
-            free_vars,
+            free_vars: Default::default(),
+            subtree_size: Default::default(),
             v2r: Default::default(),
             todo_nodes: Default::default(),
             instructions: Default::default(),
+            next_reg: Reg(0),
         }
     }
 
-    fn add_todo(&mut self, id: Id, reg: Reg) {
-        match &self.pattern[id] {
+    fn add_todo(&mut self, pattern: &PatternAst<L>, id: Id, reg: Reg) {
+        match &pattern[id] {
             ENodeOrVar::Var(v) => {
                 if let Some(&j) = self.v2r.get(v) {
                     self.instructions.push(Instruction::Compare { i: reg, j })
@@ -184,17 +178,45 @@ impl<'a, L: Language> Compiler<'a, L> {
         }
     }
 
+    fn load_pattern(&mut self, pattern: &PatternAst<L>) {
+        let len = pattern.as_ref().len();
+        self.free_vars = Vec::with_capacity(len);
+        self.subtree_size = Vec::with_capacity(len);
+
+        for node in pattern.as_ref() {
+            let mut free = HashSet::default();
+            let mut size = 0;
+            match node {
+                ENodeOrVar::ENode(n) => {
+                    size = 1;
+                    for &child in n.children() {
+                        free.extend(&self.free_vars[usize::from(child)]);
+                        size += self.subtree_size[usize::from(child)];
+                    }
+                }
+                ENodeOrVar::Var(v) => {
+                    free.insert(*v);
+                }
+            }
+            self.free_vars.push(free);
+            self.subtree_size.push(size);
+        }
+    }
+
     fn next(&mut self) -> Option<((Id, Reg), L)> {
         // we take the max todo according to this key
         // - prefer grounded
-        // - prefer variables
-        // - prefer more free vars (if not grounded)
+        // - prefer more free variables
+        // - prefer smaller term
         let key = |(id, _): &&(Id, Reg)| {
-            let n_free = self.free_vars[usize::from(*id)]
+            let i = usize::from(*id);
+            let n_bound = self.free_vars[i]
                 .iter()
                 .filter(|v| self.v2r.contains_key(*v))
-                .count() as isize;
-            (n_free == 0, n_free)
+                .count();
+            let n_free = self.free_vars[i].len() - n_bound;
+            let size = self.subtree_size[i] as isize;
+            (n_free == 0, n_free, -size)
         };
 
         self.todo_nodes
@@ -212,15 +234,42 @@ impl<'a, L: Language> Compiler<'a, L> {
             .all(|v| self.v2r.contains_key(v))
     }
 
-    fn compile(mut self) -> Program<L> {
-        let last_i = self.pattern.as_ref().len() - 1;
-        let mut next_out = Reg(1);
+    fn compile(&mut self, patternbinder: Option<Var>, pattern: &PatternAst<L>) {
+        self.load_pattern(pattern);
+        let last_i = pattern.as_ref().len() - 1;
 
-        self.add_todo(Id::from(last_i), Reg(0));
+        let mut next_out = self.next_reg;
+
+        // Check if patternbinder already bound in v2r
+        // Behavior common to creating a new pattern
+        let add_new_pattern = |comp: &mut Compiler<L>| {
+            if !comp.instructions.is_empty() {
+                // After first pattern needs scan
+                comp.instructions
+                    .push(Instruction::Scan { out: comp.next_reg });
+            }
+            comp.add_todo(pattern, Id::from(last_i), comp.next_reg);
+        };
+
+        if let Some(v) = patternbinder {
+            if let Some(&i) = self.v2r.get(&v) {
+                // patternbinder already bound
+                self.add_todo(pattern, Id::from(last_i), i);
+            } else {
+                // patternbinder is new variable
+                next_out.0 += 1;
+                add_new_pattern(self);
+                self.v2r.insert(v, self.next_reg); //add to known variables.
+            }
+        } else {
+            // No pattern binder
+            next_out.0 += 1;
+            add_new_pattern(self);
+        }
 
         while let Some(((id, reg), node)) = self.next() {
             if self.is_ground_now(id) && !node.is_leaf() {
-                let extracted = self.pattern.extract(id);
+                let extracted = pattern.extract(id);
                 self.instructions.push(Instruction::Lookup {
                     i: reg,
                     term: extracted
@@ -245,11 +294,14 @@ impl<'a, L: Language> Compiler<'a, L> {
                 });
 
                 for (i, &child) in node.children().iter().enumerate() {
-                    self.add_todo(child, Reg(out.0 + i as u32));
+                    self.add_todo(pattern, child, Reg(out.0 + i as u32));
                 }
             }
         }
+        self.next_reg = next_out;
+    }
 
+    fn extract(self) -> Program<L> {
         let mut subst = Subst::default();
         for (v, r) in self.v2r {
             subst.insert(v, Id::from(r.0 as usize));
@@ -263,9 +315,19 @@ impl<'a, L: Language> Compiler<'a, L> {
 
 impl<L: Language> Program<L> {
     pub(crate) fn compile_from_pat(pattern: &PatternAst<L>) -> Self {
-        let program = Compiler::new(pattern).compile();
+        let mut compiler = Compiler::new();
+        compiler.compile(None, pattern);
+        let program = compiler.extract();
         log::debug!("Compiled {:?} to {:?}", pattern.as_ref(), program);
         program
+    }
+
+    pub(crate) fn compile_from_multi_pat(patterns: &[(Var, PatternAst<L>)]) -> Self {
+        let mut compiler = Compiler::new();
+        for (var, pattern) in patterns {
+            compiler.compile(Some(*var), pattern);
+        }
+        compiler.extract()
     }
 
     pub fn run<A>(&self, egraph: &EGraph<L, A>, eclass: Id) -> Vec<Subst>

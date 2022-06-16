@@ -2,8 +2,33 @@
 
 ## [Unreleased] - ReleaseDate
 
+## [0.9.0] - 2022-06-12
+
+### Added
+- Added a way to update analysis data and have it propagate through the e-graph
+
+### Changed
+- Improved documentation
+- Updated dependencies
+- `union` is now allowed when explanations are on
+
+## [0.8.1] - 2022-05-04
+
+### Changed
+- Improved documentation for features.
+
+## [0.8.0] - 2022-04-28
+
+### Added
+- ([#128](https://github.com/egraphs-good/egg/pull/128)) Add an ILP-based extractor.
+- ([#168](https://github.com/egraphs-good/egg/pull/168)) Added MultiPatterns.
+
 ### Changed
 - ([#165](https://github.com/egraphs-good/egg/pull/165)) Unions now happen "instantly", restoring the pre-0.7 behavior. 
+- The tested MSRV is now 1.60.0.
+- Several small documentation enhancements.
+- ([#162](https://github.com/egraphs-good/egg/pull/162), [#163](https://github.com/egraphs-good/egg/pull/163))
+  Extracted the `Symbol` logic into the [`symbol_table`](https://crates.io/crates/symbol_table) crate.
 
 ## [0.7.1] - 2021-12-14
 
@@ -175,7 +200,10 @@ But hopefully things will be a little more stable from here on out
 since the API is a lot nicer.
 
 <!-- next-url -->
-[Unreleased]: https://github.com/egraphs-good/egg/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/egraphs-good/egg/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/egraphs-good/egg/compare/v0.8.1...v0.9.0
+[0.8.1]: https://github.com/egraphs-good/egg/compare/v0.8.0...v0.8.1
+[0.8.0]: https://github.com/egraphs-good/egg/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/egraphs-good/egg/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/egraphs-good/egg/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/egraphs-good/egg/compare/v0.5.0...v0.6.0

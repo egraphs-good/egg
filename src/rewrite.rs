@@ -1,12 +1,12 @@
 use pattern::apply_pat;
 use std::fmt::{self, Debug, Display};
-use std::{any::Any, sync::Arc};
+use std::sync::Arc;
 
 use crate::*;
 
 /// A rewrite that searches for the lefthand side and applies the righthand side.
 ///
-/// The [`rewrite!`] is the easiest way to create rewrites.
+/// The [`rewrite!`] macro is the easiest way to create rewrites.
 ///
 /// A [`Rewrite`] consists principally of a [`Searcher`] (the lefthand
 /// side) and an [`Applier`] (the righthand side).
@@ -27,19 +27,20 @@ pub struct Rewrite<L, N> {
 impl<L, N> Debug for Rewrite<L, N>
 where
     L: Language + Display + 'static,
-    N: 'static,
+    N: Analysis<L> + 'static,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut d = f.debug_struct("Rewrite");
         d.field("name", &self.name);
 
-        if let Some(pat) = Any::downcast_ref::<Pattern<L>>(&self.searcher) {
+        // if let Some(pat) = Any::downcast_ref::<dyn Pattern<L>>(&self.searcher) {
+        if let Some(pat) = self.searcher.get_pattern_ast() {
             d.field("searcher", &DisplayAsDebug(pat));
         } else {
             d.field("searcher", &"<< searcher >>");
         }
 
-        if let Some(pat) = Any::downcast_ref::<Pattern<L>>(&self.applier) {
+        if let Some(pat) = self.applier.get_pattern_ast() {
             d.field("applier", &DisplayAsDebug(pat));
         } else {
             d.field("applier", &"<< applier >>");
@@ -281,12 +282,11 @@ where
     ) -> Vec<Id> {
         let mut added = vec![];
         for mat in matches {
-            let ast;
-            if egraph.are_explanations_enabled() {
-                ast = mat.ast.as_ref().map(|cow| cow.as_ref());
+            let ast = if egraph.are_explanations_enabled() {
+                mat.ast.as_ref().map(|cow| cow.as_ref())
             } else {
-                ast = None;
-            }
+                None
+            };
             for subst in &mat.substs {
                 let ids = self.apply_one(egraph, mat.eclass, subst, ast, rule_name);
                 added.extend(ids)
@@ -544,7 +544,7 @@ mod tests {
 
         #[derive(Debug)]
         struct Appender {
-            rhs: PatternAst<S>,
+            _rhs: PatternAst<S>,
         }
 
         impl Applier<SymbolLang, ()> for Appender {
@@ -558,8 +558,8 @@ mod tests {
             ) -> Vec<Id> {
                 let a: Var = "?a".parse().unwrap();
                 let b: Var = "?b".parse().unwrap();
-                let a = get(&egraph, subst[a]);
-                let b = get(&egraph, subst[b]);
+                let a = get(egraph, subst[a]);
+                let b = get(egraph, subst[b]);
                 let s = format!("{}{}", a, b);
                 if let Some(ast) = searcher_ast {
                     let (id, did_something) = egraph.union_instantiations(
@@ -585,7 +585,7 @@ mod tests {
         }
 
         let fold_add = rewrite!(
-            "fold_add"; "(+ ?a ?b)" => { Appender { rhs: "?a".parse().unwrap()}}
+            "fold_add"; "(+ ?a ?b)" => { Appender { _rhs: "?a".parse().unwrap()}}
         );
 
         egraph.rebuild();

@@ -1,6 +1,6 @@
 [package]
 name = "egg"
-version = "0.7.1"
+version = "0.9.0"
 authors = ["Max Willsey <me@mwillsey.com>"]
 edition = "2018"
 description = "An implementation of egraphs"
@@ -11,16 +11,19 @@ keywords = ["e-graphs"]
 categories = ["data-structures"]
 
 [dependencies]
-symbolic_expressions = "5"
-log = "0.4"
-smallvec = { version = "1", features = ["union", "const_generics"] }
-indexmap = "1"
-priority-queue = "1.2.0"
-instant = "0.1"
-once_cell = "1"
-fxhash = "0.2"
-hashbrown = { version = "0.11", default-features = false, features = ["inline-more"] }
-thiserror = "1"
+symbolic_expressions = "5.0.3"
+log = "0.4.17"
+smallvec = { version = "1.8.0", features = ["union", "const_generics"] }
+indexmap = "1.8.1"
+instant = "0.1.12"
+fxhash = "0.2.1"
+hashbrown = "0.12.1"
+thiserror = "1.0.31"
+symbol_table = { version = "0.1.0", features = ["global"] }
+env_logger = { version = "0.9.0", default-features = false }
+
+# for the lp feature
+coin_cbc = { version = "0.1.6", optional = true }
 
 num-rational = "0.3.0"
 num-bigint = "0.3.0"
@@ -30,21 +33,31 @@ wait-timeout = "0.2.0"
 rand = "0.8.4"
 
 # for the serde-1 feature
-serde = { version = "1", features = ["derive"], optional = true }
-vectorize = { version = "0.2", optional = true }
+serde = { version = "1.0.137", features = ["derive"], optional = true }
+vectorize = { version = "0.2.0", optional = true }
 
 # for the reports feature
-serde_json = { version = "1", optional = true }
+serde_json = { version = "1.0.81", optional = true }
+
 
 [dev-dependencies]
-env_logger = {version = "0.9", default-features = false}
-ordered-float = "2"
+ordered-float = "3.0.0"
 
 [features]
-wasm-bindgen = [ "instant/wasm-bindgen" ]
-serde-1 = [ "serde", "indexmap/serde-1", "hashbrown/serde", "vectorize" ]
-reports = [ "serde-1", "serde_json" ]
+lp = ["coin_cbc"]
+wasm-bindgen = ["instant/wasm-bindgen"]
+serde-1 = [
+    "serde",
+    "indexmap/serde-1",
+    "hashbrown/serde",
+    "symbol_table/serde",
+    "vectorize",
+]
+reports = ["serde-1", "serde_json"]
 
 # private features for testing
 test-explanations = []
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

@@ -185,7 +185,7 @@ fn cmp<T: PartialOrd>(a: &Option<T>, b: &Option<T>) -> Ordering {
         (None, None) => Ordering::Equal,
         (None, Some(_)) => Ordering::Greater,
         (Some(_), None) => Ordering::Less,
-        (Some(a), Some(b)) => a.partial_cmp(&b).unwrap(),
+        (Some(a), Some(b)) => a.partial_cmp(b).unwrap(),
     }
 }
 
@@ -238,7 +238,7 @@ where
         if node.all(has_cost) {
             let costs = &self.costs;
             let cost_f = |id| costs[&eg.find(id)].0.clone();
-            Some(self.cost_function.cost(&node, cost_f))
+            Some(self.cost_function.cost(node, cost_f))
         } else {
             None
         }

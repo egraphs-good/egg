@@ -19,7 +19,10 @@ struct ConstantFold;
 impl Analysis<Prop> for ConstantFold {
     type Data = Option<(bool, PatternAst<Prop>)>;
     fn merge(&mut self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
-        merge_max(to, from)
+        merge_option(to, from, |a, b| {
+            assert_eq!(a.0, b.0, "Merged non-equal constants");
+            DidMerge(false, false)
+        })
     }
 
     fn make(egraph: &EGraph, enode: &Prop) -> Self::Data {
@@ -99,7 +102,7 @@ fn prove_something(name: &str, start: &str, rewrites: &[Rewrite], goals: &[&str]
 
     for (i, (goal_expr, goal_str)) in goal_exprs.iter().zip(goals).enumerate() {
         println!("Trying to prove goal {}: {}", i, goal_str);
-        let equivs = egraph.equivs(&start_expr, &goal_expr);
+        let equivs = egraph.equivs(&start_expr, goal_expr);
         if equivs.is_empty() {
             panic!("Couldn't prove goal {}: {}", i, goal_str);
         }
