@@ -207,7 +207,12 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     pub fn egraph_union(&self, other: &mut EGraph<L, N>) {
         let left_unions = self.get_union_equalities();
         for (left, right, why) in left_unions {
-            other.union_instantiations(&self.id_to_pattern(left, &Default::default()).0.ast, &self.id_to_pattern(right, &Default::default()).0.ast, &Default::default(), why);
+            other.union_instantiations(
+                &self.id_to_pattern(left, &Default::default()).0.ast,
+                &self.id_to_pattern(right, &Default::default()).0.ast,
+                &Default::default(),
+                why,
+            );
         }
         other.rebuild();
     }
@@ -216,7 +221,11 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// The intersection is guaranteed to be correct for all direct
     /// equalities found in the original two egraphs.
     /// Implied equalities due to congruence, however, may not be preserved.
-    pub fn egraph_intersect_incomplete(&mut self, other: &mut EGraph<L, N>, resulting: &mut EGraph<L, N>) {
+    pub fn egraph_intersect_incomplete(
+        &mut self,
+        other: &mut EGraph<L, N>,
+        resulting: &mut EGraph<L, N>,
+    ) {
         self.intersect_one_way(other, resulting);
         other.intersect_one_way(self, resulting);
         resulting.rebuild();
@@ -233,7 +242,12 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             let newleft = other.add_expr(&self.id_to_expr(left));
             let newright = other.add_expr(&self.id_to_expr(right));
             if newleft == newright {
-                resulting.union_instantiations(&self.id_to_pattern(left, &Default::default()).0.ast, &self.id_to_pattern(right, &Default::default()).0.ast, &Default::default(), why);
+                resulting.union_instantiations(
+                    &self.id_to_pattern(left, &Default::default()).0.ast,
+                    &self.id_to_pattern(right, &Default::default()).0.ast,
+                    &Default::default(),
+                    why,
+                );
             }
         }
     }

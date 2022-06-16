@@ -119,13 +119,11 @@ pub fn test_runner<L, A>(
                     test_egraph.add_expr(&start),
                     test_egraph.add_expr(&goal_flat_expr)
                 );
-                let mut smaller =
-                    test_egraph.explain_equivalence(&start, &goal_flat_expr);
+                let mut smaller = test_egraph.explain_equivalence(&start, &goal_flat_expr);
                 smaller.check_proof(rules);
 
                 runner.egraph.optimize_explanation_lengths = true;
-                let mut explained_short =
-                    runner.explain_matches(&start, &goal.ast, &subst);
+                let mut explained_short = runner.explain_matches(&start, &goal.ast, &subst);
                 explained_short.get_sexp_with_let();
                 let short_len = explained_short.get_flat_sexps().len();
                 assert!(short_len <= vanilla_len);

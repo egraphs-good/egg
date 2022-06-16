@@ -444,13 +444,8 @@ where
     }
 
     /// Calls [`EGraph::explain_equivalence`](EGraph::explain_equivalence()).
-    pub fn explain_equivalence(
-        &mut self,
-        left: &RecExpr<L>,
-        right: &RecExpr<L>,
-    ) -> Explanation<L> {
-        self.egraph
-            .explain_equivalence(left, right)
+    pub fn explain_equivalence(&mut self, left: &RecExpr<L>, right: &RecExpr<L>) -> Explanation<L> {
+        self.egraph.explain_equivalence(left, right)
     }
 
     /// Calls [`EGraph::explain_existance`](EGraph::explain_existance()).
@@ -474,8 +469,7 @@ where
         right: &PatternAst<L>,
         subst: &Subst,
     ) -> Explanation<L> {
-        self.egraph
-            .explain_matches(left, right, subst)
+        self.egraph.explain_matches(left, right, subst)
     }
 
     /// Prints some information about a runners run.

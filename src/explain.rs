@@ -1,7 +1,7 @@
 use crate::Symbol;
 use crate::{
     util::pretty_print, Analysis, EClass, EGraph, ENodeOrVar, FromOp, HashMap, HashSet, Id,
-    Language, PatternAst, RecExpr, Rewrite, UnionFind, Var, Pattern, Subst
+    Language, Pattern, PatternAst, RecExpr, Rewrite, Subst, UnionFind, Var,
 };
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, VecDeque};
@@ -199,7 +199,7 @@ impl<L: Language + Display + FromOp> Explanation<L> {
 
     fn get_grounded_equalities_for(
         &self,
-        proof: &Vec<Rc<TreeTerm<L>>>,
+        proof: &[Rc<TreeTerm<L>>],
         seen: &mut HashSet<*const TreeTerm<L>>,
         seen_adjacent: &mut HashSet<(Id, Id)>,
     ) -> GroundedEqualities<L> {
@@ -1004,19 +1004,31 @@ impl<L: Language> Explain<L> {
         res
     }
 
-    fn node_to_recexpr_internal(&self, res: &mut RecExpr<L>, node_id: Id, cache: &mut HashMap<Id, Id>) {
-        let new_node = self.explainfind[usize::from(node_id)].node.clone().map_children(|child| {
-            if let Some(existing) = cache.get(&child) {
-                *existing
-            } else {
-                self.node_to_recexpr_internal(res, child, cache);
-                Id::from(res.as_ref().len() - 1)
-            }
-        });
+    fn node_to_recexpr_internal(
+        &self,
+        res: &mut RecExpr<L>,
+        node_id: Id,
+        cache: &mut HashMap<Id, Id>,
+    ) {
+        let new_node = self.explainfind[usize::from(node_id)]
+            .node
+            .clone()
+            .map_children(|child| {
+                if let Some(existing) = cache.get(&child) {
+                    *existing
+                } else {
+                    self.node_to_recexpr_internal(res, child, cache);
+                    Id::from(res.as_ref().len() - 1)
+                }
+            });
         res.add(new_node);
     }
 
-    pub(crate) fn node_to_pattern(&self, node_id: Id, substitutions: &HashMap<Id, Id>) -> (Pattern<L>, Subst) {
+    pub(crate) fn node_to_pattern(
+        &self,
+        node_id: Id,
+        substitutions: &HashMap<Id, Id>,
+    ) -> (Pattern<L>, Subst) {
         let mut res = Default::default();
         let mut subst = Default::default();
         let mut cache = Default::default();
@@ -1024,24 +1036,33 @@ impl<L: Language> Explain<L> {
         (Pattern::new(res), subst)
     }
 
-    fn node_to_pattern_internal(&self, res: &mut PatternAst<L>, node_id: Id, var_substitutions: &HashMap<Id, Id>, subst: &mut Subst, cache: &mut HashMap<Id, Id>) {
+    fn node_to_pattern_internal(
+        &self,
+        res: &mut PatternAst<L>,
+        node_id: Id,
+        var_substitutions: &HashMap<Id, Id>,
+        subst: &mut Subst,
+        cache: &mut HashMap<Id, Id>,
+    ) {
         if let Some(existing) = var_substitutions.get(&node_id) {
             let var = format!("?{}", node_id).parse().unwrap();
             res.add(ENodeOrVar::Var(var));
             subst.insert(var, *existing);
         } else {
-            let new_node = self.explainfind[usize::from(node_id)].node.clone().map_children(|child| {
-                if let Some(existing) = cache.get(&child) {
-                    *existing
-                } else {
-                    self.node_to_pattern_internal(res, child, var_substitutions, subst, cache);
-                    Id::from(res.as_ref().len() - 1)
-                }
-            });
+            let new_node = self.explainfind[usize::from(node_id)]
+                .node
+                .clone()
+                .map_children(|child| {
+                    if let Some(existing) = cache.get(&child) {
+                        *existing
+                    } else {
+                        self.node_to_pattern_internal(res, child, var_substitutions, subst, cache);
+                        Id::from(res.as_ref().len() - 1)
+                    }
+                });
             res.add(ENodeOrVar::ENode(new_node));
         }
     }
-
 
     fn node_to_flat_explanation(&self, node_id: Id) -> FlatTerm<L> {
         let node = self.explainfind[usize::from(node_id)].node.clone();
@@ -1170,7 +1191,7 @@ impl<L: Language> Explain<L> {
         };
 
         let rconnection = Connection {
-            justification: justification,
+            justification,
             is_rewrite_forward: false,
             next: node1,
             current: node2,
@@ -1270,12 +1291,7 @@ impl<L: Language> Explain<L> {
         optimize_length: bool,
     ) -> Explanation<L> {
         if optimize_length {
-            self.calculate_shortest_explanations::<N>(
-                left,
-                right,
-                classes,
-                &unionfind,
-            );
+            self.calculate_shortest_explanations::<N>(left, right, classes, &unionfind);
         }
 
         let mut cache = Default::default();
@@ -1354,11 +1370,11 @@ impl<L: Language> Explain<L> {
         }
         return Connection {
             justification: Justification::Congruence,
-            current: current,
-            next: next,
+            current,
+            next,
             is_rewrite_forward: true,
         };
-    }   
+    }
 
     fn get_path(&self, mut left: Id, right: Id) -> (Vec<Connection>, Vec<Connection>) {
         let mut left_connections = vec![];
@@ -1549,7 +1565,7 @@ impl<L: Language> Explain<L> {
         let mut enodes = HashSet::default();
         let mut todo = vec![eclass];
 
-        while todo.len() > 0 {
+        while !todo.is_empty() {
             let current = todo.pop().unwrap();
             if enodes.insert(current) {
                 for neighbor in &self.explainfind[usize::from(current)].neighbors {
@@ -1589,7 +1605,7 @@ impl<L: Language> Explain<L> {
     fn populate_path_length(
         &mut self,
         right: Id,
-        left_connections: &Vec<Connection>,
+        left_connections: &[Connection],
         distance_memo: &mut DistanceMemo,
         target_cost: usize,
     ) {
@@ -1604,14 +1620,11 @@ impl<L: Language> Explain<L> {
                 .get(&(next, right))
                 .unwrap()
                 .0;
-            let dist = 
-                self.connection_distance(connection, distance_memo);
+            let dist = self.connection_distance(connection, distance_memo);
             last_cost = dist + next_cost;
             self.replace_distance(current, next, right, next_cost + dist);
         }
-        assert!(last_cost <= target_cost);    
-            
-        
+        assert!(last_cost <= target_cost);
     }
 
     fn distance_between(&mut self, left: Id, right: Id, distance_memo: &mut DistanceMemo) -> usize {
@@ -1811,7 +1824,7 @@ impl<L: Language> Explain<L> {
         &mut self,
         start: Id,
         ends: &HashSet<Id>,
-        congruence_neighbors: &Vec<Vec<Id>>,
+        congruence_neighbors: &[Vec<Id>],
         distance_memo: &mut DistanceMemo,
         update_paths: bool,
     ) -> Option<(Vec<Connection>, Vec<Connection>)> {
@@ -1828,7 +1841,7 @@ impl<L: Language> Explain<L> {
 
         let mut last = HashMap::default();
         let mut path_cost = HashMap::default();
-        let first_end = *ends.iter().next().unwrap(); 
+        let first_end = *ends.iter().next().unwrap();
 
         'outer: loop {
             if todo.len() == 0 {
@@ -1862,12 +1875,11 @@ impl<L: Language> Explain<L> {
 
             for other in congruence_neighbors[usize::from(current)].iter() {
                 let next = other;
-                let distance = 
-                    self.congruence_distance(current, *next, distance_memo);
+                let distance = self.congruence_distance(current, *next, distance_memo);
                 let next_cost = cost_so_far + distance;
                 todo.push(HeapState {
                     item: Connection {
-                        current: current,
+                        current,
                         next: *next,
                         justification: Justification::Congruence,
                         is_rewrite_forward: true,
@@ -1887,11 +1899,13 @@ impl<L: Language> Explain<L> {
         if *total_cost.unwrap() > dist {
             panic!(
                 "Found cost greater than baseline {} vs {}",
-                total_cost.unwrap(), dist
+                total_cost.unwrap(),
+                dist
             );
         }
         if *total_cost.unwrap() == self.distance_between(start, first_end, distance_memo) {
-            let (a_left_connections, a_right_connections) = self.get_path_unoptimized(start, first_end);
+            let (a_left_connections, a_right_connections) =
+                self.get_path_unoptimized(start, first_end);
             left_connections = a_left_connections;
             right_connections = a_right_connections;
         } else {
@@ -1922,10 +1936,9 @@ impl<L: Language> Explain<L> {
                         left_connections = connections;
                         is_first = false;
                     }
-                } else {
-                    if let Some(found_cost) = path_cost.get(end) {
-                        self.shortest_explanation_memo.insert((start, *end), (*found_cost, start));
-                    }
+                } else if let Some(found_cost) = path_cost.get(end) {
+                    self.shortest_explanation_memo
+                        .insert((start, *end), (*found_cost, start));
                 }
             }
         }
@@ -1937,14 +1950,14 @@ impl<L: Language> Explain<L> {
         &mut self,
         start: Id,
         end: Id,
-        congruence_neighbors: &Vec<Vec<Id>>,
+        congruence_neighbors: &[Vec<Id>],
         distance_memo: &mut DistanceMemo,
         mut fuel: usize,
     ) {
         let mut todo_congruence = VecDeque::new();
         todo_congruence.push_back((start, end));
 
-        while todo_congruence.len() > 0 {
+        while !todo_congruence.is_empty() {
             let (start, end) = todo_congruence.pop_front().unwrap();
             let eclass_size = self.find_all_enodes(start).len();
             if fuel < eclass_size {
@@ -2035,7 +2048,7 @@ impl<L: Language> Explain<L> {
     fn calculate_common_ancestor<N: Analysis<L>>(
         &self,
         classes: &HashMap<Id, EClass<L, N::Data>>,
-        congruence_neighbors: &Vec<Vec<Id>>,
+        congruence_neighbors: &[Vec<Id>],
     ) -> HashMap<(Id, Id), Id> {
         let mut common_ancestor_queries = HashMap::default();
         for s_int in 0..congruence_neighbors.len() {
@@ -2121,13 +2134,7 @@ impl<L: Language> Explain<L> {
         };
 
         let fuel = GREEDY_NUM_ITERS * self.explainfind.len();
-        self.greedy_short_explanations(
-            start,
-            end,
-            &congruence_neighbors,
-            &mut distance_memo,
-            fuel,
-        );
+        self.greedy_short_explanations(start, end, &congruence_neighbors, &mut distance_memo, fuel);
     }
 }
 
@@ -2174,24 +2181,15 @@ mod tests {
         egraph.rebuild();
 
         assert_eq!(
-            egraph
-                .explain_equivalence(&fa, &fb)
-                .get_flat_sexps()
-                .len(),
+            egraph.explain_equivalence(&fa, &fb).get_flat_sexps().len(),
             4
         );
         assert_eq!(
-            egraph
-                .explain_equivalence(&fa, &fb)
-                .get_flat_sexps()
-                .len(),
+            egraph.explain_equivalence(&fa, &fb).get_flat_sexps().len(),
             4
         );
         assert_eq!(
-            egraph
-                .explain_equivalence(&fa, &fb)
-                .get_flat_sexps()
-                .len(),
+            egraph.explain_equivalence(&fa, &fb).get_flat_sexps().len(),
             4
         );
 
@@ -2212,26 +2210,17 @@ mod tests {
 
         egraph.optimize_explanation_lengths = false;
         assert_eq!(
-            egraph
-                .explain_equivalence(&fa, &fb)
-                .get_flat_sexps()
-                .len(),
+            egraph.explain_equivalence(&fa, &fb).get_flat_sexps().len(),
             4
         );
         egraph.optimize_explanation_lengths = true;
         assert_eq!(
-            egraph
-                .explain_equivalence(&fa, &fb)
-                .get_flat_sexps()
-                .len(),
+            egraph.explain_equivalence(&fa, &fb).get_flat_sexps().len(),
             3
         );
 
         assert_eq!(
-            egraph
-                .explain_equivalence(&fa, &fb)
-                .get_flat_sexps()
-                .len(),
+            egraph.explain_equivalence(&fa, &fb).get_flat_sexps().len(),
             3
         );
 

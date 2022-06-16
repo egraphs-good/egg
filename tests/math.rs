@@ -333,13 +333,7 @@ fn test_union_trusted() {
     let rhs = runner.egraph.add_expr(&expr2);
     runner.egraph.union_trusted(lhs, rhs, "whatever");
     let proof = runner.explain_equivalence(&expr, &expr2).get_flat_strings();
-    assert_eq!(
-        proof,
-        vec![
-            "(+ (* x 1) y)",
-            "(Rewrite=> whatever 20)"
-        ]
-    );
+    assert_eq!(proof, vec!["(+ (* x 1) y)", "(Rewrite=> whatever 20)"]);
 }
 
 #[cfg(feature = "lp")]
@@ -417,25 +411,69 @@ fn math_ematching_bench() {
 #[test]
 fn test_basic_egraph_union_intersect() {
     let mut egraph1 = EGraph::new(ConstantFold {}).with_explanations_enabled();
-    let mut egraph2 = EGraph::new(ConstantFold {}).with_explanations_enabled(); 
-    egraph1.union_instantiations(&"x".parse().unwrap(), &"y".parse().unwrap(), &Default::default(), "");
-    egraph1.union_instantiations(&"y".parse().unwrap(), &"z".parse().unwrap(), &Default::default(), "");
-    egraph2.union_instantiations(&"x".parse().unwrap(), &"y".parse().unwrap(), &Default::default(), "");
-    egraph2.union_instantiations(&"x".parse().unwrap(), &"a".parse().unwrap(), &Default::default(), "");
+    let mut egraph2 = EGraph::new(ConstantFold {}).with_explanations_enabled();
+    egraph1.union_instantiations(
+        &"x".parse().unwrap(),
+        &"y".parse().unwrap(),
+        &Default::default(),
+        "",
+    );
+    egraph1.union_instantiations(
+        &"y".parse().unwrap(),
+        &"z".parse().unwrap(),
+        &Default::default(),
+        "",
+    );
+    egraph2.union_instantiations(
+        &"x".parse().unwrap(),
+        &"y".parse().unwrap(),
+        &Default::default(),
+        "",
+    );
+    egraph2.union_instantiations(
+        &"x".parse().unwrap(),
+        &"a".parse().unwrap(),
+        &Default::default(),
+        "",
+    );
 
     let mut egraph3 = EGraph::new(ConstantFold {}).with_explanations_enabled();
     egraph1.egraph_intersect_incomplete(&mut egraph2, &mut egraph3);
 
     egraph1.egraph_union(&mut egraph2);
 
-    assert_eq!(egraph2.add_expr(&"x".parse().unwrap()), egraph2.add_expr(&"y".parse().unwrap()));
-    assert_eq!(egraph3.add_expr(&"x".parse().unwrap()), egraph3.add_expr(&"y".parse().unwrap()));
+    assert_eq!(
+        egraph2.add_expr(&"x".parse().unwrap()),
+        egraph2.add_expr(&"y".parse().unwrap())
+    );
+    assert_eq!(
+        egraph3.add_expr(&"x".parse().unwrap()),
+        egraph3.add_expr(&"y".parse().unwrap())
+    );
 
-    assert_eq!(egraph2.add_expr(&"x".parse().unwrap()), egraph2.add_expr(&"z".parse().unwrap()));
-    assert_ne!(egraph3.add_expr(&"x".parse().unwrap()), egraph3.add_expr(&"z".parse().unwrap()));
-    assert_eq!(egraph2.add_expr(&"x".parse().unwrap()), egraph2.add_expr(&"a".parse().unwrap()));
-    assert_ne!(egraph3.add_expr(&"x".parse().unwrap()), egraph3.add_expr(&"a".parse().unwrap()));
+    assert_eq!(
+        egraph2.add_expr(&"x".parse().unwrap()),
+        egraph2.add_expr(&"z".parse().unwrap())
+    );
+    assert_ne!(
+        egraph3.add_expr(&"x".parse().unwrap()),
+        egraph3.add_expr(&"z".parse().unwrap())
+    );
+    assert_eq!(
+        egraph2.add_expr(&"x".parse().unwrap()),
+        egraph2.add_expr(&"a".parse().unwrap())
+    );
+    assert_ne!(
+        egraph3.add_expr(&"x".parse().unwrap()),
+        egraph3.add_expr(&"a".parse().unwrap())
+    );
 
-    assert_eq!(egraph2.add_expr(&"y".parse().unwrap()), egraph2.add_expr(&"a".parse().unwrap()));
-    assert_ne!(egraph3.add_expr(&"y".parse().unwrap()), egraph3.add_expr(&"a".parse().unwrap()));
+    assert_eq!(
+        egraph2.add_expr(&"y".parse().unwrap()),
+        egraph2.add_expr(&"a".parse().unwrap())
+    );
+    assert_ne!(
+        egraph3.add_expr(&"y".parse().unwrap()),
+        egraph3.add_expr(&"a".parse().unwrap())
+    );
 }
