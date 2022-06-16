@@ -12,6 +12,7 @@ use std::rc::Rc;
 use symbolic_expressions::Sexp;
 
 const CONGRUENCE_LIMIT: usize = 10;
+const GREEDY_NUM_ITERS: usize = 10;
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 #[cfg_attr(feature = "serde-1", derive(serde::Serialize, serde::Deserialize))]
@@ -1268,17 +1269,16 @@ impl<L: Language> Explain<L> {
         memo: &HashMap<L, Id>,
         unionfind: &mut UnionFind,
         classes: &HashMap<Id, EClass<L, N::Data>>,
-        optimize_iters: usize,
-        greedy_search: bool,
+        optimize_length: bool,
     ) -> Explanation<L> {
-        self.calculate_shortest_explanations::<N>(
-            left,
-            right,
-            classes,
-            &unionfind,
-            optimize_iters,
-            greedy_search,
-        );
+        if optimize_length {
+            self.calculate_shortest_explanations::<N>(
+                left,
+                right,
+                classes,
+                &unionfind,
+            );
+        }
 
         let mut cache = Default::default();
         let mut enode_cache = Default::default();
@@ -2273,12 +2273,7 @@ impl<L: Language> Explain<L> {
         end: Id,
         classes: &HashMap<Id, EClass<L, N::Data>>,
         unionfind: &UnionFind,
-        iters: usize,
-        greedy_search: bool,
     ) {
-        if iters == 0 && !greedy_search {
-            return;
-        }
         let mut congruence_neighbors = vec![vec![]; self.explainfind.len()];
         self.find_congruence_neighbors::<N>(classes, &mut congruence_neighbors, unionfind);
         let mut parent_distance = vec![(Id::from(0), 0); self.explainfind.len()];
@@ -2291,79 +2286,17 @@ impl<L: Language> Explain<L> {
             tree_depth: self.calculate_tree_depths(),
         };
 
-        if greedy_search {
-            let mut eclass_seen_memo = HashSet::default();
-            let fuel = iters * self.explainfind.len();
-            self.greedy_short_explanations(
-                start,
-                end,
-                &congruence_neighbors,
-                &unionfind,
-                &mut distance_memo,
-                &mut eclass_seen_memo,
-                fuel,
-            );
-        } else {
-            let mut eclass_congruence_queries =
-                self.find_congruence_queries(unionfind, &congruence_neighbors);
-            eclass_congruence_queries[usize::from(start)].insert(end);
-            // clear the memo and start from scratch
-            self.shortest_explanation_memo.clear();
-
-            // initialize distances to self
-            for i in 0..self.explainfind.len() {
-                self.shortest_explanation_memo
-                    .insert((Id::from(i), Id::from(i)), (0, Id::from(i)));
-            }
-
-            for i in 0..iters {
-                let start_time = Instant::now();
-                let mut did_something = false;
-                for start in 0..eclass_congruence_queries.len() {
-                    let ends = &eclass_congruence_queries[start];
-                    if ends.len() == 0 {
-                        continue;
-                    }
-                    let costs_before: Vec<Option<usize>> = ends.iter().map(|end| {
-                        self
-                                        .shortest_explanation_memo
-                                        .get(&(Id::from(start), *end))
-                                        .map(|(cost, _next)| *cost)
-                    }).collect();
-                    self.shortest_path_modulo_congruence(
-                        Id::from(start),
-                        ends,
-                        &congruence_neighbors,
-                        &mut Default::default(),
-                        false,
-                        true,
-                    );
-
-                    let costs_after: Vec<Option<usize>> = ends.iter().map(|end| {
-                        self
-                                        .shortest_explanation_memo
-                                        .get(&(Id::from(start), *end))
-                                        .map(|(cost, _next)| *cost)
-                    }).collect();
-                    if costs_before != costs_after {
-                        for (cost_before, cost_after) in costs_before.iter().zip(costs_after.iter()) {
-                            if let (Some(before), Some(after)) = (cost_before, cost_after) {
-                                assert!(after <= before);
-                            }
-                        }
-                        
-                        did_something = true;
-                    }
-                }
-
-                //println!("iteration {} took {}", i, start_time.elapsed().as_millis());
-
-                if !did_something {
-                    assert!(self.shortest_explanation_memo.get(&(start, end)).is_some());
-                    break;
-                }
-            }
-        }
+        let mut eclass_seen_memo = HashSet::default();
+        let fuel = GREEDY_NUM_ITERS * self.explainfind.len();
+        self.greedy_short_explanations(
+            start,
+            end,
+            &congruence_neighbors,
+            &unionfind,
+            &mut distance_memo,
+            &mut eclass_seen_memo,
+            fuel,
+        );
     }
 }
 

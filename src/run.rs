@@ -453,11 +453,9 @@ where
         &mut self,
         left: &RecExpr<L>,
         right: &RecExpr<L>,
-        optimize_iters: usize,
-        greedy_search: bool,
     ) -> Explanation<L> {
         self.egraph
-            .explain_equivalence(left, right, optimize_iters, greedy_search)
+            .explain_equivalence(left, right)
     }
 
     /// Calls [`EGraph::explain_existance`](EGraph::explain_existance()).
@@ -480,11 +478,9 @@ where
         left: &RecExpr<L>,
         right: &PatternAst<L>,
         subst: &Subst,
-        optimize_iters: usize,
-        greedy_search: bool,
     ) -> Explanation<L> {
         self.egraph
-            .explain_matches(left, right, subst, optimize_iters, greedy_search)
+            .explain_matches(left, right, subst)
     }
 
     /// Prints some information about a runners run.

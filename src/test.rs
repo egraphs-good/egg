@@ -88,7 +88,9 @@ pub fn test_runner<L, A>(
             for goal in goals {
                 let matches = goal.search_eclass(&runner.egraph, id).unwrap();
                 let subst = matches.substs[0].clone();
-                let mut explained = runner.explain_matches(&start, &goal.ast, &subst, 0, false);
+                // don't optimize the length for the first egraph
+                runner.egraph.optimize_explanation_lengths = false;
+                let mut explained = runner.explain_matches(&start, &goal.ast, &subst);
                 explained.get_sexp_with_let();
                 let flattened = explained.make_flat_explanation().clone();
                 let vanilla_len = flattened.len();
@@ -102,11 +104,6 @@ pub fn test_runner<L, A>(
                     &grounded_terms,
                     &start,
                     &goal_flat_expr,
-                );
-                println!(
-                    "intial: {}, reduced: {}",
-                    grounded_terms.len(),
-                    reduced.len()
                 );
 
                 // check the reduced version still works correctly
@@ -126,28 +123,17 @@ pub fn test_runner<L, A>(
                     test_egraph.add_expr(&goal_flat_expr)
                 );
                 let mut smaller =
-                    test_egraph.explain_equivalence(&start, &goal_flat_expr, 0, false);
+                    test_egraph.explain_equivalence(&start, &goal_flat_expr);
                 smaller.check_proof(rules);
 
+                runner.egraph.optimize_explanation_lengths = true;
                 let mut explained_short =
-                    runner.explain_matches(&start, &goal.ast, &subst, 4, true);
+                    runner.explain_matches(&start, &goal.ast, &subst);
                 explained_short.get_sexp_with_let();
                 let short_len = explained_short.get_flat_sexps().len();
                 assert!(short_len <= vanilla_len);
                 assert!(explained_short.get_tree_size() > 0);
-                println!("Unoptimized {} Optimized {}", vanilla_len, short_len);
                 explained_short.check_proof(rules);
-
-                let mut explained_optimal =
-                    runner.explain_matches(&start, &goal.ast, &subst, usize::MAX, false);
-                let optimal_len = explained_optimal.get_flat_sexps().len();
-                assert!(optimal_len <= short_len);
-                explained_optimal.check_proof(rules);
-
-                let mut existance = runner.explain_existance_pattern(&goal.ast, &subst);
-                existance.get_sexp_with_let();
-                existance.get_flat_sexps();
-                existance.check_proof(rules);
             }
         }
 

@@ -56,6 +56,8 @@ pub struct EGraph<L: Language, N: Analysis<L>> {
     pub analysis: N,
     /// The `Explain` used to explain equivalences in this `EGraph`.
     pub(crate) explain: Option<Explain<L>>,
+    /// By default, egg uses a greedy algorithm to find shorter explanations when they are extracted.
+    pub optimize_explanation_lengths: bool,
     unionfind: UnionFind,
     /// Stores each enode's `Id`, not the `Id` of the eclass.
     /// Enodes in the memo are canonicalized at each rebuild, but after rebuilding new
@@ -116,6 +118,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             unionfind: Default::default(),
             clean: false,
             explain: None,
+            optimize_explanation_lengths: true,
             pending: Default::default(),
             memo: Default::default(),
             analysis_pending: Default::default(),
@@ -287,8 +290,6 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         &mut self,
         left_expr: &RecExpr<L>,
         right_expr: &RecExpr<L>,
-        optimize_iters: usize,
-        greedy_search: bool,
     ) -> Explanation<L> {
         let left = self.add_expr_internal(left_expr);
         let right = self.add_expr_internal(right_expr);
@@ -305,8 +306,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                 &self.memo,
                 &mut self.unionfind,
                 &self.classes,
-                optimize_iters,
-                greedy_search,
+                self.optimize_explanation_lengths,
             )
         } else {
             panic!("Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations.")
@@ -350,8 +350,6 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         left_expr: &RecExpr<L>,
         right_pattern: &PatternAst<L>,
         subst: &Subst,
-        optimize_iters: usize,
-        greedy_search: bool,
     ) -> Explanation<L> {
         let left = self.add_expr_internal(left_expr);
         let right = self.add_instantiation_internal(right_pattern, subst);
@@ -369,8 +367,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                 &self.memo,
                 &mut self.unionfind,
                 &self.classes,
-                optimize_iters,
-                greedy_search,
+                self.optimize_explanation_lengths,
             )
         } else {
             panic!("Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations.");
