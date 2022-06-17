@@ -294,7 +294,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// Only available when explanations are enabled.
     pub fn get_num_congr(&mut self) -> usize {
         if let Some(explain) = &self.explain {
-            explain.get_num_congr::<N>(&self.classes, &mut self.unionfind)
+            explain.get_num_congr::<N>(&self.classes, &self.unionfind)
         } else {
             panic!("Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations.")
         }

@@ -254,10 +254,10 @@ impl<L: Language + Display + FromOp> Explanation<L> {
             return 0;
         }
         let mut my_size = 0;
-        if let Some(_) = current.forward_rule {
+        if current.forward_rule.is_some() {
             my_size += 1;
         }
-        if let Some(_) = current.backward_rule {
+        if current.backward_rule.is_some() {
             my_size += 1;
         }
         assert!(my_size <= 1);
@@ -410,8 +410,8 @@ impl<L: Language> Explanation<L> {
         let mut test_egraph = EGraph::<L, ()>::new(());
         for pair in proof {
             let (lhs, rhs, _) = pair;
-            let l_id = test_egraph.add_expr(&lhs);
-            let r_id = test_egraph.add_expr(&rhs);
+            let l_id = test_egraph.add_expr(lhs);
+            let r_id = test_egraph.add_expr(rhs);
             test_egraph.union(l_id, r_id);
         }
         test_egraph.rebuild();
@@ -421,15 +421,14 @@ impl<L: Language> Explanation<L> {
             let mut test_egraph = EGraph::<L, ()>::new(());
             for pair in &res {
                 let (lhs, rhs, _) = pair;
-                let l_id = test_egraph.add_expr(&lhs);
-                let r_id = test_egraph.add_expr(&rhs);
+                let l_id = test_egraph.add_expr(lhs);
+                let r_id = test_egraph.add_expr(rhs);
                 test_egraph.union(l_id, r_id);
             }
 
-            for j in i + 1..proof.len() {
-                let (lhs, rhs, _) = &proof[j];
-                let l_id = test_egraph.add_expr(&lhs);
-                let r_id = test_egraph.add_expr(&rhs);
+            for (lhs, rhs, _) in proof.iter().skip(i + 1) {
+                let l_id = test_egraph.add_expr(lhs);
+                let r_id = test_egraph.add_expr(rhs);
                 test_egraph.union(l_id, r_id);
             }
 
@@ -597,8 +596,8 @@ impl<L: Language> TreeTerm<L> {
     pub fn get_initial_flat_term(&self) -> FlatTerm<L> {
         FlatTerm {
             node: self.node.clone(),
-            backward_rule: self.backward_rule.clone(),
-            forward_rule: self.forward_rule.clone(),
+            backward_rule: self.backward_rule,
+            forward_rule: self.forward_rule,
             children: self
                 .child_proofs
                 .iter()
@@ -611,8 +610,8 @@ impl<L: Language> TreeTerm<L> {
     pub fn get_last_flat_term(&self) -> FlatTerm<L> {
         FlatTerm {
             node: self.node.clone(),
-            backward_rule: self.backward_rule.clone(),
-            forward_rule: self.forward_rule.clone(),
+            backward_rule: self.backward_rule,
+            forward_rule: self.forward_rule,
             children: self
                 .child_proofs
                 .iter()
@@ -782,8 +781,7 @@ impl<L: Language + Display + FromOp> FlatTerm<L> {
 
     /// Convert this FlatTerm to a RecExpr.
     pub fn get_recexpr(&self) -> RecExpr<L> {
-        let without_rewrites = self.remove_rewrites();
-        return without_rewrites.to_string().parse().unwrap();
+        self.remove_rewrites().to_string().parse().unwrap()
     }
 }
 
@@ -1149,8 +1147,8 @@ impl<L: Language> Explain<L> {
             parent_connection: Connection {
                 justification: Justification::Congruence,
                 is_rewrite_forward: false,
-                next: Id::from(set),
-                current: Id::from(set),
+                next: set,
+                current: set,
             },
             existance_node,
         });
@@ -1261,11 +1259,8 @@ impl<L: Language> Explain<L> {
         for node in &self.explainfind {
             for neighbor in &node.neighbors {
                 if neighbor.is_rewrite_forward {
-                    match neighbor.justification {
-                        Justification::Rule(r) => {
-                            equalities.push((neighbor.current, neighbor.next, r));
-                        }
-                        _ => (),
+                    if let Justification::Rule(r) = neighbor.justification {
+                        equalities.push((neighbor.current, neighbor.next, r));
                     }
                 }
             }
@@ -1291,7 +1286,7 @@ impl<L: Language> Explain<L> {
         optimize_length: bool,
     ) -> Explanation<L> {
         if optimize_length {
-            self.calculate_shortest_explanations::<N>(left, right, classes, &unionfind);
+            self.calculate_shortest_explanations::<N>(left, right, classes, unionfind);
         }
 
         let mut cache = Default::default();
@@ -1368,12 +1363,12 @@ impl<L: Language> Explain<L> {
                 }
             }
         }
-        return Connection {
+        Connection {
             justification: Justification::Congruence,
             current,
             next,
             is_rewrite_forward: true,
-        };
+        }
     }
 
     fn get_path(&self, mut left: Id, right: Id) -> (Vec<Connection>, Vec<Connection>) {
@@ -1414,26 +1409,15 @@ impl<L: Language> Explain<L> {
         if graphnode.parent_connection.next == existance
             || existance_node.parent_connection.next == node
         {
-            let direction;
-            let justification;
+            let mut connection = graphnode.parent_connection.clone();
+
             if graphnode.parent_connection.next == existance {
-                direction = !graphnode.parent_connection.is_rewrite_forward;
-                justification = &graphnode.parent_connection.justification;
-            } else {
-                direction = existance_node.parent_connection.is_rewrite_forward;
-                justification = &existance_node.parent_connection.justification;
+                connection.is_rewrite_forward = !connection.is_rewrite_forward;
+                std::mem::swap(&mut connection.next, &mut connection.current);
             }
             return self.explain_enode_existance(
                 existance,
-                self.explain_adjacent(
-                    existance,
-                    node,
-                    direction,
-                    justification,
-                    cache,
-                    enode_cache,
-                    false,
-                ),
+                self.explain_adjacent(connection, cache, enode_cache, false),
                 cache,
                 enode_cache,
             );
@@ -1480,19 +1464,14 @@ impl<L: Language> Explain<L> {
             .chain(right_connections.iter().rev())
             .enumerate()
         {
-            let mut direction = connection.is_rewrite_forward;
-            let mut next = connection.next;
-            let mut current = connection.current;
+            let mut connection = connection.clone();
             if i >= left_connections.len() {
-                direction = !direction;
-                std::mem::swap(&mut next, &mut current);
+                connection.is_rewrite_forward = !connection.is_rewrite_forward;
+                std::mem::swap(&mut connection.next, &mut connection.current);
             }
 
             proof.push(self.explain_adjacent(
-                current,
-                next,
-                direction,
-                &connection.justification,
+                connection,
                 cache,
                 node_explanation_cache,
                 use_unoptimized,
@@ -1503,39 +1482,36 @@ impl<L: Language> Explain<L> {
 
     fn explain_adjacent(
         &self,
-        current: Id,
-        next: Id,
-        rule_direction: bool,
-        justification: &Justification,
+        connection: Connection,
         cache: &mut ExplainCache<L>,
         node_explanation_cache: &mut NodeExplanationCache<L>,
         use_unoptimized: bool,
     ) -> Rc<TreeTerm<L>> {
-        let fingerprint = (current, next);
+        let fingerprint = (connection.current, connection.next);
 
         if let Some(answer) = cache.get(&fingerprint) {
             return answer.clone();
         }
 
-        let term = match justification {
+        let term = match connection.justification {
             Justification::Rule(name) => {
                 let mut rewritten =
-                    (*self.node_to_explanation(next, node_explanation_cache)).clone();
-                if rule_direction {
-                    rewritten.forward_rule = Some(*name);
+                    (*self.node_to_explanation(connection.next, node_explanation_cache)).clone();
+                if connection.is_rewrite_forward {
+                    rewritten.forward_rule = Some(name);
                 } else {
-                    rewritten.backward_rule = Some(*name);
+                    rewritten.backward_rule = Some(name);
                 }
 
-                rewritten.current = next;
-                rewritten.last = current;
+                rewritten.current = connection.next;
+                rewritten.last = connection.current;
 
                 Rc::new(rewritten)
             }
             Justification::Congruence => {
                 // add the children proofs to the last explanation
-                let current_node = &self.explainfind[usize::from(current)].node;
-                let next_node = &self.explainfind[usize::from(next)].node;
+                let current_node = &self.explainfind[usize::from(connection.current)].node;
+                let next_node = &self.explainfind[usize::from(connection.next)].node;
                 assert!(current_node.matches(next_node));
                 let mut subproofs = vec![];
 
@@ -1594,7 +1570,7 @@ impl<L: Language> Explain<L> {
         for i in 0..self.explainfind.len() {
             self.add_tree_depths(Id::from(i), &mut depths);
         }
-        return depths;
+        depths
     }
 
     fn replace_distance(&mut self, current: Id, next: Id, right: Id, distance: usize) {
@@ -1656,18 +1632,15 @@ impl<L: Language> Explain<L> {
         );
 
         // calculate distance to find upper bound
-        let dist = b
-            .checked_add(c)
+        b.checked_add(c)
             .unwrap_or_else(|| panic!("overflow in proof size calculation!"))
             .checked_sub(
                 a.checked_mul(2)
                     .unwrap_or_else(|| panic!("overflow in proof size calculation!")),
             )
-            .unwrap_or_else(|| panic!("common ancestor distance was too large!"));
+            .unwrap_or_else(|| panic!("common ancestor distance was too large!"))
 
         //assert_eq!(dist+1, Explanation::new(self.explain_enodes(left, right, &mut Default::default())).make_flat_explanation().len());
-
-        return dist;
     }
 
     // TODO use bigint because this overflows easily
@@ -1755,21 +1728,18 @@ impl<L: Language> Explain<L> {
     fn find_congruence_neighbors<N: Analysis<L>>(
         &self,
         classes: &HashMap<Id, EClass<L, N::Data>>,
-        congruence_neighbors: &mut Vec<Vec<Id>>,
+        congruence_neighbors: &mut [Vec<Id>],
         unionfind: &UnionFind,
     ) {
         let mut counter = 0;
         // add the normal congruence edges first
         for node in &self.explainfind {
-            match node.parent_connection.justification {
-                Justification::Congruence => {
-                    let current = node.parent_connection.current;
-                    let next = node.parent_connection.next;
-                    congruence_neighbors[usize::from(current)].push(next);
-                    congruence_neighbors[usize::from(next)].push(current);
-                    counter += 1;
-                }
-                _ => (),
+            if let Justification::Congruence = node.parent_connection.justification {
+                let current = node.parent_connection.current;
+                let next = node.parent_connection.next;
+                congruence_neighbors[usize::from(current)].push(next);
+                congruence_neighbors[usize::from(next)].push(current);
+                counter += 1;
             }
         }
 
@@ -1844,7 +1814,7 @@ impl<L: Language> Explain<L> {
         let first_end = *ends.iter().next().unwrap();
 
         'outer: loop {
-            if todo.len() == 0 {
+            if todo.is_empty() {
                 break 'outer;
             }
             let state = todo.pop().unwrap();
@@ -1852,7 +1822,7 @@ impl<L: Language> Explain<L> {
             let cost_so_far = state.cost;
             let current = connection.next;
 
-            if let Some(_) = last.get(&current) {
+            if last.get(&current).is_some() {
                 continue;
             } else {
                 last.insert(current, connection);
@@ -1917,12 +1887,11 @@ impl<L: Language> Explain<L> {
                     let mut connections = vec![];
                     while current != start {
                         let prev = last.get(&current);
-                        if prev.is_none() {
-                            continue 'ends;
-                        } else {
-                            let prev_connection = prev.unwrap();
+                        if let Some(prev_connection) = prev {
                             connections.push(prev_connection.clone());
                             current = prev_connection.current;
+                        } else {
+                            continue 'ends;
                         }
                     }
                     connections.reverse();
@@ -2004,6 +1973,7 @@ impl<L: Language> Explain<L> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn tarjan_ocla(
         &self,
         enode: Id,
@@ -2032,7 +2002,7 @@ impl<L: Language> Explain<L> {
         if common_ancestor_queries.get(&enode).is_some() {
             black_set.insert(enode);
             for other in common_ancestor_queries.get(&enode).unwrap() {
-                if black_set.contains(&other) {
+                if black_set.contains(other) {
                     let ancestor = ancestor[usize::from(unionfind.find(*other))];
                     common_ancestor.insert((enode, *other), ancestor);
                     common_ancestor.insert((*other, enode), ancestor);
@@ -2051,9 +2021,8 @@ impl<L: Language> Explain<L> {
         congruence_neighbors: &[Vec<Id>],
     ) -> HashMap<(Id, Id), Id> {
         let mut common_ancestor_queries = HashMap::default();
-        for s_int in 0..congruence_neighbors.len() {
+        for (s_int, others) in congruence_neighbors.iter().enumerate() {
             let start = &Id::from(s_int);
-            let others = &congruence_neighbors[s_int];
             for other in others {
                 for (left, right) in self.explainfind[usize::from(*start)]
                     .node
@@ -2123,10 +2092,7 @@ impl<L: Language> Explain<L> {
     ) {
         let mut congruence_neighbors = vec![vec![]; self.explainfind.len()];
         self.find_congruence_neighbors::<N>(classes, &mut congruence_neighbors, unionfind);
-        let mut parent_distance = vec![(Id::from(0), 0); self.explainfind.len()];
-        for i in 0..self.explainfind.len() {
-            parent_distance[i] = (Id::from(i), 0);
-        }
+        let parent_distance = vec![(Id::from(0), 0); self.explainfind.len()];
         let mut distance_memo = DistanceMemo {
             parent_distance,
             common_ancestor: self.calculate_common_ancestor::<N>(classes, &congruence_neighbors),
