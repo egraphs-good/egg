@@ -1643,7 +1643,7 @@ impl<L: Language> Explain<L> {
         //assert_eq!(dist+1, Explanation::new(self.explain_enodes(left, right, &mut Default::default())).make_flat_explanation().len());
     }
 
-    // TODO use bigint because this overflows easily
+    // TODO use bigint, this overflows easily
     fn congruence_distance(
         &mut self,
         current: Id,
@@ -1793,10 +1793,9 @@ impl<L: Language> Explain<L> {
     fn shortest_path_modulo_congruence(
         &mut self,
         start: Id,
-        ends: &HashSet<Id>,
+        end: Id,
         congruence_neighbors: &[Vec<Id>],
         distance_memo: &mut DistanceMemo,
-        update_paths: bool,
     ) -> Option<(Vec<Connection>, Vec<Connection>)> {
         let mut todo = BinaryHeap::new();
         todo.push(HeapState {
@@ -1811,7 +1810,6 @@ impl<L: Language> Explain<L> {
 
         let mut last = HashMap::default();
         let mut path_cost = HashMap::default();
-        let first_end = *ends.iter().next().unwrap();
 
         'outer: loop {
             if todo.is_empty() {
@@ -1823,13 +1821,13 @@ impl<L: Language> Explain<L> {
             let current = connection.next;
 
             if last.get(&current).is_some() {
-                continue;
+                continue 'outer;
             } else {
                 last.insert(current, connection);
                 path_cost.insert(current, cost_so_far);
             }
 
-            if current == first_end {
+            if current == end {
                 break;
             }
 
@@ -1859,13 +1857,13 @@ impl<L: Language> Explain<L> {
             }
         }
 
-        let total_cost = path_cost.get(&first_end);
+        let total_cost = path_cost.get(&end);
 
-        let mut left_connections = vec![];
+        let left_connections;
         let mut right_connections = vec![];
 
         // assert that we found a path better than the normal one
-        let dist = self.distance_between(start, first_end, distance_memo);
+        let dist = self.distance_between(start, end, distance_memo);
         if *total_cost.unwrap() > dist {
             panic!(
                 "Found cost greater than baseline {} vs {}",
@@ -1873,43 +1871,30 @@ impl<L: Language> Explain<L> {
                 dist
             );
         }
-        if *total_cost.unwrap() == self.distance_between(start, first_end, distance_memo) {
-            let (a_left_connections, a_right_connections) =
-                self.get_path_unoptimized(start, first_end);
+        if *total_cost.unwrap() == self.distance_between(start, end, distance_memo) {
+            let (a_left_connections, a_right_connections) = self.get_path_unoptimized(start, end);
             left_connections = a_left_connections;
             right_connections = a_right_connections;
         } else {
-            let mut is_first = true;
-
-            'ends: for end in ends {
-                if update_paths {
-                    let mut current = *end;
-                    let mut connections = vec![];
-                    while current != start {
-                        let prev = last.get(&current);
-                        if let Some(prev_connection) = prev {
-                            connections.push(prev_connection.clone());
-                            current = prev_connection.current;
-                        } else {
-                            continue 'ends;
-                        }
-                    }
-                    connections.reverse();
-                    self.populate_path_length(
-                        *end,
-                        &connections,
-                        distance_memo,
-                        *path_cost.get(end).unwrap(),
-                    );
-                    if is_first {
-                        left_connections = connections;
-                        is_first = false;
-                    }
-                } else if let Some(found_cost) = path_cost.get(end) {
-                    self.shortest_explanation_memo
-                        .insert((start, *end), (*found_cost, start));
+            let mut current = end;
+            let mut connections = vec![];
+            while current != start {
+                let prev = last.get(&current);
+                if let Some(prev_connection) = prev {
+                    connections.push(prev_connection.clone());
+                    current = prev_connection.current;
+                } else {
+                    break;
                 }
             }
+            connections.reverse();
+            self.populate_path_length(
+                end,
+                &connections,
+                distance_memo,
+                *path_cost.get(&end).unwrap(),
+            );
+            left_connections = connections;
         }
 
         Some((left_connections, right_connections))
@@ -1934,16 +1919,8 @@ impl<L: Language> Explain<L> {
             }
             fuel -= eclass_size;
 
-            let mut ends: HashSet<Id> = Default::default();
-            ends.insert(end);
             let (left_connections, right_connections) = self
-                .shortest_path_modulo_congruence(
-                    start,
-                    &ends,
-                    congruence_neighbors,
-                    distance_memo,
-                    true,
-                )
+                .shortest_path_modulo_congruence(start, end, congruence_neighbors, distance_memo)
                 .unwrap();
 
             //assert!(Explanation::new(self.explain_enodes(start, end, &mut Default::default())).make_flat_explanation().len()-1 <= total_cost);
@@ -2092,12 +2069,18 @@ impl<L: Language> Explain<L> {
     ) {
         let mut congruence_neighbors = vec![vec![]; self.explainfind.len()];
         self.find_congruence_neighbors::<N>(classes, &mut congruence_neighbors, unionfind);
-        let parent_distance = vec![(Id::from(0), 0); self.explainfind.len()];
+        let mut parent_distance = vec![(Id::from(0), 0); self.explainfind.len()];
+        for (i, entry) in parent_distance.iter_mut().enumerate() {
+            entry.0 = Id::from(i);
+        }
+
         let mut distance_memo = DistanceMemo {
             parent_distance,
             common_ancestor: self.calculate_common_ancestor::<N>(classes, &congruence_neighbors),
             tree_depth: self.calculate_tree_depths(),
         };
+
+        println!("distance ememo done");
 
         let fuel = GREEDY_NUM_ITERS * self.explainfind.len();
         self.greedy_short_explanations(start, end, &congruence_neighbors, &mut distance_memo, fuel);
@@ -2146,6 +2129,7 @@ mod tests {
 
         egraph.rebuild();
 
+        assert_eq!(egraph.add_expr(&fa), egraph.add_expr(&fb));
         assert_eq!(
             egraph.explain_equivalence(&fa, &fb).get_flat_sexps().len(),
             4
