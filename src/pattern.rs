@@ -262,28 +262,37 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
         Some(&self.ast)
     }
 
-    fn search(&self, egraph: &EGraph<L, A>) -> Vec<SearchMatches<L>> {
+    fn search_with_limit(&self, egraph: &EGraph<L, A>, limit: usize) -> Vec<SearchMatches<L>> {
         match self.ast.as_ref().last().unwrap() {
             ENodeOrVar::ENode(e) => {
                 #[allow(enum_intrinsics_non_enums)]
                 let key = std::mem::discriminant(e);
                 match egraph.classes_by_op.get(&key) {
                     None => vec![],
-                    Some(ids) => ids
-                        .iter()
-                        .filter_map(|&id| self.search_eclass(egraph, id))
-                        .collect(),
+                    Some(ids) => rewrite::search_eclasses_with_limit(
+                        self,
+                        egraph,
+                        ids.iter().cloned(),
+                        limit,
+                    ),
                 }
             }
-            ENodeOrVar::Var(_) => egraph
-                .classes()
-                .filter_map(|e| self.search_eclass(egraph, e.id))
-                .collect(),
+            ENodeOrVar::Var(_) => rewrite::search_eclasses_with_limit(
+                self,
+                egraph,
+                egraph.classes().map(|e| e.id),
+                limit,
+            ),
         }
     }
 
-    fn search_eclass(&self, egraph: &EGraph<L, A>, eclass: Id) -> Option<SearchMatches<L>> {
-        let substs = self.program.run(egraph, eclass);
+    fn search_eclass_with_limit(
+        &self,
+        egraph: &EGraph<L, A>,
+        eclass: Id,
+        limit: usize,
+    ) -> Option<SearchMatches<L>> {
+        let substs = self.program.run_with_limit(egraph, eclass, limit);
         if substs.is_empty() {
             None
         } else {
