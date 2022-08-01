@@ -13,9 +13,11 @@ use symbolic_expressions::Sexp;
 const CONGRUENCE_LIMIT: usize = 10;
 const GREEDY_NUM_ITERS: usize = 10;
 
+/// A justification for a union, either via a rule or congruence.
+/// A direct union with a justification is also stored as a rule.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 #[cfg_attr(feature = "serde-1", derive(serde::Serialize, serde::Deserialize))]
-pub(crate) enum Justification {
+pub enum Justification {
     Rule(Symbol),
     Congruence,
 }
@@ -50,6 +52,8 @@ pub struct Explain<L: Language> {
     explainfind: Vec<ExplainNode<L>>,
     #[cfg_attr(feature = "serde-1", serde(with = "vectorize"))]
     pub uncanon_memo: HashMap<L, Id>,
+    /// By default, egg uses a greedy algorithm to find shorter explanations when they are extracted.
+    pub optimize_explanation_lengths: bool,
     // For a given pair of enodes in the same eclass,
     // stores the length of the shortest found explanation
     // and the Id of the neighbor for retrieving
@@ -180,56 +184,6 @@ impl<L: Language + Display + FromOp> Explanation<L> {
         }
 
         Sexp::List(items)
-    }
-
-    /// Get the grounded equalities that make up this proof
-    /// as pairs of RecExpr.
-    pub fn get_grounded_equalities(&self) -> GroundedEqualities<L> {
-        let mut seen: HashSet<*const TreeTerm<L>> = HashSet::default();
-        let mut seen_adjacent = Default::default();
-        let res = self.get_grounded_equalities_for(
-            &self.explanation_trees,
-            &mut seen,
-            &mut seen_adjacent,
-        );
-
-        assert_eq!(res.len(), self.get_tree_size());
-        res
-    }
-
-    fn get_grounded_equalities_for(
-        &self,
-        proof: &[Rc<TreeTerm<L>>],
-        seen: &mut HashSet<*const TreeTerm<L>>,
-        seen_adjacent: &mut HashSet<(Id, Id)>,
-    ) -> GroundedEqualities<L> {
-        let mut res = vec![];
-        for i in 0..proof.len() {
-            if !seen.insert(&*proof[i] as *const TreeTerm<L>) {
-                continue;
-            }
-            let term = &proof[i];
-            if term.backward_rule.is_some() || term.forward_rule.is_some() {
-                let reason = term
-                    .backward_rule
-                    .unwrap_or_else(|| term.forward_rule.unwrap());
-                let mut first = proof[i - 1].get_last_flat_term().get_recexpr();
-                let mut second = proof[i].get_last_flat_term().get_recexpr();
-                if term.backward_rule.is_some() {
-                    std::mem::swap(&mut first, &mut second);
-                }
-
-                if seen_adjacent.insert((term.current, term.last)) {
-                    seen_adjacent.insert((term.last, term.current));
-                    res.push((first, second, reason));
-                }
-            }
-            for child_proof in &term.child_proofs {
-                let child_res = self.get_grounded_equalities_for(child_proof, seen, seen_adjacent);
-                res.extend(child_res);
-            }
-        }
-        res
     }
 
     /// Get the size of this explanation tree in terms of the number of rewrites
@@ -396,49 +350,6 @@ impl<L: Language> Explanation<L> {
             explanation_trees,
             flat_explanation: None,
         }
-    }
-
-    /// Using a set of grounded equalities, find an irriducible set of equalities
-    /// which can still prove the start and end terms are equal.
-    pub fn reduce_grounded_equalities(
-        proof: &GroundedEqualities<L>,
-        start: &RecExpr<L>,
-        end: &RecExpr<L>,
-    ) -> GroundedEqualities<L> {
-        let mut res = vec![];
-
-        let mut test_egraph = EGraph::<L, ()>::new(());
-        for pair in proof {
-            let (lhs, rhs, _) = pair;
-            let l_id = test_egraph.add_expr(lhs);
-            let r_id = test_egraph.add_expr(rhs);
-            test_egraph.union(l_id, r_id);
-        }
-        test_egraph.rebuild();
-        assert_eq!(test_egraph.add_expr(start), test_egraph.add_expr(end));
-
-        for i in 0..proof.len() {
-            let mut test_egraph = EGraph::<L, ()>::new(());
-            for pair in &res {
-                let (lhs, rhs, _) = pair;
-                let l_id = test_egraph.add_expr(lhs);
-                let r_id = test_egraph.add_expr(rhs);
-                test_egraph.union(l_id, r_id);
-            }
-
-            for (lhs, rhs, _) in proof.iter().skip(i + 1) {
-                let l_id = test_egraph.add_expr(lhs);
-                let r_id = test_egraph.add_expr(rhs);
-                test_egraph.union(l_id, r_id);
-            }
-
-            test_egraph.rebuild();
-            if test_egraph.add_expr(start) != test_egraph.add_expr(end) {
-                res.push(proof[i].clone());
-            }
-        }
-
-        res
     }
 
     /// Construct the flat representation of the explanation and return it.
@@ -1131,6 +1042,7 @@ impl<L: Language> Explain<L> {
             explainfind: vec![],
             uncanon_memo: Default::default(),
             shortest_explanation_memo: Default::default(),
+            optimize_explanation_lengths: true,
         }
     }
 
@@ -1283,9 +1195,8 @@ impl<L: Language> Explain<L> {
         right: Id,
         unionfind: &mut UnionFind,
         classes: &HashMap<Id, EClass<L, N::Data>>,
-        optimize_length: bool,
     ) -> Explanation<L> {
-        if optimize_length {
+        if self.optimize_explanation_lengths {
             self.calculate_shortest_explanations::<N>(left, right, classes, unionfind);
         }
 
@@ -2080,8 +1991,6 @@ impl<L: Language> Explain<L> {
             tree_depth: self.calculate_tree_depths(),
         };
 
-        println!("distance ememo done");
-
         let fuel = GREEDY_NUM_ITERS * self.explainfind.len();
         self.greedy_short_explanations(start, end, &congruence_neighbors, &mut distance_memo, fuel);
     }
@@ -2158,16 +2067,17 @@ mod tests {
 
         egraph.rebuild();
 
-        egraph.optimize_explanation_lengths = false;
+        egraph = egraph.without_explanation_length_optimization();
         assert_eq!(
             egraph.explain_equivalence(&fa, &fb).get_flat_sexps().len(),
             4
         );
-        egraph.optimize_explanation_lengths = true;
+        egraph = egraph.with_explanation_length_optimization();
         assert_eq!(
             egraph.explain_equivalence(&fa, &fb).get_flat_sexps().len(),
             3
         );
+        
 
         assert_eq!(
             egraph.explain_equivalence(&fa, &fb).get_flat_sexps().len(),

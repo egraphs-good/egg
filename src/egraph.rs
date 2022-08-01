@@ -56,8 +56,6 @@ pub struct EGraph<L: Language, N: Analysis<L>> {
     pub analysis: N,
     /// The `Explain` used to explain equivalences in this `EGraph`.
     pub(crate) explain: Option<Explain<L>>,
-    /// By default, egg uses a greedy algorithm to find shorter explanations when they are extracted.
-    pub optimize_explanation_lengths: bool,
     unionfind: UnionFind,
     /// Stores each enode's `Id`, not the `Id` of the eclass.
     /// Enodes in the memo are canonicalized at each rebuild, but after rebuilding new
@@ -118,7 +116,6 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             unionfind: Default::default(),
             clean: false,
             explain: None,
-            optimize_explanation_lengths: true,
             pending: Default::default(),
             memo: Default::default(),
             analysis_pending: Default::default(),
@@ -191,6 +188,28 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         }
         self.explain = Some(Explain::new());
         self
+    }
+
+    /// By default, egg runs a greedy algorithm to reduce the size of resulting explanations (without complexity overhead).
+    /// Use this function to turn this algorithm off.
+    pub fn without_explanation_length_optimization(mut self) -> Self {
+        if let Some(explain) = &mut self.explain {
+            explain.optimize_explanation_lengths = false;
+            self
+        } else {
+            panic!("Need to set explanations enabled before setting length optimization.");
+        }
+    }
+
+    /// By default, egg runs a greedy algorithm to reduce the size of resulting explanations (without complexity overhead).
+    /// Use this function to turn this algorithm on again if you have turned it off.
+    pub fn with_explanation_length_optimization(mut self) -> Self {
+        if let Some(explain) = &mut self.explain {
+            explain.optimize_explanation_lengths = true;
+            self
+        } else {
+            panic!("Need to set explanations enabled before setting length optimization.");
+        }
     }
 
     /// Make a copy of the egraph with the same nodes, but no unions between them.
@@ -290,7 +309,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         self.explain.is_some()
     }
 
-    /// Get the nunber of congruences between nodes in the egraph.
+    /// Get the number of congruences between nodes in the egraph.
     /// Only available when explanations are enabled.
     pub fn get_num_congr(&mut self) -> usize {
         if let Some(explain) = &self.explain {
@@ -329,13 +348,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             );
         }
         if let Some(explain) = &mut self.explain {
-            explain.explain_equivalence::<N>(
-                left,
-                right,
-                &mut self.unionfind,
-                &self.classes,
-                self.optimize_explanation_lengths,
-            )
+            explain.explain_equivalence::<N>(left, right, &mut self.unionfind, &self.classes)
         } else {
             panic!("Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations.")
         }
@@ -389,13 +402,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             );
         }
         if let Some(explain) = &mut self.explain {
-            explain.explain_equivalence::<N>(
-                left,
-                right,
-                &mut self.unionfind,
-                &self.classes,
-                self.optimize_explanation_lengths,
-            )
+            explain.explain_equivalence::<N>(left, right, &mut self.unionfind, &self.classes)
         } else {
             panic!("Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations.");
         }
@@ -782,6 +789,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         rule: Option<Justification>,
         any_new_rhs: bool,
     ) -> bool {
+        N::pre_union(self, enode_id1, enode_id2, &rule);
+
         self.clean = false;
         let mut id1 = self.find_mut(enode_id1);
         let mut id2 = self.find_mut(enode_id2);
@@ -799,8 +808,6 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         if class1_parents < class2_parents {
             std::mem::swap(&mut id1, &mut id2);
         }
-
-        N::pre_union(self, id1, id2);
 
         if let Some(explain) = &mut self.explain {
             explain.union(enode_id1, enode_id2, rule.unwrap(), any_new_rhs);

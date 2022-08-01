@@ -437,6 +437,20 @@ where
         self
     }
 
+    /// By default, egg runs a greedy algorithm to reduce the size of resulting explanations (without complexity overhead).
+    /// Use this function to turn this algorithm off.
+    pub fn without_explanation_length_optimization(mut self) -> Self {
+        self.egraph = self.egraph.without_explanation_length_optimization();
+        self
+    }
+
+    /// By default, egg runs a greedy algorithm to reduce the size of resulting explanations (without complexity overhead).
+    /// Use this function to turn this algorithm on again if you have turned it off.
+    pub fn with_explanation_length_optimization(mut self) -> Self {
+        self.egraph = self.egraph.with_explanation_length_optimization();
+        self
+    }
+
     /// Disable explanations for this runner's egraph.
     pub fn with_explanations_disabled(mut self) -> Self {
         self.egraph = self.egraph.with_explanations_disabled();

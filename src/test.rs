@@ -86,43 +86,15 @@ pub fn test_runner<L, A>(
                 let matches = goal.search_eclass(&runner.egraph, id).unwrap();
                 let subst = matches.substs[0].clone();
                 // don't optimize the length for the first egraph
-                runner.egraph.optimize_explanation_lengths = false;
+                runner = runner.without_explanation_length_optimization();
                 let mut explained = runner.explain_matches(&start, &goal.ast, &subst);
                 explained.get_sexp_with_let();
                 let flattened = explained.make_flat_explanation().clone();
                 let vanilla_len = flattened.len();
-                let last_term = flattened.last().unwrap().clone();
                 explained.check_proof(rules);
                 assert!(explained.get_tree_size() > 0);
 
-                let grounded_terms = explained.get_grounded_equalities();
-                let goal_flat_expr = last_term.get_recexpr();
-                let reduced = Explanation::<L>::reduce_grounded_equalities(
-                    &grounded_terms,
-                    &start,
-                    &goal_flat_expr,
-                );
-
-                // check the reduced version still works correctly
-                let mut test_egraph = EGraph::<L, ()>::new(()).with_explanations_enabled();
-                for pair in reduced {
-                    let (lhs, rhs, just) = pair;
-                    test_egraph.union_instantiations(
-                        &lhs.to_string().parse().unwrap(),
-                        &rhs.to_string().parse().unwrap(),
-                        &Default::default(),
-                        just,
-                    );
-                }
-                test_egraph.rebuild();
-                assert_eq!(
-                    test_egraph.add_expr(&start),
-                    test_egraph.add_expr(&goal_flat_expr)
-                );
-                let mut smaller = test_egraph.explain_equivalence(&start, &goal_flat_expr);
-                smaller.check_proof(rules);
-
-                runner.egraph.optimize_explanation_lengths = true;
+                runner = runner.with_explanation_length_optimization();
                 let mut explained_short = runner.explain_matches(&start, &goal.ast, &subst);
                 explained_short.get_sexp_with_let();
                 let short_len = explained_short.get_flat_sexps().len();

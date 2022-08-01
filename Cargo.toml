@@ -29,9 +29,6 @@ num-rational = "0.3.0"
 num-bigint = "0.3.0"
 num-traits = "0.2.12"
 
-wait-timeout = "0.2.0"
-rand = "0.8.4"
-
 # for the serde-1 feature
 serde = { version = "1.0.137", features = ["derive"], optional = true }
 vectorize = { version = "0.2.0", optional = true }
