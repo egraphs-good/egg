@@ -91,10 +91,7 @@ pub use {
     dot::Dot,
     eclass::EClass,
     egraph::EGraph,
-    explain::{
-        Explanation, FlatExplanation, FlatTerm, GroundedEqualities, TreeExplanation, TreeTerm,
-        UnionEqualities,
-    },
+    explain::{Explanation, FlatExplanation, FlatTerm, TreeExplanation, TreeTerm},
     extract::*,
     language::*,
     multipattern::*,

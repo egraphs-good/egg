@@ -90,14 +90,6 @@ pub type TreeExplanation<L> = Vec<Rc<TreeTerm<L>>>;
 /// See [`FlatTerm`] for more details on how to find this rewrite.
 pub type FlatExplanation<L> = Vec<FlatTerm<L>>;
 
-/// A vector of grounded equalities. Each entry represents
-/// two expressions that are equal and why.
-pub type GroundedEqualities<L> = Vec<(RecExpr<L>, RecExpr<L>, Symbol)>;
-
-/// A vector of equalities based on enode ids. Each entry represents
-/// two enode ids that are equal and why.
-pub type UnionEqualities = Vec<(Id, Id, Symbol)>;
-
 // given two adjacent nodes and the direction of the proof
 type ExplainCache<L> = HashMap<(Id, Id), Rc<TreeTerm<L>>>;
 type NodeExplanationCache<L> = HashMap<Id, Rc<TreeTerm<L>>>;
@@ -1166,20 +1158,6 @@ impl<L: Language> Explain<L> {
         self.explainfind[usize::from(node1)].parent_connection = pconnection;
     }
 
-    pub(crate) fn get_union_equalities(&self) -> UnionEqualities {
-        let mut equalities = vec![];
-        for node in &self.explainfind {
-            for neighbor in &node.neighbors {
-                if neighbor.is_rewrite_forward {
-                    if let Justification::Rule(r) = neighbor.justification {
-                        equalities.push((neighbor.current, neighbor.next, r));
-                    }
-                }
-            }
-        }
-        equalities
-    }
-
     pub(crate) fn populate_enodes<N: Analysis<L>>(&self, mut egraph: EGraph<L, N>) -> EGraph<L, N> {
         for i in 0..self.explainfind.len() {
             let node = &self.explainfind[i];
@@ -2077,7 +2055,6 @@ mod tests {
             egraph.explain_equivalence(&fa, &fb).get_flat_sexps().len(),
             3
         );
-        
 
         assert_eq!(
             egraph.explain_equivalence(&fa, &fb).get_flat_sexps().len(),

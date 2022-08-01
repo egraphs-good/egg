@@ -222,55 +222,6 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         }
     }
 
-    /// Performs the union between two egraphs.
-    pub fn egraph_union(&self, other: &mut EGraph<L, N>) {
-        let left_unions = self.get_union_equalities();
-        for (left, right, why) in left_unions {
-            other.union_instantiations(
-                &self.id_to_pattern(left, &Default::default()).0.ast,
-                &self.id_to_pattern(right, &Default::default()).0.ast,
-                &Default::default(),
-                why,
-            );
-        }
-        other.rebuild();
-    }
-
-    /// A best-effort intersection algorithm between two egraphs.
-    /// The intersection is guaranteed to be correct for all direct
-    /// equalities found in the original two egraphs.
-    /// Implied equalities due to congruence, however, may not be preserved.
-    pub fn egraph_intersect_incomplete(
-        &mut self,
-        other: &mut EGraph<L, N>,
-        resulting: &mut EGraph<L, N>,
-    ) {
-        self.intersect_one_way(other, resulting);
-        other.intersect_one_way(self, resulting);
-        resulting.rebuild();
-    }
-
-    fn intersect_one_way(&mut self, other: &mut EGraph<L, N>, resulting: &mut EGraph<L, N>) {
-        let left_unions = self.get_union_equalities();
-        for (left, right, _why) in &left_unions {
-            other.add_expr(&self.id_to_expr(*left));
-            other.add_expr(&self.id_to_expr(*right));
-        }
-        self.rebuild();
-        for (left, right, why) in left_unions {
-            let newleft = other.add_expr(&self.id_to_expr(left));
-            let newright = other.add_expr(&self.id_to_expr(right));
-            if newleft == newright {
-                resulting.union_instantiations(
-                    &self.id_to_pattern(left, &Default::default()).0.ast,
-                    &self.id_to_pattern(right, &Default::default()).0.ast,
-                    &Default::default(),
-                    why,
-                );
-            }
-        }
-    }
-
     /// Pick a representative term for a given Id.
     pub fn id_to_expr(&self, id: Id) -> RecExpr<L> {
         if let Some(explain) = &self.explain {
@@ -286,15 +237,6 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             explain.node_to_pattern(id, substitutions)
         } else {
             panic!("Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get unique patterns per id");
-        }
-    }
-
-    /// Get all the unions ever found in the egraph in terms of enode ids.
-    pub fn get_union_equalities(&self) -> UnionEqualities {
-        if let Some(explain) = &self.explain {
-            explain.get_union_equalities()
-        } else {
-            panic!("Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get union equalities");
         }
     }
 
