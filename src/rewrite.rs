@@ -166,20 +166,14 @@ where
 {
     /// Search one eclass, returning None if no matches can be found.
     /// This should not return a SearchMatches with no substs.
-    ///
-    /// Implementation of [`Searcher`] should implement one of
-    /// [`search_eclass`] or [`search_eclass_with_limit`].
-    ///
-    /// [`search_eclass`]: Searcher::search_eclass
-    /// [`search_eclass_with_limit`]: Searcher::search_eclass_with_limit
     fn search_eclass(&self, egraph: &EGraph<L, N>, eclass: Id) -> Option<SearchMatches<L>> {
         self.search_eclass_with_limit(egraph, eclass, usize::MAX)
     }
 
     /// Similar to [`search_eclass`], but return at most `limit` many matches.
     ///
-    /// Implementation of [`Searcher`] should implement one of
-    /// [`search_eclass`] or [`search_eclass_with_limit`].
+    /// Implementation of [`Searcher`] should implement
+    /// [`search_eclass_with_limit`].
     ///
     /// [`search_eclass`]: Searcher::search_eclass
     /// [`search_eclass_with_limit`]: Searcher::search_eclass_with_limit
@@ -188,12 +182,7 @@ where
         egraph: &EGraph<L, N>,
         eclass: Id,
         limit: usize,
-    ) -> Option<SearchMatches<L>> {
-        self.search_eclass(egraph, eclass).map(|mut m| {
-            m.substs.truncate(limit);
-            m
-        })
-    }
+    ) -> Option<SearchMatches<L>>;
 
     /// Search the whole [`EGraph`], returning a list of all the
     /// [`SearchMatches`] where something was found.

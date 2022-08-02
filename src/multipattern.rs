@@ -101,8 +101,8 @@ impl<L: Language + FromOp> FromStr for MultiPattern<L> {
 }
 
 impl<L: Language, A: Analysis<L>> Searcher<L, A> for MultiPattern<L> {
-    fn search_eclass(&self, egraph: &EGraph<L, A>, eclass: Id) -> Option<SearchMatches<L>> {
-        let substs = self.program.run(egraph, eclass);
+    fn search_eclass_with_limit(&self, egraph: &EGraph<L, A>, eclass: Id, limit: usize) -> Option<SearchMatches<L>> {
+        let substs = self.program.run_with_limit(egraph, eclass, limit);
         if substs.is_empty() {
             None
         } else {
