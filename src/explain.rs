@@ -114,33 +114,30 @@ impl<L: Language + Display + FromOp> Display for Explanation<L> {
 }
 
 impl<L: Language + Display + FromOp> Explanation<L> {
-    /// Get the flattened explanation as a string.
+    /// Get each flattened term in the explanation as an s-expression string.
+    ///
+    /// The s-expression format mirrors the format of each [`FlatTerm`].
+    /// Each expression after the first will be annotated in one location with a rewrite.
+    /// When a term is being re-written it is wrapped with "(Rewrite=> rule-name expression)"
+    /// or "(Rewrite<= rule-name expression)".
+    /// "Rewrite=>" indicates that the previous term is rewritten to the current term
+    /// and "Rewrite<=" indicates that the current term is rewritten to the previous term.
+    /// The name of the rule or the reason provided to [`union_instantiations`](super::EGraph::union_instantiations).
+    ///
+    /// Example explanation:
+    /// ```text
+    /// (+ 1 (- a (* (- 2 1) a)))
+    /// (+ 1 (- a (* (Rewrite=> constant_fold 1) a)))
+    /// (+ 1 (- a (Rewrite=> comm-mul (* a 1))))
+    /// (+ 1 (- a (Rewrite<= mul-one a)))
+    /// (+ 1 (Rewrite=> cancel-sub 0))
+    /// (Rewrite=> constant_fold 1)
+    /// ```
     pub fn get_flat_string(&mut self) -> String {
         self.get_flat_strings().join("\n")
     }
 
-    /// Get the tree-style explanation as a string.
-    pub fn get_string(&self) -> String {
-        self.to_string()
-    }
-
-    /// Get the tree-style explanation with let binding as a string.
-    /// See [`get_sexp_with_let`](Explanation::get_sexp_with_let) for the format of these strings.
-    pub fn get_string_with_let(&self) -> String {
-        let mut s = "".to_string();
-        pretty_print(&mut s, &self.get_sexp_with_let(), 100, 0).unwrap();
-        s
-    }
-
-    /// Get each term in the explanation as a string.
-    pub fn get_flat_strings(&mut self) -> Vec<String> {
-        self.make_flat_explanation()
-            .iter()
-            .map(|e| e.to_string())
-            .collect()
-    }
-
-    /// Get each the tree-style explanation as an s-expression.
+    /// Get each the tree-style explanation as an s-expression string.
     ///
     /// The s-expression format mirrors the format of each [`TreeTerm`].
     /// When a child contains an explanation, the explanation is wrapped with
@@ -169,7 +166,57 @@ impl<L: Language + Display + FromOp> Explanation<L> {
     ///      (Rewrite=> cancel-sub 0)))
     /// (Rewrite=> constant_fold 1)
     /// ```
-    pub fn get_sexp(&self) -> Sexp {
+    pub fn get_string(&self) -> String {
+        self.to_string()
+    }
+
+    /// Get the tree-style explanation as an s-expression string
+    /// with let binding to enable sharing of subproofs.
+    ///
+    /// The following explanation shows that `(+ x (+ x (+ x x))) = (* 4 x)`.
+    /// Steps such as factoring are shared via the let bindings.
+    /// Example explanation:
+    ///
+    /// ```text
+    /// (let
+    ///     (v_0 (Rewrite=> mul-one (* x 1)))
+    ///     (let
+    ///       (v_1 (+ (Explanation x v_0) (Explanation x v_0)))
+    ///       (let
+    ///         (v_2 (+ 1 1))
+    ///         (let
+    ///           (v_3 (Rewrite=> factor (* x v_2)))
+    ///           (Explanation
+    ///             (+ x (+ x (+ x x)))
+    ///             (Rewrite=> assoc-add (+ (+ x x) (+ x x)))
+    ///             (+ (Explanation (+ x x) v_1 v_3) (Explanation (+ x x) v_1 v_3))
+    ///             (Rewrite=> factor (* x (+ (+ 1 1) (+ 1 1))))
+    ///             (Rewrite=> comm-mul (* (+ (+ 1 1) (+ 1 1)) x))
+    ///             (*
+    ///               (Explanation
+    ///                 (+ (+ 1 1) (+ 1 1))
+    ///                 (+
+    ///                   (Explanation (+ 1 1) (Rewrite=> constant_fold 2))
+    ///                   (Explanation (+ 1 1) (Rewrite=> constant_fold 2)))
+    ///                 (Rewrite=> constant_fold 4))
+    ///               x))))))
+    /// ```
+    pub fn get_string_with_let(&self) -> String {
+        let mut s = "".to_string();
+        pretty_print(&mut s, &self.get_sexp_with_let(), 100, 0).unwrap();
+        s
+    }
+
+    /// Get each term in the explanation as a string.
+    /// See [`get_string`](Explanation::get_string) for the format of these strings.
+    pub fn get_flat_strings(&mut self) -> Vec<String> {
+        self.make_flat_explanation()
+            .iter()
+            .map(|e| e.to_string())
+            .collect()
+    }
+
+    fn get_sexp(&self) -> Sexp {
         let mut items = vec![Sexp::String("Explanation".to_string())];
         for e in self.explanation_trees.iter() {
             items.push(e.get_sexp());
@@ -223,38 +270,7 @@ impl<L: Language + Display + FromOp> Explanation<L> {
         my_size
     }
 
-    /// Get the tree-style explanation as an s-expression with let binding
-    /// to enable sharing of subproofs.
-    ///
-    /// The following explanation shows that `(+ x (+ x (+ x x))) = (* 4 x)`.
-    /// Steps such as factoring are shared via the let bindings.
-    /// Example explanation:
-    ///
-    /// ```text
-    /// (let
-    ///     (v_0 (Rewrite=> mul-one (* x 1)))
-    ///     (let
-    ///       (v_1 (+ (Explanation x v_0) (Explanation x v_0)))
-    ///       (let
-    ///         (v_2 (+ 1 1))
-    ///         (let
-    ///           (v_3 (Rewrite=> factor (* x v_2)))
-    ///           (Explanation
-    ///             (+ x (+ x (+ x x)))
-    ///             (Rewrite=> assoc-add (+ (+ x x) (+ x x)))
-    ///             (+ (Explanation (+ x x) v_1 v_3) (Explanation (+ x x) v_1 v_3))
-    ///             (Rewrite=> factor (* x (+ (+ 1 1) (+ 1 1))))
-    ///             (Rewrite=> comm-mul (* (+ (+ 1 1) (+ 1 1)) x))
-    ///             (*
-    ///               (Explanation
-    ///                 (+ (+ 1 1) (+ 1 1))
-    ///                 (+
-    ///                   (Explanation (+ 1 1) (Rewrite=> constant_fold 2))
-    ///                   (Explanation (+ 1 1) (Rewrite=> constant_fold 2)))
-    ///                 (Rewrite=> constant_fold 4))
-    ///               x))))))
-    /// ```
-    pub fn get_sexp_with_let(&self) -> Sexp {
+    fn get_sexp_with_let(&self) -> Sexp {
         let mut shared: HashSet<*const TreeTerm<L>> = Default::default();
         let mut to_let_bind = vec![];
         for term in &self.explanation_trees {
@@ -306,32 +322,6 @@ impl<L: Language + Display + FromOp> Explanation<L> {
         if !term.child_proofs.is_empty() && !shared.insert(&*term as *const TreeTerm<L>) {
             to_let_bind.push(term);
         }
-    }
-
-    /// Get each flattened term in the explanation as an s-expression.
-    ///
-    /// The s-expression format mirrors the format of each [`FlatTerm`].
-    /// Each expression after the first will be annotated in one location with a rewrite.
-    /// When a term is being re-written it is wrapped with "(Rewrite=> rule-name expression)"
-    /// or "(Rewrite<= rule-name expression)".
-    /// "Rewrite=>" indicates that the previous term is rewritten to the current term
-    /// and "Rewrite<=" indicates that the current term is rewritten to the previous term.
-    /// The name of the rule or the reason provided to [`union_instantiations`](super::EGraph::union_instantiations).
-    ///
-    /// Example explanation:
-    /// ```text
-    /// (+ 1 (- a (* (- 2 1) a)))
-    /// (+ 1 (- a (* (Rewrite=> constant_fold 1) a)))
-    /// (+ 1 (- a (Rewrite=> comm-mul (* a 1))))
-    /// (+ 1 (- a (Rewrite<= mul-one a)))
-    /// (+ 1 (Rewrite=> cancel-sub 0))
-    /// (Rewrite=> constant_fold 1)
-    /// ```
-    pub fn get_flat_sexps(&mut self) -> Vec<Sexp> {
-        self.make_flat_explanation()
-            .iter()
-            .map(|e| e.get_sexp())
-            .collect()
     }
 }
 
@@ -650,8 +640,12 @@ impl<L: Language> Default for Explain<L> {
 
 impl<L: Language + Display + FromOp> FlatTerm<L> {
     /// Convert this FlatTerm to an S-expression.
-    /// See [`get_flat_sexps`](Explanation::get_flat_sexps) for the format of these expressions.
-    pub fn get_sexp(&self) -> Sexp {
+    /// See [`get_flat_string`](Explanation::get_flat_string) for the format of these expressions.
+    pub fn get_string(&self) -> String {
+        self.get_sexp().to_string()
+    }
+
+    fn get_sexp(&self) -> Sexp {
         let op = Sexp::String(self.node.to_string());
         let mut expr = if self.node.is_leaf() {
             op
@@ -698,16 +692,11 @@ impl<L: Language + Display + FromOp> Display for TreeTerm<L> {
 }
 
 impl<L: Language + Display + FromOp> TreeTerm<L> {
-    /// Convert this TreeTerm to an S-expression.
-    /// See [`get_sexp`](Explanation::get_sexp) for the format of these expressions.
-    pub fn get_sexp(&self) -> Sexp {
+    fn get_sexp(&self) -> Sexp {
         self.get_sexp_with_bindings(&Default::default())
     }
 
-    pub(crate) fn get_sexp_with_bindings(
-        &self,
-        bindings: &HashMap<*const TreeTerm<L>, Sexp>,
-    ) -> Sexp {
+    fn get_sexp_with_bindings(&self, bindings: &HashMap<*const TreeTerm<L>, Sexp>) -> Sexp {
         let op = Sexp::String(self.node.to_string());
         let mut expr = if self.node.is_leaf() {
             op
@@ -2018,15 +2007,24 @@ mod tests {
 
         assert_eq!(egraph.add_expr(&fa), egraph.add_expr(&fb));
         assert_eq!(
-            egraph.explain_equivalence(&fa, &fb).get_flat_sexps().len(),
+            egraph
+                .explain_equivalence(&fa, &fb)
+                .get_flat_strings()
+                .len(),
             4
         );
         assert_eq!(
-            egraph.explain_equivalence(&fa, &fb).get_flat_sexps().len(),
+            egraph
+                .explain_equivalence(&fa, &fb)
+                .get_flat_strings()
+                .len(),
             4
         );
         assert_eq!(
-            egraph.explain_equivalence(&fa, &fb).get_flat_sexps().len(),
+            egraph
+                .explain_equivalence(&fa, &fb)
+                .get_flat_strings()
+                .len(),
             4
         );
 
@@ -2047,17 +2045,26 @@ mod tests {
 
         egraph = egraph.without_explanation_length_optimization();
         assert_eq!(
-            egraph.explain_equivalence(&fa, &fb).get_flat_sexps().len(),
+            egraph
+                .explain_equivalence(&fa, &fb)
+                .get_flat_strings()
+                .len(),
             4
         );
         egraph = egraph.with_explanation_length_optimization();
         assert_eq!(
-            egraph.explain_equivalence(&fa, &fb).get_flat_sexps().len(),
+            egraph
+                .explain_equivalence(&fa, &fb)
+                .get_flat_strings()
+                .len(),
             3
         );
 
         assert_eq!(
-            egraph.explain_equivalence(&fa, &fb).get_flat_sexps().len(),
+            egraph
+                .explain_equivalence(&fa, &fb)
+                .get_flat_strings()
+                .len(),
             3
         );
 
