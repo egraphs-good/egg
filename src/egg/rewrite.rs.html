@@ -594,6 +594,67 @@
 <span id="589">589</span>
 <span id="590">590</span>
 <span id="591">591</span>
+<span id="592">592</span>
+<span id="593">593</span>
+<span id="594">594</span>
+<span id="595">595</span>
+<span id="596">596</span>
+<span id="597">597</span>
+<span id="598">598</span>
+<span id="599">599</span>
+<span id="600">600</span>
+<span id="601">601</span>
+<span id="602">602</span>
+<span id="603">603</span>
+<span id="604">604</span>
+<span id="605">605</span>
+<span id="606">606</span>
+<span id="607">607</span>
+<span id="608">608</span>
+<span id="609">609</span>
+<span id="610">610</span>
+<span id="611">611</span>
+<span id="612">612</span>
+<span id="613">613</span>
+<span id="614">614</span>
+<span id="615">615</span>
+<span id="616">616</span>
+<span id="617">617</span>
+<span id="618">618</span>
+<span id="619">619</span>
+<span id="620">620</span>
+<span id="621">621</span>
+<span id="622">622</span>
+<span id="623">623</span>
+<span id="624">624</span>
+<span id="625">625</span>
+<span id="626">626</span>
+<span id="627">627</span>
+<span id="628">628</span>
+<span id="629">629</span>
+<span id="630">630</span>
+<span id="631">631</span>
+<span id="632">632</span>
+<span id="633">633</span>
+<span id="634">634</span>
+<span id="635">635</span>
+<span id="636">636</span>
+<span id="637">637</span>
+<span id="638">638</span>
+<span id="639">639</span>
+<span id="640">640</span>
+<span id="641">641</span>
+<span id="642">642</span>
+<span id="643">643</span>
+<span id="644">644</span>
+<span id="645">645</span>
+<span id="646">646</span>
+<span id="647">647</span>
+<span id="648">648</span>
+<span id="649">649</span>
+<span id="650">650</span>
+<span id="651">651</span>
+<span id="652">652</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">pattern::apply_pat</span>;
 <span class="kw">use</span> <span class="ident">std::fmt</span>::{<span class="self">self</span>, <span class="ident">Debug</span>, <span class="ident">Display</span>};
 <span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
@@ -680,6 +741,13 @@
         <span class="self">self</span>.<span class="ident">searcher</span>.<span class="ident">search</span>(<span class="ident">egraph</span>)
     }
 
+    <span class="doccomment">/// Call [`search_with_limit`] on the [`Searcher`].</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// [`search_with_limit`]: Searcher::search_with_limit()</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">search_with_limit</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>, <span class="ident">limit</span>: <span class="ident">usize</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">SearchMatches</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">searcher</span>.<span class="ident">search_with_limit</span>(<span class="ident">egraph</span>, <span class="ident">limit</span>)
+    }
+
     <span class="doccomment">/// Call [`apply_matches`] on the [`Applier`].</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// [`apply_matches`]: Applier::apply_matches()</span>
@@ -711,6 +779,37 @@
     }
 }
 
+<span class="doccomment">/// Searches the given list of e-classes with a limit.</span>
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">search_eclasses_with_limit</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">I</span>, <span class="ident">S</span>, <span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>(
+    <span class="ident">searcher</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">S</span>,
+    <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>,
+    <span class="ident">eclasses</span>: <span class="ident">I</span>,
+    <span class="kw-2">mut</span> <span class="ident">limit</span>: <span class="ident">usize</span>,
+) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">SearchMatches</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span>
+<span class="kw">where</span>
+    <span class="ident">L</span>: <span class="ident">Language</span>,
+    <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
+    <span class="ident">S</span>: <span class="ident">Searcher</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span> <span class="op">+</span> <span class="question-mark">?</span><span class="ident">Sized</span>,
+    <span class="ident">I</span>: <span class="ident">IntoIterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">Id</span><span class="op">&gt;</span>,
+{
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ms</span> <span class="op">=</span> <span class="macro">vec!</span>[];
+    <span class="kw">for</span> <span class="ident">eclass</span> <span class="kw">in</span> <span class="ident">eclasses</span> {
+        <span class="kw">if</span> <span class="ident">limit</span> <span class="op">==</span> <span class="number">0</span> {
+            <span class="kw">break</span>;
+        }
+        <span class="kw">match</span> <span class="ident">searcher</span>.<span class="ident">search_eclass_with_limit</span>(<span class="ident">egraph</span>, <span class="ident">eclass</span>, <span class="ident">limit</span>) {
+            <span class="prelude-val">None</span> =&gt; <span class="kw">continue</span>,
+            <span class="prelude-val">Some</span>(<span class="ident">m</span>) =&gt; {
+                <span class="kw">let</span> <span class="ident">len</span> <span class="op">=</span> <span class="ident">m</span>.<span class="ident">substs</span>.<span class="ident">len</span>();
+                <span class="macro">assert!</span>(<span class="ident">len</span> <span class="op">&lt;</span><span class="op">=</span> <span class="ident">limit</span>);
+                <span class="ident">limit</span> <span class="op">-</span><span class="op">=</span> <span class="ident">len</span>;
+                <span class="ident">ms</span>.<span class="ident">push</span>(<span class="ident">m</span>);
+            }
+        }
+    }
+    <span class="ident">ms</span>
+}
+
 <span class="doccomment">/// The lefthand side of a [`Rewrite`].</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// A [`Searcher`] is something that can search the egraph and find</span>
@@ -724,7 +823,23 @@
 {
     <span class="doccomment">/// Search one eclass, returning None if no matches can be found.</span>
     <span class="doccomment">/// This should not return a SearchMatches with no substs.</span>
-    <span class="kw">fn</span> <span class="ident">search_eclass</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>, <span class="ident">eclass</span>: <span class="ident">Id</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">SearchMatches</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span>;
+    <span class="kw">fn</span> <span class="ident">search_eclass</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>, <span class="ident">eclass</span>: <span class="ident">Id</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">SearchMatches</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">search_eclass_with_limit</span>(<span class="ident">egraph</span>, <span class="ident">eclass</span>, <span class="ident">usize::MAX</span>)
+    }
+
+    <span class="doccomment">/// Similar to [`search_eclass`], but return at most `limit` many matches.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Implementation of [`Searcher`] should implement</span>
+    <span class="doccomment">/// [`search_eclass_with_limit`].</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// [`search_eclass`]: Searcher::search_eclass</span>
+    <span class="doccomment">/// [`search_eclass_with_limit`]: Searcher::search_eclass_with_limit</span>
+    <span class="kw">fn</span> <span class="ident">search_eclass_with_limit</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>,
+        <span class="ident">eclass</span>: <span class="ident">Id</span>,
+        <span class="ident">limit</span>: <span class="ident">usize</span>,
+    ) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">SearchMatches</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span>;
 
     <span class="doccomment">/// Search the whole [`EGraph`], returning a list of all the</span>
     <span class="doccomment">/// [`SearchMatches`] where something was found.</span>
@@ -736,6 +851,13 @@
             .<span class="ident">classes</span>()
             .<span class="ident">filter_map</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">search_eclass</span>(<span class="ident">egraph</span>, <span class="ident">e</span>.<span class="ident">id</span>))
             .<span class="ident">collect</span>()
+    }
+
+    <span class="doccomment">/// Similar to [`search`], but return at most `limit` many matches.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// [`search`]: Searcher::search</span>
+    <span class="kw">fn</span> <span class="ident">search_with_limit</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>, <span class="ident">limit</span>: <span class="ident">usize</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">SearchMatches</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="ident">search_eclasses_with_limit</span>(<span class="self">self</span>, <span class="ident">egraph</span>, <span class="ident">egraph</span>.<span class="ident">classes</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">e</span>.<span class="ident">id</span>), <span class="ident">limit</span>)
     }
 
     <span class="doccomment">/// Returns the number of matches in the e-graph</span>

@@ -473,6 +473,49 @@
 <span id="468">468</span>
 <span id="469">469</span>
 <span id="470">470</span>
+<span id="471">471</span>
+<span id="472">472</span>
+<span id="473">473</span>
+<span id="474">474</span>
+<span id="475">475</span>
+<span id="476">476</span>
+<span id="477">477</span>
+<span id="478">478</span>
+<span id="479">479</span>
+<span id="480">480</span>
+<span id="481">481</span>
+<span id="482">482</span>
+<span id="483">483</span>
+<span id="484">484</span>
+<span id="485">485</span>
+<span id="486">486</span>
+<span id="487">487</span>
+<span id="488">488</span>
+<span id="489">489</span>
+<span id="490">490</span>
+<span id="491">491</span>
+<span id="492">492</span>
+<span id="493">493</span>
+<span id="494">494</span>
+<span id="495">495</span>
+<span id="496">496</span>
+<span id="497">497</span>
+<span id="498">498</span>
+<span id="499">499</span>
+<span id="500">500</span>
+<span id="501">501</span>
+<span id="502">502</span>
+<span id="503">503</span>
+<span id="504">504</span>
+<span id="505">505</span>
+<span id="506">506</span>
+<span id="507">507</span>
+<span id="508">508</span>
+<span id="509">509</span>
+<span id="510">510</span>
+<span id="511">511</span>
+<span id="512">512</span>
+<span id="513">513</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">fmt::Formatter</span>;
 <span class="kw">use</span> <span class="ident">log</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident">std::borrow::Cow</span>;
@@ -737,28 +780,37 @@
         <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">ast</span>)
     }
 
-    <span class="kw">fn</span> <span class="ident">search</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">A</span><span class="op">&gt;</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">SearchMatches</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">search_with_limit</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">A</span><span class="op">&gt;</span>, <span class="ident">limit</span>: <span class="ident">usize</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">SearchMatches</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">match</span> <span class="self">self</span>.<span class="ident">ast</span>.<span class="ident">as_ref</span>().<span class="ident">last</span>().<span class="ident">unwrap</span>() {
             <span class="ident">ENodeOrVar::ENode</span>(<span class="ident">e</span>) =&gt; {
                 <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">enum_intrinsics_non_enums</span>)]</span>
                 <span class="kw">let</span> <span class="ident">key</span> <span class="op">=</span> <span class="ident">std::mem::discriminant</span>(<span class="ident">e</span>);
                 <span class="kw">match</span> <span class="ident">egraph</span>.<span class="ident">classes_by_op</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">key</span>) {
                     <span class="prelude-val">None</span> =&gt; <span class="macro">vec!</span>[],
-                    <span class="prelude-val">Some</span>(<span class="ident">ids</span>) =&gt; <span class="ident">ids</span>
-                        .<span class="ident">iter</span>()
-                        .<span class="ident">filter_map</span>(<span class="op">|</span><span class="kw-2">&amp;</span><span class="ident">id</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">search_eclass</span>(<span class="ident">egraph</span>, <span class="ident">id</span>))
-                        .<span class="ident">collect</span>(),
+                    <span class="prelude-val">Some</span>(<span class="ident">ids</span>) =&gt; <span class="ident">rewrite::search_eclasses_with_limit</span>(
+                        <span class="self">self</span>,
+                        <span class="ident">egraph</span>,
+                        <span class="ident">ids</span>.<span class="ident">iter</span>().<span class="ident">cloned</span>(),
+                        <span class="ident">limit</span>,
+                    ),
                 }
             }
-            <span class="ident">ENodeOrVar::Var</span>(<span class="kw">_</span>) =&gt; <span class="ident">egraph</span>
-                .<span class="ident">classes</span>()
-                .<span class="ident">filter_map</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">search_eclass</span>(<span class="ident">egraph</span>, <span class="ident">e</span>.<span class="ident">id</span>))
-                .<span class="ident">collect</span>(),
+            <span class="ident">ENodeOrVar::Var</span>(<span class="kw">_</span>) =&gt; <span class="ident">rewrite::search_eclasses_with_limit</span>(
+                <span class="self">self</span>,
+                <span class="ident">egraph</span>,
+                <span class="ident">egraph</span>.<span class="ident">classes</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">e</span>.<span class="ident">id</span>),
+                <span class="ident">limit</span>,
+            ),
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">search_eclass</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">A</span><span class="op">&gt;</span>, <span class="ident">eclass</span>: <span class="ident">Id</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">SearchMatches</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">substs</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">program</span>.<span class="ident">run</span>(<span class="ident">egraph</span>, <span class="ident">eclass</span>);
+    <span class="kw">fn</span> <span class="ident">search_eclass_with_limit</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">A</span><span class="op">&gt;</span>,
+        <span class="ident">eclass</span>: <span class="ident">Id</span>,
+        <span class="ident">limit</span>: <span class="ident">usize</span>,
+    ) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">SearchMatches</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">substs</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">program</span>.<span class="ident">run_with_limit</span>(<span class="ident">egraph</span>, <span class="ident">eclass</span>, <span class="ident">limit</span>);
         <span class="kw">if</span> <span class="ident">substs</span>.<span class="ident">is_empty</span>() {
             <span class="prelude-val">None</span>
         } <span class="kw">else</span> {
@@ -941,6 +993,40 @@
         <span class="macro">assert_eq!</span>(<span class="ident">n_matches</span>(<span class="string">&quot;(f ?x (g ?y))))&quot;</span>), <span class="number">2</span>);
         <span class="macro">assert_eq!</span>(<span class="ident">n_matches</span>(<span class="string">&quot;(f ?x (g ?x))))&quot;</span>), <span class="number">1</span>);
         <span class="macro">assert_eq!</span>(<span class="ident">n_matches</span>(<span class="string">&quot;(h ?x 0 0)&quot;</span>), <span class="number">1</span>);
+    }
+
+    <span class="attribute">#[<span class="ident">test</span>]</span>
+    <span class="kw">fn</span> <span class="ident">search_with_limit</span>() {
+        <span class="ident"><span class="kw">crate</span>::init_logger</span>();
+        <span class="kw">let</span> <span class="ident">init_expr</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="string">&quot;(+ 1 (+ 2 (+ 3 (+ 4 (+ 5 6)))))&quot;</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">rules</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Rewrite</span><span class="op">&lt;</span><span class="kw">_</span>, ()<span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="macro">vec!</span>[
+            <span class="macro">rewrite!</span>(<span class="string">&quot;comm&quot;</span>; <span class="string">&quot;(+ ?x ?y)&quot;</span> =&gt; <span class="string">&quot;(+ ?y ?x)&quot;</span>),
+            <span class="macro">rewrite!</span>(<span class="string">&quot;assoc&quot;</span>; <span class="string">&quot;(+ ?x (+ ?y ?z))&quot;</span> =&gt; <span class="string">&quot;(+ (+ ?x ?y) ?z)&quot;</span>),
+        ];
+        <span class="kw">let</span> <span class="ident">runner</span> <span class="op">=</span> <span class="ident">Runner::default</span>().<span class="ident">with_expr</span>(<span class="ident">init_expr</span>).<span class="ident">run</span>(<span class="kw-2">&amp;</span><span class="ident">rules</span>);
+        <span class="kw">let</span> <span class="ident">egraph</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">runner</span>.<span class="ident">egraph</span>;
+
+        <span class="kw">let</span> <span class="ident">len</span> <span class="op">=</span> <span class="op">|</span><span class="ident">m</span>: <span class="kw-2">&amp;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">SearchMatches</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">|</span> -&gt; <span class="ident">usize</span> { <span class="ident">m</span>.<span class="ident">iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">m</span><span class="op">|</span> <span class="ident">m</span>.<span class="ident">substs</span>.<span class="ident">len</span>()).<span class="ident">sum</span>() };
+
+        <span class="kw">let</span> <span class="ident">pat</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="string">&quot;(+ ?x (+ ?y ?z))&quot;</span>.<span class="ident">parse</span>::<span class="op">&lt;</span><span class="ident">Pattern</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span><span class="op">&gt;</span>().<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">pat</span>.<span class="ident">search</span>(<span class="ident">egraph</span>);
+        <span class="kw">let</span> <span class="ident">match_size</span> <span class="op">=</span> <span class="number">2100</span>;
+        <span class="macro">assert_eq!</span>(<span class="ident">len</span>(<span class="kw-2">&amp;</span><span class="ident">m</span>), <span class="ident">match_size</span>);
+
+        <span class="kw">for</span> <span class="ident">limit</span> <span class="kw">in</span> [<span class="number">1</span>, <span class="number">10</span>, <span class="number">100</span>, <span class="number">1000</span>, <span class="number">10000</span>] {
+            <span class="kw">let</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">pat</span>.<span class="ident">search_with_limit</span>(<span class="ident">egraph</span>, <span class="ident">limit</span>);
+            <span class="macro">assert_eq!</span>(<span class="ident">len</span>(<span class="kw-2">&amp;</span><span class="ident">m</span>), <span class="ident">usize::min</span>(<span class="ident">limit</span>, <span class="ident">match_size</span>));
+        }
+
+        <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="ident">egraph</span>.<span class="ident">lookup_expr</span>(<span class="ident">init_expr</span>).<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">pat</span>.<span class="ident">search_eclass</span>(<span class="ident">egraph</span>, <span class="ident">id</span>).<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">match_size</span> <span class="op">=</span> <span class="number">540</span>;
+        <span class="macro">assert_eq!</span>(<span class="ident">m</span>.<span class="ident">substs</span>.<span class="ident">len</span>(), <span class="ident">match_size</span>);
+
+        <span class="kw">for</span> <span class="ident">limit</span> <span class="kw">in</span> [<span class="number">1</span>, <span class="number">10</span>, <span class="number">100</span>, <span class="number">1000</span>] {
+            <span class="kw">let</span> <span class="ident">m1</span> <span class="op">=</span> <span class="ident">pat</span>.<span class="ident">search_eclass_with_limit</span>(<span class="ident">egraph</span>, <span class="ident">id</span>, <span class="ident">limit</span>).<span class="ident">unwrap</span>();
+            <span class="macro">assert_eq!</span>(<span class="ident">m1</span>.<span class="ident">substs</span>.<span class="ident">len</span>(), <span class="ident">usize::min</span>(<span class="ident">limit</span>, <span class="ident">match_size</span>));
+        }
     }
 }
 </code></pre></div>
