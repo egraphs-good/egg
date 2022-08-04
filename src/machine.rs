@@ -342,13 +342,6 @@ impl<L: Language> Program<L> {
         compiler.extract()
     }
 
-    pub fn run<A>(&self, egraph: &EGraph<L, A>, eclass: Id) -> Vec<Subst>
-    where
-        A: Analysis<L>,
-    {
-        self.run_with_limit(egraph, eclass, usize::MAX)
-    }
-
     pub fn run_with_limit<A>(
         &self,
         egraph: &EGraph<L, A>,
