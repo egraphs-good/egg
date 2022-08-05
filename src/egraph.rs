@@ -280,7 +280,9 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         }
     }
 
-    /// Pick a representative pattern for a given id and substitutions for particular eclasses.
+    /// Like [`id_to_expr`](EGraph::id_to_expr), but creates a pattern instead of a term.
+    /// When an eclass listed in the given substitutions is found, it creates a variable.
+    /// It also adds this variable and the corresponding Id value to the resulting [`Subst`]
     pub fn id_to_pattern(&self, id: Id, substitutions: &HashMap<Id, Id>) -> (Pattern<L>, Subst) {
         if let Some(explain) = &self.explain {
             explain.node_to_pattern(id, substitutions)
