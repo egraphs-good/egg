@@ -916,6 +916,20 @@
 <span id="911">911</span>
 <span id="912">912</span>
 <span id="913">913</span>
+<span id="914">914</span>
+<span id="915">915</span>
+<span id="916">916</span>
+<span id="917">917</span>
+<span id="918">918</span>
+<span id="919">919</span>
+<span id="920">920</span>
+<span id="921">921</span>
+<span id="922">922</span>
+<span id="923">923</span>
+<span id="924">924</span>
+<span id="925">925</span>
+<span id="926">926</span>
+<span id="927">927</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::fmt</span>::{<span class="self">self</span>, <span class="ident">Debug</span>, <span class="ident">Formatter</span>};
 
 <span class="kw">use</span> <span class="ident">log</span>::<span class="kw-2">*</span>;
@@ -1355,6 +1369,20 @@ println!(
         <span class="self">self</span>
     }
 
+    <span class="doccomment">/// By default, egg runs a greedy algorithm to reduce the size of resulting explanations (without complexity overhead).</span>
+    <span class="doccomment">/// Use this function to turn this algorithm off.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">without_explanation_length_optimization</span>(<span class="kw-2">mut</span> <span class="self">self</span>) -&gt; <span class="self">Self</span> {
+        <span class="self">self</span>.<span class="ident">egraph</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">egraph</span>.<span class="ident">without_explanation_length_optimization</span>();
+        <span class="self">self</span>
+    }
+
+    <span class="doccomment">/// By default, egg runs a greedy algorithm to reduce the size of resulting explanations (without complexity overhead).</span>
+    <span class="doccomment">/// Use this function to turn this algorithm on again if you have turned it off.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">with_explanation_length_optimization</span>(<span class="kw-2">mut</span> <span class="self">self</span>) -&gt; <span class="self">Self</span> {
+        <span class="self">self</span>.<span class="ident">egraph</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">egraph</span>.<span class="ident">with_explanation_length_optimization</span>();
+        <span class="self">self</span>
+    }
+
     <span class="doccomment">/// Disable explanations for this runner&#39;s egraph.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">with_explanations_disabled</span>(<span class="kw-2">mut</span> <span class="self">self</span>) -&gt; <span class="self">Self</span> {
         <span class="self">self</span>.<span class="ident">egraph</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">egraph</span>.<span class="ident">with_explanations_disabled</span>();
@@ -1441,9 +1469,10 @@ println!(
         <span class="kw">let</span> <span class="ident">start_time</span> <span class="op">=</span> <span class="ident">Instant::now</span>();
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">matches</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">applied</span> <span class="op">=</span> <span class="ident">IndexMap::default</span>();
         <span class="ident">result</span> <span class="op">=</span> <span class="ident">result</span>.<span class="ident">and_then</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> {
-            <span class="ident">rules</span>.<span class="ident">iter</span>().<span class="ident">try_for_each</span>(<span class="op">|</span><span class="ident">rule</span><span class="op">|</span> {
-                <span class="kw">let</span> <span class="ident">ms</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">scheduler</span>.<span class="ident">search_rewrite</span>(<span class="ident">i</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">egraph</span>, <span class="ident">rule</span>);
+            <span class="ident">rules</span>.<span class="ident">iter</span>().<span class="ident">try_for_each</span>(<span class="op">|</span><span class="ident">rw</span><span class="op">|</span> {
+                <span class="kw">let</span> <span class="ident">ms</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">scheduler</span>.<span class="ident">search_rewrite</span>(<span class="ident">i</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">egraph</span>, <span class="ident">rw</span>);
                 <span class="ident">matches</span>.<span class="ident">push</span>(<span class="ident">ms</span>);
                 <span class="self">self</span>.<span class="ident">check_limits</span>()
             })
@@ -1454,7 +1483,6 @@ println!(
 
         <span class="kw">let</span> <span class="ident">apply_time</span> <span class="op">=</span> <span class="ident">Instant::now</span>();
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">applied</span> <span class="op">=</span> <span class="ident">IndexMap::default</span>();
         <span class="ident">result</span> <span class="op">=</span> <span class="ident">result</span>.<span class="ident">and_then</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> {
             <span class="ident">rules</span>.<span class="ident">iter</span>().<span class="ident">zip</span>(<span class="ident">matches</span>).<span class="ident">try_for_each</span>(<span class="op">|</span>(<span class="ident">rw</span>, <span class="ident">ms</span>)<span class="op">|</span> {
                 <span class="kw">let</span> <span class="ident">total_matches</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="ident">ms</span>.<span class="ident">iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">m</span><span class="op">|</span> <span class="ident">m</span>.<span class="ident">substs</span>.<span class="ident">len</span>()).<span class="ident">sum</span>();

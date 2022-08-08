@@ -1020,6 +1020,71 @@
 <span id="1015">1015</span>
 <span id="1016">1016</span>
 <span id="1017">1017</span>
+<span id="1018">1018</span>
+<span id="1019">1019</span>
+<span id="1020">1020</span>
+<span id="1021">1021</span>
+<span id="1022">1022</span>
+<span id="1023">1023</span>
+<span id="1024">1024</span>
+<span id="1025">1025</span>
+<span id="1026">1026</span>
+<span id="1027">1027</span>
+<span id="1028">1028</span>
+<span id="1029">1029</span>
+<span id="1030">1030</span>
+<span id="1031">1031</span>
+<span id="1032">1032</span>
+<span id="1033">1033</span>
+<span id="1034">1034</span>
+<span id="1035">1035</span>
+<span id="1036">1036</span>
+<span id="1037">1037</span>
+<span id="1038">1038</span>
+<span id="1039">1039</span>
+<span id="1040">1040</span>
+<span id="1041">1041</span>
+<span id="1042">1042</span>
+<span id="1043">1043</span>
+<span id="1044">1044</span>
+<span id="1045">1045</span>
+<span id="1046">1046</span>
+<span id="1047">1047</span>
+<span id="1048">1048</span>
+<span id="1049">1049</span>
+<span id="1050">1050</span>
+<span id="1051">1051</span>
+<span id="1052">1052</span>
+<span id="1053">1053</span>
+<span id="1054">1054</span>
+<span id="1055">1055</span>
+<span id="1056">1056</span>
+<span id="1057">1057</span>
+<span id="1058">1058</span>
+<span id="1059">1059</span>
+<span id="1060">1060</span>
+<span id="1061">1061</span>
+<span id="1062">1062</span>
+<span id="1063">1063</span>
+<span id="1064">1064</span>
+<span id="1065">1065</span>
+<span id="1066">1066</span>
+<span id="1067">1067</span>
+<span id="1068">1068</span>
+<span id="1069">1069</span>
+<span id="1070">1070</span>
+<span id="1071">1071</span>
+<span id="1072">1072</span>
+<span id="1073">1073</span>
+<span id="1074">1074</span>
+<span id="1075">1075</span>
+<span id="1076">1076</span>
+<span id="1077">1077</span>
+<span id="1078">1078</span>
+<span id="1079">1079</span>
+<span id="1080">1080</span>
+<span id="1081">1081</span>
+<span id="1082">1082</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="kw">crate</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident">std</span>::{
     <span class="ident">borrow::BorrowMut</span>,
@@ -1212,6 +1277,47 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
         <span class="self">self</span>
     }
 
+    <span class="doccomment">/// By default, egg runs a greedy algorithm to reduce the size of resulting explanations (without complexity overhead).</span>
+    <span class="doccomment">/// Use this function to turn this algorithm off.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">without_explanation_length_optimization</span>(<span class="kw-2">mut</span> <span class="self">self</span>) -&gt; <span class="self">Self</span> {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">explain</span>) <span class="op">=</span> <span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">explain</span> {
+            <span class="ident">explain</span>.<span class="ident">optimize_explanation_lengths</span> <span class="op">=</span> <span class="bool-val">false</span>;
+            <span class="self">self</span>
+        } <span class="kw">else</span> {
+            <span class="macro">panic!</span>(<span class="string">&quot;Need to set explanations enabled before setting length optimization.&quot;</span>);
+        }
+    }
+
+    <span class="doccomment">/// By default, egg runs a greedy algorithm to reduce the size of resulting explanations (without complexity overhead).</span>
+    <span class="doccomment">/// Use this function to turn this algorithm on again if you have turned it off.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">with_explanation_length_optimization</span>(<span class="kw-2">mut</span> <span class="self">self</span>) -&gt; <span class="self">Self</span> {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">explain</span>) <span class="op">=</span> <span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">explain</span> {
+            <span class="ident">explain</span>.<span class="ident">optimize_explanation_lengths</span> <span class="op">=</span> <span class="bool-val">true</span>;
+            <span class="self">self</span>
+        } <span class="kw">else</span> {
+            <span class="macro">panic!</span>(<span class="string">&quot;Need to set explanations enabled before setting length optimization.&quot;</span>);
+        }
+    }
+
+    <span class="doccomment">/// Make a copy of the egraph with the same nodes, but no unions between them.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">copy_without_unions</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">analysis</span>: <span class="ident">N</span>) -&gt; <span class="self">Self</span> {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">explain</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">explain</span> {
+            <span class="kw">let</span> <span class="ident">egraph</span> <span class="op">=</span> <span class="ident"><span class="self">Self</span>::new</span>(<span class="ident">analysis</span>);
+            <span class="ident">explain</span>.<span class="ident">populate_enodes</span>(<span class="ident">egraph</span>)
+        } <span class="kw">else</span> {
+            <span class="macro">panic!</span>(<span class="string">&quot;Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get a copied egraph without unions&quot;</span>);
+        }
+    }
+
+    <span class="doccomment">/// Pick a representative term for a given Id.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">id_to_expr</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">id</span>: <span class="ident">Id</span>) -&gt; <span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">explain</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">explain</span> {
+            <span class="ident">explain</span>.<span class="ident">node_to_recexpr</span>(<span class="ident">id</span>)
+        } <span class="kw">else</span> {
+            <span class="macro">panic!</span>(<span class="string">&quot;Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get unique expressions per id&quot;</span>);
+        }
+    }
+
     <span class="doccomment">/// Disable explanations for this `EGraph`.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">with_explanations_disabled</span>(<span class="kw-2">mut</span> <span class="self">self</span>) -&gt; <span class="self">Self</span> {
         <span class="self">self</span>.<span class="ident">explain</span> <span class="op">=</span> <span class="prelude-val">None</span>;
@@ -1221,6 +1327,25 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
     <span class="doccomment">/// Check if explanations are enabled.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">are_explanations_enabled</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">bool</span> {
         <span class="self">self</span>.<span class="ident">explain</span>.<span class="ident">is_some</span>()
+    }
+
+    <span class="doccomment">/// Get the number of congruences between nodes in the egraph.</span>
+    <span class="doccomment">/// Only available when explanations are enabled.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_num_congr</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) -&gt; <span class="ident">usize</span> {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">explain</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">explain</span> {
+            <span class="ident">explain</span>.<span class="ident">get_num_congr</span>::<span class="op">&lt;</span><span class="ident">N</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">classes</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">unionfind</span>)
+        } <span class="kw">else</span> {
+            <span class="macro">panic!</span>(<span class="string">&quot;Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations.&quot;</span>)
+        }
+    }
+
+    <span class="doccomment">/// Get the number of nodes in the egraph used for explanations.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_explanation_num_nodes</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) -&gt; <span class="ident">usize</span> {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">explain</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">explain</span> {
+            <span class="ident">explain</span>.<span class="ident">get_num_nodes</span>()
+        } <span class="kw">else</span> {
+            <span class="macro">panic!</span>(<span class="string">&quot;Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations.&quot;</span>)
+        }
     }
 
     <span class="doccomment">/// When explanations are enabled, this function</span>
@@ -1243,7 +1368,7 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
             );
         }
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">explain</span>) <span class="op">=</span> <span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">explain</span> {
-            <span class="ident">explain</span>.<span class="ident">explain_equivalence</span>(<span class="ident">left</span>, <span class="ident">right</span>)
+            <span class="ident">explain</span>.<span class="ident">explain_equivalence</span>::<span class="op">&lt;</span><span class="ident">N</span><span class="op">&gt;</span>(<span class="ident">left</span>, <span class="ident">right</span>, <span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">unionfind</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">classes</span>)
         } <span class="kw">else</span> {
             <span class="macro">panic!</span>(<span class="string">&quot;Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations.&quot;</span>)
         }
@@ -1297,7 +1422,7 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
             );
         }
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">explain</span>) <span class="op">=</span> <span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">explain</span> {
-            <span class="ident">explain</span>.<span class="ident">explain_equivalence</span>(<span class="ident">left</span>, <span class="ident">right</span>)
+            <span class="ident">explain</span>.<span class="ident">explain_equivalence</span>::<span class="op">&lt;</span><span class="ident">N</span><span class="op">&gt;</span>(<span class="ident">left</span>, <span class="ident">right</span>, <span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">unionfind</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">classes</span>)
         } <span class="kw">else</span> {
             <span class="macro">panic!</span>(<span class="string">&quot;Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations.&quot;</span>);
         }
@@ -1424,7 +1549,7 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
         <span class="kw">for</span> <span class="ident">node</span> <span class="kw">in</span> <span class="ident">nodes</span> {
             <span class="kw">match</span> <span class="ident">node</span> {
                 <span class="ident">ENodeOrVar::Var</span>(<span class="ident">var</span>) =&gt; {
-                    <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="ident">subst</span>[<span class="kw-2">*</span><span class="ident">var</span>];
+                    <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">find</span>(<span class="ident">subst</span>[<span class="kw-2">*</span><span class="ident">var</span>]);
                     <span class="ident">new_ids</span>.<span class="ident">push</span>(<span class="ident">id</span>);
                     <span class="ident">new_node_q</span>.<span class="ident">push</span>(<span class="bool-val">false</span>);
                 }
@@ -1684,10 +1809,17 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
         <span class="ident">rule</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Justification</span><span class="op">&gt;</span>,
         <span class="ident">any_new_rhs</span>: <span class="ident">bool</span>,
     ) -&gt; <span class="ident">bool</span> {
+        <span class="ident">N::pre_union</span>(<span class="self">self</span>, <span class="ident">enode_id1</span>, <span class="ident">enode_id2</span>, <span class="kw-2">&amp;</span><span class="ident">rule</span>);
+
         <span class="self">self</span>.<span class="ident">clean</span> <span class="op">=</span> <span class="bool-val">false</span>;
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">id1</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">find_mut</span>(<span class="ident">enode_id1</span>);
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">id2</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">find_mut</span>(<span class="ident">enode_id2</span>);
         <span class="kw">if</span> <span class="ident">id1</span> <span class="op">==</span> <span class="ident">id2</span> {
+            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">Justification::Rule</span>(<span class="kw">_</span>)) <span class="op">=</span> <span class="ident">rule</span> {
+                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">explain</span>) <span class="op">=</span> <span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">explain</span> {
+                    <span class="ident">explain</span>.<span class="ident">alternate_rewrite</span>(<span class="ident">enode_id1</span>, <span class="ident">enode_id2</span>, <span class="ident">rule</span>.<span class="ident">unwrap</span>());
+                }
+            }
             <span class="kw">return</span> <span class="bool-val">false</span>;
         }
         <span class="comment">// make sure class2 has fewer parents</span>
@@ -1696,8 +1828,6 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
         <span class="kw">if</span> <span class="ident">class1_parents</span> <span class="op">&lt;</span> <span class="ident">class2_parents</span> {
             <span class="ident">std::mem::swap</span>(<span class="kw-2">&amp;mut</span> <span class="ident">id1</span>, <span class="kw-2">&amp;mut</span> <span class="ident">id2</span>);
         }
-
-        <span class="ident">N::pre_union</span>(<span class="self">self</span>, <span class="ident">id1</span>, <span class="ident">id2</span>);
 
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">explain</span>) <span class="op">=</span> <span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">explain</span> {
             <span class="ident">explain</span>.<span class="ident">union</span>(<span class="ident">enode_id1</span>, <span class="ident">enode_id2</span>, <span class="ident">rule</span>.<span class="ident">unwrap</span>(), <span class="ident">any_new_rhs</span>);
