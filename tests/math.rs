@@ -333,15 +333,7 @@ fn test_union_trusted() {
     let rhs = runner.egraph.add_expr(&expr2);
     runner.egraph.union_trusted(lhs, rhs, "whatever");
     let proof = runner.explain_equivalence(&expr, &expr2).get_flat_strings();
-    assert_eq!(
-        proof,
-        vec![
-            "(+ (* x 1) y)",
-            "(+ (Rewrite<= mul-one x) y)",
-            "(+ (Rewrite<= one-mul (* x 1)) y)",
-            "(Rewrite=> whatever 20)"
-        ]
-    );
+    assert_eq!(proof, vec!["(+ (* x 1) y)", "(Rewrite=> whatever 20)"]);
 }
 
 #[cfg(feature = "lp")]

@@ -1,34 +1,49 @@
 use crate::Symbol;
 use crate::{
-    util::pretty_print, Analysis, ENodeOrVar, HashMap, HashSet, Id, Language, PatternAst, Rewrite,
-    Var,
+    util::pretty_print, Analysis, EClass, EGraph, ENodeOrVar, FromOp, HashMap, HashSet, Id,
+    Language, PatternAst, RecExpr, Rewrite, UnionFind, Var,
 };
+use std::cmp::Ordering;
+use std::collections::{BinaryHeap, VecDeque};
 use std::fmt::{self, Debug, Display, Formatter};
 use std::rc::Rc;
 
 use symbolic_expressions::Sexp;
 
-#[derive(Debug, Clone)]
+const CONGRUENCE_LIMIT: usize = 10;
+const GREEDY_NUM_ITERS: usize = 10;
+
+/// A justification for a union, either via a rule or congruence.
+/// A direct union with a justification is also stored as a rule.
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 #[cfg_attr(feature = "serde-1", derive(serde::Serialize, serde::Deserialize))]
-pub(crate) enum Justification {
+pub enum Justification {
     Rule(Symbol),
     Congruence,
+}
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[cfg_attr(feature = "serde-1", derive(serde::Serialize, serde::Deserialize))]
+struct Connection {
+    next: Id,
+    current: Id,
+    justification: Justification,
+    is_rewrite_forward: bool,
 }
 
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde-1", derive(serde::Serialize, serde::Deserialize))]
 struct ExplainNode<L: Language> {
     node: L,
-    next: Id,
-    current: Id,
-    justification: Justification,
+    // neighbors includes parent connections
+    neighbors: Vec<Connection>,
+    parent_connection: Connection,
     // it was inserted because of:
     // 1) it's parent is inserted (points to parent enode)
     // 2) a rewrite instantiated it (points to adjacent enode)
     // 3) it was inserted directly (points to itself)
     // if 1 is true but it's also adjacent (2) then either works and it picks 2
     existance_node: Id,
-    is_rewrite_forward: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -37,6 +52,22 @@ pub struct Explain<L: Language> {
     explainfind: Vec<ExplainNode<L>>,
     #[cfg_attr(feature = "serde-1", serde(with = "vectorize"))]
     pub uncanon_memo: HashMap<L, Id>,
+    /// By default, egg uses a greedy algorithm to find shorter explanations when they are extracted.
+    pub optimize_explanation_lengths: bool,
+    // For a given pair of enodes in the same eclass,
+    // stores the length of the shortest found explanation
+    // and the Id of the neighbor for retrieving
+    // the explanation.
+    // Invariant: The distance is always <= the unoptimized distance
+    // That is, less than or equal to the result of `distance_between`
+    shortest_explanation_memo: HashMap<(Id, Id), (usize, Id)>,
+}
+
+#[derive(Default)]
+struct DistanceMemo {
+    parent_distance: Vec<(Id, usize)>,
+    common_ancestor: HashMap<(Id, Id), Id>,
+    tree_depth: HashMap<Id, usize>,
 }
 
 /// Explanation trees are the compact representation showing
@@ -75,42 +106,38 @@ pub struct Explanation<L: Language> {
     flat_explanation: Option<FlatExplanation<L>>,
 }
 
-impl<L: Language + Display> Display for Explanation<L> {
+impl<L: Language + Display + FromOp> Display for Explanation<L> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let mut s = "".to_string();
-        pretty_print(&mut s, &self.get_sexp(), 100, 0).unwrap();
+        let s = self.get_sexp().to_string();
         f.write_str(&s)
     }
 }
 
-impl<L: Language + Display> Explanation<L> {
-    /// Get the flattened explanation as a string.
+impl<L: Language + Display + FromOp> Explanation<L> {
+    /// Get each flattened term in the explanation as an s-expression string.
+    ///
+    /// The s-expression format mirrors the format of each [`FlatTerm`].
+    /// Each expression after the first will be annotated in one location with a rewrite.
+    /// When a term is being re-written it is wrapped with "(Rewrite=> rule-name expression)"
+    /// or "(Rewrite<= rule-name expression)".
+    /// "Rewrite=>" indicates that the previous term is rewritten to the current term
+    /// and "Rewrite<=" indicates that the current term is rewritten to the previous term.
+    /// The name of the rule or the reason provided to [`union_instantiations`](super::EGraph::union_instantiations).
+    ///
+    /// Example explanation:
+    /// ```text
+    /// (+ 1 (- a (* (- 2 1) a)))
+    /// (+ 1 (- a (* (Rewrite=> constant_fold 1) a)))
+    /// (+ 1 (- a (Rewrite=> comm-mul (* a 1))))
+    /// (+ 1 (- a (Rewrite<= mul-one a)))
+    /// (+ 1 (Rewrite=> cancel-sub 0))
+    /// (Rewrite=> constant_fold 1)
+    /// ```
     pub fn get_flat_string(&mut self) -> String {
         self.get_flat_strings().join("\n")
     }
 
-    /// Get the tree-style explanation as a string.
-    pub fn get_string(&self) -> String {
-        self.to_string()
-    }
-
-    /// Get the tree-style explanation with let binding as a string.
-    /// See [`get_sexp_with_let`](Explanation::get_sexp_with_let) for the format of these strings.
-    pub fn get_string_with_let(&self) -> String {
-        let mut s = "".to_string();
-        pretty_print(&mut s, &self.get_sexp_with_let(), 100, 0).unwrap();
-        s
-    }
-
-    /// Get each term in the explanation as a string.
-    pub fn get_flat_strings(&mut self) -> Vec<String> {
-        self.make_flat_explanation()
-            .iter()
-            .map(|e| e.to_string())
-            .collect()
-    }
-
-    /// Get each the tree-style explanation as an s-expression.
+    /// Get each the tree-style explanation as an s-expression string.
     ///
     /// The s-expression format mirrors the format of each [`TreeTerm`].
     /// When a child contains an explanation, the explanation is wrapped with
@@ -139,17 +166,12 @@ impl<L: Language + Display> Explanation<L> {
     ///      (Rewrite=> cancel-sub 0)))
     /// (Rewrite=> constant_fold 1)
     /// ```
-    pub fn get_sexp(&self) -> Sexp {
-        let mut items = vec![Sexp::String("Explanation".to_string())];
-        for e in self.explanation_trees.iter() {
-            items.push(e.get_sexp());
-        }
-
-        Sexp::List(items)
+    pub fn get_string(&self) -> String {
+        self.to_string()
     }
 
-    /// Get the tree-style explanation as an s-expression with let binding
-    /// to enable sharing of subproofs.
+    /// Get the tree-style explanation as an s-expression string
+    /// with let binding to enable sharing of subproofs.
     ///
     /// The following explanation shows that `(+ x (+ x (+ x x))) = (* 4 x)`.
     /// Steps such as factoring are shared via the let bindings.
@@ -179,7 +201,76 @@ impl<L: Language + Display> Explanation<L> {
     ///                 (Rewrite=> constant_fold 4))
     ///               x))))))
     /// ```
-    pub fn get_sexp_with_let(&self) -> Sexp {
+    pub fn get_string_with_let(&self) -> String {
+        let mut s = "".to_string();
+        pretty_print(&mut s, &self.get_sexp_with_let(), 100, 0).unwrap();
+        s
+    }
+
+    /// Get each term in the explanation as a string.
+    /// See [`get_string`](Explanation::get_string) for the format of these strings.
+    pub fn get_flat_strings(&mut self) -> Vec<String> {
+        self.make_flat_explanation()
+            .iter()
+            .map(|e| e.to_string())
+            .collect()
+    }
+
+    fn get_sexp(&self) -> Sexp {
+        let mut items = vec![Sexp::String("Explanation".to_string())];
+        for e in self.explanation_trees.iter() {
+            items.push(e.get_sexp());
+        }
+
+        Sexp::List(items)
+    }
+
+    /// Get the size of this explanation tree in terms of the number of rewrites
+    /// in the let-bound version of the tree.
+    pub fn get_tree_size(&self) -> usize {
+        let mut seen = Default::default();
+        let mut seen_adjacent = Default::default();
+        let mut sum = 0;
+        for e in self.explanation_trees.iter() {
+            sum += self.tree_size(&mut seen, &mut seen_adjacent, e);
+        }
+        sum
+    }
+
+    fn tree_size(
+        &self,
+        seen: &mut HashSet<*const TreeTerm<L>>,
+        seen_adjacent: &mut HashSet<(Id, Id)>,
+        current: &Rc<TreeTerm<L>>,
+    ) -> usize {
+        if !seen.insert(&**current as *const TreeTerm<L>) {
+            return 0;
+        }
+        let mut my_size = 0;
+        if current.forward_rule.is_some() {
+            my_size += 1;
+        }
+        if current.backward_rule.is_some() {
+            my_size += 1;
+        }
+        assert!(my_size <= 1);
+        if my_size == 1 {
+            if !seen_adjacent.insert((current.current, current.last)) {
+                return 0;
+            } else {
+                seen_adjacent.insert((current.last, current.current));
+            }
+        }
+
+        for child_proof in &current.child_proofs {
+            for child in child_proof {
+                my_size += self.tree_size(seen, seen_adjacent, child);
+            }
+        }
+        my_size
+    }
+
+    fn get_sexp_with_let(&self) -> Sexp {
         let mut shared: HashSet<*const TreeTerm<L>> = Default::default();
         let mut to_let_bind = vec![];
         for term in &self.explanation_trees {
@@ -231,32 +322,6 @@ impl<L: Language + Display> Explanation<L> {
         if !term.child_proofs.is_empty() && !shared.insert(&*term as *const TreeTerm<L>) {
             to_let_bind.push(term);
         }
-    }
-
-    /// Get each flattened term in the explanation as an s-expression.
-    ///
-    /// The s-expression format mirrors the format of each [`FlatTerm`].
-    /// Each expression after the first will be annotated in one location with a rewrite.
-    /// When a term is being re-written it is wrapped with "(Rewrite=> rule-name expression)"
-    /// or "(Rewrite<= rule-name expression)".
-    /// "Rewrite=>" indicates that the previous term is rewritten to the current term
-    /// and "Rewrite<=" indicates that the current term is rewritten to the previous term.
-    /// The name of the rule or the reason provided to [`union_instantiations`](super::EGraph::union_instantiations).
-    ///
-    /// Example explanation:
-    /// ```text
-    /// (+ 1 (- a (* (- 2 1) a)))
-    /// (+ 1 (- a (* (Rewrite=> constant_fold 1) a)))
-    /// (+ 1 (- a (Rewrite=> comm-mul (* a 1))))
-    /// (+ 1 (- a (Rewrite<= mul-one a)))
-    /// (+ 1 (Rewrite=> cancel-sub 0))
-    /// (Rewrite=> constant_fold 1)
-    /// ```
-    pub fn get_flat_sexps(&mut self) -> Vec<Sexp> {
-        self.make_flat_explanation()
-            .iter()
-            .map(|e| e.get_sexp())
-            .collect()
     }
 }
 
@@ -383,6 +448,9 @@ pub struct TreeTerm<L: Language> {
     pub forward_rule: Option<Symbol>,
     /// A list of child proofs, each transforming the initial term to the final term for that child.
     pub child_proofs: Vec<TreeExplanation<L>>,
+
+    last: Id,
+    current: Id,
 }
 
 impl<L: Language> TreeTerm<L> {
@@ -393,6 +461,8 @@ impl<L: Language> TreeTerm<L> {
             backward_rule: None,
             forward_rule: None,
             child_proofs,
+            current: Id::from(0),
+            last: Id::from(0),
         }
     }
 
@@ -413,6 +483,34 @@ impl<L: Language> TreeTerm<L> {
         }
 
         flat_proof
+    }
+
+    /// Get a FlatTerm representing the first term in this proof.
+    pub fn get_initial_flat_term(&self) -> FlatTerm<L> {
+        FlatTerm {
+            node: self.node.clone(),
+            backward_rule: self.backward_rule,
+            forward_rule: self.forward_rule,
+            children: self
+                .child_proofs
+                .iter()
+                .map(|child_proof| child_proof[0].get_initial_flat_term())
+                .collect(),
+        }
+    }
+
+    /// Get a FlatTerm representing the final term in this proof.
+    pub fn get_last_flat_term(&self) -> FlatTerm<L> {
+        FlatTerm {
+            node: self.node.clone(),
+            backward_rule: self.backward_rule,
+            forward_rule: self.forward_rule,
+            children: self
+                .child_proofs
+                .iter()
+                .map(|child_proof| child_proof[child_proof.len() - 1].get_last_flat_term())
+                .collect(),
+        }
     }
 
     /// Construct the [`FlatExplanation`] for this TreeTerm.
@@ -483,7 +581,7 @@ pub struct FlatTerm<L: Language> {
     pub children: FlatExplanation<L>,
 }
 
-impl<L: Language + Display> Display for FlatTerm<L> {
+impl<L: Language + Display + FromOp> Display for FlatTerm<L> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let s = self.get_sexp().to_string();
         write!(f, "{}", s)
@@ -506,7 +604,8 @@ impl<L: Language> PartialEq for FlatTerm<L> {
 }
 
 impl<L: Language> FlatTerm<L> {
-    fn remove_rewrites(&self) -> FlatTerm<L> {
+    /// Remove the rewrite annotation from this flatterm, if any.
+    pub fn remove_rewrites(&self) -> FlatTerm<L> {
         FlatTerm::new(
             self.node.clone(),
             self.children
@@ -539,10 +638,14 @@ impl<L: Language> Default for Explain<L> {
     }
 }
 
-impl<L: Language + Display> FlatTerm<L> {
+impl<L: Language + Display + FromOp> FlatTerm<L> {
     /// Convert this FlatTerm to an S-expression.
-    /// See [`get_flat_sexps`](Explanation::get_flat_sexps) for the format of these expressions.
-    pub fn get_sexp(&self) -> Sexp {
+    /// See [`get_flat_string`](Explanation::get_flat_string) for the format of these expressions.
+    pub fn get_string(&self) -> String {
+        self.get_sexp().to_string()
+    }
+
+    fn get_sexp(&self) -> Sexp {
         let op = Sexp::String(self.node.to_string());
         let mut expr = if self.node.is_leaf() {
             op
@@ -572,9 +675,14 @@ impl<L: Language + Display> FlatTerm<L> {
 
         expr
     }
+
+    /// Convert this FlatTerm to a RecExpr.
+    pub fn get_recexpr(&self) -> RecExpr<L> {
+        self.remove_rewrites().to_string().parse().unwrap()
+    }
 }
 
-impl<L: Language + Display> Display for TreeTerm<L> {
+impl<L: Language + Display + FromOp> Display for TreeTerm<L> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let mut buf = String::new();
         let width = 80;
@@ -583,17 +691,12 @@ impl<L: Language + Display> Display for TreeTerm<L> {
     }
 }
 
-impl<L: Language + Display> TreeTerm<L> {
-    /// Convert this TreeTerm to an S-expression.
-    /// See [`get_sexp`](Explanation::get_sexp) for the format of these expressions.
-    pub fn get_sexp(&self) -> Sexp {
+impl<L: Language + Display + FromOp> TreeTerm<L> {
+    fn get_sexp(&self) -> Sexp {
         self.get_sexp_with_bindings(&Default::default())
     }
 
-    pub(crate) fn get_sexp_with_bindings(
-        &self,
-        bindings: &HashMap<*const TreeTerm<L>, Sexp>,
-    ) -> Sexp {
+    fn get_sexp_with_bindings(&self, bindings: &HashMap<*const TreeTerm<L>, Sexp>) -> Sexp {
         let op = Sexp::String(self.node.to_string());
         let mut expr = if self.node.is_leaf() {
             op
@@ -736,6 +839,34 @@ impl<L: Language> FlatTerm<L> {
     }
 }
 
+// Make sure to use push_increase instead of push when using priority queue
+#[derive(Copy, Clone, Eq, PartialEq)]
+struct HeapState<I> {
+    cost: usize,
+    item: I,
+}
+// The priority queue depends on `Ord`.
+// Explicitly implement the trait so the queue becomes a min-heap
+// instead of a max-heap.
+impl<I: Eq + PartialEq> Ord for HeapState<I> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        // Notice that the we flip the ordering on costs.
+        // In case of a tie we compare positions - this step is necessary
+        // to make implementations of `PartialEq` and `Ord` consistent.
+        other
+            .cost
+            .cmp(&self.cost)
+            .then_with(|| self.cost.cmp(&other.cost))
+    }
+}
+
+// `PartialOrd` needs to be implemented as well.
+impl<I: Eq + PartialEq> PartialOrd for HeapState<I> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 impl<L: Language> Explain<L> {
     fn node_to_explanation(
         &self,
@@ -754,6 +885,33 @@ impl<L: Language> Explain<L> {
             cache.insert(node_id, res.clone());
             res
         }
+    }
+
+    pub(crate) fn node_to_recexpr(&self, node_id: Id) -> RecExpr<L> {
+        let mut res = Default::default();
+        let mut cache = Default::default();
+        self.node_to_recexpr_internal(&mut res, node_id, &mut cache);
+        res
+    }
+
+    fn node_to_recexpr_internal(
+        &self,
+        res: &mut RecExpr<L>,
+        node_id: Id,
+        cache: &mut HashMap<Id, Id>,
+    ) {
+        let new_node = self.explainfind[usize::from(node_id)]
+            .node
+            .clone()
+            .map_children(|child| {
+                if let Some(existing) = cache.get(&child) {
+                    *existing
+                } else {
+                    self.node_to_recexpr_internal(res, child, cache);
+                    Id::from(res.as_ref().len() - 1)
+                }
+            });
+        res.add(new_node);
     }
 
     fn node_to_flat_explanation(&self, node_id: Id) -> FlatTerm<L> {
@@ -795,12 +953,15 @@ impl<L: Language> Explain<L> {
                 }
             }
 
-            if explain_node.next != Id::from(i) {
+            if explain_node.parent_connection.next != Id::from(i) {
                 let mut current_explanation = self.node_to_flat_explanation(Id::from(i));
-                let mut next_explanation = self.node_to_flat_explanation(explain_node.next);
-                if let Justification::Rule(rule_name) = &explain_node.justification {
+                let mut next_explanation =
+                    self.node_to_flat_explanation(explain_node.parent_connection.next);
+                if let Justification::Rule(rule_name) =
+                    &explain_node.parent_connection.justification
+                {
                     if let Some(rule) = rule_table.get(rule_name) {
-                        if !explain_node.is_rewrite_forward {
+                        if !explain_node.parent_connection.is_rewrite_forward {
                             std::mem::swap(&mut current_explanation, &mut next_explanation);
                         }
                         if !Explanation::check_rewrite(
@@ -821,6 +982,8 @@ impl<L: Language> Explain<L> {
         Explain {
             explainfind: vec![],
             uncanon_memo: Default::default(),
+            shortest_explanation_memo: Default::default(),
+            optimize_explanation_lengths: true,
         }
     }
 
@@ -833,26 +996,68 @@ impl<L: Language> Explain<L> {
         self.uncanon_memo.insert(node.clone(), set);
         self.explainfind.push(ExplainNode {
             node,
-            justification: Justification::Congruence,
-            next: set,
-            current: set,
+            neighbors: vec![],
+            parent_connection: Connection {
+                justification: Justification::Congruence,
+                is_rewrite_forward: false,
+                next: set,
+                current: set,
+            },
             existance_node,
-            is_rewrite_forward: false,
         });
         set
     }
 
     // reverse edges recursively to make this node the leader
     fn make_leader(&mut self, node: Id) {
-        let next = self.explainfind[usize::from(node)].next;
+        let next = self.explainfind[usize::from(node)].parent_connection.next;
         if next != node {
             self.make_leader(next);
-            self.explainfind[usize::from(next)].justification =
-                self.explainfind[usize::from(node)].justification.clone();
-            self.explainfind[usize::from(next)].is_rewrite_forward =
-                !self.explainfind[usize::from(node)].is_rewrite_forward;
-            self.explainfind[usize::from(next)].next = node;
+            let node_connection = &self.explainfind[usize::from(node)].parent_connection;
+            let pconnection = Connection {
+                justification: node_connection.justification.clone(),
+                is_rewrite_forward: !node_connection.is_rewrite_forward,
+                next: node,
+                current: next,
+            };
+            self.explainfind[usize::from(next)].parent_connection = pconnection;
         }
+    }
+
+    pub(crate) fn alternate_rewrite(&mut self, node1: Id, node2: Id, justification: Justification) {
+        if node1 == node2 {
+            return;
+        }
+        if let Some((cost, _)) = self.shortest_explanation_memo.get(&(node1, node2)) {
+            if cost <= &1 {
+                return;
+            }
+        }
+
+        let lconnection = Connection {
+            justification: justification.clone(),
+            is_rewrite_forward: true,
+            next: node2,
+            current: node1,
+        };
+
+        let rconnection = Connection {
+            justification,
+            is_rewrite_forward: false,
+            next: node1,
+            current: node2,
+        };
+
+        self.explainfind[usize::from(node1)]
+            .neighbors
+            .push(lconnection);
+        self.explainfind[usize::from(node2)]
+            .neighbors
+            .push(rconnection);
+        self.shortest_explanation_memo
+            .insert((node1, node2), (1, node2));
+        self.shortest_explanation_memo
+            .insert((node2, node1), (1, node1));
     }
 
     pub(crate) fn union(
@@ -872,15 +1077,59 @@ impl<L: Language> Explain<L> {
         }
 
         self.make_leader(node1);
-        self.explainfind[usize::from(node1)].next = node2;
-        self.explainfind[usize::from(node1)].justification = justification;
-        self.explainfind[usize::from(node1)].is_rewrite_forward = true;
+        self.explainfind[usize::from(node1)].parent_connection.next = node2;
+
+        if let Justification::Rule(_) = justification {
+            self.shortest_explanation_memo
+                .insert((node1, node2), (1, node2));
+            self.shortest_explanation_memo
+                .insert((node2, node1), (1, node1));
+        }
+
+        let pconnection = Connection {
+            justification: justification.clone(),
+            is_rewrite_forward: true,
+            next: node2,
+            current: node1,
+        };
+        let other_pconnection = Connection {
+            justification,
+            is_rewrite_forward: false,
+            next: node1,
+            current: node2,
+        };
+        self.explainfind[usize::from(node1)]
+            .neighbors
+            .push(pconnection.clone());
+        self.explainfind[usize::from(node2)]
+            .neighbors
+            .push(other_pconnection);
+        self.explainfind[usize::from(node1)].parent_connection = pconnection;
     }
 
-    pub(crate) fn explain_equivalence(&mut self, left: Id, right: Id) -> Explanation<L> {
+    pub(crate) fn populate_enodes<N: Analysis<L>>(&self, mut egraph: EGraph<L, N>) -> EGraph<L, N> {
+        for i in 0..self.explainfind.len() {
+            let node = &self.explainfind[i];
+            egraph.add(node.node.clone());
+        }
+
+        egraph
+    }
+
+    pub(crate) fn explain_equivalence<N: Analysis<L>>(
+        &mut self,
+        left: Id,
+        right: Id,
+        unionfind: &mut UnionFind,
+        classes: &HashMap<Id, EClass<L, N::Data>>,
+    ) -> Explanation<L> {
+        if self.optimize_explanation_lengths {
+            self.calculate_shortest_explanations::<N>(left, right, classes, unionfind);
+        }
+
         let mut cache = Default::default();
         let mut enode_cache = Default::default();
-        Explanation::new(self.explain_enodes(left, right, &mut cache, &mut enode_cache))
+        Explanation::new(self.explain_enodes(left, right, &mut cache, &mut enode_cache, false))
     }
 
     pub(crate) fn explain_existance(&mut self, left: Id) -> Explanation<L> {
@@ -908,29 +1157,75 @@ impl<L: Language> Explain<L> {
                 return right;
             }
 
-            let next_left = self.explainfind[usize::from(left)].next;
-            let next_right = self.explainfind[usize::from(right)].next;
+            let next_left = self.explainfind[usize::from(left)].parent_connection.next;
+            let next_right = self.explainfind[usize::from(right)].parent_connection.next;
             assert!(next_left != left || next_right != right);
             left = next_left;
             right = next_right;
         }
     }
 
-    fn get_nodes(&self, mut node: Id, ancestor: Id) -> Vec<&ExplainNode<L>> {
+    fn get_connections(&self, mut node: Id, ancestor: Id) -> Vec<Connection> {
         if node == ancestor {
             return vec![];
         }
 
         let mut nodes = vec![];
         loop {
-            let next = self.explainfind[usize::from(node)].next;
-            nodes.push(&self.explainfind[usize::from(node)]);
+            let next = self.explainfind[usize::from(node)].parent_connection.next;
+            nodes.push(
+                self.explainfind[usize::from(node)]
+                    .parent_connection
+                    .clone(),
+            );
             if next == ancestor {
                 return nodes;
             }
             assert!(next != node);
             node = next;
         }
+    }
+
+    fn get_path_unoptimized(&self, left: Id, right: Id) -> (Vec<Connection>, Vec<Connection>) {
+        let ancestor = self.common_ancestor(left, right);
+        let left_connections = self.get_connections(left, ancestor);
+        let right_connections = self.get_connections(right, ancestor);
+        (left_connections, right_connections)
+    }
+
+    fn get_neighbor(&self, current: Id, next: Id) -> Connection {
+        for neighbor in &self.explainfind[usize::from(current)].neighbors {
+            if neighbor.next == next {
+                if let Justification::Rule(_) = neighbor.justification {
+                    return neighbor.clone();
+                }
+            }
+        }
+        Connection {
+            justification: Justification::Congruence,
+            current,
+            next,
+            is_rewrite_forward: true,
+        }
+    }
+
+    fn get_path(&self, mut left: Id, right: Id) -> (Vec<Connection>, Vec<Connection>) {
+        let mut left_connections = vec![];
+        loop {
+            if left == right {
+                return (left_connections, vec![]);
+            }
+            if let Some((_, next)) = self.shortest_explanation_memo.get(&(left, right)) {
+                left_connections.push(self.get_neighbor(left, *next));
+                left = *next;
+            } else {
+                break;
+            }
+        }
+
+        let (restleft, right_connections) = self.get_path_unoptimized(left, right);
+        left_connections.extend(restleft);
+        (left_connections, right_connections)
     }
 
     fn explain_enode_existance(
@@ -949,26 +1244,18 @@ impl<L: Language> Explain<L> {
         }
 
         // case 2)
-        if graphnode.next == existance || existance_node.next == node {
-            let direction;
-            let justification;
-            if graphnode.next == existance {
-                direction = !graphnode.is_rewrite_forward;
-                justification = &graphnode.justification;
-            } else {
-                direction = existance_node.is_rewrite_forward;
-                justification = &existance_node.justification;
+        if graphnode.parent_connection.next == existance
+            || existance_node.parent_connection.next == node
+        {
+            let mut connection = graphnode.parent_connection.clone();
+
+            if graphnode.parent_connection.next == existance {
+                connection.is_rewrite_forward = !connection.is_rewrite_forward;
+                std::mem::swap(&mut connection.next, &mut connection.current);
             }
             return self.explain_enode_existance(
                 existance,
-                self.explain_adjacent(
-                    existance,
-                    node,
-                    direction,
-                    justification,
-                    cache,
-                    enode_cache,
-                ),
+                self.explain_adjacent(connection, cache, enode_cache, false),
                 cache,
                 enode_cache,
             );
@@ -1000,32 +1287,32 @@ impl<L: Language> Explain<L> {
         right: Id,
         cache: &mut ExplainCache<L>,
         node_explanation_cache: &mut NodeExplanationCache<L>,
+        use_unoptimized: bool,
     ) -> TreeExplanation<L> {
         let mut proof = vec![self.node_to_explanation(left, node_explanation_cache)];
-        let ancestor = self.common_ancestor(left, right);
-        let left_nodes = self.get_nodes(left, ancestor);
-        let right_nodes = self.get_nodes(right, ancestor);
 
-        for (i, node) in left_nodes
+        let (left_connections, right_connections) = if use_unoptimized {
+            self.get_path_unoptimized(left, right)
+        } else {
+            self.get_path(left, right)
+        };
+
+        for (i, connection) in left_connections
             .iter()
-            .chain(right_nodes.iter().rev())
+            .chain(right_connections.iter().rev())
             .enumerate()
         {
-            let mut direction = node.is_rewrite_forward;
-            let mut next = node.next;
-            let mut current = node.current;
-            if i >= left_nodes.len() {
-                direction = !direction;
-                std::mem::swap(&mut next, &mut current);
+            let mut connection = connection.clone();
+            if i >= left_connections.len() {
+                connection.is_rewrite_forward = !connection.is_rewrite_forward;
+                std::mem::swap(&mut connection.next, &mut connection.current);
             }
 
             proof.push(self.explain_adjacent(
-                current,
-                next,
-                direction,
-                &node.justification,
+                connection,
                 cache,
                 node_explanation_cache,
+                use_unoptimized,
             ));
         }
         proof
@@ -1033,35 +1320,36 @@ impl<L: Language> Explain<L> {
 
     fn explain_adjacent(
         &self,
-        current: Id,
-        next: Id,
-        rule_direction: bool,
-        justification: &Justification,
+        connection: Connection,
         cache: &mut ExplainCache<L>,
         node_explanation_cache: &mut NodeExplanationCache<L>,
+        use_unoptimized: bool,
     ) -> Rc<TreeTerm<L>> {
-        let fingerprint = (current, next);
+        let fingerprint = (connection.current, connection.next);
 
         if let Some(answer) = cache.get(&fingerprint) {
             return answer.clone();
         }
 
-        let term = match justification {
+        let term = match connection.justification {
             Justification::Rule(name) => {
                 let mut rewritten =
-                    (*self.node_to_explanation(next, node_explanation_cache)).clone();
-                if rule_direction {
-                    rewritten.forward_rule = Some(*name);
+                    (*self.node_to_explanation(connection.next, node_explanation_cache)).clone();
+                if connection.is_rewrite_forward {
+                    rewritten.forward_rule = Some(name);
                 } else {
-                    rewritten.backward_rule = Some(*name);
+                    rewritten.backward_rule = Some(name);
                 }
+
+                rewritten.current = connection.next;
+                rewritten.last = connection.current;
 
                 Rc::new(rewritten)
             }
             Justification::Congruence => {
                 // add the children proofs to the last explanation
-                let current_node = &self.explainfind[usize::from(current)].node;
-                let next_node = &self.explainfind[usize::from(next)].node;
+                let current_node = &self.explainfind[usize::from(connection.current)].node;
+                let next_node = &self.explainfind[usize::from(connection.next)].node;
                 assert!(current_node.matches(next_node));
                 let mut subproofs = vec![];
 
@@ -1075,6 +1363,7 @@ impl<L: Language> Explain<L> {
                         *right_child,
                         cache,
                         node_explanation_cache,
+                        use_unoptimized,
                     ));
                 }
                 Rc::new(TreeTerm::new(current_node.clone(), subproofs))
@@ -1084,5 +1373,661 @@ impl<L: Language> Explain<L> {
         cache.insert(fingerprint, term.clone());
 
         term
+    }
+
+    fn find_all_enodes(&self, eclass: Id) -> HashSet<Id> {
+        let mut enodes = HashSet::default();
+        let mut todo = vec![eclass];
+
+        while !todo.is_empty() {
+            let current = todo.pop().unwrap();
+            if enodes.insert(current) {
+                for neighbor in &self.explainfind[usize::from(current)].neighbors {
+                    todo.push(neighbor.next);
+                }
+            }
+        }
+        enodes
+    }
+
+    fn add_tree_depths(&self, node: Id, depths: &mut HashMap<Id, usize>) -> usize {
+        if depths.get(&node).is_none() {
+            let parent = self.parent(node);
+            let depth = if parent == node {
+                0
+            } else {
+                self.add_tree_depths(parent, depths) + 1
+            };
+            depths.insert(node, depth);
+        }
+        return *depths.get(&node).unwrap();
+    }
+
+    fn calculate_tree_depths(&self) -> HashMap<Id, usize> {
+        let mut depths = HashMap::default();
+        for i in 0..self.explainfind.len() {
+            self.add_tree_depths(Id::from(i), &mut depths);
+        }
+        depths
+    }
+
+    fn replace_distance(&mut self, current: Id, next: Id, right: Id, distance: usize) {
+        self.shortest_explanation_memo
+            .insert((current, right), (distance, next));
+    }
+
+    fn populate_path_length(
+        &mut self,
+        right: Id,
+        left_connections: &[Connection],
+        distance_memo: &mut DistanceMemo,
+        target_cost: usize,
+    ) {
+        self.shortest_explanation_memo
+            .insert((right, right), (0, right));
+        let mut last_cost = 0;
+        for connection in left_connections.iter().rev() {
+            let next = connection.next;
+            let current = connection.current;
+            let next_cost = self
+                .shortest_explanation_memo
+                .get(&(next, right))
+                .unwrap()
+                .0;
+            let dist = self.connection_distance(connection, distance_memo);
+            last_cost = dist + next_cost;
+            self.replace_distance(current, next, right, next_cost + dist);
+        }
+        assert!(last_cost <= target_cost);
+    }
+
+    fn distance_between(&mut self, left: Id, right: Id, distance_memo: &mut DistanceMemo) -> usize {
+        if left == right {
+            return 0;
+        }
+        let ancestor = if let Some(a) = distance_memo.common_ancestor.get(&(left, right)) {
+            *a
+        } else {
+            // fall back on calculating ancestor for top-level query (not from congruence)
+            self.common_ancestor(left, right)
+        };
+        // calculate edges until you are past the ancestor
+        self.calculate_parent_distance(left, ancestor, distance_memo);
+        self.calculate_parent_distance(right, ancestor, distance_memo);
+
+        // now all three share an ancestor
+        let a = self.calculate_parent_distance(ancestor, Id::from(usize::MAX), distance_memo);
+        let b = self.calculate_parent_distance(left, Id::from(usize::MAX), distance_memo);
+        let c = self.calculate_parent_distance(right, Id::from(usize::MAX), distance_memo);
+
+        assert!(
+            distance_memo.parent_distance[usize::from(ancestor)].0
+                == distance_memo.parent_distance[usize::from(left)].0
+        );
+        assert!(
+            distance_memo.parent_distance[usize::from(ancestor)].0
+                == distance_memo.parent_distance[usize::from(right)].0
+        );
+
+        // calculate distance to find upper bound
+        b.checked_add(c)
+            .unwrap_or_else(|| panic!("overflow in proof size calculation!"))
+            .checked_sub(
+                a.checked_mul(2)
+                    .unwrap_or_else(|| panic!("overflow in proof size calculation!")),
+            )
+            .unwrap_or_else(|| panic!("common ancestor distance was too large!"))
+
+        //assert_eq!(dist+1, Explanation::new(self.explain_enodes(left, right, &mut Default::default())).make_flat_explanation().len());
+    }
+
+    // TODO use bigint, this overflows easily
+    fn congruence_distance(
+        &mut self,
+        current: Id,
+        next: Id,
+        distance_memo: &mut DistanceMemo,
+    ) -> usize {
+        let current_node = self.explainfind[usize::from(current)].node.clone();
+        let next_node = self.explainfind[usize::from(next)].node.clone();
+        let mut cost: usize = 0;
+        for (left_child, right_child) in current_node
+            .children()
+            .iter()
+            .zip(next_node.children().iter())
+        {
+            cost = cost
+                .checked_add(self.distance_between(*left_child, *right_child, distance_memo))
+                .unwrap();
+        }
+        cost
+    }
+
+    fn connection_distance(
+        &mut self,
+        connection: &Connection,
+        distance_memo: &mut DistanceMemo,
+    ) -> usize {
+        match connection.justification {
+            Justification::Congruence => {
+                self.congruence_distance(connection.current, connection.next, distance_memo)
+            }
+            Justification::Rule(_) => 1,
+        }
+    }
+
+    fn calculate_parent_distance(
+        &mut self,
+        enode: Id,
+        ancestor: Id,
+        distance_memo: &mut DistanceMemo,
+    ) -> usize {
+        loop {
+            let parent = distance_memo.parent_distance[usize::from(enode)].0;
+            let dist = distance_memo.parent_distance[usize::from(enode)].1;
+            if self.parent(parent) == parent {
+                break;
+            }
+
+            let parent_parent = distance_memo.parent_distance[usize::from(parent)].0;
+            if parent_parent != parent {
+                let new_dist = dist + distance_memo.parent_distance[usize::from(parent)].1;
+                distance_memo.parent_distance[usize::from(enode)] = (parent_parent, new_dist);
+            } else {
+                if ancestor == Id::from(usize::MAX) {
+                    break;
+                }
+                if distance_memo.tree_depth.get(&parent).unwrap()
+                    <= distance_memo.tree_depth.get(&ancestor).unwrap()
+                {
+                    break;
+                }
+
+                // find the length of one parent connection
+                let connection = &self.explainfind[usize::from(parent)].parent_connection;
+                let current = connection.current;
+                let next = connection.next;
+                let cost = match connection.justification {
+                    Justification::Congruence => {
+                        self.congruence_distance(current, next, distance_memo)
+                    }
+                    Justification::Rule(_) => 1,
+                };
+                distance_memo.parent_distance[usize::from(parent)] = (self.parent(parent), cost);
+            }
+        }
+
+        //assert_eq!(distance_memo.parent_distance[usize::from(enode)].1+1,
+        //Explanation::new(self.explain_enodes(enode, distance_memo.parent_distance[usize::from(enode)].0, &mut Default::default())).make_flat_explanation().len());
+
+        distance_memo.parent_distance[usize::from(enode)].1
+    }
+
+    fn find_congruence_neighbors<N: Analysis<L>>(
+        &self,
+        classes: &HashMap<Id, EClass<L, N::Data>>,
+        congruence_neighbors: &mut [Vec<Id>],
+        unionfind: &UnionFind,
+    ) {
+        let mut counter = 0;
+        // add the normal congruence edges first
+        for node in &self.explainfind {
+            if let Justification::Congruence = node.parent_connection.justification {
+                let current = node.parent_connection.current;
+                let next = node.parent_connection.next;
+                congruence_neighbors[usize::from(current)].push(next);
+                congruence_neighbors[usize::from(next)].push(current);
+                counter += 1;
+            }
+        }
+
+        'outer: for eclass in classes.keys() {
+            let enodes = self.find_all_enodes(*eclass);
+            // find all congruence nodes
+            let mut cannon_enodes: HashMap<L, Vec<Id>> = Default::default();
+            for enode in &enodes {
+                let cannon = self.explainfind[usize::from(*enode)]
+                    .node
+                    .clone()
+                    .map_children(|child| unionfind.find(child));
+                if let Some(others) = cannon_enodes.get_mut(&cannon) {
+                    for other in others.iter() {
+                        congruence_neighbors[usize::from(*enode)].push(*other);
+                        congruence_neighbors[usize::from(*other)].push(*enode);
+                    }
+                    counter += 1;
+                    others.push(*enode);
+                } else {
+                    counter += 1;
+                    cannon_enodes.insert(cannon, vec![*enode]);
+                }
+                // Don't find every congruence edge because that could be n^2 edges
+                if counter > CONGRUENCE_LIMIT * self.explainfind.len() {
+                    break 'outer;
+                }
+            }
+        }
+    }
+
+    pub fn get_num_congr<N: Analysis<L>>(
+        &self,
+        classes: &HashMap<Id, EClass<L, N::Data>>,
+        unionfind: &UnionFind,
+    ) -> usize {
+        let mut congruence_neighbors = vec![vec![]; self.explainfind.len()];
+        self.find_congruence_neighbors::<N>(classes, &mut congruence_neighbors, unionfind);
+        let mut count = 0;
+        for v in congruence_neighbors {
+            count += v.len();
+        }
+
+        count / 2
+    }
+
+    pub fn get_num_nodes(&self) -> usize {
+        self.explainfind.len()
+    }
+
+    fn shortest_path_modulo_congruence(
+        &mut self,
+        start: Id,
+        end: Id,
+        congruence_neighbors: &[Vec<Id>],
+        distance_memo: &mut DistanceMemo,
+    ) -> Option<(Vec<Connection>, Vec<Connection>)> {
+        let mut todo = BinaryHeap::new();
+        todo.push(HeapState {
+            cost: 0,
+            item: Connection {
+                current: start,
+                next: start,
+                justification: Justification::Congruence,
+                is_rewrite_forward: true,
+            },
+        });
+
+        let mut last = HashMap::default();
+        let mut path_cost = HashMap::default();
+
+        'outer: loop {
+            if todo.is_empty() {
+                break 'outer;
+            }
+            let state = todo.pop().unwrap();
+            let connection = state.item;
+            let cost_so_far = state.cost;
+            let current = connection.next;
+
+            if last.get(&current).is_some() {
+                continue 'outer;
+            } else {
+                last.insert(current, connection);
+                path_cost.insert(current, cost_so_far);
+            }
+
+            if current == end {
+                break;
+            }
+
+            for neighbor in &self.explainfind[usize::from(current)].neighbors {
+                if let Justification::Rule(_) = neighbor.justification {
+                    let neighbor_cost = cost_so_far.checked_add(1).unwrap();
+                    todo.push(HeapState {
+                        item: neighbor.clone(),
+                        cost: neighbor_cost,
+                    });
+                }
+            }
+
+            for other in congruence_neighbors[usize::from(current)].iter() {
+                let next = other;
+                let distance = self.congruence_distance(current, *next, distance_memo);
+                let next_cost = cost_so_far + distance;
+                todo.push(HeapState {
+                    item: Connection {
+                        current,
+                        next: *next,
+                        justification: Justification::Congruence,
+                        is_rewrite_forward: true,
+                    },
+                    cost: next_cost,
+                });
+            }
+        }
+
+        let total_cost = path_cost.get(&end);
+
+        let left_connections;
+        let mut right_connections = vec![];
+
+        // assert that we found a path better than the normal one
+        let dist = self.distance_between(start, end, distance_memo);
+        if *total_cost.unwrap() > dist {
+            panic!(
+                "Found cost greater than baseline {} vs {}",
+                total_cost.unwrap(),
+                dist
+            );
+        }
+        if *total_cost.unwrap() == self.distance_between(start, end, distance_memo) {
+            let (a_left_connections, a_right_connections) = self.get_path_unoptimized(start, end);
+            left_connections = a_left_connections;
+            right_connections = a_right_connections;
+        } else {
+            let mut current = end;
+            let mut connections = vec![];
+            while current != start {
+                let prev = last.get(&current);
+                if let Some(prev_connection) = prev {
+                    connections.push(prev_connection.clone());
+                    current = prev_connection.current;
+                } else {
+                    break;
+                }
+            }
+            connections.reverse();
+            self.populate_path_length(
+                end,
+                &connections,
+                distance_memo,
+                *path_cost.get(&end).unwrap(),
+            );
+            left_connections = connections;
+        }
+
+        Some((left_connections, right_connections))
+    }
+
+    fn greedy_short_explanations(
+        &mut self,
+        start: Id,
+        end: Id,
+        congruence_neighbors: &[Vec<Id>],
+        distance_memo: &mut DistanceMemo,
+        mut fuel: usize,
+    ) {
+        let mut todo_congruence = VecDeque::new();
+        todo_congruence.push_back((start, end));
+
+        while !todo_congruence.is_empty() {
+            let (start, end) = todo_congruence.pop_front().unwrap();
+            let eclass_size = self.find_all_enodes(start).len();
+            if fuel < eclass_size {
+                continue;
+            }
+            fuel -= eclass_size;
+
+            let (left_connections, right_connections) = self
+                .shortest_path_modulo_congruence(start, end, congruence_neighbors, distance_memo)
+                .unwrap();
+
+            //assert!(Explanation::new(self.explain_enodes(start, end, &mut Default::default())).make_flat_explanation().len()-1 <= total_cost);
+
+            for (i, connection) in left_connections
+                .iter()
+                .chain(right_connections.iter().rev())
+                .enumerate()
+            {
+                let mut next = connection.next;
+                let mut current = connection.current;
+                if i >= left_connections.len() {
+                    std::mem::swap(&mut next, &mut current);
+                }
+                if let Justification::Congruence = connection.justification {
+                    let current_node = self.explainfind[usize::from(current)].node.clone();
+                    let next_node = self.explainfind[usize::from(next)].node.clone();
+                    for (left_child, right_child) in current_node
+                        .children()
+                        .iter()
+                        .zip(next_node.children().iter())
+                    {
+                        todo_congruence.push_back((*left_child, *right_child));
+                    }
+                }
+            }
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn tarjan_ocla(
+        &self,
+        enode: Id,
+        children: &HashMap<Id, Vec<Id>>,
+        common_ancestor_queries: &HashMap<Id, Vec<Id>>,
+        black_set: &mut HashSet<Id>,
+        unionfind: &mut UnionFind,
+        ancestor: &mut Vec<Id>,
+        common_ancestor: &mut HashMap<(Id, Id), Id>,
+    ) {
+        ancestor[usize::from(enode)] = enode;
+        for child in children[&enode].iter() {
+            self.tarjan_ocla(
+                *child,
+                children,
+                common_ancestor_queries,
+                black_set,
+                unionfind,
+                ancestor,
+                common_ancestor,
+            );
+            unionfind.union(enode, *child);
+            ancestor[usize::from(unionfind.find(enode))] = enode;
+        }
+
+        if common_ancestor_queries.get(&enode).is_some() {
+            black_set.insert(enode);
+            for other in common_ancestor_queries.get(&enode).unwrap() {
+                if black_set.contains(other) {
+                    let ancestor = ancestor[usize::from(unionfind.find(*other))];
+                    common_ancestor.insert((enode, *other), ancestor);
+                    common_ancestor.insert((*other, enode), ancestor);
+                }
+            }
+        }
+    }
+
+    fn parent(&self, enode: Id) -> Id {
+        self.explainfind[usize::from(enode)].parent_connection.next
+    }
+
+    fn calculate_common_ancestor<N: Analysis<L>>(
+        &self,
+        classes: &HashMap<Id, EClass<L, N::Data>>,
+        congruence_neighbors: &[Vec<Id>],
+    ) -> HashMap<(Id, Id), Id> {
+        let mut common_ancestor_queries = HashMap::default();
+        for (s_int, others) in congruence_neighbors.iter().enumerate() {
+            let start = &Id::from(s_int);
+            for other in others {
+                for (left, right) in self.explainfind[usize::from(*start)]
+                    .node
+                    .children()
+                    .iter()
+                    .zip(self.explainfind[usize::from(*other)].node.children().iter())
+                {
+                    if left != right {
+                        if common_ancestor_queries.get(start).is_none() {
+                            common_ancestor_queries.insert(*start, vec![]);
+                        }
+                        if common_ancestor_queries.get(other).is_none() {
+                            common_ancestor_queries.insert(*other, vec![]);
+                        }
+                        common_ancestor_queries.get_mut(start).unwrap().push(*other);
+                        common_ancestor_queries.get_mut(other).unwrap().push(*start);
+                    }
+                }
+            }
+        }
+
+        let mut common_ancestor = HashMap::default();
+        let mut unionfind = UnionFind::default();
+        let mut ancestor = vec![];
+        for i in 0..self.explainfind.len() {
+            unionfind.make_set();
+            ancestor.push(Id::from(i));
+        }
+        for (eclass, _) in classes.iter() {
+            let enodes = self.find_all_enodes(*eclass);
+            let mut children: HashMap<Id, Vec<Id>> = HashMap::default();
+            for enode in &enodes {
+                children.insert(*enode, vec![]);
+            }
+            for enode in &enodes {
+                if self.parent(*enode) != *enode {
+                    children.get_mut(&self.parent(*enode)).unwrap().push(*enode);
+                }
+            }
+
+            let mut black_set = HashSet::default();
+
+            let mut parent = *enodes.iter().next().unwrap();
+            while parent != self.parent(parent) {
+                parent = self.parent(parent);
+            }
+            self.tarjan_ocla(
+                parent,
+                &children,
+                &common_ancestor_queries,
+                &mut black_set,
+                &mut unionfind,
+                &mut ancestor,
+                &mut common_ancestor,
+            );
+        }
+
+        common_ancestor
+    }
+
+    fn calculate_shortest_explanations<N: Analysis<L>>(
+        &mut self,
+        start: Id,
+        end: Id,
+        classes: &HashMap<Id, EClass<L, N::Data>>,
+        unionfind: &UnionFind,
+    ) {
+        let mut congruence_neighbors = vec![vec![]; self.explainfind.len()];
+        self.find_congruence_neighbors::<N>(classes, &mut congruence_neighbors, unionfind);
+        let mut parent_distance = vec![(Id::from(0), 0); self.explainfind.len()];
+        for (i, entry) in parent_distance.iter_mut().enumerate() {
+            entry.0 = Id::from(i);
+        }
+
+        let mut distance_memo = DistanceMemo {
+            parent_distance,
+            common_ancestor: self.calculate_common_ancestor::<N>(classes, &congruence_neighbors),
+            tree_depth: self.calculate_tree_depths(),
+        };
+
+        let fuel = GREEDY_NUM_ITERS * self.explainfind.len();
+        self.greedy_short_explanations(start, end, &congruence_neighbors, &mut distance_memo, fuel);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::super::*;
+
+    #[test]
+    fn simple_explain() {
+        use SymbolLang as S;
+
+        crate::init_logger();
+        let mut egraph = EGraph::<S, ()>::default().with_explanations_enabled();
+
+        let fa = "(f a)".parse().unwrap();
+        let fb = "(f b)".parse().unwrap();
+        egraph.add_expr(&fa);
+        egraph.add_expr(&fb);
+        egraph.add_expr(&"c".parse().unwrap());
+        egraph.add_expr(&"d".parse().unwrap());
+
+        egraph.union_instantiations(
+            &"a".parse().unwrap(),
+            &"c".parse().unwrap(),
+            &Default::default(),
+            "ac".to_string(),
+        );
+
+        egraph.union_instantiations(
+            &"c".parse().unwrap(),
+            &"d".parse().unwrap(),
+            &Default::default(),
+            "cd".to_string(),
+        );
+
+        egraph.union_instantiations(
+            &"d".parse().unwrap(),
+            &"b".parse().unwrap(),
+            &Default::default(),
+            "db".to_string(),
+        );
+
+        egraph.rebuild();
+
+        assert_eq!(egraph.add_expr(&fa), egraph.add_expr(&fb));
+        assert_eq!(
+            egraph
+                .explain_equivalence(&fa, &fb)
+                .get_flat_strings()
+                .len(),
+            4
+        );
+        assert_eq!(
+            egraph
+                .explain_equivalence(&fa, &fb)
+                .get_flat_strings()
+                .len(),
+            4
+        );
+        assert_eq!(
+            egraph
+                .explain_equivalence(&fa, &fb)
+                .get_flat_strings()
+                .len(),
+            4
+        );
+
+        egraph.union_instantiations(
+            &"(f a)".parse().unwrap(),
+            &"g".parse().unwrap(),
+            &Default::default(),
+            "fag".to_string(),
+        );
+        egraph.union_instantiations(
+            &"g".parse().unwrap(),
+            &"(f b)".parse().unwrap(),
+            &Default::default(),
+            "gfb".to_string(),
+        );
+
+        egraph.rebuild();
+
+        egraph = egraph.without_explanation_length_optimization();
+        assert_eq!(
+            egraph
+                .explain_equivalence(&fa, &fb)
+                .get_flat_strings()
+                .len(),
+            4
+        );
+        egraph = egraph.with_explanation_length_optimization();
+        assert_eq!(
+            egraph
+                .explain_equivalence(&fa, &fb)
+                .get_flat_strings()
+                .len(),
+            3
+        );
+
+        assert_eq!(
+            egraph
+                .explain_equivalence(&fa, &fb)
+                .get_flat_strings()
+                .len(),
+            3
+        );
+
+        egraph.dot().to_dot("target/foo.dot").unwrap();
     }
 }

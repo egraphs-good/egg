@@ -34,7 +34,7 @@ pub fn test_runner<L, A>(
     check_fn: Option<fn(Runner<L, A, ()>)>,
     should_check: bool,
 ) where
-    L: Language + Display + 'static,
+    L: Language + Display + FromOp + 'static,
     A: Analysis<L> + Default,
 {
     let _ = env_logger::builder().is_test(true).try_init();
@@ -85,16 +85,22 @@ pub fn test_runner<L, A>(
             for goal in goals {
                 let matches = goal.search_eclass(&runner.egraph, id).unwrap();
                 let subst = matches.substs[0].clone();
+                // don't optimize the length for the first egraph
+                runner = runner.without_explanation_length_optimization();
                 let mut explained = runner.explain_matches(&start, &goal.ast, &subst);
-                println!("{}", explained);
-                explained.get_sexp_with_let();
-                explained.get_flat_sexps();
+                explained.get_string_with_let();
+                let flattened = explained.make_flat_explanation().clone();
+                let vanilla_len = flattened.len();
                 explained.check_proof(rules);
+                assert!(explained.get_tree_size() > 0);
 
-                let mut existance = runner.explain_existance_pattern(&goal.ast, &subst);
-                existance.get_sexp_with_let();
-                existance.get_flat_sexps();
-                existance.check_proof(rules);
+                runner = runner.with_explanation_length_optimization();
+                let mut explained_short = runner.explain_matches(&start, &goal.ast, &subst);
+                explained_short.get_string_with_let();
+                let short_len = explained_short.get_flat_strings().len();
+                assert!(short_len <= vanilla_len);
+                assert!(explained_short.get_tree_size() > 0);
+                explained_short.check_proof(rules);
             }
         }
 
