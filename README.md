@@ -3,6 +3,7 @@
 [![Crates.io](https://img.shields.io/crates/v/egg.svg)](https://crates.io/crates/egg)
 [![Released Docs.rs](https://img.shields.io/crates/v/egg?color=blue&label=docs)](https://docs.rs/egg/)
 [![Main branch docs](https://img.shields.io/badge/docs-main-blue)](https://egraphs-good.github.io/egg/egg/)
+[![Zulip](https://img.shields.io/badge/zulip-join%20chat-blue)](https://egraphs.zulipchat.com)
 
 Are you using egg?
 Please cite using the BibTeX below and
@@ -41,6 +42,8 @@ Add `egg` to your `Cargo.toml` like this:
 [dependencies]
 egg = "0.9.0"
 ```
+
+Make sure to compile with `--release` if you are measuring performance!
 
 ## Developing
 
