@@ -85,13 +85,13 @@ impl std::fmt::Display for Id {
     }
 }
 
-pub(crate) use {explain::Explain, explain::Justification, unionfind::UnionFind};
+pub(crate) use {explain::Explain, unionfind::UnionFind};
 
 pub use {
     dot::Dot,
     eclass::EClass,
     egraph::EGraph,
-    explain::{Explanation, FlatExplanation, FlatTerm, TreeExplanation, TreeTerm},
+    explain::{Explanation, FlatExplanation, FlatTerm, Justification, TreeExplanation, TreeTerm},
     extract::*,
     language::*,
     multipattern::*,
