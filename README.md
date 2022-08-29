@@ -68,3 +68,15 @@ There are a couple interesting tests in the `tests` directory:
   theorems.
 - `math.rs` implements real arithmetic, with a little bit of symbolic differentiation.
 - `lambda.rs` implements a small lambda calculus, using `egg` as a partial evaluator.
+
+
+### Benchmarking
+
+To get a simple csv of the runtime of each test, you set the environment variable
+`EGG_BENCH_CSV` to something to append a row per test to a csv.
+
+Example:
+```bash
+EGG_BENCH_CSV=math.csv cargo test --test math --release -- --nocapture --test --test-threads=1
+```
+

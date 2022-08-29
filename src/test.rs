@@ -3,7 +3,7 @@
 These are not considered part of the public api.
 */
 
-use std::fmt::Display;
+use std::{fmt::Display, fs::File, io::Write, path::PathBuf};
 
 use crate::*;
 
@@ -26,7 +26,7 @@ where
 
 #[allow(clippy::type_complexity)]
 pub fn test_runner<L, A>(
-    _name: &str,
+    name: &str,
     runner: Option<Runner<L, A, ()>>,
     rules: &[Rewrite<L, A>],
     start: RecExpr<L>,
@@ -78,8 +78,18 @@ pub fn test_runner<L, A>(
     let mut runner = runner.run(rules);
 
     if should_check {
-        runner.print_report();
+        let report = runner.report();
+        println!("{report}");
         runner.egraph.check_goals(id, goals);
+
+        if let Some(filename) = env_var::<PathBuf>("EGG_BENCH_CSV") {
+            let mut file = File::options()
+                .create(true)
+                .append(true)
+                .open(&filename)
+                .unwrap_or_else(|_| panic!("Couldn't open {:?}", filename));
+            writeln!(file, "{},{}", name, runner.report().total_time).unwrap();
+        }
 
         if runner.egraph.are_explanations_enabled() {
             for goal in goals {
