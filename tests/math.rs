@@ -82,7 +82,7 @@ impl Analysis<Math> for ConstantFold {
     }
 
     fn modify(egraph: &mut EGraph, id: Id) {
-        let class = egraph[id].clone();
+        let class = &egraph[id];
         if let Some((c, pat)) = class.data {
             if egraph.are_explanations_enabled() {
                 egraph.union_instantiations(
