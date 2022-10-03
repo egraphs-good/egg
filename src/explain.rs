@@ -18,7 +18,9 @@ const GREEDY_NUM_ITERS: usize = 10;
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 #[cfg_attr(feature = "serde-1", derive(serde::Serialize, serde::Deserialize))]
 pub enum Justification {
+    /// Justification by a rule with this name.
     Rule(Symbol),
+    /// Justification by congruence.
     Congruence,
 }
 
