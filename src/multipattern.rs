@@ -281,7 +281,11 @@ mod tests {
                       ?b1 = (tag ?b ?ctx2)" 
                       =>
                       "?a1 = ?b1")];
-        let runner = Runner::default().with_egraph(egraph).run(&rules);
+        let runner = Runner::default()
+            .with_scheduler(SimpleScheduler)
+            .with_egraph(egraph)
+            .run(&rules);
+
         assert_eq!(runner.egraph.find(x1), runner.egraph.find(y1));
         assert_eq!(runner.egraph.find(y2), runner.egraph.find(z2));
 

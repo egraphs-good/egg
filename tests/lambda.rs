@@ -292,7 +292,7 @@ egg::test_fn! {
     runner = Runner::default()
         .with_time_limit(std::time::Duration::from_secs(20))
         .with_node_limit(150_000)
-        .with_iter_limit(60),
+        .with_iter_limit(600),
     "(let compose (lam f (lam g (lam x (app (var f)
                                        (app (var g) (var x))))))
      (let repeat (fix repeat (lam fun (lam n
@@ -329,6 +329,7 @@ egg::test_fn! {
     #[cfg_attr(feature = "test-explanations", ignore)]
     lambda_fib, rules(),
     runner = Runner::default()
+        .with_scheduler(TieredScheduler::default().set_tier("add-assoc", 2))
         .with_iter_limit(60)
         .with_node_limit(500_000),
     "(let fib (fix fib (lam n

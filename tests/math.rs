@@ -310,10 +310,11 @@ egg::test_fn! {
 
 #[test]
 fn assoc_mul_saturates() {
+    let _ = env_logger::builder().is_test(true).try_init();
     let expr: RecExpr<Math> = "(* x 1)".parse().unwrap();
 
     let runner: Runner<Math, ConstantFold> = Runner::default()
-        .with_iter_limit(3)
+        .with_scheduler(SimpleScheduler)
         .with_expr(&expr)
         .run(&rules());
 
@@ -342,6 +343,7 @@ fn math_lp_extract() {
     let expr: RecExpr<Math> = "(pow (+ x (+ x x)) (+ x x))".parse().unwrap();
 
     let runner: Runner<Math, ConstantFold> = Runner::default()
+        .with_scheduler(SimpleScheduler)
         .with_iter_limit(3)
         .with_expr(&expr)
         .run(&rules());

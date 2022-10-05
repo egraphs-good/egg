@@ -208,7 +208,7 @@ where
 
 /// Error returned by [`Runner`] when it stops.
 ///
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde-1", derive(serde::Serialize))]
 pub enum StopReason {
     /// The egraph saturated, i.e., there was an iteration where we
@@ -314,7 +314,7 @@ where
     /// Create a new `Runner` with the given analysis and default parameters.
     pub fn new(analysis: N) -> Self {
         Self {
-            iter_limit: 30,
+            iter_limit: 60,
             node_limit: 10_000,
             time_limit: Duration::from_secs(5),
 
@@ -325,11 +325,11 @@ where
             hooks: vec![],
 
             start_time: None,
-            scheduler: Box::new(BackoffScheduler::default()),
+            scheduler: Box::new(TieredScheduler::default()),
         }
     }
 
-    /// Sets the iteration limit. Default: 30
+    /// Sets the iteration limit. Default: 60
     pub fn with_iter_limit(self, iter_limit: usize) -> Self {
         Self { iter_limit, ..self }
     }
@@ -411,6 +411,7 @@ where
     {
         let rules: Vec<&Rewrite<L, N>> = rules.into_iter().collect();
         check_rules(&rules);
+        self.scheduler.initialize(&rules);
         self.egraph.rebuild();
         loop {
             let iter = self.run_one(&rules);
@@ -512,6 +513,8 @@ where
 
         info!("\nIteration {}", self.iterations.len());
 
+        self.scheduler.start_iteration(self.iterations.len());
+
         self.try_start();
         let mut result = self.check_limits();
 
@@ -585,6 +588,8 @@ where
             self.egraph.total_size(),
             self.egraph.number_of_classes()
         );
+
+        self.scheduler.end_iteration(self.iterations.len());
 
         let can_be_saturated = applied.is_empty()
             && self.scheduler.can_stop(i)
@@ -664,6 +669,24 @@ where
     L: Language,
     N: Analysis<L>,
 {
+    /// Allows the scheduler to do any setup it needs before the first iteration.
+    ///
+    /// Default implementation does nothing.
+    #[allow(unused_variables)]
+    fn initialize(&mut self, rewrites: &[&Rewrite<L, N>]) {}
+
+    /// Run at the beginning of each iteration.
+    ///
+    /// Default implementation does nothing.
+    #[allow(unused_variables)]
+    fn start_iteration(&mut self, iteration: usize) {}
+
+    /// Run at the end of each iteration.
+    ///
+    /// Default implementation does nothing.
+    #[allow(unused_variables)]
+    fn end_iteration(&mut self, iteration: usize) {}
+
     /// Whether or not the [`Runner`] is allowed
     /// to say it has saturated.
     ///
@@ -895,6 +918,135 @@ where
             stats.times_applied += 1;
             matches
         }
+    }
+}
+
+pub struct TieredScheduler<L, N> {
+    tier_fn: Box<dyn FnMut(&Rewrite<L, N>) -> usize>,
+    tiers: HashMap<Symbol, usize>,
+    tier_iterations: Vec<usize>,
+    current_tier_saturated: bool,
+}
+
+impl<L, N> Default for TieredScheduler<L, N>
+where
+    L: Language,
+    N: Analysis<L>,
+{
+    fn default() -> Self {
+        Self {
+            tier_fn: Box::new(Self::tier_fn_new_eclasses),
+            tiers: Default::default(),
+            tier_iterations: vec![0],
+            current_tier_saturated: false,
+        }
+    }
+}
+impl<L, N> TieredScheduler<L, N>
+where
+    L: Language,
+    N: Analysis<L>,
+{
+    pub fn set_tier(mut self, name: impl Into<Symbol>, tier: usize) -> Self {
+        self.tiers.insert(name.into(), tier);
+        self
+    }
+
+    fn tier_fn_new_eclasses(rewrite: &Rewrite<L, N>) -> usize {
+        if let Some(applier_ast) = rewrite.applier.get_pattern_ast() {
+            let mut maybe_new: usize = 0;
+            for node in applier_ast.as_ref().iter() {
+                match node {
+                    // vars aren't new
+                    ENodeOrVar::Var(_) => (),
+                    ENodeOrVar::ENode(n) if n.is_leaf() => (),
+                    _ => maybe_new += 1,
+                }
+            }
+            // maybe_new.saturating_sub(1)
+            if maybe_new <= 1 {
+                0
+            } else {
+                1
+            }
+        } else {
+            1
+        }
+    }
+}
+
+impl<L, N> RewriteScheduler<L, N> for TieredScheduler<L, N>
+where
+    L: Language,
+    N: Analysis<L>,
+{
+    fn initialize(&mut self, rewrites: &[&Rewrite<L, N>]) {
+        let f = &mut self.tier_fn;
+        for rw in rewrites {
+            self.tiers.entry(rw.name).or_insert_with(|| f(rw));
+        }
+    }
+
+    fn start_iteration(&mut self, _iteration: usize) {
+        assert!(!self.tier_iterations.is_empty());
+
+        let current_tier = self.tier_iterations.len() - 1;
+
+        if self.current_tier_saturated {
+            self.current_tier_saturated = false;
+            self.tier_iterations.push(0);
+        } else {
+            self.tier_iterations.clear();
+            self.tier_iterations.push(0);
+        }
+
+        if self.tier_iterations.len() > self.tiers.len() {
+            self.tier_iterations.clear();
+            self.tier_iterations.push(0);
+        }
+
+        log::info!(
+            "In tier {}: {:?}",
+            current_tier,
+            self.tiers
+                .iter()
+                .filter_map(|(k, v)| (*v == current_tier).then(|| *k))
+                .collect::<Vec<Symbol>>()
+        );
+    }
+
+    fn end_iteration(&mut self, _iteration: usize) {
+        *self.tier_iterations.last_mut().unwrap() += 1;
+    }
+
+    fn can_stop(&mut self, _iteration: usize) -> bool {
+        self.current_tier_saturated = true;
+        self.tier_iterations.len() == self.tiers.len()
+            && self.tier_iterations.iter().all(|&n| n <= 1)
+    }
+
+    fn search_rewrite<'a>(
+        &mut self,
+        _iteration: usize,
+        egraph: &EGraph<L, N>,
+        rewrite: &'a Rewrite<L, N>,
+    ) -> Vec<SearchMatches<'a, L>> {
+        let current_tier = self.tier_iterations.len() - 1;
+        if self.tiers[&rewrite.name] == current_tier {
+            rewrite.search(egraph)
+        } else {
+            vec![]
+        }
+    }
+
+    fn apply_rewrite(
+        &mut self,
+        _iteration: usize,
+        egraph: &mut EGraph<L, N>,
+        rewrite: &Rewrite<L, N>,
+        matches: Vec<SearchMatches<L>>,
+    ) -> usize {
+        rewrite.apply(egraph, &matches).len()
     }
 }
 
