@@ -2036,6 +2036,8 @@
 <span id="2031">2031</span>
 <span id="2032">2032</span>
 <span id="2033">2033</span>
+<span id="2034">2034</span>
+<span id="2035">2035</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::Symbol</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::{
     <span class="ident">util::pretty_print</span>, <span class="ident">Analysis</span>, <span class="ident">EClass</span>, <span class="ident">EGraph</span>, <span class="ident">ENodeOrVar</span>, <span class="ident">FromOp</span>, <span class="ident">HashMap</span>, <span class="ident">HashSet</span>, <span class="ident">Id</span>,
@@ -2056,7 +2058,9 @@
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>, <span class="ident">Hash</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>)]</span>
 <span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde-1&quot;</span>, <span class="ident">derive</span>(<span class="ident">serde::Serialize</span>, <span class="ident">serde::Deserialize</span>))]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">Justification</span> {
+    <span class="doccomment">/// Justification by a rule with this name.</span>
     <span class="ident">Rule</span>(<span class="ident">Symbol</span>),
+    <span class="doccomment">/// Justification by congruence.</span>
     <span class="ident">Congruence</span>,
 }
 

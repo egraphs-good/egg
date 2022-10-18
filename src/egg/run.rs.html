@@ -930,6 +930,11 @@
 <span id="925">925</span>
 <span id="926">926</span>
 <span id="927">927</span>
+<span id="928">928</span>
+<span id="929">929</span>
+<span id="930">930</span>
+<span id="931">931</span>
+<span id="932">932</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::fmt</span>::{<span class="self">self</span>, <span class="ident">Debug</span>, <span class="ident">Formatter</span>};
 
 <span class="kw">use</span> <span class="ident">log</span>::<span class="kw-2">*</span>;
@@ -1520,8 +1525,13 @@ println!(
 
         <span class="kw">let</span> <span class="ident">can_be_saturated</span> <span class="op">=</span> <span class="ident">applied</span>.<span class="ident">is_empty</span>()
             <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">scheduler</span>.<span class="ident">can_stop</span>(<span class="ident">i</span>)
+            <span class="comment">// now make sure the hooks didn&#39;t do anything</span>
             <span class="op">&amp;&amp;</span> (<span class="ident">egraph_nodes</span> <span class="op">==</span> <span class="ident">egraph_nodes_after_hooks</span>)
-            <span class="op">&amp;&amp;</span> (<span class="ident">egraph_classes</span> <span class="op">==</span> <span class="ident">egraph_classes_after_hooks</span>);
+            <span class="op">&amp;&amp;</span> (<span class="ident">egraph_classes</span> <span class="op">==</span> <span class="ident">egraph_classes_after_hooks</span>)
+            <span class="comment">// now make sure that conditional rules (which might add</span>
+            <span class="comment">// nodes without applying) didn&#39;t do anything</span>
+            <span class="op">&amp;&amp;</span> (<span class="ident">egraph_nodes</span> <span class="op">==</span> <span class="self">self</span>.<span class="ident">egraph</span>.<span class="ident">total_size</span>())
+            <span class="op">&amp;&amp;</span> (<span class="ident">egraph_classes</span> <span class="op">==</span> <span class="self">self</span>.<span class="ident">egraph</span>.<span class="ident">number_of_classes</span>());
 
         <span class="kw">if</span> <span class="ident">can_be_saturated</span> {
             <span class="ident">result</span> <span class="op">=</span> <span class="ident">result</span>.<span class="ident">and</span>(<span class="prelude-val">Err</span>(<span class="ident">StopReason::Saturated</span>))
