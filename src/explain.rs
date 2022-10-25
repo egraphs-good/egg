@@ -1496,9 +1496,11 @@ impl<L: Language> Explain<L> {
             .iter()
             .zip(next_node.children().iter())
         {
-            cost = cost
-                .checked_add(self.distance_between(*left_child, *right_child, distance_memo))
-                .unwrap_or(usize::MAX);
+            cost = cost.saturating_add(self.distance_between(
+                *left_child,
+                *right_child,
+                distance_memo,
+            ));
         }
         cost
     }
@@ -1671,7 +1673,7 @@ impl<L: Language> Explain<L> {
 
             for neighbor in &self.explainfind[usize::from(current)].neighbors {
                 if let Justification::Rule(_) = neighbor.justification {
-                    let neighbor_cost = cost_so_far.checked_add(1).unwrap_or(usize::MAX);
+                    let neighbor_cost = cost_so_far.saturating_add(1);
                     todo.push(HeapState {
                         item: neighbor.clone(),
                         cost: neighbor_cost,
