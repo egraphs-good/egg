@@ -1472,18 +1472,16 @@ impl<L: Language> Explain<L> {
         );
 
         // calculate distance to find upper bound
-        b.checked_add(c)
-            .unwrap_or_else(|| panic!("overflow in proof size calculation!"))
-            .checked_sub(
-                a.checked_mul(2)
-                    .unwrap_or_else(|| panic!("overflow in proof size calculation!")),
-            )
-            .unwrap_or_else(|| panic!("common ancestor distance was too large!"))
+        match b.checked_add(c) {
+            Some(added) => added
+                .checked_sub(a.checked_mul(2).unwrap_or(0))
+                .unwrap_or(usize::MAX),
+            None => usize::MAX,
+        }
 
         //assert_eq!(dist+1, Explanation::new(self.explain_enodes(left, right, &mut Default::default())).make_flat_explanation().len());
     }
 
-    // TODO use bigint, this overflows easily
     fn congruence_distance(
         &mut self,
         current: Id,
@@ -1498,9 +1496,11 @@ impl<L: Language> Explain<L> {
             .iter()
             .zip(next_node.children().iter())
         {
-            cost = cost
-                .checked_add(self.distance_between(*left_child, *right_child, distance_memo))
-                .unwrap();
+            cost = cost.saturating_add(self.distance_between(
+                *left_child,
+                *right_child,
+                distance_memo,
+            ));
         }
         cost
     }
@@ -1673,7 +1673,7 @@ impl<L: Language> Explain<L> {
 
             for neighbor in &self.explainfind[usize::from(current)].neighbors {
                 if let Justification::Rule(_) = neighbor.justification {
-                    let neighbor_cost = cost_so_far.checked_add(1).unwrap();
+                    let neighbor_cost = cost_so_far.saturating_add(1);
                     todo.push(HeapState {
                         item: neighbor.clone(),
                         cost: neighbor_cost,
