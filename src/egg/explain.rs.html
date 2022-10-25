@@ -3512,18 +3512,16 @@ See [`Explanation`] for more details.
         );
 
         <span class="comment">// calculate distance to find upper bound</span>
-        <span class="ident">b</span>.<span class="ident">checked_add</span>(<span class="ident">c</span>)
-            .<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="macro">panic!</span>(<span class="string">&quot;overflow in proof size calculation!&quot;</span>))
-            .<span class="ident">checked_sub</span>(
-                <span class="ident">a</span>.<span class="ident">checked_mul</span>(<span class="number">2</span>)
-                    .<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="macro">panic!</span>(<span class="string">&quot;overflow in proof size calculation!&quot;</span>)),
-            )
-            .<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="macro">panic!</span>(<span class="string">&quot;common ancestor distance was too large!&quot;</span>))
+        <span class="kw">match</span> <span class="ident">b</span>.<span class="ident">checked_add</span>(<span class="ident">c</span>) {
+            <span class="prelude-val">Some</span>(<span class="ident">added</span>) =&gt; <span class="ident">added</span>
+                .<span class="ident">checked_sub</span>(<span class="ident">a</span>.<span class="ident">checked_mul</span>(<span class="number">2</span>).<span class="ident">unwrap_or</span>(<span class="number">0</span>))
+                .<span class="ident">unwrap_or</span>(<span class="ident">usize::MAX</span>),
+            <span class="prelude-val">None</span> =&gt; <span class="ident">usize::MAX</span>,
+        }
 
         <span class="comment">//assert_eq!(dist+1, Explanation::new(self.explain_enodes(left, right, &amp;mut Default::default())).make_flat_explanation().len());</span>
     }
 
-    <span class="comment">// TODO use bigint, this overflows easily</span>
     <span class="kw">fn</span> <span class="ident">congruence_distance</span>(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">current</span>: <span class="ident">Id</span>,
@@ -3538,9 +3536,11 @@ See [`Explanation`] for more details.
             .<span class="ident">iter</span>()
             .<span class="ident">zip</span>(<span class="ident">next_node</span>.<span class="ident">children</span>().<span class="ident">iter</span>())
         {
-            <span class="ident">cost</span> <span class="op">=</span> <span class="ident">cost</span>
-                .<span class="ident">checked_add</span>(<span class="self">self</span>.<span class="ident">distance_between</span>(<span class="kw-2">*</span><span class="ident">left_child</span>, <span class="kw-2">*</span><span class="ident">right_child</span>, <span class="ident">distance_memo</span>))
-                .<span class="ident">unwrap</span>();
+            <span class="ident">cost</span> <span class="op">=</span> <span class="ident">cost</span>.<span class="ident">saturating_add</span>(<span class="self">self</span>.<span class="ident">distance_between</span>(
+                <span class="kw-2">*</span><span class="ident">left_child</span>,
+                <span class="kw-2">*</span><span class="ident">right_child</span>,
+                <span class="ident">distance_memo</span>,
+            ));
         }
         <span class="ident">cost</span>
     }
@@ -3713,7 +3713,7 @@ See [`Explanation`] for more details.
 
             <span class="kw">for</span> <span class="ident">neighbor</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize::from</span>(<span class="ident">current</span>)].<span class="ident">neighbors</span> {
                 <span class="kw">if</span> <span class="kw">let</span> <span class="ident">Justification::Rule</span>(<span class="kw">_</span>) <span class="op">=</span> <span class="ident">neighbor</span>.<span class="ident">justification</span> {
-                    <span class="kw">let</span> <span class="ident">neighbor_cost</span> <span class="op">=</span> <span class="ident">cost_so_far</span>.<span class="ident">checked_add</span>(<span class="number">1</span>).<span class="ident">unwrap</span>();
+                    <span class="kw">let</span> <span class="ident">neighbor_cost</span> <span class="op">=</span> <span class="ident">cost_so_far</span>.<span class="ident">saturating_add</span>(<span class="number">1</span>);
                     <span class="ident">todo</span>.<span class="ident">push</span>(<span class="ident">HeapState</span> {
                         <span class="ident">item</span>: <span class="ident">neighbor</span>.<span class="ident">clone</span>(),
                         <span class="ident">cost</span>: <span class="ident">neighbor_cost</span>,
