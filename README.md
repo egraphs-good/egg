@@ -3,6 +3,7 @@
 [![Crates.io](https://img.shields.io/crates/v/egg.svg)](https://crates.io/crates/egg)
 [![Released Docs.rs](https://img.shields.io/crates/v/egg?color=blue&label=docs)](https://docs.rs/egg/)
 [![Main branch docs](https://img.shields.io/badge/docs-main-blue)](https://egraphs-good.github.io/egg/egg/)
+[![Zulip](https://img.shields.io/badge/zulip-join%20chat-blue)](https://egraphs.zulipchat.com)
 
 Are you using egg?
 Please cite using the BibTeX below and
@@ -39,8 +40,10 @@ Check out the [web demo](https://egraphs-good.github.io/egg-web-demo) for some q
 Add `egg` to your `Cargo.toml` like this:
 ```toml
 [dependencies]
-egg = "0.9.0"
+egg = "0.9.1"
 ```
+
+Make sure to compile with `--release` if you are measuring performance!
 
 ## Developing
 
@@ -65,3 +68,15 @@ There are a couple interesting tests in the `tests` directory:
   theorems.
 - `math.rs` implements real arithmetic, with a little bit of symbolic differentiation.
 - `lambda.rs` implements a small lambda calculus, using `egg` as a partial evaluator.
+
+
+### Benchmarking
+
+To get a simple csv of the runtime of each test, you set the environment variable
+`EGG_BENCH_CSV` to something to append a row per test to a csv.
+
+Example:
+```bash
+EGG_BENCH_CSV=math.csv cargo test --test math --release -- --nocapture --test --test-threads=1
+```
+

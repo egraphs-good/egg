@@ -15,3 +15,4 @@ flamegraph.svg
 perf.data*
 *.bench
 .vscode/settings.json
+out.csv

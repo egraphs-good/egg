@@ -3,7 +3,7 @@
 These are not considered part of the public api.
 */
 
-use std::fmt::Display;
+use std::{fmt::Display, fs::File, io::Write, path::PathBuf};
 
 use crate::*;
 
@@ -26,7 +26,7 @@ where
 
 #[allow(clippy::type_complexity)]
 pub fn test_runner<L, A>(
-    _name: &str,
+    name: &str,
     runner: Option<Runner<L, A, ()>>,
     rules: &[Rewrite<L, A>],
     start: RecExpr<L>,
@@ -78,8 +78,18 @@ pub fn test_runner<L, A>(
     let mut runner = runner.run(rules);
 
     if should_check {
-        runner.print_report();
+        let report = runner.report();
+        println!("{report}");
         runner.egraph.check_goals(id, goals);
+
+        if let Some(filename) = env_var::<PathBuf>("EGG_BENCH_CSV") {
+            let mut file = File::options()
+                .create(true)
+                .append(true)
+                .open(&filename)
+                .unwrap_or_else(|_| panic!("Couldn't open {:?}", filename));
+            writeln!(file, "{},{}", name, runner.report().total_time).unwrap();
+        }
 
         if runner.egraph.are_explanations_enabled() {
             for goal in goals {
@@ -88,7 +98,7 @@ pub fn test_runner<L, A>(
                 // don't optimize the length for the first egraph
                 runner = runner.without_explanation_length_optimization();
                 let mut explained = runner.explain_matches(&start, &goal.ast, &subst);
-                explained.get_sexp_with_let();
+                explained.get_string_with_let();
                 let flattened = explained.make_flat_explanation().clone();
                 let vanilla_len = flattened.len();
                 explained.check_proof(rules);
@@ -96,8 +106,8 @@ pub fn test_runner<L, A>(
 
                 runner = runner.with_explanation_length_optimization();
                 let mut explained_short = runner.explain_matches(&start, &goal.ast, &subst);
-                explained_short.get_sexp_with_let();
-                let short_len = explained_short.get_flat_sexps().len();
+                explained_short.get_string_with_let();
+                let short_len = explained_short.get_flat_strings().len();
                 assert!(short_len <= vanilla_len);
                 assert!(explained_short.get_tree_size() > 0);
                 explained_short.check_proof(rules);

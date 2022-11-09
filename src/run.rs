@@ -588,8 +588,13 @@ where
 
         let can_be_saturated = applied.is_empty()
             && self.scheduler.can_stop(i)
+            // now make sure the hooks didn't do anything
             && (egraph_nodes == egraph_nodes_after_hooks)
-            && (egraph_classes == egraph_classes_after_hooks);
+            && (egraph_classes == egraph_classes_after_hooks)
+            // now make sure that conditional rules (which might add
+            // nodes without applying) didn't do anything
+            && (egraph_nodes == self.egraph.total_size())
+            && (egraph_classes == self.egraph.number_of_classes());
 
         if can_be_saturated {
             result = result.and(Err(StopReason::Saturated))
@@ -874,9 +879,9 @@ where
             return vec![];
         }
 
-        let matches = rewrite.search(egraph);
-        let total_len: usize = matches.iter().map(|m| m.substs.len()).sum();
         let threshold = stats.match_limit << stats.times_banned;
+        let matches = rewrite.search_with_limit(egraph, threshold + 1);
+        let total_len: usize = matches.iter().map(|m| m.substs.len()).sum();
         if total_len > threshold {
             let ban_length = stats.ban_length << stats.times_banned;
             stats.times_banned += 1;

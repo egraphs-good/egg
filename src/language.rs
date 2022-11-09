@@ -691,7 +691,7 @@ pub trait Analysis<L: Language>: Sized {
     fn make(egraph: &EGraph<L, Self>, enode: &L) -> Self::Data;
 
     /// An optional hook that allows inspection before a [`union`] occurs.
-    /// When explanaions are enabled, it gives two ids that represent the two particular terms being unioned, not the canonical ids for the two eclasses.
+    /// When explanations are enabled, it gives two ids that represent the two particular terms being unioned, not the canonical ids for the two eclasses.
     /// It also gives a justification for the union when explanations are enabled.
     ///
     /// By default it does nothing.
