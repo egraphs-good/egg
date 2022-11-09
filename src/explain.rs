@@ -92,10 +92,6 @@ pub type TreeExplanation<L> = Vec<Rc<TreeTerm<L>>>;
 /// See [`FlatTerm`] for more details on how to find this rewrite.
 pub type FlatExplanation<L> = Vec<FlatTerm<L>>;
 
-/// A vector of grounded equalities. Each entry represents
-/// two expressions that are equal and why.
-pub type GroundedEqualities<L> = Vec<(RecExpr<L>, RecExpr<L>, Symbol)>;
-
 /// A vector of equalities based on enode ids. Each entry represents
 /// two enode ids that are equal and why.
 pub type UnionEqualities = Vec<(Id, Id, Symbol)>;
