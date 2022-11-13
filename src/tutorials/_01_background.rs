@@ -157,7 +157,7 @@ Let's put it all together with an example referring to the four e-graphs in the
     associates with multiplication.
    This rewrite is critical to discovering the cancellation of 2s that we are looking for,
      and it still works despite the fact that we applied the "wrong" rewrite previously.
-4. Applying rewrites _x / x → 1_ and _1 × x → x_ doesn't add any new e-nodes,
+4. Applying rewrites _x / x → 1_ and _x × 1 → x_ doesn't add any new e-nodes,
      since all the e-nodes were already present in the e-graph.
    The result only unions e-classes,
      meaning that e-graph actually got _smaller_ from applying these rewrites,
