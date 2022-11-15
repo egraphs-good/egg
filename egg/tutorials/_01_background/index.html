@@ -144,7 +144,7 @@ as the equivalent “×” e-node where the pattern <em>x × 2</em> matched.</li
 associates with multiplication.
 This rewrite is critical to discovering the cancellation of 2s that we are looking for,
 and it still works despite the fact that we applied the “wrong” rewrite previously.</li>
-<li>Applying rewrites <em>x / x → 1</em> and <em>1 × x → x</em> doesn’t add any new e-nodes,
+<li>Applying rewrites <em>x / x → 1</em> and <em>x × 1 → x</em> doesn’t add any new e-nodes,
 since all the e-nodes were already present in the e-graph.
 The result only unions e-classes,
 meaning that e-graph actually got <em>smaller</em> from applying these rewrites,
