@@ -1,7 +1,7 @@
 use crate::Symbol;
 use crate::{
     util::pretty_print, Analysis, EClass, EGraph, ENodeOrVar, FromOp, HashMap, HashSet, Id,
-    Language, PatternAst, RecExpr, Rewrite, UnionFind, Var,
+    Language, Pattern, PatternAst, RecExpr, Rewrite, Subst, UnionFind, Var,
 };
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, VecDeque};
@@ -91,6 +91,10 @@ pub type TreeExplanation<L> = Vec<Rc<TreeTerm<L>>>;
 ///
 /// See [`FlatTerm`] for more details on how to find this rewrite.
 pub type FlatExplanation<L> = Vec<FlatTerm<L>>;
+
+/// A vector of equalities based on enode ids. Each entry represents
+/// two enode ids that are equal and why.
+pub type UnionEqualities = Vec<(Id, Id, Symbol)>;
 
 // given two adjacent nodes and the direction of the proof
 type ExplainCache<L> = HashMap<(Id, Id), Rc<TreeTerm<L>>>;
@@ -694,6 +698,7 @@ impl<L: Language + Display + FromOp> Display for TreeTerm<L> {
 }
 
 impl<L: Language + Display + FromOp> TreeTerm<L> {
+    /// Convert this TreeTerm to an S-expression.
     fn get_sexp(&self) -> Sexp {
         self.get_sexp_with_bindings(&Default::default())
     }
@@ -916,6 +921,46 @@ impl<L: Language> Explain<L> {
         res.add(new_node);
     }
 
+    pub(crate) fn node_to_pattern(
+        &self,
+        node_id: Id,
+        substitutions: &HashMap<Id, Id>,
+    ) -> (Pattern<L>, Subst) {
+        let mut res = Default::default();
+        let mut subst = Default::default();
+        let mut cache = Default::default();
+        self.node_to_pattern_internal(&mut res, node_id, substitutions, &mut subst, &mut cache);
+        (Pattern::new(res), subst)
+    }
+
+    fn node_to_pattern_internal(
+        &self,
+        res: &mut PatternAst<L>,
+        node_id: Id,
+        var_substitutions: &HashMap<Id, Id>,
+        subst: &mut Subst,
+        cache: &mut HashMap<Id, Id>,
+    ) {
+        if let Some(existing) = var_substitutions.get(&node_id) {
+            let var = format!("?{}", node_id).parse().unwrap();
+            res.add(ENodeOrVar::Var(var));
+            subst.insert(var, *existing);
+        } else {
+            let new_node = self.explainfind[usize::from(node_id)]
+                .node
+                .clone()
+                .map_children(|child| {
+                    if let Some(existing) = cache.get(&child) {
+                        *existing
+                    } else {
+                        self.node_to_pattern_internal(res, child, var_substitutions, subst, cache);
+                        Id::from(res.as_ref().len() - 1)
+                    }
+                });
+            res.add(ENodeOrVar::ENode(new_node));
+        }
+    }
+
     fn node_to_flat_explanation(&self, node_id: Id) -> FlatTerm<L> {
         let node = self.explainfind[usize::from(node_id)].node.clone();
         let children = node.fold(vec![], |mut sofar, child| {
@@ -1107,6 +1152,20 @@ impl<L: Language> Explain<L> {
             .neighbors
             .push(other_pconnection);
         self.explainfind[usize::from(node1)].parent_connection = pconnection;
+    }
+
+    pub(crate) fn get_union_equalities(&self) -> UnionEqualities {
+        let mut equalities = vec![];
+        for node in &self.explainfind {
+            for neighbor in &node.neighbors {
+                if neighbor.is_rewrite_forward {
+                    if let Justification::Rule(r) = neighbor.justification {
+                        equalities.push((neighbor.current, neighbor.next, r));
+                    }
+                }
+            }
+        }
+        equalities
     }
 
     pub(crate) fn populate_enodes<N: Analysis<L>>(&self, mut egraph: EGraph<L, N>) -> EGraph<L, N> {
