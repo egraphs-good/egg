@@ -240,6 +240,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// The intersection is guaranteed to be correct for all direct
     /// equalities found in the original two egraphs.
     /// Implied equalities due to congruence, however, may not be preserved.
+    /// The two input egraphs are mutable because some terms may be added for equality checks (but no new unions will be added).
     pub fn egraph_intersect_incomplete(
         &mut self,
         other: &mut EGraph<L, N>,
