@@ -440,7 +440,7 @@ fn test_basic_egraph_union_intersect() {
     let mut egraph3 = EGraph::new(ConstantFold {}).with_explanations_enabled();
     egraph1.egraph_intersect_incomplete(&mut egraph2, &mut egraph3);
 
-    egraph1.egraph_union(&mut egraph2);
+    egraph2.egraph_union(&egraph1);
 
     assert_eq!(
         egraph2.add_expr(&"x".parse().unwrap()),
@@ -475,5 +475,35 @@ fn test_basic_egraph_union_intersect() {
     assert_ne!(
         egraph3.add_expr(&"y".parse().unwrap()),
         egraph3.add_expr(&"a".parse().unwrap())
+    );
+}
+
+#[test]
+fn test_intersect_basic() {
+    let mut egraph1 = EGraph::new(ConstantFold {}).with_explanations_enabled();
+    let mut egraph2 = EGraph::new(ConstantFold {}).with_explanations_enabled();
+    egraph1.union_instantiations(
+        &"(+ x 0)".parse().unwrap(),
+        &"(+ y 0)".parse().unwrap(),
+        &Default::default(),
+        "",
+    );
+    egraph2.union_instantiations(
+        &"x".parse().unwrap(),
+        &"y".parse().unwrap(),
+        &Default::default(),
+        "",
+    );
+
+    let mut egraph3 = EGraph::new(ConstantFold {}).with_explanations_enabled();
+    egraph1.egraph_intersect_incomplete(&mut egraph2, &mut egraph3);
+
+    assert_ne!(
+        egraph3.add_expr(&"x".parse().unwrap()),
+        egraph3.add_expr(&"y".parse().unwrap())
+    );
+    assert_eq!(
+        egraph3.add_expr(&"(+ x 0)".parse().unwrap()),
+        egraph3.add_expr(&"(+ y 0)".parse().unwrap())
     );
 }

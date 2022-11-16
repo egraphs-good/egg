@@ -223,17 +223,17 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     }
 
     /// Performs the union between two egraphs.
-    pub fn egraph_union(&self, other: &mut EGraph<L, N>) {
-        let left_unions = self.get_union_equalities();
-        for (left, right, why) in left_unions {
-            other.union_instantiations(
-                &self.id_to_pattern(left, &Default::default()).0.ast,
-                &self.id_to_pattern(right, &Default::default()).0.ast,
+    pub fn egraph_union(&mut self, other: &EGraph<L, N>) {
+        let right_unions = other.get_union_equalities();
+        for (left, right, why) in right_unions {
+            self.union_instantiations(
+                &other.id_to_pattern(left, &Default::default()).0.ast,
+                &other.id_to_pattern(right, &Default::default()).0.ast,
                 &Default::default(),
                 why,
             );
         }
-        other.rebuild();
+        self.rebuild();
     }
 
     /// A best-effort intersection algorithm between two egraphs.
@@ -250,13 +250,13 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         resulting.rebuild();
     }
 
-    fn intersect_one_way(&mut self, other: &mut EGraph<L, N>, resulting: &mut EGraph<L, N>) {
+    fn intersect_one_way(&self, other: &mut EGraph<L, N>, resulting: &mut EGraph<L, N>) {
         let left_unions = self.get_union_equalities();
         for (left, right, _why) in &left_unions {
             other.add_expr(&self.id_to_expr(*left));
             other.add_expr(&self.id_to_expr(*right));
         }
-        self.rebuild();
+        other.rebuild();
         for (left, right, why) in left_unions {
             let newleft = other.add_expr(&self.id_to_expr(left));
             let newright = other.add_expr(&self.id_to_expr(right));
