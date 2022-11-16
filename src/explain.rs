@@ -699,8 +699,7 @@ impl<L: Language + Display + FromOp> Display for TreeTerm<L> {
 
 impl<L: Language + Display + FromOp> TreeTerm<L> {
     /// Convert this TreeTerm to an S-expression.
-    /// See [`get_sexp`](Explanation::get_sexp) for the format of these expressions.
-    pub fn get_sexp(&self) -> Sexp {
+    fn get_sexp(&self) -> Sexp {
         self.get_sexp_with_bindings(&Default::default())
     }
 
