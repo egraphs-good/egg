@@ -114,6 +114,9 @@
 <span id="109">109</span>
 <span id="110">110</span>
 <span id="111">111</span>
+<span id="112">112</span>
+<span id="113">113</span>
+<span id="114">114</span>
 </pre><pre class="rust"><code><span class="attribute">#![<span class="ident">cfg_attr</span>(<span class="ident">docsrs</span>, <span class="ident">feature</span>(<span class="ident">doc_cfg</span>))]</span>
 <span class="attribute">#![<span class="ident">warn</span>(<span class="ident">missing_docs</span>)]</span>
 <span class="doccomment">/*!
@@ -207,7 +210,10 @@ for less or more logging.
     <span class="ident">dot::Dot</span>,
     <span class="ident">eclass::EClass</span>,
     <span class="ident">egraph::EGraph</span>,
-    <span class="ident">explain</span>::{<span class="ident">Explanation</span>, <span class="ident">FlatExplanation</span>, <span class="ident">FlatTerm</span>, <span class="ident">Justification</span>, <span class="ident">TreeExplanation</span>, <span class="ident">TreeTerm</span>},
+    <span class="ident">explain</span>::{
+        <span class="ident">Explanation</span>, <span class="ident">FlatExplanation</span>, <span class="ident">FlatTerm</span>, <span class="ident">Justification</span>, <span class="ident">TreeExplanation</span>, <span class="ident">TreeTerm</span>,
+        <span class="ident">UnionEqualities</span>,
+    },
     <span class="ident">extract</span>::<span class="kw-2">*</span>,
     <span class="ident">language</span>::<span class="kw-2">*</span>,
     <span class="ident">multipattern</span>::<span class="kw-2">*</span>,

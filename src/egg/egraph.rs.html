@@ -1085,6 +1085,77 @@
 <span id="1080">1080</span>
 <span id="1081">1081</span>
 <span id="1082">1082</span>
+<span id="1083">1083</span>
+<span id="1084">1084</span>
+<span id="1085">1085</span>
+<span id="1086">1086</span>
+<span id="1087">1087</span>
+<span id="1088">1088</span>
+<span id="1089">1089</span>
+<span id="1090">1090</span>
+<span id="1091">1091</span>
+<span id="1092">1092</span>
+<span id="1093">1093</span>
+<span id="1094">1094</span>
+<span id="1095">1095</span>
+<span id="1096">1096</span>
+<span id="1097">1097</span>
+<span id="1098">1098</span>
+<span id="1099">1099</span>
+<span id="1100">1100</span>
+<span id="1101">1101</span>
+<span id="1102">1102</span>
+<span id="1103">1103</span>
+<span id="1104">1104</span>
+<span id="1105">1105</span>
+<span id="1106">1106</span>
+<span id="1107">1107</span>
+<span id="1108">1108</span>
+<span id="1109">1109</span>
+<span id="1110">1110</span>
+<span id="1111">1111</span>
+<span id="1112">1112</span>
+<span id="1113">1113</span>
+<span id="1114">1114</span>
+<span id="1115">1115</span>
+<span id="1116">1116</span>
+<span id="1117">1117</span>
+<span id="1118">1118</span>
+<span id="1119">1119</span>
+<span id="1120">1120</span>
+<span id="1121">1121</span>
+<span id="1122">1122</span>
+<span id="1123">1123</span>
+<span id="1124">1124</span>
+<span id="1125">1125</span>
+<span id="1126">1126</span>
+<span id="1127">1127</span>
+<span id="1128">1128</span>
+<span id="1129">1129</span>
+<span id="1130">1130</span>
+<span id="1131">1131</span>
+<span id="1132">1132</span>
+<span id="1133">1133</span>
+<span id="1134">1134</span>
+<span id="1135">1135</span>
+<span id="1136">1136</span>
+<span id="1137">1137</span>
+<span id="1138">1138</span>
+<span id="1139">1139</span>
+<span id="1140">1140</span>
+<span id="1141">1141</span>
+<span id="1142">1142</span>
+<span id="1143">1143</span>
+<span id="1144">1144</span>
+<span id="1145">1145</span>
+<span id="1146">1146</span>
+<span id="1147">1147</span>
+<span id="1148">1148</span>
+<span id="1149">1149</span>
+<span id="1150">1150</span>
+<span id="1151">1151</span>
+<span id="1152">1152</span>
+<span id="1153">1153</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="kw">crate</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident">std</span>::{
     <span class="ident">borrow::BorrowMut</span>,
@@ -1309,12 +1380,83 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
         }
     }
 
+    <span class="doccomment">/// Performs the union between two egraphs.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">egraph_union</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>) {
+        <span class="kw">let</span> <span class="ident">right_unions</span> <span class="op">=</span> <span class="ident">other</span>.<span class="ident">get_union_equalities</span>();
+        <span class="kw">for</span> (<span class="ident">left</span>, <span class="ident">right</span>, <span class="ident">why</span>) <span class="kw">in</span> <span class="ident">right_unions</span> {
+            <span class="self">self</span>.<span class="ident">union_instantiations</span>(
+                <span class="kw-2">&amp;</span><span class="ident">other</span>.<span class="ident">id_to_pattern</span>(<span class="ident">left</span>, <span class="kw-2">&amp;</span><span class="ident">Default::default</span>()).<span class="number">0</span>.<span class="ident">ast</span>,
+                <span class="kw-2">&amp;</span><span class="ident">other</span>.<span class="ident">id_to_pattern</span>(<span class="ident">right</span>, <span class="kw-2">&amp;</span><span class="ident">Default::default</span>()).<span class="number">0</span>.<span class="ident">ast</span>,
+                <span class="kw-2">&amp;</span><span class="ident">Default::default</span>(),
+                <span class="ident">why</span>,
+            );
+        }
+        <span class="self">self</span>.<span class="ident">rebuild</span>();
+    }
+
+    <span class="doccomment">/// A best-effort intersection algorithm between two egraphs.</span>
+    <span class="doccomment">/// The intersection is guaranteed to be correct for all direct</span>
+    <span class="doccomment">/// equalities found in the original two egraphs.</span>
+    <span class="doccomment">/// Implied equalities due to congruence, however, may not be preserved.</span>
+    <span class="doccomment">/// The two input egraphs are mutable because some terms may be added for equality checks (but no new unions will be added).</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">egraph_intersect_incomplete</span>(
+        <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
+        <span class="ident">other</span>: <span class="kw-2">&amp;mut</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>,
+        <span class="ident">resulting</span>: <span class="kw-2">&amp;mut</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>,
+    ) {
+        <span class="self">self</span>.<span class="ident">intersect_one_way</span>(<span class="ident">other</span>, <span class="ident">resulting</span>);
+        <span class="ident">other</span>.<span class="ident">intersect_one_way</span>(<span class="self">self</span>, <span class="ident">resulting</span>);
+        <span class="ident">resulting</span>.<span class="ident">rebuild</span>();
+    }
+
+    <span class="kw">fn</span> <span class="ident">intersect_one_way</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;mut</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>, <span class="ident">resulting</span>: <span class="kw-2">&amp;mut</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>) {
+        <span class="kw">let</span> <span class="ident">left_unions</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_union_equalities</span>();
+        <span class="kw">for</span> (<span class="ident">left</span>, <span class="ident">right</span>, <span class="ident">_why</span>) <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">left_unions</span> {
+            <span class="ident">other</span>.<span class="ident">add_expr</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">id_to_expr</span>(<span class="kw-2">*</span><span class="ident">left</span>));
+            <span class="ident">other</span>.<span class="ident">add_expr</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">id_to_expr</span>(<span class="kw-2">*</span><span class="ident">right</span>));
+        }
+        <span class="ident">other</span>.<span class="ident">rebuild</span>();
+        <span class="kw">for</span> (<span class="ident">left</span>, <span class="ident">right</span>, <span class="ident">why</span>) <span class="kw">in</span> <span class="ident">left_unions</span> {
+            <span class="kw">let</span> <span class="ident">newleft</span> <span class="op">=</span> <span class="ident">other</span>.<span class="ident">add_expr</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">id_to_expr</span>(<span class="ident">left</span>));
+            <span class="kw">let</span> <span class="ident">newright</span> <span class="op">=</span> <span class="ident">other</span>.<span class="ident">add_expr</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">id_to_expr</span>(<span class="ident">right</span>));
+            <span class="kw">if</span> <span class="ident">newleft</span> <span class="op">==</span> <span class="ident">newright</span> {
+                <span class="ident">resulting</span>.<span class="ident">union_instantiations</span>(
+                    <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">id_to_pattern</span>(<span class="ident">left</span>, <span class="kw-2">&amp;</span><span class="ident">Default::default</span>()).<span class="number">0</span>.<span class="ident">ast</span>,
+                    <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">id_to_pattern</span>(<span class="ident">right</span>, <span class="kw-2">&amp;</span><span class="ident">Default::default</span>()).<span class="number">0</span>.<span class="ident">ast</span>,
+                    <span class="kw-2">&amp;</span><span class="ident">Default::default</span>(),
+                    <span class="ident">why</span>,
+                );
+            }
+        }
+    }
+
     <span class="doccomment">/// Pick a representative term for a given Id.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">id_to_expr</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">id</span>: <span class="ident">Id</span>) -&gt; <span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">explain</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">explain</span> {
             <span class="ident">explain</span>.<span class="ident">node_to_recexpr</span>(<span class="ident">id</span>)
         } <span class="kw">else</span> {
             <span class="macro">panic!</span>(<span class="string">&quot;Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get unique expressions per id&quot;</span>);
+        }
+    }
+
+    <span class="doccomment">/// Like [`id_to_expr`](EGraph::id_to_expr), but creates a pattern instead of a term.</span>
+    <span class="doccomment">/// When an eclass listed in the given substitutions is found, it creates a variable.</span>
+    <span class="doccomment">/// It also adds this variable and the corresponding Id value to the resulting [`Subst`]</span>
+    <span class="doccomment">/// Otherwise it behaves like [`id_to_expr`](EGraph::id_to_expr).</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">id_to_pattern</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">id</span>: <span class="ident">Id</span>, <span class="ident">substitutions</span>: <span class="kw-2">&amp;</span><span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">Id</span>, <span class="ident">Id</span><span class="op">&gt;</span>) -&gt; (<span class="ident">Pattern</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>, <span class="ident">Subst</span>) {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">explain</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">explain</span> {
+            <span class="ident">explain</span>.<span class="ident">node_to_pattern</span>(<span class="ident">id</span>, <span class="ident">substitutions</span>)
+        } <span class="kw">else</span> {
+            <span class="macro">panic!</span>(<span class="string">&quot;Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get unique patterns per id&quot;</span>);
+        }
+    }
+
+    <span class="doccomment">/// Get all the unions ever found in the egraph in terms of enode ids.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_union_equalities</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">UnionEqualities</span> {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">explain</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">explain</span> {
+            <span class="ident">explain</span>.<span class="ident">get_union_equalities</span>()
+        } <span class="kw">else</span> {
+            <span class="macro">panic!</span>(<span class="string">&quot;Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get union equalities&quot;</span>);
         }
     }
 
