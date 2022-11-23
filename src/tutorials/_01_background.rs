@@ -203,7 +203,7 @@ which calls [`union`]) may not be reflected immediately.
 To restore the e-graph invariants and make these effects visible, the
 user *must* call the [`rebuild`] method.
 
-`egg`'s choice here allows for a higher performance implementation
+`egg`'s choice here allows for a higher performance implementation.
 Maintaining the congruence relation complicates the core e-graph data
 structure and requires an expensive traversal through the e-graph on
 every [`union`].
