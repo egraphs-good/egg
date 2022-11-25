@@ -188,7 +188,7 @@ Specifically, the effects of calling <a href="../../struct.EGraph.html#method.un
 which calls <a href="../../struct.EGraph.html#method.union"><code>union</code></a>) may not be reflected immediately.
 To restore the e-graph invariants and make these effects visible, the
 user <em>must</em> call the <a href="../../struct.EGraph.html#method.rebuild"><code>rebuild</code></a> method.</p>
-<p><code>egg</code>’s choice here allows for a higher performance implementation
+<p><code>egg</code>’s choice here allows for a higher performance implementation.
 Maintaining the congruence relation complicates the core e-graph data
 structure and requires an expensive traversal through the e-graph on
 every <a href="../../struct.EGraph.html#method.union"><code>union</code></a>.
