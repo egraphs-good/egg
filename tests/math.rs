@@ -437,8 +437,7 @@ fn test_basic_egraph_union_intersect() {
         "",
     );
 
-    let mut egraph3 = EGraph::new(ConstantFold {}).with_explanations_enabled();
-    egraph1.egraph_intersect_incomplete(&mut egraph2, &mut egraph3);
+    let mut egraph3 = egraph1.egraph_intersect(&mut egraph2, ConstantFold {});
 
     egraph2.egraph_union(&egraph1);
 
@@ -494,9 +493,10 @@ fn test_intersect_basic() {
         &Default::default(),
         "",
     );
+    egraph2.add_expr(&"(+ x 0)".parse().unwrap());
+    egraph2.add_expr(&"(+ y 0)".parse().unwrap());
 
-    let mut egraph3 = EGraph::new(ConstantFold {}).with_explanations_enabled();
-    egraph1.egraph_intersect_incomplete(&mut egraph2, &mut egraph3);
+    let mut egraph3 = egraph1.egraph_intersect(&egraph2, ConstantFold {});
 
     assert_ne!(
         egraph3.add_expr(&"x".parse().unwrap()),

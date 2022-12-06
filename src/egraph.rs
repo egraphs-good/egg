@@ -73,7 +73,7 @@ pub struct EGraph<L: Language, N: Analysis<L>> {
             deserialize = "N::Data: for<'a> Deserialize<'a>",
         ))
     )]
-    classes: HashMap<Id, EClass<L, N::Data>>,
+    pub(crate) classes: HashMap<Id, EClass<L, N::Data>>,
     #[cfg_attr(feature = "serde-1", serde(skip))]
     #[cfg_attr(feature = "serde-1", serde(default = "default_classes_by_op"))]
     pub(crate) classes_by_op: HashMap<std::mem::Discriminant<L>, HashSet<Id>>,
@@ -236,38 +236,99 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         self.rebuild();
     }
 
+    fn from_enodes(enodes: Vec<(L, Id)>, analysis: N) -> Self {
+        let mut egraph = Self::new(analysis);
+        let mut ids: HashMap<Id, Id> = Default::default();
+
+        loop {
+            let mut did_something = false;
+
+            for (enode, id) in &enodes {
+                let valid = enode.children().iter().all(|c| ids.contains_key(&c));
+                if !valid {
+                    continue;
+                }
+
+                let mut enode = enode.clone().map_children(|c| ids[&c]);
+
+                if egraph.lookup(&mut enode).is_some() {
+                    continue;
+                }
+
+                let added = egraph.add(enode);
+                if let Some(existing) = ids.get(id) {
+                    egraph.union(*existing, added);
+                } else {
+                    ids.insert(*id, added);
+                }
+
+                did_something = true;
+            }
+
+            if !did_something {
+                break;
+            }
+        }
+
+        egraph
+    }
+
     /// A best-effort intersection algorithm between two egraphs.
     /// The intersection is guaranteed to be correct for all direct
     /// equalities found in the original two egraphs.
     /// Implied equalities due to congruence, however, may not be preserved.
     /// The two input egraphs are mutable because some terms may be added for equality checks (but no new unions will be added).
-    pub fn egraph_intersect_incomplete(
-        &mut self,
-        other: &mut EGraph<L, N>,
-        resulting: &mut EGraph<L, N>,
-    ) {
-        self.intersect_one_way(other, resulting);
-        other.intersect_one_way(self, resulting);
-        resulting.rebuild();
+    pub fn egraph_intersect(&self, other: &EGraph<L, N>, analysis: N) -> EGraph<L, N> {
+        let mut product_map: HashMap<(Id, Id), Id> = Default::default();
+        let mut enodes = vec![];
+
+        for class1 in self.classes() {
+            for class2 in other.classes() {
+                self.intersect_classes(other, &mut enodes, class1.id, class2.id, &mut product_map);
+            }
+        }
+
+        Self::from_enodes(enodes, analysis)
     }
 
-    fn intersect_one_way(&self, other: &mut EGraph<L, N>, resulting: &mut EGraph<L, N>) {
-        let left_unions = self.get_union_equalities();
-        for (left, right, _why) in &left_unions {
-            other.add_expr(&self.id_to_expr(*left));
-            other.add_expr(&self.id_to_expr(*right));
+    fn get_product_id(class1: Id, class2: Id, product_map: &mut HashMap<(Id, Id), Id>) -> Id {
+        if let Some(id) = product_map.get(&(class1, class2)) {
+            *id
+        } else {
+            let id = Id::from(product_map.len());
+            product_map.insert((class1, class2), id);
+            id
         }
-        other.rebuild();
-        for (left, right, why) in left_unions {
-            let newleft = other.add_expr(&self.id_to_expr(left));
-            let newright = other.add_expr(&self.id_to_expr(right));
-            if newleft == newright {
-                resulting.union_instantiations(
-                    &self.id_to_pattern(left, &Default::default()).0.ast,
-                    &self.id_to_pattern(right, &Default::default()).0.ast,
-                    &Default::default(),
-                    why,
-                );
+    }
+
+    fn intersect_classes(
+        &self,
+        other: &EGraph<L, N>,
+        res: &mut Vec<(L, Id)>,
+        class1: Id,
+        class2: Id,
+        product_map: &mut HashMap<(Id, Id), Id>,
+    ) {
+        let res_id = Self::get_product_id(class1, class2, product_map);
+        for node1 in &self.classes[&class1].nodes {
+            for node2 in &other.classes[&class2].nodes {
+                if node1.matches(node2) {
+                    let children1 = node1.children();
+                    let children2 = node2.children();
+                    let mut new_node = node1.clone();
+                    let children = new_node.children_mut();
+                    for (i, (child1, child2)) in children1.iter().zip(children2.iter()).enumerate()
+                    {
+                        let prod = Self::get_product_id(
+                            self.find(*child1),
+                            other.find(*child2),
+                            product_map,
+                        );
+                        children[i] = prod;
+                    }
+
+                    res.push((new_node, res_id));
+                }
             }
         }
     }
