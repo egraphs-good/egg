@@ -273,11 +273,11 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         egraph
     }
 
-    /// A best-effort intersection algorithm between two egraphs.
-    /// The intersection is guaranteed to be correct for all direct
-    /// equalities found in the original two egraphs.
-    /// Implied equalities due to congruence, however, may not be preserved.
-    /// The two input egraphs are mutable because some terms may be added for equality checks (but no new unions will be added).
+    /// A intersection algorithm between two egraphs.
+    /// The intersection is correct for all terms that are equal in both egraphs.
+    /// Be wary, though, because terms which are not represented in both egraphs
+    /// are not captured in the intersection.
+    /// The runtime of this algorithm is O(|E1| * |E2|), where |E1| and |E2| are the number of enodes in each egraph.
     pub fn egraph_intersect(&self, other: &EGraph<L, N>, analysis: N) -> EGraph<L, N> {
         let mut product_map: HashMap<(Id, Id), Id> = Default::default();
         let mut enodes = vec![];
