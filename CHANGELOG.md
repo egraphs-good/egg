@@ -3,6 +3,12 @@
 ## [Unreleased] - ReleaseDate
 
 
+## [0.9.2] - 2022-12-15
+
+### Added
+
+- ([#210] https://github.com/egraphs-good/egg/pull/210) Fix crashes in proof generation due to proof size calculations overflowing.
+- ([#215] https://github.com/egraphs-good/egg/pull/215) Added a better intersection algorithms on two egraphs based on "Join Algorithms for the Theory of Uninterpreted Functions". The old intersection algorithm was not complete on the terms in both egraphs, but the new one is. Unfortunately, the new algorithm is quadratic.
 
 ## [0.9.1] - 2022-09-22
 
@@ -218,7 +224,8 @@ But hopefully things will be a little more stable from here on out
 since the API is a lot nicer.
 
 <!-- next-url -->
-[Unreleased]: https://github.com/egraphs-good/egg/compare/v0.9.1...HEAD
+[Unreleased]: https://github.com/egraphs-good/egg/compare/v0.9.2...HEAD
+[0.9.2]: https://github.com/egraphs-good/egg/compare/v0.9.0...v0.9.2
 [0.9.1]: https://github.com/egraphs-good/egg/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/egraphs-good/egg/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/egraphs-good/egg/compare/v0.8.0...v0.8.1
