@@ -2,13 +2,14 @@
 
 ## [Unreleased] - ReleaseDate
 
+- ([#215] https://github.com/egraphs-good/egg/pull/215) Added a better intersection algorithms on two egraphs based on "Join Algorithms for the Theory of Uninterpreted Functions". The old intersection algorithm was not complete on the terms in both egraphs, but the new one is. Unfortunately, the new algorithm is quadratic.
+
 
 ## [0.9.2] - 2022-12-15
 
 ### Added
 
 - ([#210] https://github.com/egraphs-good/egg/pull/210) Fix crashes in proof generation due to proof size calculations overflowing.
-- ([#215] https://github.com/egraphs-good/egg/pull/215) Added a better intersection algorithms on two egraphs based on "Join Algorithms for the Theory of Uninterpreted Functions". The old intersection algorithm was not complete on the terms in both egraphs, but the new one is. Unfortunately, the new algorithm is quadratic.
 
 ## [0.9.1] - 2022-09-22
 
