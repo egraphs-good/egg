@@ -5,27 +5,27 @@
 ## [0.9.3] - 2022-02-06
 
 ### Added
-- ([#215] https://github.com/egraphs-good/egg/pull/215) Added a better intersection algorithms on two egraphs based on "Join Algorithms for the Theory of Uninterpreted Functions". The old intersection algorithm was not complete on the terms in both egraphs, but the new one is. Unfortunately, the new algorithm is quadratic.
+- [#215](https://github.com/egraphs-good/egg/pull/215) Added a better intersection algorithms on two egraphs based on "Join Algorithms for the Theory of Uninterpreted Functions". The old intersection algorithm was not complete on the terms in both egraphs, but the new one is. Unfortunately, the new algorithm is quadratic.
 
 ### Changed
-- ([#230] https://github.com/egraphs-good/egg/pull/230) Fixed a performance bug in `get_string_with_let` that caused printing let-bound proofs to be extremely inefficient.
+- [#230](https://github.com/egraphs-good/egg/pull/230) Fixed a performance bug in `get_string_with_let` that caused printing let-bound proofs to be extremely inefficient.
 
 
 ## [0.9.2] - 2022-12-15
 
 ### Added
 
-- ([#210] https://github.com/egraphs-good/egg/pull/210) Fix crashes in proof generation due to proof size calculations overflowing.
+- [#210](https://github.com/egraphs-good/egg/pull/210) Fix crashes in proof generation due to proof size calculations overflowing.
 
 ## [0.9.1] - 2022-09-22
 
 ### Added
 
-- ([#186] https://github.com/egraphs-good/egg/pull/186) Added proof minimization (enabled by default), a greedy algorithm to find smaller proofs
+- [#186](https://github.com/egraphs-good/egg/pull/186) Added proof minimization (enabled by default), a greedy algorithm to find smaller proofs
   - with and `without_explanation_length_optimization` for turning this on and off
   - `copy_without_unions` for copying an egraph but without any equality information
   - `id_to_expr` for getting an expression corresponding to a particular enode's id
-- ([#197] https://github.com/egraphs-good/egg/pull/197) Added `search_with_limit`, so that matching also stops when it hits scheduling limits.
+- [#197](https://github.com/egraphs-good/egg/pull/197) Added `search_with_limit`, so that matching also stops when it hits scheduling limits.
 
 ### Changed
 
