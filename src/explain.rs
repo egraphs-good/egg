@@ -277,11 +277,14 @@ impl<L: Language + Display + FromOp> Explanation<L> {
     }
 
     fn get_sexp_with_let(&self) -> Sexp {
+        eprintln!("get_sexp_with_let");
         let mut shared: HashSet<*const TreeTerm<L>> = Default::default();
         let mut to_let_bind = vec![];
+        eprintln!("before find_to_let_bind");
         for term in &self.explanation_trees {
             self.find_to_let_bind(term.clone(), &mut shared, &mut to_let_bind);
         }
+        eprintln!("after find_to_let_bind");
 
         let mut bindings: HashMap<*const TreeTerm<L>, Sexp> = Default::default();
         let mut generated_bindings: Vec<(Sexp, Sexp)> = Default::default();
@@ -293,6 +296,7 @@ impl<L: Language + Display + FromOp> Explanation<L> {
                 bindings.insert(&*to_bind as *const TreeTerm<L>, name);
             }
         }
+        eprintln!("after generated");
 
         let mut items = vec![Sexp::String("Explanation".to_string())];
         for e in self.explanation_trees.iter() {
@@ -303,6 +307,8 @@ impl<L: Language + Display + FromOp> Explanation<L> {
             }
         }
 
+        eprintln!("after get_sexp_with_bindings");
+
         let mut result = Sexp::List(items);
 
         for (name, expr) in generated_bindings.into_iter().rev() {
@@ -310,23 +316,29 @@ impl<L: Language + Display + FromOp> Explanation<L> {
             result = Sexp::List(vec![Sexp::String("let".to_string()), let_expr, result]);
         }
 
+        eprintln!("returning");
+
         result
     }
 
+    // for every subterm which is shared in
+    // multiple places, add it to to_let_bind
     fn find_to_let_bind(
         &self,
         term: Rc<TreeTerm<L>>,
         shared: &mut HashSet<*const TreeTerm<L>>,
         to_let_bind: &mut Vec<Rc<TreeTerm<L>>>,
     ) {
-        for proof in &term.child_proofs {
-            for child in proof {
-                self.find_to_let_bind(child.clone(), shared, to_let_bind);
+        if !term.child_proofs.is_empty() {
+            if shared.insert(&*term as *const TreeTerm<L>) {
+                for proof in &term.child_proofs {
+                    for child in proof {
+                        self.find_to_let_bind(child.clone(), shared, to_let_bind);
+                    }
+                }
+            } else {
+                to_let_bind.push(term);
             }
-        }
-
-        if !term.child_proofs.is_empty() && !shared.insert(&*term as *const TreeTerm<L>) {
-            to_let_bind.push(term);
         }
     }
 }
