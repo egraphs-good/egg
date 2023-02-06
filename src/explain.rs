@@ -313,20 +313,24 @@ impl<L: Language + Display + FromOp> Explanation<L> {
         result
     }
 
+    // for every subterm which is shared in
+    // multiple places, add it to to_let_bind
     fn find_to_let_bind(
         &self,
         term: Rc<TreeTerm<L>>,
         shared: &mut HashSet<*const TreeTerm<L>>,
         to_let_bind: &mut Vec<Rc<TreeTerm<L>>>,
     ) {
-        for proof in &term.child_proofs {
-            for child in proof {
-                self.find_to_let_bind(child.clone(), shared, to_let_bind);
+        if !term.child_proofs.is_empty() {
+            if shared.insert(&*term as *const TreeTerm<L>) {
+                for proof in &term.child_proofs {
+                    for child in proof {
+                        self.find_to_let_bind(child.clone(), shared, to_let_bind);
+                    }
+                }
+            } else {
+                to_let_bind.push(term);
             }
-        }
-
-        if !term.child_proofs.is_empty() && !shared.insert(&*term as *const TreeTerm<L>) {
-            to_let_bind.push(term);
         }
     }
 }
