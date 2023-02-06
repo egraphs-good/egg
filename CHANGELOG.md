@@ -2,7 +2,13 @@
 
 ## [Unreleased] - ReleaseDate
 
+## [0.9.3] - 2022-02-06
+
+### Added
 - ([#215] https://github.com/egraphs-good/egg/pull/215) Added a better intersection algorithms on two egraphs based on "Join Algorithms for the Theory of Uninterpreted Functions". The old intersection algorithm was not complete on the terms in both egraphs, but the new one is. Unfortunately, the new algorithm is quadratic.
+
+### Changed
+- ([#230] https://github.com/egraphs-good/egg/pull/230) Fixed a performance bug in `get_string_with_let` that caused printing let-bound proofs to be extremely inefficient.
 
 
 ## [0.9.2] - 2022-12-15
@@ -225,8 +231,9 @@ But hopefully things will be a little more stable from here on out
 since the API is a lot nicer.
 
 <!-- next-url -->
-[Unreleased]: https://github.com/egraphs-good/egg/compare/v0.9.2...HEAD
-[0.9.2]: https://github.com/egraphs-good/egg/compare/v0.9.0...v0.9.2
+[Unreleased]: https://github.com/egraphs-good/egg/compare/v0.9.3...HEAD
+[0.9.3]: https://github.com/egraphs-good/egg/compare/v0.9.2...v0.9.3
+[0.9.2]: https://github.com/egraphs-good/egg/compare/v0.9.1...v0.9.2
 [0.9.1]: https://github.com/egraphs-good/egg/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/egraphs-good/egg/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/egraphs-good/egg/compare/v0.8.0...v0.8.1
