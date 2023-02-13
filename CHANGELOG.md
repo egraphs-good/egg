@@ -2,7 +2,7 @@
 
 ## [Unreleased] - ReleaseDate
 
-## [0.9.3] - 2022-02-06
+## [0.9.3] - 2023-02-06
 
 ### Added
 - [#215](https://github.com/egraphs-good/egg/pull/215) Added a better intersection algorithms on two egraphs based on "Join Algorithms for the Theory of Uninterpreted Functions". The old intersection algorithm was not complete on the terms in both egraphs, but the new one is. Unfortunately, the new algorithm is quadratic.
