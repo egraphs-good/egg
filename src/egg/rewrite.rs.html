@@ -817,7 +817,7 @@
 <span class="doccomment">/// The lefthand side of a [`Rewrite`].</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// A [`Searcher`] is something that can search the egraph and find</span>
-<span class="doccomment">/// matching substititions.</span>
+<span class="doccomment">/// matching substitutions.</span>
 <span class="doccomment">/// Right now the only significant [`Searcher`] is [`Pattern`].</span>
 <span class="doccomment">///</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Searcher</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">N</span><span class="op">&gt;</span>
@@ -881,7 +881,7 @@
 <span class="doccomment">/// The righthand side of a [`Rewrite`].</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// An [`Applier`] is anything that can do something with a</span>
-<span class="doccomment">/// substitition ([`Subst`]). This allows you to implement rewrites</span>
+<span class="doccomment">/// substitution ([`Subst`]). This allows you to implement rewrites</span>
 <span class="doccomment">/// that determine when and how to respond to a match using custom</span>
 <span class="doccomment">/// logic, including access to the [`Analysis`] data of an [`EClass`].</span>
 <span class="doccomment">///</span>
@@ -987,7 +987,7 @@
     <span class="ident">L</span>: <span class="ident">Language</span>,
     <span class="ident">N</span>: <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
 {
-    <span class="doccomment">/// Apply many substititions.</span>
+    <span class="doccomment">/// Apply many substitutions.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// This method should call [`apply_one`] for each match.</span>
     <span class="doccomment">///</span>
@@ -1022,7 +1022,7 @@
         <span class="prelude-val">None</span>
     }
 
-    <span class="doccomment">/// Apply a single substitition.</span>
+    <span class="doccomment">/// Apply a single substitution.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// An [`Applier`] should add things and union them with `eclass`.</span>
     <span class="doccomment">/// Appliers can also inspect the eclass if necessary using the</span>
