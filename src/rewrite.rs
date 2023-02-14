@@ -156,7 +156,7 @@ where
 /// The lefthand side of a [`Rewrite`].
 ///
 /// A [`Searcher`] is something that can search the egraph and find
-/// matching substititions.
+/// matching substitutions.
 /// Right now the only significant [`Searcher`] is [`Pattern`].
 ///
 pub trait Searcher<L, N>
@@ -220,7 +220,7 @@ where
 /// The righthand side of a [`Rewrite`].
 ///
 /// An [`Applier`] is anything that can do something with a
-/// substitition ([`Subst`]). This allows you to implement rewrites
+/// substitution ([`Subst`]). This allows you to implement rewrites
 /// that determine when and how to respond to a match using custom
 /// logic, including access to the [`Analysis`] data of an [`EClass`].
 ///
@@ -326,7 +326,7 @@ where
     L: Language,
     N: Analysis<L>,
 {
-    /// Apply many substititions.
+    /// Apply many substitutions.
     ///
     /// This method should call [`apply_one`] for each match.
     ///
@@ -361,7 +361,7 @@ where
         None
     }
 
-    /// Apply a single substitition.
+    /// Apply a single substitution.
     ///
     /// An [`Applier`] should add things and union them with `eclass`.
     /// Appliers can also inspect the eclass if necessary using the
