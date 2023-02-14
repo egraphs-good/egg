@@ -6,7 +6,7 @@ use crate::*;
 /// A set of open expressions bound to variables.
 ///
 /// Multipatterns bind many expressions to variables,
-/// allowing for simulataneous searching or application of many terms
+/// allowing for simultaneous searching or application of many terms
 /// constrained to the same substitution.
 ///
 /// Multipatterns are good for writing graph rewrites or datalog-style rules.
@@ -17,7 +17,7 @@ use crate::*;
 /// [`MultiPattern`] implements both [`Searcher`] and [`Applier`].
 /// When searching a multipattern, the result ensures that
 /// patterns bound to the same variable are equivalent.
-/// When applying a mulitpattern, patterns bound a variable occuring in the
+/// When applying a multipattern, patterns bound a variable occuring in the
 /// searcher are unioned with that e-class.
 ///
 /// Multipatterns currently do not support the explanations feature.
