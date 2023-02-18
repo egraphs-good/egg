@@ -105,6 +105,13 @@ let cost_func = EGraphCostFn { egraph: &egraph };
 let mut extractor = Extractor::new(&egraph, cost_func);
 let _ = extractor.find_best(id);
 ```
+
+Note that a particular e-class might occur in an expression multiple times.
+This means that pathological, but nevertheless realistic cases
+might overflow `usize` if you implement a cost function like [`AstSize`],
+even if the actual [`RecExpr`] fits compactly in memory.
+You might want to use [`saturating_add`](u64::saturating_add) to
+ensure your cost function is still monotonic in this situation.
 **/
 pub trait CostFunction<L: Language> {
     /// The `Cost` type. It only requires `PartialOrd` so you can use
@@ -137,7 +144,7 @@ pub trait CostFunction<L: Language> {
     }
 }
 
-/** A simple [`CostFunction`] that counts total ast size.
+/** A simple [`CostFunction`] that counts total AST size.
 
 ```
 # use egg::*;
@@ -154,11 +161,11 @@ impl<L: Language> CostFunction<L> for AstSize {
     where
         C: FnMut(Id) -> Self::Cost,
     {
-        enode.fold(1, |sum, id| sum + costs(id))
+        enode.fold(1, |sum, id| sum.saturating_add(costs(id)))
     }
 }
 
-/** A simple [`CostFunction`] that counts maximum ast depth.
+/** A simple [`CostFunction`] that counts maximum AST depth.
 
 ```
 # use egg::*;
@@ -283,5 +290,26 @@ where
             .min_by(|a, b| cmp(&a.0, &b.0))
             .unwrap_or_else(|| panic!("Can't extract, eclass is empty: {:#?}", eclass));
         cost.map(|c| (c, node.clone()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::*;
+
+    #[test]
+    fn ast_size_overflow() {
+        let rules: &[Rewrite<SymbolLang, ()>] =
+            &[rewrite!("explode"; "(meow ?a)" => "(meow (meow ?a ?a))")];
+
+        let start = "(meow 42)".parse().unwrap();
+        let runner = Runner::default()
+            .with_iter_limit(100)
+            .with_expr(&start)
+            .run(rules);
+
+        let extractor = Extractor::new(&runner.egraph, AstSize);
+        let (_, best_expr) = extractor.find_best(runner.roots[0]);
+        assert_eq!(best_expr, start);
     }
 }
