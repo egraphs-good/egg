@@ -290,6 +290,34 @@
 <span id="285">285</span>
 <span id="286">286</span>
 <span id="287">287</span>
+<span id="288">288</span>
+<span id="289">289</span>
+<span id="290">290</span>
+<span id="291">291</span>
+<span id="292">292</span>
+<span id="293">293</span>
+<span id="294">294</span>
+<span id="295">295</span>
+<span id="296">296</span>
+<span id="297">297</span>
+<span id="298">298</span>
+<span id="299">299</span>
+<span id="300">300</span>
+<span id="301">301</span>
+<span id="302">302</span>
+<span id="303">303</span>
+<span id="304">304</span>
+<span id="305">305</span>
+<span id="306">306</span>
+<span id="307">307</span>
+<span id="308">308</span>
+<span id="309">309</span>
+<span id="310">310</span>
+<span id="311">311</span>
+<span id="312">312</span>
+<span id="313">313</span>
+<span id="314">314</span>
+<span id="315">315</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::cmp::Ordering</span>;
 <span class="kw">use</span> <span class="ident">std::fmt::Debug</span>;
 
@@ -397,6 +425,13 @@ let cost_func = EGraphCostFn { egraph: &amp;egraph };
 let mut extractor = Extractor::new(&amp;egraph, cost_func);
 let _ = extractor.find_best(id);
 ```
+
+Note that a particular e-class might occur in an expression multiple times.
+This means that pathological, but nevertheless realistic cases
+might overflow `usize` if you implement a cost function like [`AstSize`],
+even if the actual [`RecExpr`] fits compactly in memory.
+You might want to use [`saturating_add`](u64::saturating_add) to
+ensure your cost function is still monotonic in this situation.
 **/</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">CostFunction</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span> {
     <span class="doccomment">/// The `Cost` type. It only requires `PartialOrd` so you can use</span>
@@ -429,7 +464,7 @@ let _ = extractor.find_best(id);
     }
 }
 
-<span class="doccomment">/** A simple [`CostFunction`] that counts total ast size.
+<span class="doccomment">/** A simple [`CostFunction`] that counts total AST size.
 
 ```
 # use egg::*;
@@ -446,11 +481,11 @@ assert_eq!(AstSize.cost_rec(&amp;e), 4);
     <span class="kw">where</span>
         <span class="ident">C</span>: <span class="ident">FnMut</span>(<span class="ident">Id</span>) -&gt; <span class="ident"><span class="self">Self</span>::Cost</span>,
     {
-        <span class="ident">enode</span>.<span class="ident">fold</span>(<span class="number">1</span>, <span class="op">|</span><span class="ident">sum</span>, <span class="ident">id</span><span class="op">|</span> <span class="ident">sum</span> <span class="op">+</span> <span class="ident">costs</span>(<span class="ident">id</span>))
+        <span class="ident">enode</span>.<span class="ident">fold</span>(<span class="number">1</span>, <span class="op">|</span><span class="ident">sum</span>, <span class="ident">id</span><span class="op">|</span> <span class="ident">sum</span>.<span class="ident">saturating_add</span>(<span class="ident">costs</span>(<span class="ident">id</span>)))
     }
 }
 
-<span class="doccomment">/** A simple [`CostFunction`] that counts maximum ast depth.
+<span class="doccomment">/** A simple [`CostFunction`] that counts maximum AST depth.
 
 ```
 # use egg::*;
@@ -575,6 +610,27 @@ assert_eq!(AstDepth.cost_rec(&amp;e), 2);
             .<span class="ident">min_by</span>(<span class="op">|</span><span class="ident">a</span>, <span class="ident">b</span><span class="op">|</span> <span class="ident">cmp</span>(<span class="kw-2">&amp;</span><span class="ident">a</span>.<span class="number">0</span>, <span class="kw-2">&amp;</span><span class="ident">b</span>.<span class="number">0</span>))
             .<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="macro">panic!</span>(<span class="string">&quot;Can&#39;t extract, eclass is empty: {:#?}&quot;</span>, <span class="ident">eclass</span>));
         <span class="ident">cost</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">c</span><span class="op">|</span> (<span class="ident">c</span>, <span class="ident">node</span>.<span class="ident">clone</span>()))
+    }
+}
+
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
+<span class="kw">mod</span> <span class="ident">tests</span> {
+    <span class="kw">use</span> <span class="kw">crate</span>::<span class="kw-2">*</span>;
+
+    <span class="attribute">#[<span class="ident">test</span>]</span>
+    <span class="kw">fn</span> <span class="ident">ast_size_overflow</span>() {
+        <span class="kw">let</span> <span class="ident">rules</span>: <span class="kw-2">&amp;</span>[<span class="ident">Rewrite</span><span class="op">&lt;</span><span class="ident">SymbolLang</span>, ()<span class="op">&gt;</span>] <span class="op">=</span>
+            <span class="kw-2">&amp;</span>[<span class="macro">rewrite!</span>(<span class="string">&quot;explode&quot;</span>; <span class="string">&quot;(meow ?a)&quot;</span> =&gt; <span class="string">&quot;(meow (meow ?a ?a))&quot;</span>)];
+
+        <span class="kw">let</span> <span class="ident">start</span> <span class="op">=</span> <span class="string">&quot;(meow 42)&quot;</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">runner</span> <span class="op">=</span> <span class="ident">Runner::default</span>()
+            .<span class="ident">with_iter_limit</span>(<span class="number">100</span>)
+            .<span class="ident">with_expr</span>(<span class="kw-2">&amp;</span><span class="ident">start</span>)
+            .<span class="ident">run</span>(<span class="ident">rules</span>);
+
+        <span class="kw">let</span> <span class="ident">extractor</span> <span class="op">=</span> <span class="ident">Extractor::new</span>(<span class="kw-2">&amp;</span><span class="ident">runner</span>.<span class="ident">egraph</span>, <span class="ident">AstSize</span>);
+        <span class="kw">let</span> (<span class="kw">_</span>, <span class="ident">best_expr</span>) <span class="op">=</span> <span class="ident">extractor</span>.<span class="ident">find_best</span>(<span class="ident">runner</span>.<span class="ident">roots</span>[<span class="number">0</span>]);
+        <span class="macro">assert_eq!</span>(<span class="ident">best_expr</span>, <span class="ident">start</span>);
     }
 }
 </code></pre></div>
