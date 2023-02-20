@@ -935,6 +935,9 @@
 <span id="930">930</span>
 <span id="931">931</span>
 <span id="932">932</span>
+<span id="933">933</span>
+<span id="934">934</span>
+<span id="935">935</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::fmt</span>::{<span class="self">self</span>, <span class="ident">Debug</span>, <span class="ident">Formatter</span>};
 
 <span class="kw">use</span> <span class="ident">log</span>::<span class="kw-2">*</span>;
@@ -1816,8 +1819,11 @@ the [`EGraph`] and dominating how much time is spent while running the
             <span class="kw">return</span> <span class="macro">vec!</span>[];
         }
 
-        <span class="kw">let</span> <span class="ident">threshold</span> <span class="op">=</span> <span class="ident">stats</span>.<span class="ident">match_limit</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="ident">stats</span>.<span class="ident">times_banned</span>;
-        <span class="kw">let</span> <span class="ident">matches</span> <span class="op">=</span> <span class="ident">rewrite</span>.<span class="ident">search_with_limit</span>(<span class="ident">egraph</span>, <span class="ident">threshold</span> <span class="op">+</span> <span class="number">1</span>);
+        <span class="kw">let</span> <span class="ident">threshold</span> <span class="op">=</span> <span class="ident">stats</span>
+            .<span class="ident">match_limit</span>
+            .<span class="ident">checked_shl</span>(<span class="ident">stats</span>.<span class="ident">times_banned</span> <span class="kw">as</span> <span class="ident">u32</span>)
+            .<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">matches</span> <span class="op">=</span> <span class="ident">rewrite</span>.<span class="ident">search_with_limit</span>(<span class="ident">egraph</span>, <span class="ident">threshold</span>.<span class="ident">saturating_add</span>(<span class="number">1</span>));
         <span class="kw">let</span> <span class="ident">total_len</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="ident">matches</span>.<span class="ident">iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">m</span><span class="op">|</span> <span class="ident">m</span>.<span class="ident">substs</span>.<span class="ident">len</span>()).<span class="ident">sum</span>();
         <span class="kw">if</span> <span class="ident">total_len</span> <span class="op">&gt;</span> <span class="ident">threshold</span> {
             <span class="kw">let</span> <span class="ident">ban_length</span> <span class="op">=</span> <span class="ident">stats</span>.<span class="ident">ban_length</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="ident">stats</span>.<span class="ident">times_banned</span>;
