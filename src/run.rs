@@ -879,8 +879,11 @@ where
             return vec![];
         }
 
-        let threshold = stats.match_limit << stats.times_banned;
-        let matches = rewrite.search_with_limit(egraph, threshold + 1);
+        let threshold = stats
+            .match_limit
+            .checked_shl(stats.times_banned as u32)
+            .unwrap();
+        let matches = rewrite.search_with_limit(egraph, threshold.saturating_add(1));
         let total_len: usize = matches.iter().map(|m| m.substs.len()).sum();
         if total_len > threshold {
             let ban_length = stats.ban_length << stats.times_banned;
