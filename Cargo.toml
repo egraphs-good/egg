@@ -1,52 +1,53 @@
 [package]
-name = "egg"
-version = "0.9.3"
 authors = ["Max Willsey <me@mwillsey.com>"]
-edition = "2018"
-description = "An implementation of egraphs"
-repository = "https://github.com/egraphs-good/egg"
-readme = "README.md"
-license = "MIT"
-keywords = ["e-graphs"]
 categories = ["data-structures"]
+description = "An implementation of egraphs"
+edition = "2018"
+keywords = ["e-graphs"]
+license = "MIT"
+name = "egg"
+readme = "README.md"
+repository = "https://github.com/egraphs-good/egg"
+version = "0.9.3"
 
 [dependencies]
-symbolic_expressions = "5.0.3"
-log = "0.4.17"
-smallvec = { version = "1.8.0", features = ["union", "const_generics"] }
-indexmap = "1.8.1"
-instant = "0.1.12"
+env_logger = {version = "0.9.0", default-features = false}
 fxhash = "0.2.1"
 hashbrown = "0.12.1"
+indexmap = "1.8.1"
+instant = "0.1.12"
+log = "0.4.17"
+smallvec = {version = "1.8.0", features = ["union", "const_generics"]}
+symbol_table = {version = "0.2.0", features = ["global"]}
+symbolic_expressions = "5.0.3"
 thiserror = "1.0.31"
-symbol_table = { version = "0.2.0", features = ["global"] }
-env_logger = { version = "0.9.0", default-features = false }
 
 # for the lp feature
-coin_cbc = { version = "0.1.6", optional = true }
+coin_cbc = {version = "0.1.6", optional = true}
 
 # for the serde-1 feature
-serde = { version = "1.0.137", features = ["derive"], optional = true }
-vectorize = { version = "0.2.0", optional = true }
+serde = {version = "1.0.137", features = ["derive"], optional = true}
+vectorize = {version = "0.2.0", optional = true}
 
 # for the reports feature
-serde_json = { version = "1.0.81", optional = true }
-
+serde_json = {version = "1.0.81", optional = true}
 
 [dev-dependencies]
 ordered-float = "3.0.0"
 
 [features]
+# forces the use of indexmaps over hashmaps
+deterministic = []
 lp = ["coin_cbc"]
-wasm-bindgen = ["instant/wasm-bindgen"]
-serde-1 = [
-    "serde",
-    "indexmap/serde-1",
-    "hashbrown/serde",
-    "symbol_table/serde",
-    "vectorize",
-]
 reports = ["serde-1", "serde_json"]
+serde-1 = [
+  "serde",
+  "indexmap/serde-1",
+  "hashbrown/serde",
+  "symbol_table/serde",
+  "vectorize",
+]
+wasm-bindgen = ["instant/wasm-bindgen"]
 
 # private features for testing
 test-explanations = []

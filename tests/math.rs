@@ -437,7 +437,7 @@ fn test_basic_egraph_union_intersect() {
         "",
     );
 
-    let mut egraph3 = egraph1.egraph_intersect(&mut egraph2, ConstantFold {});
+    let mut egraph3 = egraph1.egraph_intersect(&egraph2, ConstantFold {});
 
     egraph2.egraph_union(&egraph1);
 

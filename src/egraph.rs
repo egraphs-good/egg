@@ -244,7 +244,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             let mut did_something = false;
 
             for (enode, id) in &enodes {
-                let valid = enode.children().iter().all(|c| ids.contains_key(&c));
+                let valid = enode.children().iter().all(|c| ids.contains_key(c));
                 if !valid {
                     continue;
                 }
