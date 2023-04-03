@@ -33,13 +33,11 @@ impl UnionFind {
         current
     }
 
-    pub fn find_mut(&mut self, mut current: Id) -> Id {
-        while current != self.parent(current) {
-            let grandparent = self.parent(self.parent(current));
-            *self.parent_mut(current) = grandparent;
-            current = grandparent;
+    pub fn find_mut(&mut self, current: Id) -> Id {
+        if current != self.parent(current) {
+            *self.parent_mut(current) = self.find_mut(self.parent(current));
         }
-        current
+        self.parent(current)
     }
 
     /// Given two leader ids, unions the two eclasses making root1 the leader.
