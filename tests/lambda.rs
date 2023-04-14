@@ -48,7 +48,7 @@ fn eval(egraph: &EGraph, enode: &Lambda) -> Option<(Lambda, PatternAst<Lambda>)>
         Lambda::Num(n) => Some((enode.clone(), format!("{}", n).parse().unwrap())),
         Lambda::Bool(b) => Some((enode.clone(), format!("{}", b).parse().unwrap())),
         Lambda::Add([a, b]) => Some((
-            Lambda::Num(x(a)?.num()? + x(b)?.num()?),
+            Lambda::Num(x(a)?.num()?.checked_add(x(b)?.num()?)?),
             format!("(+ {} {})", x(a)?, x(b)?).parse().unwrap(),
         )),
         Lambda::Eq([a, b]) => Some((
