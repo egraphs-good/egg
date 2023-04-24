@@ -1046,6 +1046,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     fn process_unions(&mut self) -> usize {
         let mut n_unions = 0;
 
+        let mut tmp_analysis_pending = IndexSet::default();
+
         while !self.pending.is_empty() || !self.analysis_pending.is_empty() {
             while let Some((mut node, class)) = self.pending.pop() {
                 node.update_children(|id| self.find_mut(id));
@@ -1060,8 +1062,14 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                 }
             }
 
-            while let Some((node, class_id)) = self.analysis_pending.pop() {
-                let class_id = self.find_mut(class_id);
+            // proceed over `analysis_pending` in queue-like fashion
+            // (instead of popping from the back)
+            // to avoid bad asymptotics. h/t @Bastacyclop and @meithecatte
+            // https://github.com/egraphs-good/egg/issues/239#issuecomment-1501687513
+
+            std::mem::swap(&mut tmp_analysis_pending, &mut self.analysis_pending);
+            for (node, class_id) in tmp_analysis_pending.drain(..) {
+                let class_id = self.unionfind.find_mut(class_id);
                 let node_data = N::make(self, &node);
                 let class = self.classes.get_mut(&class_id).unwrap();
 
@@ -1071,6 +1079,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                     N::modify(self, class_id)
                 }
             }
+            assert!(tmp_analysis_pending.is_empty());
         }
 
         assert!(self.pending.is_empty());
