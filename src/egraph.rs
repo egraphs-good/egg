@@ -65,7 +65,7 @@ pub struct EGraph<L: Language, N: Analysis<L>> {
     /// Nodes which need to be processed for rebuilding. The `Id` is the `Id` of the enode,
     /// not the canonical id of the eclass.
     pending: Vec<(L, Id)>,
-    analysis_pending: IndexSet<(L, Id)>,
+    analysis_pending: UniqueQueue<(L, Id)>,
     #[cfg_attr(
         feature = "serde-1",
         serde(bound(

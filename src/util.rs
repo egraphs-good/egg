@@ -111,3 +111,51 @@ impl<T: Display> Debug for DisplayAsDebug<T> {
         Display::fmt(&self.0, f)
     }
 }
+
+/** A data structure to maintain a queue of unique elements.
+
+Notably, insert/pop operations have O(1) expected amortized runtime complexity.
+*/
+#[derive(Clone)]
+pub(crate) struct UniqueQueue<T> {
+    set: hashbrown::HashSet<T>,
+    queue: std::collections::VecDeque<T>,
+}
+
+impl<T> Default for UniqueQueue<T> {
+    fn default() -> Self {
+        UniqueQueue {
+            set: hashbrown::HashSet::default(),
+            queue: std::collections::VecDeque::new(),
+        }
+    }
+}
+
+impl<T: Eq + std::hash::Hash + Clone> UniqueQueue<T> {
+    pub fn insert(&mut self, t: T) {
+        if self.set.insert(t.clone()) {
+            self.queue.push_back(t);
+        }
+    }
+
+    pub fn extend<I>(&mut self, iter: I)
+    where
+        I: IntoIterator<Item = T>,
+    {
+        for t in iter.into_iter() {
+            self.insert(t);
+        }
+    }
+
+    pub fn pop(&mut self) -> Option<T> {
+        let res = self.queue.pop_front();
+        res.as_ref().map(|t| self.set.remove(t));
+        res
+    }
+
+    pub fn is_empty(&self) -> bool {
+        let r = self.queue.is_empty();
+        debug_assert_eq!(r, self.set.is_empty());
+        r
+    }
+}
