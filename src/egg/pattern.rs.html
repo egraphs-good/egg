@@ -579,7 +579,7 @@
 <span class="doccomment">/// ```</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// [`FromStr`]: std::str::FromStr</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">PartialEq</span>, <span class="ident">Clone</span>)]</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>, <span class="ident">Clone</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Pattern</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
     <span class="doccomment">/// The actual pattern as a [`RecExpr`]</span>
     <span class="kw">pub</span> <span class="ident">ast</span>: <span class="ident">PatternAst</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>,
