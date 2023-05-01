@@ -21,7 +21,7 @@ use crate::*;
 /// searcher are unioned with that e-class.
 ///
 /// Multipatterns currently do not support the explanations feature.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct MultiPattern<L> {
     asts: Vec<(Var, PatternAst<L>)>,
     program: machine::Program<L>,
