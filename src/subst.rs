@@ -46,7 +46,7 @@ impl Debug for Var {
     }
 }
 
-/// A substitition mapping [`Var`]s to eclass [`Id`]s.
+/// A substitution mapping [`Var`]s to eclass [`Id`]s.
 ///
 #[derive(Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Subst {

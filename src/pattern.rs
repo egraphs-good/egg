@@ -61,7 +61,7 @@ use crate::*;
 /// ```
 ///
 /// [`FromStr`]: std::str::FromStr
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Pattern<L> {
     /// The actual pattern as a [`RecExpr`]
     pub ast: PatternAst<L>,
@@ -243,7 +243,7 @@ impl<L: Language + Display> Display for Pattern<L> {
 /// The result of searching a [`Searcher`] over one eclass.
 ///
 /// Note that one [`SearchMatches`] can contain many found
-/// substititions. So taking the length of a list of [`SearchMatches`]
+/// substitutions. So taking the length of a list of [`SearchMatches`]
 /// tells you how many eclasses something was matched in, _not_ how
 /// many matches were found total.
 ///
