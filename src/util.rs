@@ -3,6 +3,9 @@ use symbolic_expressions::Sexp;
 
 use fmt::{Debug, Display, Formatter};
 
+#[cfg(feature = "serde-1")]
+use ::serde::{Deserialize, Serialize};
+
 #[allow(unused_imports)]
 use crate::*;
 
@@ -109,5 +112,63 @@ pub(crate) struct DisplayAsDebug<T>(pub T);
 impl<T: Display> Debug for DisplayAsDebug<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         Display::fmt(&self.0, f)
+    }
+}
+
+/** A data structure to maintain a queue of unique elements.
+
+Notably, insert/pop operations have O(1) expected amortized runtime complexity.
+*/
+#[derive(Clone)]
+#[cfg_attr(feature = "serde-1", derive(Serialize, Deserialize))]
+pub(crate) struct UniqueQueue<T>
+where
+    T: Eq + std::hash::Hash + Clone,
+{
+    set: hashbrown::HashSet<T>,
+    queue: std::collections::VecDeque<T>,
+}
+
+impl<T> Default for UniqueQueue<T>
+where
+    T: Eq + std::hash::Hash + Clone,
+{
+    fn default() -> Self {
+        UniqueQueue {
+            set: hashbrown::HashSet::default(),
+            queue: std::collections::VecDeque::new(),
+        }
+    }
+}
+
+impl<T> UniqueQueue<T>
+where
+    T: Eq + std::hash::Hash + Clone,
+{
+    pub fn insert(&mut self, t: T) {
+        if self.set.insert(t.clone()) {
+            self.queue.push_back(t);
+        }
+    }
+
+    pub fn extend<I>(&mut self, iter: I)
+    where
+        I: IntoIterator<Item = T>,
+    {
+        for t in iter.into_iter() {
+            self.insert(t);
+        }
+    }
+
+    pub fn pop(&mut self) -> Option<T> {
+        let res = self.queue.pop_front();
+        res.as_ref().map(|t| self.set.remove(t));
+        res
+    }
+
+    pub fn is_empty(&self) -> bool {
+        let r = self.queue.is_empty();
+        debug_assert_eq!(r, self.set.is_empty());
+        r
     }
 }
