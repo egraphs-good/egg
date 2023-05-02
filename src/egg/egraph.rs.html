@@ -1284,7 +1284,7 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
     <span class="doccomment">/// Nodes which need to be processed for rebuilding. The `Id` is the `Id` of the enode,</span>
     <span class="doccomment">/// not the canonical id of the eclass.</span>
     <span class="ident">pending</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">L</span>, <span class="ident">Id</span>)<span class="op">&gt;</span>,
-    <span class="ident">analysis_pending</span>: <span class="ident">IndexSet</span><span class="op">&lt;</span>(<span class="ident">L</span>, <span class="ident">Id</span>)<span class="op">&gt;</span>,
+    <span class="ident">analysis_pending</span>: <span class="ident">UniqueQueue</span><span class="op">&lt;</span>(<span class="ident">L</span>, <span class="ident">Id</span>)<span class="op">&gt;</span>,
     <span class="attribute">#[<span class="ident">cfg_attr</span>(
         <span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde-1&quot;</span>,
         <span class="ident">serde</span>(<span class="ident">bound</span>(
