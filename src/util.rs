@@ -121,12 +121,14 @@ Notably, insert/pop operations have O(1) expected amortized runtime complexity.
 */
 #[derive(Clone)]
 #[cfg_attr(feature = "serde-1", derive(Serialize, Deserialize))]
-pub(crate) struct UniqueQueue<T> {
+pub(crate) struct UniqueQueue<T>
+where T: Eq + std::hash::Hash + Clone {
     set: hashbrown::HashSet<T>,
     queue: std::collections::VecDeque<T>,
 }
 
-impl<T> Default for UniqueQueue<T> {
+impl<T> Default for UniqueQueue<T>
+where T: Eq + std::hash::Hash + Clone {
     fn default() -> Self {
         UniqueQueue {
             set: hashbrown::HashSet::default(),
@@ -135,7 +137,8 @@ impl<T> Default for UniqueQueue<T> {
     }
 }
 
-impl<T: Eq + std::hash::Hash + Clone> UniqueQueue<T> {
+impl<T> UniqueQueue<T>
+where T: Eq + std::hash::Hash + Clone {
     pub fn insert(&mut self, t: T) {
         if self.set.insert(t.clone()) {
             self.queue.push_back(t);
