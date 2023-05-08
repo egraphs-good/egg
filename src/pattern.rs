@@ -214,6 +214,12 @@ impl<'a, L: Language> From<&'a [L]> for Pattern<L> {
     }
 }
 
+impl<L: Language> From<&RecExpr<L>> for Pattern<L> {
+    fn from(expr: &RecExpr<L>) -> Self {
+        Self::from(expr.as_ref())
+    }
+}
+
 impl<L: Language> From<PatternAst<L>> for Pattern<L> {
     fn from(ast: PatternAst<L>) -> Self {
         Self::new(ast)
