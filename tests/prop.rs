@@ -40,7 +40,7 @@ impl Analysis<Prop> for ConstantFold {
                 format!("(| {} {})", x(a)?, x(b)?).parse().unwrap(),
             )),
             Prop::Implies([a, b]) => Some((
-                x(a)? || !x(b)?,
+                !x(a)? || x(b)?,
                 format!("(-> {} {})", x(a)?, x(b)?).parse().unwrap(),
             )),
         };
