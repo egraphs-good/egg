@@ -2101,6 +2101,7 @@
 <span id="2096">2096</span>
 <span id="2097">2097</span>
 <span id="2098">2098</span>
+<span id="2099">2099</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::Symbol</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::{
     <span class="ident">util::pretty_print</span>, <span class="ident">Analysis</span>, <span class="ident">EClass</span>, <span class="ident">EGraph</span>, <span class="ident">ENodeOrVar</span>, <span class="ident">FromOp</span>, <span class="ident">HashMap</span>, <span class="ident">HashSet</span>, <span class="ident">Id</span>,
@@ -3699,7 +3700,8 @@ See [`Explanation`] for more details.
 
             <span class="kw">let</span> <span class="ident">parent_parent</span> <span class="op">=</span> <span class="ident">distance_memo</span>.<span class="ident">parent_distance</span>[<span class="ident">usize::from</span>(<span class="ident">parent</span>)].<span class="number">0</span>;
             <span class="kw">if</span> <span class="ident">parent_parent</span> <span class="op">!</span><span class="op">=</span> <span class="ident">parent</span> {
-                <span class="kw">let</span> <span class="ident">new_dist</span> <span class="op">=</span> <span class="ident">dist</span> <span class="op">+</span> <span class="ident">distance_memo</span>.<span class="ident">parent_distance</span>[<span class="ident">usize::from</span>(<span class="ident">parent</span>)].<span class="number">1</span>;
+                <span class="kw">let</span> <span class="ident">new_dist</span> <span class="op">=</span>
+                    <span class="ident">dist</span>.<span class="ident">saturating_add</span>(<span class="ident">distance_memo</span>.<span class="ident">parent_distance</span>[<span class="ident">usize::from</span>(<span class="ident">parent</span>)].<span class="number">1</span>);
                 <span class="ident">distance_memo</span>.<span class="ident">parent_distance</span>[<span class="ident">usize::from</span>(<span class="ident">enode</span>)] <span class="op">=</span> (<span class="ident">parent_parent</span>, <span class="ident">new_dist</span>);
             } <span class="kw">else</span> {
                 <span class="kw">if</span> <span class="ident">ancestor</span> <span class="op">==</span> <span class="ident">Id::from</span>(<span class="ident">usize::MAX</span>) {
@@ -3850,7 +3852,7 @@ See [`Explanation`] for more details.
             <span class="kw">for</span> <span class="ident">other</span> <span class="kw">in</span> <span class="ident">congruence_neighbors</span>[<span class="ident">usize::from</span>(<span class="ident">current</span>)].<span class="ident">iter</span>() {
                 <span class="kw">let</span> <span class="ident">next</span> <span class="op">=</span> <span class="ident">other</span>;
                 <span class="kw">let</span> <span class="ident">distance</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">congruence_distance</span>(<span class="ident">current</span>, <span class="kw-2">*</span><span class="ident">next</span>, <span class="ident">distance_memo</span>);
-                <span class="kw">let</span> <span class="ident">next_cost</span> <span class="op">=</span> <span class="ident">cost_so_far</span> <span class="op">+</span> <span class="ident">distance</span>;
+                <span class="kw">let</span> <span class="ident">next_cost</span> <span class="op">=</span> <span class="ident">cost_so_far</span>.<span class="ident">saturating_add</span>(<span class="ident">distance</span>);
                 <span class="ident">todo</span>.<span class="ident">push</span>(<span class="ident">HeapState</span> {
                     <span class="ident">item</span>: <span class="ident">Connection</span> {
                         <span class="ident">current</span>,
@@ -3923,7 +3925,7 @@ See [`Explanation`] for more details.
             <span class="kw">if</span> <span class="ident">fuel</span> <span class="op">&lt;</span> <span class="ident">eclass_size</span> {
                 <span class="kw">continue</span>;
             }
-            <span class="ident">fuel</span> <span class="op">-</span><span class="op">=</span> <span class="ident">eclass_size</span>;
+            <span class="ident">fuel</span> <span class="op">=</span> <span class="ident">fuel</span>.<span class="ident">saturating_sub</span>(<span class="ident">eclass_size</span>);
 
             <span class="kw">let</span> (<span class="ident">left_connections</span>, <span class="ident">right_connections</span>) <span class="op">=</span> <span class="self">self</span>
                 .<span class="ident">shortest_path_modulo_congruence</span>(<span class="ident">start</span>, <span class="ident">end</span>, <span class="ident">congruence_neighbors</span>, <span class="ident">distance_memo</span>)
