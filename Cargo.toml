@@ -8,7 +8,7 @@ license = "MIT"
 name = "egg"
 readme = "README.md"
 repository = "https://github.com/egraphs-good/egg"
-version = "0.9.3"
+version = "0.9.4"
 
 [dependencies]
 env_logger = {version = "0.9.0", default-features = false}
