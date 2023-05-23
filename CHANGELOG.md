@@ -2,6 +2,11 @@
 
 ## [Unreleased] - ReleaseDate
 
+## [0.9.4] - 2023-05-23
+- [#253] Improved rebuilding algorithm using a queue.
+- [#259] Fixed another overflow bug in proof size optimization.
+- Various typo fixes (Thanks @nlewycky)
+
 ## [0.9.3] - 2023-02-06
 
 ### Added
@@ -231,7 +236,8 @@ But hopefully things will be a little more stable from here on out
 since the API is a lot nicer.
 
 <!-- next-url -->
-[Unreleased]: https://github.com/egraphs-good/egg/compare/v0.9.3...HEAD
+[Unreleased]: https://github.com/egraphs-good/egg/compare/v0.9.4...HEAD
+[0.9.4]: https://github.com/egraphs-good/egg/compare/v0.9.3...v0.9.4
 [0.9.3]: https://github.com/egraphs-good/egg/compare/v0.9.2...v0.9.3
 [0.9.2]: https://github.com/egraphs-good/egg/compare/v0.9.1...v0.9.2
 [0.9.1]: https://github.com/egraphs-good/egg/compare/v0.9.0...v0.9.1

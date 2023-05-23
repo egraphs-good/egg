@@ -30,6 +30,9 @@ impl<L: Language, N: Analysis<L>> LpCostFunction<L, N> for AstSize {
 /// | Ubuntu / Debian  | `sudo apt-get install coinor-libcbc-dev` |
 /// | macOS            | `brew install cbc`                       |
 ///
+/// On macOS, you might also need the following in your `.zshrc` file:
+/// `export LIBRARY_PATH=$LIBRARY_PATH:$(brew --prefix)/lib`
+///
 /// # Example
 /// ```
 /// use egg::*;
