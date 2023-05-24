@@ -2101,7 +2101,6 @@
 <span id="2096">2096</span>
 <span id="2097">2097</span>
 <span id="2098">2098</span>
-<span id="2099">2099</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::Symbol</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::{
     <span class="ident">util::pretty_print</span>, <span class="ident">Analysis</span>, <span class="ident">EClass</span>, <span class="ident">EGraph</span>, <span class="ident">ENodeOrVar</span>, <span class="ident">FromOp</span>, <span class="ident">HashMap</span>, <span class="ident">HashSet</span>, <span class="ident">Id</span>,
@@ -3639,14 +3638,13 @@ See [`Explanation`] for more details.
         );
 
         <span class="comment">// calculate distance to find upper bound</span>
-        <span class="kw">match</span> <span class="ident">b</span>.<span class="ident">checked_add</span>(<span class="ident">c</span>) {
-            <span class="prelude-val">Some</span>(<span class="ident">added</span>) =&gt; <span class="ident">added</span>
-                .<span class="ident">checked_sub</span>(<span class="ident">a</span>.<span class="ident">checked_mul</span>(<span class="number">2</span>).<span class="ident">unwrap_or</span>(<span class="number">0</span>))
-                .<span class="ident">unwrap_or</span>(<span class="ident">usize::MAX</span>),
-            <span class="prelude-val">None</span> =&gt; <span class="ident">usize::MAX</span>,
-        }
-
-        <span class="comment">//assert_eq!(dist+1, Explanation::new(self.explain_enodes(left, right, &amp;mut Default::default())).make_flat_explanation().len());</span>
+        <span class="kw">let</span> <span class="ident">b_to_a</span> <span class="op">=</span> <span class="ident">b</span>
+            .<span class="ident">checked_sub</span>(<span class="ident">a</span>)
+            .<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="macro">panic!</span>(<span class="string">&quot;Ancestor had greater proof size!&quot;</span>));
+        <span class="kw">let</span> <span class="ident">c_to_a</span> <span class="op">=</span> <span class="ident">c</span>
+            .<span class="ident">checked_sub</span>(<span class="ident">a</span>)
+            .<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="macro">panic!</span>(<span class="string">&quot;Ancestor had greater proof size!&quot;</span>));
+        <span class="ident">b_to_a</span>.<span class="ident">saturating_add</span>(<span class="ident">c_to_a</span>)
     }
 
     <span class="kw">fn</span> <span class="ident">congruence_distance</span>(
