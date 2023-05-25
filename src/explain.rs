@@ -1535,13 +1535,14 @@ impl<L: Language> Explain<L> {
         );
 
         // calculate distance to find upper bound
-        let b_to_a = b
-            .checked_sub(a)
-            .unwrap_or_else(|| panic!("Ancestor had greater proof size!"));
-        let c_to_a = c
-            .checked_sub(a)
-            .unwrap_or_else(|| panic!("Ancestor had greater proof size!"));
-        b_to_a.saturating_add(c_to_a)
+        match b.checked_add(c) {
+            Some(added) => added
+                .checked_sub(a.checked_mul(2).unwrap_or(0))
+                .unwrap_or(usize::MAX),
+            None => usize::MAX,
+        }
+
+        //assert_eq!(dist+1, Explanation::new(self.explain_enodes(left, right, &mut Default::default())).make_flat_explanation().len());
     }
 
     fn congruence_distance(
