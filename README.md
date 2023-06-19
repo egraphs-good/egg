@@ -5,6 +5,12 @@
 [![Main branch docs](https://img.shields.io/badge/docs-main-blue)](https://egraphs-good.github.io/egg/egg/)
 [![Zulip](https://img.shields.io/badge/zulip-join%20chat-blue)](https://egraphs.zulipchat.com)
 
+Also check out the [egglog](https://github.com/egraphs-good/egglog) 
+ system that provides an alternative approach to 
+ equality saturation based on Datalog.
+It features a language-based design, incremental execution, and composable analyses.
+See also the [paper](//mwillsey.com/papers/egglog) and the [web demo](https://egraphs-good.github.io/egglog).
+
 Are you using egg?
 Please cite using the BibTeX below and
  add your project to the `egg`
