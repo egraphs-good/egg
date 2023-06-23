@@ -10,8 +10,8 @@ use std::rc::Rc;
 
 use symbolic_expressions::Sexp;
 
-const CONGRUENCE_LIMIT: usize = 10;
-const GREEDY_NUM_ITERS: usize = 10;
+const CONGRUENCE_LIMIT: usize = 2;
+const GREEDY_NUM_ITERS: usize = 2;
 
 /// A justification for a union, either via a rule or congruence.
 /// A direct union with a justification is also stored as a rule.
