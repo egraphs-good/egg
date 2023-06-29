@@ -36,7 +36,7 @@ First,
 Now we can add `egg` as a project dependency by adding a line to `Cargo.toml`:
 ```toml
 [dependencies]
-egg = "0.9.4"
+egg = "0.9.5"
 ```
 
 All of the code samples below work, but you'll have to `use` the relevant types.

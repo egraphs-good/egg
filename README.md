@@ -46,7 +46,7 @@ Check out the [web demo](https://egraphs-good.github.io/egg-web-demo) for some q
 Add `egg` to your `Cargo.toml` like this:
 ```toml
 [dependencies]
-egg = "0.9.4"
+egg = "0.9.5"
 ```
 
 Make sure to compile with `--release` if you are measuring performance!
