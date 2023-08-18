@@ -730,6 +730,153 @@ where
 {
 }
 
+/// A [`RewriteScheduler`] that schedules rewrites based on class size.
+///
+/// For each class, there exists a configurable initial size limit.
+/// When the class size reaches this limit, we stop applying rewrites
+/// to it for a configurable number of iterations,
+/// and increase the size limit and the ban length.
+///
+#[derive(Debug)]
+pub struct EScheduler {
+    default_size_limit: usize,
+    default_size_increment: usize,
+    default_ban_length: usize,
+    default_ban_increment: usize,
+    stats: IndexMap<Id, EStats>,
+}
+
+impl Default for EScheduler {
+    fn default() -> Self {
+        Self {
+            stats: Default::default(),
+            default_size_limit: 10,
+            default_size_increment: 3,
+            default_ban_length: 3,
+            default_ban_increment: 2,
+        }
+    }
+}
+
+impl EScheduler {
+    /// Set the initial size limit after which a class will stop growing.
+    /// Default: 10
+    pub fn with_initial_match_limit(mut self, limit: usize) -> Self {
+        self.default_size_limit = limit;
+        self
+    }
+
+    /// Set the match limit increment.
+    /// Default: 3
+    pub fn with_match_increment(mut self, increment: usize) -> Self {
+        self.default_size_increment = increment;
+        self
+    }
+
+    /// Set the initial ban length.
+    /// Default: 3 iterations
+    pub fn with_ban_length(mut self, ban_length: usize) -> Self {
+        self.default_ban_length = ban_length;
+        self
+    }
+
+    /// Set the ban length increment.
+    /// Default: 2
+    pub fn with_ban_increment(mut self, ban_increment: usize) -> Self {
+        self.default_ban_increment = ban_increment;
+        self
+    }
+
+    fn e_stats(&mut self, class: Id) -> &mut EStats {
+        if self.stats.contains_key(&class) {
+            &mut self.stats[&class]
+        } else {
+            self.stats.entry(class).or_insert(EStats {
+                banned_until: 0,
+                times_banned: 0,
+                match_limit: self.default_size_limit,
+                ban_length: self.default_ban_length,
+            })
+        }
+    }
+}
+
+#[derive(Debug)]
+struct EStats {
+    banned_until: usize,
+    times_banned: usize,
+    match_limit: usize,
+    ban_length: usize,
+}
+
+impl<L, N> RewriteScheduler<L, N> for EScheduler
+where
+    L: Language,
+    N: Analysis<L>,
+{
+    fn can_stop(&mut self, iteration: usize) -> bool {
+        let mut banned: Vec<_> = self
+            .stats
+            .iter_mut()
+            .filter(|(_, s)| s.banned_until > iteration)
+            .collect();
+
+        if banned.is_empty() {
+            true
+        } else {
+            let min_ban = banned
+                .iter()
+                .map(|(_, s)| s.banned_until)
+                .min()
+                .expect("banned cannot be empty here");
+
+            assert!(min_ban >= iteration);
+            let delta = min_ban - iteration;
+
+            let mut unbanned = vec![];
+            for (name, s) in &mut banned {
+                s.banned_until -= delta;
+                if s.banned_until == iteration {
+                    unbanned.push(*name);
+                }
+            }
+
+            assert!(!unbanned.is_empty());
+
+            false
+        }
+    }
+
+    fn search_rewrite<'a>(
+        &mut self,
+        iteration: usize,
+        egraph: &EGraph<L, N>,
+        rewrite: &'a Rewrite<L, N>,
+    ) -> Vec<SearchMatches<'a, L>> {
+        let mut ms = rewrite.search(egraph);
+        ms.retain(|m| {
+            let match_incr = self.default_size_increment;
+            let ban_incr = self.default_ban_increment;
+            let stats = self.e_stats(m.eclass);
+            if stats.banned_until > iteration {
+                false
+            } else {
+                let threshold = stats.match_limit + match_incr * stats.times_banned;
+                let len: usize = egraph[m.eclass].len();
+                if len > threshold {
+                    let ban_length = stats.ban_length + ban_incr * stats.times_banned;
+                    stats.times_banned += 1;
+                    stats.banned_until = iteration + ban_length;
+                    false
+                } else {
+                    true
+                }
+            }
+        });
+        ms
+    }
+}
+
 /// A [`RewriteScheduler`] that implements exponentional rule backoff.
 ///
 /// For each rewrite, there exists a configurable initial match limit.
@@ -744,7 +891,7 @@ where
 ///
 #[derive(Debug)]
 pub struct BackoffScheduler {
-    default_match_limit: usize,
+    default_size_limit: usize,
     default_ban_length: usize,
     stats: IndexMap<Symbol, RuleStats>,
 }
@@ -762,7 +909,7 @@ impl BackoffScheduler {
     /// Set the initial match limit after which a rule will be banned.
     /// Default: 1,000
     pub fn with_initial_match_limit(mut self, limit: usize) -> Self {
-        self.default_match_limit = limit;
+        self.default_size_limit = limit;
         self
     }
 
@@ -781,7 +928,7 @@ impl BackoffScheduler {
                 times_applied: 0,
                 banned_until: 0,
                 times_banned: 0,
-                match_limit: self.default_match_limit,
+                match_limit: self.default_size_limit,
                 ban_length: self.default_ban_length,
             })
         }
@@ -810,7 +957,7 @@ impl Default for BackoffScheduler {
     fn default() -> Self {
         Self {
             stats: Default::default(),
-            default_match_limit: 1_000,
+            default_size_limit: 1_000,
             default_ban_length: 5,
         }
     }
