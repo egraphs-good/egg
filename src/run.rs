@@ -761,14 +761,14 @@ impl Default for EScheduler {
 impl EScheduler {
     /// Set the initial size limit after which a class will stop growing.
     /// Default: 10
-    pub fn with_initial_match_limit(mut self, limit: usize) -> Self {
+    pub fn with_initial_size_limit(mut self, limit: usize) -> Self {
         self.default_size_limit = limit;
         self
     }
 
-    /// Set the match limit increment.
+    /// Set the size limit increment.
     /// Default: 3
-    pub fn with_match_increment(mut self, increment: usize) -> Self {
+    pub fn with_size_increment(mut self, increment: usize) -> Self {
         self.default_size_increment = increment;
         self
     }
@@ -794,7 +794,7 @@ impl EScheduler {
             self.stats.entry(class).or_insert(EStats {
                 banned_until: 0,
                 times_banned: 0,
-                match_limit: self.default_size_limit,
+                size_limit: self.default_size_limit,
                 ban_length: self.default_ban_length,
             })
         }
@@ -805,7 +805,7 @@ impl EScheduler {
 struct EStats {
     banned_until: usize,
     times_banned: usize,
-    match_limit: usize,
+    size_limit: usize,
     ban_length: usize,
 }
 
@@ -855,13 +855,13 @@ where
     ) -> Vec<SearchMatches<'a, L>> {
         let mut ms = rewrite.search(egraph);
         ms.retain(|m| {
-            let match_incr = self.default_size_increment;
+            let size_incr = self.default_size_increment;
             let ban_incr = self.default_ban_increment;
             let stats = self.e_stats(m.eclass);
             if stats.banned_until > iteration {
                 false
             } else {
-                let threshold = stats.match_limit + match_incr * stats.times_banned;
+                let threshold = stats.size_limit + size_incr * stats.times_banned;
                 let len: usize = egraph[m.eclass].len();
                 if len > threshold {
                     let ban_length = stats.ban_length + ban_incr * stats.times_banned;
@@ -891,7 +891,7 @@ where
 ///
 #[derive(Debug)]
 pub struct BackoffScheduler {
-    default_size_limit: usize,
+    default_match_limit: usize,
     default_ban_length: usize,
     stats: IndexMap<Symbol, RuleStats>,
 }
@@ -909,7 +909,7 @@ impl BackoffScheduler {
     /// Set the initial match limit after which a rule will be banned.
     /// Default: 1,000
     pub fn with_initial_match_limit(mut self, limit: usize) -> Self {
-        self.default_size_limit = limit;
+        self.default_match_limit = limit;
         self
     }
 
@@ -928,7 +928,7 @@ impl BackoffScheduler {
                 times_applied: 0,
                 banned_until: 0,
                 times_banned: 0,
-                match_limit: self.default_size_limit,
+                match_limit: self.default_match_limit,
                 ban_length: self.default_ban_length,
             })
         }
@@ -957,7 +957,7 @@ impl Default for BackoffScheduler {
     fn default() -> Self {
         Self {
             stats: Default::default(),
-            default_size_limit: 1_000,
+            default_match_limit: 1_000,
             default_ban_length: 5,
         }
     }
