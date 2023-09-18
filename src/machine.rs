@@ -42,7 +42,6 @@ fn for_each_matching_node<L, D>(
 where
     L: Language,
 {
-    #[allow(enum_intrinsics_non_enums)]
     if eclass.nodes.len() < 50 {
         eclass
             .nodes
@@ -53,9 +52,9 @@ where
         debug_assert!(node.all(|id| id == Id::from(0)));
         debug_assert!(eclass.nodes.windows(2).all(|w| w[0] < w[1]));
         let mut start = eclass.nodes.binary_search(node).unwrap_or_else(|i| i);
-        let discrim = std::mem::discriminant(node);
+        let discrim = node.discriminant();
         while start > 0 {
-            if std::mem::discriminant(&eclass.nodes[start - 1]) == discrim {
+            if eclass.nodes[start - 1].discriminant() == discrim {
                 start -= 1;
             } else {
                 break;
@@ -63,7 +62,7 @@ where
         }
         let mut matching = eclass.nodes[start..]
             .iter()
-            .take_while(|&n| std::mem::discriminant(n) == discrim)
+            .take_while(|&n| n.discriminant() == discrim)
             .filter(|n| node.matches(n));
         debug_assert_eq!(
             matching.clone().count(),

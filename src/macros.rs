@@ -79,6 +79,13 @@ macro_rules! __define_language {
         $vis enum $name $decl
 
         impl $crate::Language for $name {
+            type Discriminant = std::mem::Discriminant<Self>;
+
+            #[inline(always)]
+            fn discriminant(&self) -> Self::Discriminant {
+                std::mem::discriminant(self)
+            }
+
             #[inline(always)]
             fn matches(&self, other: &Self) -> bool {
                 ::std::mem::discriminant(self) == ::std::mem::discriminant(other) &&

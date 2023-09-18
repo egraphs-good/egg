@@ -5,7 +5,7 @@ use std::{
 };
 
 #[cfg(feature = "serde-1")]
-use ::serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 use log::*;
 
@@ -76,7 +76,7 @@ pub struct EGraph<L: Language, N: Analysis<L>> {
     pub(crate) classes: HashMap<Id, EClass<L, N::Data>>,
     #[cfg_attr(feature = "serde-1", serde(skip))]
     #[cfg_attr(feature = "serde-1", serde(default = "default_classes_by_op"))]
-    pub(crate) classes_by_op: HashMap<std::mem::Discriminant<L>, HashSet<Id>>,
+    pub(crate) classes_by_op: HashMap<L::Discriminant, HashSet<Id>>,
     /// Whether or not reading operation are allowed on this e-graph.
     /// Mutating operations will set this to `false`, and
     /// [`EGraph::rebuild`] will set it to true.
@@ -977,9 +977,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             trimmed += old_len - class.nodes.len();
 
             let mut add = |n: &L| {
-                #[allow(enum_intrinsics_non_enums)]
                 classes_by_op
-                    .entry(std::mem::discriminant(n))
+                    .entry(n.discriminant())
                     .or_default()
                     .insert(class.id)
             };
