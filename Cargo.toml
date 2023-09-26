@@ -11,26 +11,27 @@ repository = "https://github.com/egraphs-good/egg"
 version = "0.9.5"
 
 [dependencies]
-env_logger = {version = "0.9.0", default-features = false}
+env_logger = { version = "0.9.0", default-features = false }
 fxhash = "0.2.1"
 hashbrown = "0.12.1"
 indexmap = "1.8.1"
 instant = "0.1.12"
 log = "0.4.17"
-smallvec = {version = "1.8.0", features = ["union", "const_generics"]}
-symbol_table = {version = "0.2.0", features = ["global"]}
+smallvec = { version = "1.8.0", features = ["union", "const_generics"] }
+symbol_table = { version = "0.2.0", features = ["global"] }
 symbolic_expressions = "5.0.3"
 thiserror = "1.0.31"
 
 # for the lp feature
-coin_cbc = {version = "0.1.6", optional = true}
+coin_cbc = { version = "0.1.6", optional = true }
 
 # for the serde-1 feature
-serde = {version = "1.0.137", features = ["derive"], optional = true}
-vectorize = {version = "0.2.0", optional = true}
+serde = { version = "1.0.137", features = ["derive"], optional = true }
+vectorize = { version = "0.2.0", optional = true }
 
 # for the reports feature
-serde_json = {version = "1.0.81", optional = true}
+serde_json = { version = "1.0.81", optional = true }
+saturating = "0.1.0"
 
 [dev-dependencies]
 ordered-float = "3.0.0"
