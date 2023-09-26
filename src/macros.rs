@@ -11,6 +11,8 @@ based on either the data of variants or the provided strings.
 The final variant **must have a trailing comma**; this is due to limitations in
 macro parsing.
 
+The language discriminant will use the cases of the enum (the enum discriminant).
+
 See [`LanguageChildren`] for acceptable types of children `Id`s.
 
 Note that you can always implement [`Language`] yourself by just not using this
