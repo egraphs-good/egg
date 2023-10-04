@@ -398,6 +398,12 @@ impl<L> From<Vec<L>> for RecExpr<L> {
     }
 }
 
+impl<L> From<RecExpr<L>> for Vec<L> {
+    fn from(val: RecExpr<L>) -> Self {
+        val.nodes
+    }
+}
+
 impl<L: Language> RecExpr<L> {
     /// Adds a given enode to this `RecExpr`.
     /// The enode's children `Id`s must refer to elements already in this list.
