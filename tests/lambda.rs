@@ -75,7 +75,7 @@ impl Analysis<Lambda> for LambdaAnalysis {
         })
     }
 
-    fn make(egraph: &EGraph, enode: &Lambda) -> Data {
+    fn make(egraph: &mut EGraph, enode: &Lambda) -> Data {
         let f = |i: &Id| egraph[*i].data.free.iter().cloned();
         let mut free = HashSet::default();
         match enode {
