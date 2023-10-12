@@ -691,11 +691,14 @@ pub trait Analysis<L: Language>: Sized {
     /// The per-[`EClass`] data for this analysis.
     type Data: Debug;
 
-    /// Makes a new [`Analysis`] for a given enode
-    /// [`Analysis`].
+    /// Makes a new [`Analysis`] data for a given e-node.
     ///
-    /// Note that the mutable `egraph` parameter allows creating new nodes, for which `make` will be called recursively; this may lead to an infinite loop if not careful!
-    /// 
+    /// Note the mutable `egraph` parameter: this is needed for some
+    /// advanced use cases, but most use cases will not need to mutate
+    /// the e-graph in any way.
+    /// It is **not** `make`'s responsiblity to insert the e-node;
+    /// the e-node is "being inserted" when this function is called.
+    /// Doing so will create an infinite loop.
     fn make(egraph: &mut EGraph<L, Self>, enode: &L) -> Self::Data;
 
     /// An optional hook that allows inspection before a [`union`] occurs.
