@@ -1,6 +1,7 @@
 # Changes
 
 ## [Unreleased] - ReleaseDate
+- Change the API of `make` to have mutable access to the e-graph for some [advanced uses cases](https://github.com/egraphs-good/egg/pull/277).
 
 
 ## [0.9.5] - 2023-06-29
