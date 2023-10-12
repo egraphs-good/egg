@@ -255,7 +255,7 @@ where
 ///     fn merge(&mut self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
 ///         merge_min(to, from)
 ///     }
-///     fn make(egraph: &EGraph, enode: &Math) -> Self::Data {
+///     fn make(egraph: &mut EGraph, enode: &Math) -> Self::Data {
 ///         let get_size = |i: Id| egraph[i].data;
 ///         AstSize.cost(enode, get_size)
 ///     }
