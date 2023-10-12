@@ -916,7 +916,7 @@
 <span class="doccomment">///     fn merge(&amp;mut self, to: &amp;mut Self::Data, from: Self::Data) -&gt; DidMerge {</span>
 <span class="doccomment">///         merge_min(to, from)</span>
 <span class="doccomment">///     }</span>
-<span class="doccomment">///     fn make(egraph: &amp;EGraph, enode: &amp;Math) -&gt; Self::Data {</span>
+<span class="doccomment">///     fn make(egraph: &amp;mut EGraph, enode: &amp;Math) -&gt; Self::Data {</span>
 <span class="doccomment">///         let get_size = |i: Id| egraph[i].data;</span>
 <span class="doccomment">///         AstSize.cost(enode, get_size)</span>
 <span class="doccomment">///     }</span>

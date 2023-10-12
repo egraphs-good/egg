@@ -44,7 +44,7 @@ you from having to implement your own applier.</p>
     <span class="kw">fn</span> <span class="ident">merge</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">to</span>: <span class="kw-2">&amp;mut</span> <span class="ident"><span class="self">Self</span>::Data</span>, <span class="ident">from</span>: <span class="ident"><span class="self">Self</span>::Data</span>) -&gt; <span class="ident">DidMerge</span> {
         <span class="ident">merge_min</span>(<span class="ident">to</span>, <span class="ident">from</span>)
     }
-    <span class="kw">fn</span> <span class="ident">make</span>(<span class="ident">egraph</span>: <span class="kw-2">&amp;</span><span class="ident">EGraph</span>, <span class="ident">enode</span>: <span class="kw-2">&amp;</span><span class="ident">Math</span>) -&gt; <span class="ident"><span class="self">Self</span>::Data</span> {
+    <span class="kw">fn</span> <span class="ident">make</span>(<span class="ident">egraph</span>: <span class="kw-2">&amp;mut</span> <span class="ident">EGraph</span>, <span class="ident">enode</span>: <span class="kw-2">&amp;</span><span class="ident">Math</span>) -&gt; <span class="ident"><span class="self">Self</span>::Data</span> {
         <span class="kw">let</span> <span class="ident">get_size</span> <span class="op">=</span> <span class="op">|</span><span class="ident">i</span>: <span class="ident">Id</span><span class="op">|</span> <span class="ident">egraph</span>[<span class="ident">i</span>].<span class="ident">data</span>;
         <span class="ident">AstSize</span>.<span class="ident">cost</span>(<span class="ident">enode</span>, <span class="ident">get_size</span>)
     }
