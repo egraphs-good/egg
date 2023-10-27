@@ -65,6 +65,7 @@ pub struct Explain<L: Language> {
     // the explanation.
     // Invariant: The distance is always <= the unoptimized distance
     // That is, less than or equal to the result of `distance_between`
+    #[cfg_attr(feature = "serde-1", serde(skip))]
     shortest_explanation_memo: HashMap<(Id, Id), (ProofCost, Id)>,
 }
 
