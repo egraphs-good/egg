@@ -241,7 +241,7 @@ impl<L: Language + Display + FromOp> Explanation<L> {
         let mut seen_adjacent = Default::default();
         let mut sum: ProofCost = Saturating(0);
         for e in self.explanation_trees.iter() {
-            sum = sum + self.tree_size(&mut seen, &mut seen_adjacent, e);
+            sum += self.tree_size(&mut seen, &mut seen_adjacent, e);
         }
         sum
     }
@@ -273,7 +273,7 @@ impl<L: Language + Display + FromOp> Explanation<L> {
 
         for child_proof in &current.child_proofs {
             for child in child_proof {
-                my_size = self.tree_size(seen, seen_adjacent, child);
+                my_size += self.tree_size(seen, seen_adjacent, child);
             }
         }
         my_size
@@ -1492,7 +1492,6 @@ impl<L: Language> Explain<L> {
     ) {
         self.shortest_explanation_memo
             .insert((right, right), (Saturating(0), right));
-        let mut last_cost = Saturating(0);
         for connection in left_connections.iter().rev() {
             let next = connection.next;
             let current = connection.current;
@@ -1502,7 +1501,6 @@ impl<L: Language> Explain<L> {
                 .unwrap()
                 .0;
             let dist = self.connection_distance(connection, distance_memo);
-            last_cost = dist + next_cost;
             self.replace_distance(current, next, right, next_cost + dist);
         }
     }
