@@ -2100,20 +2100,20 @@
 <span id="2095">2095</span>
 <span id="2096">2096</span>
 <span id="2097">2097</span>
-<span id="2098">2098</span>
-<span id="2099">2099</span>
-<span id="2100">2100</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::Symbol</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::{
     <span class="ident">util::pretty_print</span>, <span class="ident">Analysis</span>, <span class="ident">EClass</span>, <span class="ident">EGraph</span>, <span class="ident">ENodeOrVar</span>, <span class="ident">FromOp</span>, <span class="ident">HashMap</span>, <span class="ident">HashSet</span>, <span class="ident">Id</span>,
     <span class="ident">Language</span>, <span class="ident">Pattern</span>, <span class="ident">PatternAst</span>, <span class="ident">RecExpr</span>, <span class="ident">Rewrite</span>, <span class="ident">Subst</span>, <span class="ident">UnionFind</span>, <span class="ident">Var</span>,
 };
+<span class="kw">use</span> <span class="ident">saturating::Saturating</span>;
 <span class="kw">use</span> <span class="ident">std::cmp::Ordering</span>;
 <span class="kw">use</span> <span class="ident">std::collections</span>::{<span class="ident">BinaryHeap</span>, <span class="ident">VecDeque</span>};
 <span class="kw">use</span> <span class="ident">std::fmt</span>::{<span class="self">self</span>, <span class="ident">Debug</span>, <span class="ident">Display</span>, <span class="ident">Formatter</span>};
 <span class="kw">use</span> <span class="ident">std::rc::Rc</span>;
 
 <span class="kw">use</span> <span class="ident">symbolic_expressions::Sexp</span>;
+
+<span class="kw">type</span> <span class="ident">ProofCost</span> <span class="op">=</span> <span class="ident">Saturating</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>;
 
 <span class="kw">const</span> <span class="ident">CONGRUENCE_LIMIT</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">2</span>;
 <span class="kw">const</span> <span class="ident">GREEDY_NUM_ITERS</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">2</span>;
@@ -2167,14 +2167,15 @@
     <span class="comment">// the explanation.</span>
     <span class="comment">// Invariant: The distance is always &lt;= the unoptimized distance</span>
     <span class="comment">// That is, less than or equal to the result of `distance_between`</span>
-    <span class="ident">shortest_explanation_memo</span>: <span class="ident">HashMap</span><span class="op">&lt;</span>(<span class="ident">Id</span>, <span class="ident">Id</span>), (<span class="ident">usize</span>, <span class="ident">Id</span>)<span class="op">&gt;</span>,
+    <span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde-1&quot;</span>, <span class="ident">serde</span>(<span class="ident">skip</span>))]</span>
+    <span class="ident">shortest_explanation_memo</span>: <span class="ident">HashMap</span><span class="op">&lt;</span>(<span class="ident">Id</span>, <span class="ident">Id</span>), (<span class="ident">ProofCost</span>, <span class="ident">Id</span>)<span class="op">&gt;</span>,
 }
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Default</span>)]</span>
 <span class="kw">struct</span> <span class="ident">DistanceMemo</span> {
-    <span class="ident">parent_distance</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">Id</span>, <span class="ident">usize</span>)<span class="op">&gt;</span>,
+    <span class="ident">parent_distance</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">Id</span>, <span class="ident">ProofCost</span>)<span class="op">&gt;</span>,
     <span class="ident">common_ancestor</span>: <span class="ident">HashMap</span><span class="op">&lt;</span>(<span class="ident">Id</span>, <span class="ident">Id</span>), <span class="ident">Id</span><span class="op">&gt;</span>,
-    <span class="ident">tree_depth</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">Id</span>, <span class="ident">usize</span><span class="op">&gt;</span>,
+    <span class="ident">tree_depth</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">Id</span>, <span class="ident">ProofCost</span><span class="op">&gt;</span>,
 }
 
 <span class="doccomment">/// Explanation trees are the compact representation showing</span>
@@ -2338,10 +2339,10 @@ See [`Explanation`] for more details.
 
     <span class="doccomment">/// Get the size of this explanation tree in terms of the number of rewrites</span>
     <span class="doccomment">/// in the let-bound version of the tree.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_tree_size</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">usize</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_tree_size</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">ProofCost</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">seen</span> <span class="op">=</span> <span class="ident">Default::default</span>();
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">seen_adjacent</span> <span class="op">=</span> <span class="ident">Default::default</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">sum</span> <span class="op">=</span> <span class="number">0</span>;
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">sum</span>: <span class="ident">ProofCost</span> <span class="op">=</span> <span class="ident">Saturating</span>(<span class="number">0</span>);
         <span class="kw">for</span> <span class="ident">e</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">explanation_trees</span>.<span class="ident">iter</span>() {
             <span class="ident">sum</span> <span class="op">+</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">tree_size</span>(<span class="kw-2">&amp;mut</span> <span class="ident">seen</span>, <span class="kw-2">&amp;mut</span> <span class="ident">seen_adjacent</span>, <span class="ident">e</span>);
         }
@@ -2353,21 +2354,21 @@ See [`Explanation`] for more details.
         <span class="ident">seen</span>: <span class="kw-2">&amp;mut</span> <span class="ident">HashSet</span><span class="op">&lt;</span><span class="kw-2">*const</span> <span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">seen_adjacent</span>: <span class="kw-2">&amp;mut</span> <span class="ident">HashSet</span><span class="op">&lt;</span>(<span class="ident">Id</span>, <span class="ident">Id</span>)<span class="op">&gt;</span>,
         <span class="ident">current</span>: <span class="kw-2">&amp;</span><span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="ident">usize</span> {
+    ) -&gt; <span class="ident">ProofCost</span> {
         <span class="kw">if</span> <span class="op">!</span><span class="ident">seen</span>.<span class="ident">insert</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">current</span> <span class="kw">as</span> <span class="kw-2">*const</span> <span class="ident">TreeTerm</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>) {
-            <span class="kw">return</span> <span class="number">0</span>;
+            <span class="kw">return</span> <span class="ident">Saturating</span>(<span class="number">0</span>);
         }
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">my_size</span> <span class="op">=</span> <span class="number">0</span>;
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">my_size</span>: <span class="ident">ProofCost</span> <span class="op">=</span> <span class="ident">Saturating</span>(<span class="number">0</span>);
         <span class="kw">if</span> <span class="ident">current</span>.<span class="ident">forward_rule</span>.<span class="ident">is_some</span>() {
-            <span class="ident">my_size</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
+            <span class="ident">my_size</span> <span class="op">+</span><span class="op">=</span> <span class="ident">Saturating</span>(<span class="number">1</span>);
         }
         <span class="kw">if</span> <span class="ident">current</span>.<span class="ident">backward_rule</span>.<span class="ident">is_some</span>() {
-            <span class="ident">my_size</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
+            <span class="ident">my_size</span> <span class="op">+</span><span class="op">=</span> <span class="ident">Saturating</span>(<span class="number">1</span>);
         }
-        <span class="macro">assert!</span>(<span class="ident">my_size</span> <span class="op">&lt;</span><span class="op">=</span> <span class="number">1</span>);
-        <span class="kw">if</span> <span class="ident">my_size</span> <span class="op">==</span> <span class="number">1</span> {
+        <span class="macro">assert!</span>(<span class="ident">my_size</span> <span class="op">&lt;</span><span class="op">=</span> <span class="ident">Saturating</span>(<span class="number">1</span>));
+        <span class="kw">if</span> <span class="ident">my_size</span> <span class="op">==</span> <span class="ident">Saturating</span>(<span class="number">1</span>) {
             <span class="kw">if</span> <span class="op">!</span><span class="ident">seen_adjacent</span>.<span class="ident">insert</span>((<span class="ident">current</span>.<span class="ident">current</span>, <span class="ident">current</span>.<span class="ident">last</span>)) {
-                <span class="kw">return</span> <span class="number">0</span>;
+                <span class="kw">return</span> <span class="ident">Saturating</span>(<span class="number">0</span>);
             } <span class="kw">else</span> {
                 <span class="ident">seen_adjacent</span>.<span class="ident">insert</span>((<span class="ident">current</span>.<span class="ident">last</span>, <span class="ident">current</span>.<span class="ident">current</span>));
             }
@@ -2958,7 +2959,7 @@ See [`Explanation`] for more details.
 <span class="comment">// Make sure to use push_increase instead of push when using priority queue</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Copy</span>, <span class="ident">Clone</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>)]</span>
 <span class="kw">struct</span> <span class="ident">HeapState</span><span class="op">&lt;</span><span class="ident">I</span><span class="op">&gt;</span> {
-    <span class="ident">cost</span>: <span class="ident">usize</span>,
+    <span class="ident">cost</span>: <span class="ident">ProofCost</span>,
     <span class="ident">item</span>: <span class="ident">I</span>,
 }
 <span class="comment">// The priority queue depends on `Ord`.</span>
@@ -3185,7 +3186,7 @@ See [`Explanation`] for more details.
             <span class="kw">return</span>;
         }
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">cost</span>, <span class="kw">_</span>)) <span class="op">=</span> <span class="self">self</span>.<span class="ident">shortest_explanation_memo</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span>(<span class="ident">node1</span>, <span class="ident">node2</span>)) {
-            <span class="kw">if</span> <span class="ident">cost</span> <span class="op">&lt;</span><span class="op">=</span> <span class="kw-2">&amp;</span><span class="number">1</span> {
+            <span class="kw">if</span> <span class="ident">cost</span> <span class="op">&lt;</span><span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">Saturating</span>(<span class="number">1</span>) {
                 <span class="kw">return</span>;
             }
         }
@@ -3211,9 +3212,9 @@ See [`Explanation`] for more details.
             .<span class="ident">neighbors</span>
             .<span class="ident">push</span>(<span class="ident">rconnection</span>);
         <span class="self">self</span>.<span class="ident">shortest_explanation_memo</span>
-            .<span class="ident">insert</span>((<span class="ident">node1</span>, <span class="ident">node2</span>), (<span class="number">1</span>, <span class="ident">node2</span>));
+            .<span class="ident">insert</span>((<span class="ident">node1</span>, <span class="ident">node2</span>), (<span class="ident">Saturating</span>(<span class="number">1</span>), <span class="ident">node2</span>));
         <span class="self">self</span>.<span class="ident">shortest_explanation_memo</span>
-            .<span class="ident">insert</span>((<span class="ident">node2</span>, <span class="ident">node1</span>), (<span class="number">1</span>, <span class="ident">node1</span>));
+            .<span class="ident">insert</span>((<span class="ident">node2</span>, <span class="ident">node1</span>), (<span class="ident">Saturating</span>(<span class="number">1</span>), <span class="ident">node1</span>));
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">union</span>(
@@ -3237,9 +3238,9 @@ See [`Explanation`] for more details.
 
         <span class="kw">if</span> <span class="kw">let</span> <span class="ident">Justification::Rule</span>(<span class="kw">_</span>) <span class="op">=</span> <span class="ident">justification</span> {
             <span class="self">self</span>.<span class="ident">shortest_explanation_memo</span>
-                .<span class="ident">insert</span>((<span class="ident">node1</span>, <span class="ident">node2</span>), (<span class="number">1</span>, <span class="ident">node2</span>));
+                .<span class="ident">insert</span>((<span class="ident">node1</span>, <span class="ident">node2</span>), (<span class="ident">Saturating</span>(<span class="number">1</span>), <span class="ident">node2</span>));
             <span class="self">self</span>.<span class="ident">shortest_explanation_memo</span>
-                .<span class="ident">insert</span>((<span class="ident">node2</span>, <span class="ident">node1</span>), (<span class="number">1</span>, <span class="ident">node1</span>));
+                .<span class="ident">insert</span>((<span class="ident">node2</span>, <span class="ident">node1</span>), (<span class="ident">Saturating</span>(<span class="number">1</span>), <span class="ident">node1</span>));
         }
 
         <span class="kw">let</span> <span class="ident">pconnection</span> <span class="op">=</span> <span class="ident">Connection</span> {
@@ -3560,20 +3561,20 @@ See [`Explanation`] for more details.
         <span class="ident">enodes</span>
     }
 
-    <span class="kw">fn</span> <span class="ident">add_tree_depths</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">node</span>: <span class="ident">Id</span>, <span class="ident">depths</span>: <span class="kw-2">&amp;mut</span> <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">Id</span>, <span class="ident">usize</span><span class="op">&gt;</span>) -&gt; <span class="ident">usize</span> {
+    <span class="kw">fn</span> <span class="ident">add_tree_depths</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">node</span>: <span class="ident">Id</span>, <span class="ident">depths</span>: <span class="kw-2">&amp;mut</span> <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">Id</span>, <span class="ident">ProofCost</span><span class="op">&gt;</span>) -&gt; <span class="ident">ProofCost</span> {
         <span class="kw">if</span> <span class="ident">depths</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">node</span>).<span class="ident">is_none</span>() {
             <span class="kw">let</span> <span class="ident">parent</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">parent</span>(<span class="ident">node</span>);
             <span class="kw">let</span> <span class="ident">depth</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">parent</span> <span class="op">==</span> <span class="ident">node</span> {
-                <span class="number">0</span>
+                <span class="ident">Saturating</span>(<span class="number">0</span>)
             } <span class="kw">else</span> {
-                <span class="self">self</span>.<span class="ident">add_tree_depths</span>(<span class="ident">parent</span>, <span class="ident">depths</span>) <span class="op">+</span> <span class="number">1</span>
+                <span class="self">self</span>.<span class="ident">add_tree_depths</span>(<span class="ident">parent</span>, <span class="ident">depths</span>) <span class="op">+</span> <span class="ident">Saturating</span>(<span class="number">1</span>)
             };
             <span class="ident">depths</span>.<span class="ident">insert</span>(<span class="ident">node</span>, <span class="ident">depth</span>);
         }
         <span class="kw">return</span> <span class="kw-2">*</span><span class="ident">depths</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">node</span>).<span class="ident">unwrap</span>();
     }
 
-    <span class="kw">fn</span> <span class="ident">calculate_tree_depths</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">Id</span>, <span class="ident">usize</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">calculate_tree_depths</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">Id</span>, <span class="ident">ProofCost</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">depths</span> <span class="op">=</span> <span class="ident">HashMap::default</span>();
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="self">self</span>.<span class="ident">explainfind</span>.<span class="ident">len</span>() {
             <span class="self">self</span>.<span class="ident">add_tree_depths</span>(<span class="ident">Id::from</span>(<span class="ident">i</span>), <span class="kw-2">&amp;mut</span> <span class="ident">depths</span>);
@@ -3581,7 +3582,7 @@ See [`Explanation`] for more details.
         <span class="ident">depths</span>
     }
 
-    <span class="kw">fn</span> <span class="ident">replace_distance</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">current</span>: <span class="ident">Id</span>, <span class="ident">next</span>: <span class="ident">Id</span>, <span class="ident">right</span>: <span class="ident">Id</span>, <span class="ident">distance</span>: <span class="ident">usize</span>) {
+    <span class="kw">fn</span> <span class="ident">replace_distance</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">current</span>: <span class="ident">Id</span>, <span class="ident">next</span>: <span class="ident">Id</span>, <span class="ident">right</span>: <span class="ident">Id</span>, <span class="ident">distance</span>: <span class="ident">ProofCost</span>) {
         <span class="self">self</span>.<span class="ident">shortest_explanation_memo</span>
             .<span class="ident">insert</span>((<span class="ident">current</span>, <span class="ident">right</span>), (<span class="ident">distance</span>, <span class="ident">next</span>));
     }
@@ -3591,11 +3592,9 @@ See [`Explanation`] for more details.
         <span class="ident">right</span>: <span class="ident">Id</span>,
         <span class="ident">left_connections</span>: <span class="kw-2">&amp;</span>[<span class="ident">Connection</span>],
         <span class="ident">distance_memo</span>: <span class="kw-2">&amp;mut</span> <span class="ident">DistanceMemo</span>,
-        <span class="ident">target_cost</span>: <span class="ident">usize</span>,
     ) {
         <span class="self">self</span>.<span class="ident">shortest_explanation_memo</span>
-            .<span class="ident">insert</span>((<span class="ident">right</span>, <span class="ident">right</span>), (<span class="number">0</span>, <span class="ident">right</span>));
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">last_cost</span> <span class="op">=</span> <span class="number">0</span>;
+            .<span class="ident">insert</span>((<span class="ident">right</span>, <span class="ident">right</span>), (<span class="ident">Saturating</span>(<span class="number">0</span>), <span class="ident">right</span>));
         <span class="kw">for</span> <span class="ident">connection</span> <span class="kw">in</span> <span class="ident">left_connections</span>.<span class="ident">iter</span>().<span class="ident">rev</span>() {
             <span class="kw">let</span> <span class="ident">next</span> <span class="op">=</span> <span class="ident">connection</span>.<span class="ident">next</span>;
             <span class="kw">let</span> <span class="ident">current</span> <span class="op">=</span> <span class="ident">connection</span>.<span class="ident">current</span>;
@@ -3605,15 +3604,18 @@ See [`Explanation`] for more details.
                 .<span class="ident">unwrap</span>()
                 .<span class="number">0</span>;
             <span class="kw">let</span> <span class="ident">dist</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">connection_distance</span>(<span class="ident">connection</span>, <span class="ident">distance_memo</span>);
-            <span class="ident">last_cost</span> <span class="op">=</span> <span class="ident">dist</span> <span class="op">+</span> <span class="ident">next_cost</span>;
             <span class="self">self</span>.<span class="ident">replace_distance</span>(<span class="ident">current</span>, <span class="ident">next</span>, <span class="ident">right</span>, <span class="ident">next_cost</span> <span class="op">+</span> <span class="ident">dist</span>);
         }
-        <span class="macro">assert!</span>(<span class="ident">last_cost</span> <span class="op">&lt;</span><span class="op">=</span> <span class="ident">target_cost</span>);
     }
 
-    <span class="kw">fn</span> <span class="ident">distance_between</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">left</span>: <span class="ident">Id</span>, <span class="ident">right</span>: <span class="ident">Id</span>, <span class="ident">distance_memo</span>: <span class="kw-2">&amp;mut</span> <span class="ident">DistanceMemo</span>) -&gt; <span class="ident">usize</span> {
+    <span class="kw">fn</span> <span class="ident">distance_between</span>(
+        <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
+        <span class="ident">left</span>: <span class="ident">Id</span>,
+        <span class="ident">right</span>: <span class="ident">Id</span>,
+        <span class="ident">distance_memo</span>: <span class="kw-2">&amp;mut</span> <span class="ident">DistanceMemo</span>,
+    ) -&gt; <span class="ident">ProofCost</span> {
         <span class="kw">if</span> <span class="ident">left</span> <span class="op">==</span> <span class="ident">right</span> {
-            <span class="kw">return</span> <span class="number">0</span>;
+            <span class="kw">return</span> <span class="ident">Saturating</span>(<span class="number">0</span>);
         }
         <span class="kw">let</span> <span class="ident">ancestor</span> <span class="op">=</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">a</span>) <span class="op">=</span> <span class="ident">distance_memo</span>.<span class="ident">common_ancestor</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span>(<span class="ident">left</span>, <span class="ident">right</span>)) {
             <span class="kw-2">*</span><span class="ident">a</span>
@@ -3640,11 +3642,13 @@ See [`Explanation`] for more details.
         );
 
         <span class="comment">// calculate distance to find upper bound</span>
-        <span class="kw">match</span> <span class="ident">b</span>.<span class="ident">checked_add</span>(<span class="ident">c</span>) {
-            <span class="prelude-val">Some</span>(<span class="ident">added</span>) =&gt; <span class="ident">added</span>
-                .<span class="ident">checked_sub</span>(<span class="ident">a</span>.<span class="ident">checked_mul</span>(<span class="number">2</span>).<span class="ident">unwrap_or</span>(<span class="number">0</span>))
-                .<span class="ident">unwrap_or</span>(<span class="ident">usize::MAX</span>),
-            <span class="prelude-val">None</span> =&gt; <span class="ident">usize::MAX</span>,
+        <span class="kw">match</span> <span class="ident">b</span>.<span class="number">0</span>.<span class="ident">checked_add</span>(<span class="ident">c</span>.<span class="number">0</span>) {
+            <span class="prelude-val">Some</span>(<span class="ident">added</span>) =&gt; <span class="ident">Saturating</span>(
+                <span class="ident">added</span>
+                    .<span class="ident">checked_sub</span>(<span class="ident">a</span>.<span class="number">0</span>.<span class="ident">checked_mul</span>(<span class="number">2</span>).<span class="ident">unwrap_or</span>(<span class="number">0</span>))
+                    .<span class="ident">unwrap_or</span>(<span class="ident">usize::MAX</span>),
+            ),
+            <span class="prelude-val">None</span> =&gt; <span class="ident">Saturating</span>(<span class="ident">usize::MAX</span>),
         }
 
         <span class="comment">//assert_eq!(dist+1, Explanation::new(self.explain_enodes(left, right, &amp;mut Default::default())).make_flat_explanation().len());</span>
@@ -3655,20 +3659,16 @@ See [`Explanation`] for more details.
         <span class="ident">current</span>: <span class="ident">Id</span>,
         <span class="ident">next</span>: <span class="ident">Id</span>,
         <span class="ident">distance_memo</span>: <span class="kw-2">&amp;mut</span> <span class="ident">DistanceMemo</span>,
-    ) -&gt; <span class="ident">usize</span> {
+    ) -&gt; <span class="ident">ProofCost</span> {
         <span class="kw">let</span> <span class="ident">current_node</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize::from</span>(<span class="ident">current</span>)].<span class="ident">node</span>.<span class="ident">clone</span>();
         <span class="kw">let</span> <span class="ident">next_node</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize::from</span>(<span class="ident">next</span>)].<span class="ident">node</span>.<span class="ident">clone</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">cost</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">0</span>;
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">cost</span>: <span class="ident">ProofCost</span> <span class="op">=</span> <span class="ident">Saturating</span>(<span class="number">0</span>);
         <span class="kw">for</span> (<span class="ident">left_child</span>, <span class="ident">right_child</span>) <span class="kw">in</span> <span class="ident">current_node</span>
             .<span class="ident">children</span>()
             .<span class="ident">iter</span>()
             .<span class="ident">zip</span>(<span class="ident">next_node</span>.<span class="ident">children</span>().<span class="ident">iter</span>())
         {
-            <span class="ident">cost</span> <span class="op">=</span> <span class="ident">cost</span>.<span class="ident">saturating_add</span>(<span class="self">self</span>.<span class="ident">distance_between</span>(
-                <span class="kw-2">*</span><span class="ident">left_child</span>,
-                <span class="kw-2">*</span><span class="ident">right_child</span>,
-                <span class="ident">distance_memo</span>,
-            ));
+            <span class="ident">cost</span> <span class="op">+</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">distance_between</span>(<span class="kw-2">*</span><span class="ident">left_child</span>, <span class="kw-2">*</span><span class="ident">right_child</span>, <span class="ident">distance_memo</span>);
         }
         <span class="ident">cost</span>
     }
@@ -3677,12 +3677,12 @@ See [`Explanation`] for more details.
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">connection</span>: <span class="kw-2">&amp;</span><span class="ident">Connection</span>,
         <span class="ident">distance_memo</span>: <span class="kw-2">&amp;mut</span> <span class="ident">DistanceMemo</span>,
-    ) -&gt; <span class="ident">usize</span> {
+    ) -&gt; <span class="ident">ProofCost</span> {
         <span class="kw">match</span> <span class="ident">connection</span>.<span class="ident">justification</span> {
             <span class="ident">Justification::Congruence</span> =&gt; {
                 <span class="self">self</span>.<span class="ident">congruence_distance</span>(<span class="ident">connection</span>.<span class="ident">current</span>, <span class="ident">connection</span>.<span class="ident">next</span>, <span class="ident">distance_memo</span>)
             }
-            <span class="ident">Justification::Rule</span>(<span class="kw">_</span>) =&gt; <span class="number">1</span>,
+            <span class="ident">Justification::Rule</span>(<span class="kw">_</span>) =&gt; <span class="ident">Saturating</span>(<span class="number">1</span>),
         }
     }
 
@@ -3691,7 +3691,7 @@ See [`Explanation`] for more details.
         <span class="ident">enode</span>: <span class="ident">Id</span>,
         <span class="ident">ancestor</span>: <span class="ident">Id</span>,
         <span class="ident">distance_memo</span>: <span class="kw-2">&amp;mut</span> <span class="ident">DistanceMemo</span>,
-    ) -&gt; <span class="ident">usize</span> {
+    ) -&gt; <span class="ident">ProofCost</span> {
         <span class="kw">loop</span> {
             <span class="kw">let</span> <span class="ident">parent</span> <span class="op">=</span> <span class="ident">distance_memo</span>.<span class="ident">parent_distance</span>[<span class="ident">usize::from</span>(<span class="ident">enode</span>)].<span class="number">0</span>;
             <span class="kw">let</span> <span class="ident">dist</span> <span class="op">=</span> <span class="ident">distance_memo</span>.<span class="ident">parent_distance</span>[<span class="ident">usize::from</span>(<span class="ident">enode</span>)].<span class="number">1</span>;
@@ -3701,8 +3701,7 @@ See [`Explanation`] for more details.
 
             <span class="kw">let</span> <span class="ident">parent_parent</span> <span class="op">=</span> <span class="ident">distance_memo</span>.<span class="ident">parent_distance</span>[<span class="ident">usize::from</span>(<span class="ident">parent</span>)].<span class="number">0</span>;
             <span class="kw">if</span> <span class="ident">parent_parent</span> <span class="op">!</span><span class="op">=</span> <span class="ident">parent</span> {
-                <span class="kw">let</span> <span class="ident">new_dist</span> <span class="op">=</span>
-                    <span class="ident">dist</span>.<span class="ident">saturating_add</span>(<span class="ident">distance_memo</span>.<span class="ident">parent_distance</span>[<span class="ident">usize::from</span>(<span class="ident">parent</span>)].<span class="number">1</span>);
+                <span class="kw">let</span> <span class="ident">new_dist</span> <span class="op">=</span> <span class="ident">dist</span> <span class="op">+</span> <span class="ident">distance_memo</span>.<span class="ident">parent_distance</span>[<span class="ident">usize::from</span>(<span class="ident">parent</span>)].<span class="number">1</span>;
                 <span class="ident">distance_memo</span>.<span class="ident">parent_distance</span>[<span class="ident">usize::from</span>(<span class="ident">enode</span>)] <span class="op">=</span> (<span class="ident">parent_parent</span>, <span class="ident">new_dist</span>);
             } <span class="kw">else</span> {
                 <span class="kw">if</span> <span class="ident">ancestor</span> <span class="op">==</span> <span class="ident">Id::from</span>(<span class="ident">usize::MAX</span>) {
@@ -3722,7 +3721,7 @@ See [`Explanation`] for more details.
                     <span class="ident">Justification::Congruence</span> =&gt; {
                         <span class="self">self</span>.<span class="ident">congruence_distance</span>(<span class="ident">current</span>, <span class="ident">next</span>, <span class="ident">distance_memo</span>)
                     }
-                    <span class="ident">Justification::Rule</span>(<span class="kw">_</span>) =&gt; <span class="number">1</span>,
+                    <span class="ident">Justification::Rule</span>(<span class="kw">_</span>) =&gt; <span class="ident">Saturating</span>(<span class="number">1</span>),
                 };
                 <span class="ident">distance_memo</span>.<span class="ident">parent_distance</span>[<span class="ident">usize::from</span>(<span class="ident">parent</span>)] <span class="op">=</span> (<span class="self">self</span>.<span class="ident">parent</span>(<span class="ident">parent</span>), <span class="ident">cost</span>);
             }
@@ -3808,7 +3807,7 @@ See [`Explanation`] for more details.
     ) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Connection</span><span class="op">&gt;</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Connection</span><span class="op">&gt;</span>)<span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">todo</span> <span class="op">=</span> <span class="ident">BinaryHeap::new</span>();
         <span class="ident">todo</span>.<span class="ident">push</span>(<span class="ident">HeapState</span> {
-            <span class="ident">cost</span>: <span class="number">0</span>,
+            <span class="ident">cost</span>: <span class="ident">Saturating</span>(<span class="number">0</span>),
             <span class="ident">item</span>: <span class="ident">Connection</span> {
                 <span class="ident">current</span>: <span class="ident">start</span>,
                 <span class="ident">next</span>: <span class="ident">start</span>,
@@ -3842,7 +3841,7 @@ See [`Explanation`] for more details.
 
             <span class="kw">for</span> <span class="ident">neighbor</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">explainfind</span>[<span class="ident">usize::from</span>(<span class="ident">current</span>)].<span class="ident">neighbors</span> {
                 <span class="kw">if</span> <span class="kw">let</span> <span class="ident">Justification::Rule</span>(<span class="kw">_</span>) <span class="op">=</span> <span class="ident">neighbor</span>.<span class="ident">justification</span> {
-                    <span class="kw">let</span> <span class="ident">neighbor_cost</span> <span class="op">=</span> <span class="ident">cost_so_far</span>.<span class="ident">saturating_add</span>(<span class="number">1</span>);
+                    <span class="kw">let</span> <span class="ident">neighbor_cost</span> <span class="op">=</span> <span class="ident">cost_so_far</span> <span class="op">+</span> <span class="ident">Saturating</span>(<span class="number">1</span>);
                     <span class="ident">todo</span>.<span class="ident">push</span>(<span class="ident">HeapState</span> {
                         <span class="ident">item</span>: <span class="ident">neighbor</span>.<span class="ident">clone</span>(),
                         <span class="ident">cost</span>: <span class="ident">neighbor_cost</span>,
@@ -3853,7 +3852,7 @@ See [`Explanation`] for more details.
             <span class="kw">for</span> <span class="ident">other</span> <span class="kw">in</span> <span class="ident">congruence_neighbors</span>[<span class="ident">usize::from</span>(<span class="ident">current</span>)].<span class="ident">iter</span>() {
                 <span class="kw">let</span> <span class="ident">next</span> <span class="op">=</span> <span class="ident">other</span>;
                 <span class="kw">let</span> <span class="ident">distance</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">congruence_distance</span>(<span class="ident">current</span>, <span class="kw-2">*</span><span class="ident">next</span>, <span class="ident">distance_memo</span>);
-                <span class="kw">let</span> <span class="ident">next_cost</span> <span class="op">=</span> <span class="ident">cost_so_far</span>.<span class="ident">saturating_add</span>(<span class="ident">distance</span>);
+                <span class="kw">let</span> <span class="ident">next_cost</span> <span class="op">=</span> <span class="ident">cost_so_far</span> <span class="op">+</span> <span class="ident">distance</span>;
                 <span class="ident">todo</span>.<span class="ident">push</span>(<span class="ident">HeapState</span> {
                     <span class="ident">item</span>: <span class="ident">Connection</span> {
                         <span class="ident">current</span>,
@@ -3872,7 +3871,7 @@ See [`Explanation`] for more details.
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">right_connections</span> <span class="op">=</span> <span class="macro">vec!</span>[];
 
         <span class="comment">// we would like to assert that we found a path better than the normal one</span>
-        <span class="comment">// but since proof sizes are saturated (saturating_add) this is not true</span>
+        <span class="comment">// but since proof sizes are saturated this is not true</span>
         <span class="comment">/*let dist = self.distance_between(start, end, distance_memo);
         if *total_cost.unwrap() &gt; dist {
             panic!(
@@ -3881,7 +3880,7 @@ See [`Explanation`] for more details.
                 dist
             );
         }*/</span>
-        <span class="kw">if</span> <span class="kw-2">*</span><span class="ident">total_cost</span>.<span class="ident">unwrap</span>() <span class="op">==</span> <span class="self">self</span>.<span class="ident">distance_between</span>(<span class="ident">start</span>, <span class="ident">end</span>, <span class="ident">distance_memo</span>) {
+        <span class="kw">if</span> <span class="kw-2">*</span><span class="ident">total_cost</span>.<span class="ident">unwrap</span>() <span class="op">&gt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">distance_between</span>(<span class="ident">start</span>, <span class="ident">end</span>, <span class="ident">distance_memo</span>) {
             <span class="kw">let</span> (<span class="ident">a_left_connections</span>, <span class="ident">a_right_connections</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_path_unoptimized</span>(<span class="ident">start</span>, <span class="ident">end</span>);
             <span class="ident">left_connections</span> <span class="op">=</span> <span class="ident">a_left_connections</span>;
             <span class="ident">right_connections</span> <span class="op">=</span> <span class="ident">a_right_connections</span>;
@@ -3898,12 +3897,7 @@ See [`Explanation`] for more details.
                 }
             }
             <span class="ident">connections</span>.<span class="ident">reverse</span>();
-            <span class="self">self</span>.<span class="ident">populate_path_length</span>(
-                <span class="ident">end</span>,
-                <span class="kw-2">&amp;</span><span class="ident">connections</span>,
-                <span class="ident">distance_memo</span>,
-                <span class="kw-2">*</span><span class="ident">path_cost</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">end</span>).<span class="ident">unwrap</span>(),
-            );
+            <span class="self">self</span>.<span class="ident">populate_path_length</span>(<span class="ident">end</span>, <span class="kw-2">&amp;</span><span class="ident">connections</span>, <span class="ident">distance_memo</span>);
             <span class="ident">left_connections</span> <span class="op">=</span> <span class="ident">connections</span>;
         }
 
@@ -4079,7 +4073,7 @@ See [`Explanation`] for more details.
     ) {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">congruence_neighbors</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="macro">vec!</span>[]; <span class="self">self</span>.<span class="ident">explainfind</span>.<span class="ident">len</span>()];
         <span class="self">self</span>.<span class="ident">find_congruence_neighbors</span>::<span class="op">&lt;</span><span class="ident">N</span><span class="op">&gt;</span>(<span class="ident">classes</span>, <span class="kw-2">&amp;mut</span> <span class="ident">congruence_neighbors</span>, <span class="ident">unionfind</span>);
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">parent_distance</span> <span class="op">=</span> <span class="macro">vec!</span>[(<span class="ident">Id::from</span>(<span class="number">0</span>), <span class="number">0</span>); <span class="self">self</span>.<span class="ident">explainfind</span>.<span class="ident">len</span>()];
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">parent_distance</span> <span class="op">=</span> <span class="macro">vec!</span>[(<span class="ident">Id::from</span>(<span class="number">0</span>), <span class="ident">Saturating</span>(<span class="number">0</span>)); <span class="self">self</span>.<span class="ident">explainfind</span>.<span class="ident">len</span>()];
         <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">entry</span>) <span class="kw">in</span> <span class="ident">parent_distance</span>.<span class="ident">iter_mut</span>().<span class="ident">enumerate</span>() {
             <span class="ident">entry</span>.<span class="number">0</span> <span class="op">=</span> <span class="ident">Id::from</span>(<span class="ident">i</span>);
         }
