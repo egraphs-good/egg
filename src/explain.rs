@@ -1184,7 +1184,7 @@ impl<L: Language> Explain<L> {
         left: Id,
         right: Id,
         unionfind: &mut UnionFind,
-        classes: &HashMap<Id, EClass<L, N::Data>>,
+        classes: &[EClass<L, N::Data>],
     ) -> Explanation<L> {
         if self.optimize_explanation_lengths {
             self.calculate_shortest_explanations::<N>(left, right, classes, unionfind);
@@ -1520,9 +1520,9 @@ impl<L: Language> Explain<L> {
         self.calculate_parent_distance(right, ancestor, distance_memo);
 
         // now all three share an ancestor
-        let a = self.calculate_parent_distance(ancestor, Id::from(usize::MAX), distance_memo);
-        let b = self.calculate_parent_distance(left, Id::from(usize::MAX), distance_memo);
-        let c = self.calculate_parent_distance(right, Id::from(usize::MAX), distance_memo);
+        let a = self.calculate_parent_distance(ancestor, Id::MAX, distance_memo);
+        let b = self.calculate_parent_distance(left, Id::MAX, distance_memo);
+        let c = self.calculate_parent_distance(right, Id::MAX, distance_memo);
 
         assert!(
             distance_memo.parent_distance[usize::from(ancestor)].0
@@ -1596,7 +1596,7 @@ impl<L: Language> Explain<L> {
                 let new_dist = dist + distance_memo.parent_distance[usize::from(parent)].1;
                 distance_memo.parent_distance[usize::from(enode)] = (parent_parent, new_dist);
             } else {
-                if ancestor == Id::from(usize::MAX) {
+                if ancestor == Id::MAX {
                     break;
                 }
                 if distance_memo.tree_depth.get(&parent).unwrap()
@@ -1627,7 +1627,7 @@ impl<L: Language> Explain<L> {
 
     fn find_congruence_neighbors<N: Analysis<L>>(
         &self,
-        classes: &HashMap<Id, EClass<L, N::Data>>,
+        classes: &[EClass<L, N::Data>],
         congruence_neighbors: &mut [Vec<Id>],
         unionfind: &UnionFind,
     ) {
@@ -1643,8 +1643,8 @@ impl<L: Language> Explain<L> {
             }
         }
 
-        'outer: for eclass in classes.keys() {
-            let enodes = self.find_all_enodes(*eclass);
+        'outer: for eclass in classes.iter().map(|x| x.id) {
+            let enodes = self.find_all_enodes(eclass);
             // find all congruence nodes
             let mut cannon_enodes: HashMap<L, Vec<Id>> = Default::default();
             for enode in &enodes {
@@ -1673,7 +1673,7 @@ impl<L: Language> Explain<L> {
 
     pub fn get_num_congr<N: Analysis<L>>(
         &self,
-        classes: &HashMap<Id, EClass<L, N::Data>>,
+        classes: &[EClass<L, N::Data>],
         unionfind: &UnionFind,
     ) -> usize {
         let mut congruence_neighbors = vec![vec![]; self.explainfind.len()];
@@ -1890,7 +1890,7 @@ impl<L: Language> Explain<L> {
 
     fn calculate_common_ancestor<N: Analysis<L>>(
         &self,
-        classes: &HashMap<Id, EClass<L, N::Data>>,
+        classes: &[EClass<L, N::Data>],
         congruence_neighbors: &[Vec<Id>],
     ) -> HashMap<(Id, Id), Id> {
         let mut common_ancestor_queries = HashMap::default();
@@ -1924,8 +1924,8 @@ impl<L: Language> Explain<L> {
             unionfind.make_set();
             ancestor.push(Id::from(i));
         }
-        for (eclass, _) in classes.iter() {
-            let enodes = self.find_all_enodes(*eclass);
+        for eclass in classes.iter().map(|x| x.id) {
+            let enodes = self.find_all_enodes(eclass);
             let mut children: HashMap<Id, Vec<Id>> = HashMap::default();
             for enode in &enodes {
                 children.insert(*enode, vec![]);
@@ -1960,7 +1960,7 @@ impl<L: Language> Explain<L> {
         &mut self,
         start: Id,
         end: Id,
-        classes: &HashMap<Id, EClass<L, N::Data>>,
+        classes: &[EClass<L, N::Data>],
         unionfind: &UnionFind,
     ) {
         let mut congruence_neighbors = vec![vec![]; self.explainfind.len()];

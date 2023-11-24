@@ -54,6 +54,8 @@ mod subst;
 mod unionfind;
 mod util;
 
+const U31_MAX: u32 = (1 << (u32::BITS - 1)) - 1;
+
 /// A key to identify [`EClass`]es within an
 /// [`EGraph`].
 #[derive(Clone, Copy, Default, Ord, PartialOrd, Eq, PartialEq, Hash)]
@@ -61,8 +63,13 @@ mod util;
 #[cfg_attr(feature = "serde-1", serde(transparent))]
 pub struct Id(u32);
 
+impl Id {
+    const MAX: Id = Id(U31_MAX);
+}
+
 impl From<usize> for Id {
     fn from(n: usize) -> Id {
+        assert!(n <= U31_MAX as usize);
         Id(n as u32)
     }
 }
@@ -82,6 +89,29 @@ impl std::fmt::Debug for Id {
 impl std::fmt::Display for Id {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+/// Index into the classes field of an [`EGraph`]
+#[derive(Hash, Clone, Copy, Eq, PartialEq)]
+struct ClassId(u32);
+
+impl std::fmt::Debug for ClassId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl From<usize> for ClassId {
+    fn from(n: usize) -> ClassId {
+        assert!(n <= U31_MAX as usize);
+        ClassId(n as u32)
+    }
+}
+
+impl From<ClassId> for usize {
+    fn from(id: ClassId) -> usize {
+        id.0 as usize
     }
 }
 
