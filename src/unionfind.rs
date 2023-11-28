@@ -9,6 +9,8 @@ enum UnionFindElt {
 
 /// Compact version of [`UnionFindElt`]
 #[derive(Copy, Clone, Eq, PartialEq)]
+#[cfg_attr(feature = "serde-1", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde-1", serde(transparent))]
 struct RawUnionFindElt(u32);
 
 const RAW_ELT_DATA_MASK: u32 = U31_MAX;
