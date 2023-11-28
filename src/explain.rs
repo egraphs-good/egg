@@ -883,6 +883,9 @@ impl<I: Eq + PartialEq> PartialOrd for HeapState<I> {
 }
 
 impl<L: Language> Explain<L> {
+    pub(crate) fn node(&self, node_id: Id) -> &L {
+        &self.explainfind[usize::from(node_id)].node
+    }
     fn node_to_explanation(
         &self,
         node_id: Id,
@@ -891,7 +894,7 @@ impl<L: Language> Explain<L> {
         if let Some(existing) = cache.get(&node_id) {
             existing.clone()
         } else {
-            let node = self.explainfind[usize::from(node_id)].node.clone();
+            let node = self.node(node_id).clone();
             let children = node.fold(vec![], |mut sofar, child| {
                 sofar.push(vec![self.node_to_explanation(child, cache)]);
                 sofar
@@ -908,24 +911,20 @@ impl<L: Language> Explain<L> {
         self.node_to_recexpr_internal(&mut res, node_id, &mut cache);
         res
     }
-
     fn node_to_recexpr_internal(
         &self,
         res: &mut RecExpr<L>,
         node_id: Id,
         cache: &mut HashMap<Id, Id>,
     ) {
-        let new_node = self.explainfind[usize::from(node_id)]
-            .node
-            .clone()
-            .map_children(|child| {
-                if let Some(existing) = cache.get(&child) {
-                    *existing
-                } else {
-                    self.node_to_recexpr_internal(res, child, cache);
-                    Id::from(res.as_ref().len() - 1)
-                }
-            });
+        let new_node = self.node(node_id).clone().map_children(|child| {
+            if let Some(existing) = cache.get(&child) {
+                *existing
+            } else {
+                self.node_to_recexpr_internal(res, child, cache);
+                Id::from(res.as_ref().len() - 1)
+            }
+        });
         res.add(new_node);
     }
 
@@ -954,23 +953,20 @@ impl<L: Language> Explain<L> {
             res.add(ENodeOrVar::Var(var));
             subst.insert(var, *existing);
         } else {
-            let new_node = self.explainfind[usize::from(node_id)]
-                .node
-                .clone()
-                .map_children(|child| {
-                    if let Some(existing) = cache.get(&child) {
-                        *existing
-                    } else {
-                        self.node_to_pattern_internal(res, child, var_substitutions, subst, cache);
-                        Id::from(res.as_ref().len() - 1)
-                    }
-                });
+            let new_node = self.node(node_id).clone().map_children(|child| {
+                if let Some(existing) = cache.get(&child) {
+                    *existing
+                } else {
+                    self.node_to_pattern_internal(res, child, var_substitutions, subst, cache);
+                    Id::from(res.as_ref().len() - 1)
+                }
+            });
             res.add(ENodeOrVar::ENode(new_node));
         }
     }
 
     fn node_to_flat_explanation(&self, node_id: Id) -> FlatTerm<L> {
-        let node = self.explainfind[usize::from(node_id)].node.clone();
+        let node = self.node(node_id).clone();
         let children = node.fold(vec![], |mut sofar, child| {
             sofar.push(self.node_to_flat_explanation(child));
             sofar
@@ -1123,9 +1119,7 @@ impl<L: Language> Explain<L> {
         new_rhs: bool,
     ) {
         if let Justification::Congruence = justification {
-            assert!(self.explainfind[usize::from(node1)]
-                .node
-                .matches(&self.explainfind[usize::from(node2)].node));
+            assert!(self.node(node1).matches(self.node(node2)));
         }
         if new_rhs {
             self.set_existance_reason(node2, node1)
@@ -1417,8 +1411,8 @@ impl<L: Language> Explain<L> {
             }
             Justification::Congruence => {
                 // add the children proofs to the last explanation
-                let current_node = &self.explainfind[usize::from(connection.current)].node;
-                let next_node = &self.explainfind[usize::from(connection.next)].node;
+                let current_node = self.node(connection.current);
+                let next_node = self.node(connection.next);
                 assert!(current_node.matches(next_node));
                 let mut subproofs = vec![];
 
@@ -1558,8 +1552,8 @@ impl<L: Language> Explain<L> {
         next: Id,
         distance_memo: &mut DistanceMemo,
     ) -> ProofCost {
-        let current_node = self.explainfind[usize::from(current)].node.clone();
-        let next_node = self.explainfind[usize::from(next)].node.clone();
+        let current_node = self.node(current).clone();
+        let next_node = self.node(next).clone();
         let mut cost: ProofCost = Saturating(0);
         for (left_child, right_child) in current_node
             .children()
@@ -1654,8 +1648,8 @@ impl<L: Language> Explain<L> {
             // find all congruence nodes
             let mut cannon_enodes: HashMap<L, Vec<Id>> = Default::default();
             for enode in &enodes {
-                let cannon = self.explainfind[usize::from(*enode)]
-                    .node
+                let cannon = self
+                    .node(*enode)
                     .clone()
                     .map_children(|child| unionfind.find(child));
                 if let Some(others) = cannon_enodes.get_mut(&cannon) {
@@ -1838,8 +1832,8 @@ impl<L: Language> Explain<L> {
                     std::mem::swap(&mut next, &mut current);
                 }
                 if let Justification::Congruence = connection.justification {
-                    let current_node = self.explainfind[usize::from(current)].node.clone();
-                    let next_node = self.explainfind[usize::from(next)].node.clone();
+                    let current_node = self.node(current).clone();
+                    let next_node = self.node(next).clone();
                     for (left_child, right_child) in current_node
                         .children()
                         .iter()
@@ -1903,11 +1897,11 @@ impl<L: Language> Explain<L> {
         for (s_int, others) in congruence_neighbors.iter().enumerate() {
             let start = &Id::from(s_int);
             for other in others {
-                for (left, right) in self.explainfind[usize::from(*start)]
-                    .node
+                for (left, right) in self
+                    .node(*start)
                     .children()
                     .iter()
-                    .zip(self.explainfind[usize::from(*other)].node.children().iter())
+                    .zip(self.node(*other).children().iter())
                 {
                     if left != right {
                         if common_ancestor_queries.get(start).is_none() {
@@ -2094,4 +2088,25 @@ mod tests {
 
         egraph.dot().to_dot("target/foo.dot").unwrap();
     }
+}
+
+#[test]
+fn simple_explain_union_trusted() {
+    use crate::SymbolLang;
+    crate::init_logger();
+    let mut egraph = EGraph::new(()).with_explanations_enabled();
+
+    let a = egraph.add_uncanonical(SymbolLang::leaf("a"));
+    let b = egraph.add_uncanonical(SymbolLang::leaf("b"));
+    let c = egraph.add_uncanonical(SymbolLang::leaf("c"));
+    let d = egraph.add_uncanonical(SymbolLang::leaf("d"));
+    egraph.union_trusted(a, b, "a=b");
+    egraph.rebuild();
+    let fa = egraph.add_uncanonical(SymbolLang::new("f", vec![a]));
+    let fb = egraph.add_uncanonical(SymbolLang::new("f", vec![b]));
+    egraph.union_trusted(c, fa, "c=fa");
+    egraph.union_trusted(d, fb, "d=fb");
+    egraph.rebuild();
+    let mut exp = egraph.explain_equivalence(&"c".parse().unwrap(), &"d".parse().unwrap());
+    assert_eq!(exp.make_flat_explanation().len(), 4)
 }

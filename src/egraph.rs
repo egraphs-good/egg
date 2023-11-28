@@ -334,9 +334,22 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     }
 
     /// Pick a representative term for a given Id.
+    ///
+    /// Calling this function on an uncanonical `Id` returns a representative based on the how it
+    /// was obtained (see [`add_uncanoncial`](EGraph::add_uncanonical),
+    /// [`add_expr_uncanonical`](EGraph::add_expr_uncanonical))
     pub fn id_to_expr(&self, id: Id) -> RecExpr<L> {
         if let Some(explain) = &self.explain {
             explain.node_to_recexpr(id)
+        } else {
+            panic!("Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get unique expressions per id");
+        }
+    }
+
+    /// Like [`id_to_expr`](EGraph::id_to_expr) but only goes one layer deep
+    pub fn id_to_node(&self, id: Id) -> &L {
+        if let Some(explain) = &self.explain {
+            explain.node(id)
         } else {
             panic!("Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get unique expressions per id");
         }
@@ -404,12 +417,24 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         left_expr: &RecExpr<L>,
         right_expr: &RecExpr<L>,
     ) -> Explanation<L> {
-        let left = self.add_expr_internal(left_expr);
-        let right = self.add_expr_internal(right_expr);
+        let left = self.add_expr_uncanonical(left_expr);
+        let right = self.add_expr_uncanonical(right_expr);
+
+        self.explain_id_equivalence(left, right)
+    }
+
+    /// Equivalent to calling [`explain_equivalence`](EGraph::explain_equivalence)`(`[`id_to_expr`](EGraph::id_to_expr)`(left),`
+    /// [`id_to_expr`](EGraph::id_to_expr)`(right))` but more efficient
+    ///
+    /// This function picks representatives using [`id_to_expr`](EGraph::id_to_expr) so choosing
+    /// `Id`s returned by functions like [`add_uncanonical`](EGraph::add_uncanonical) is important
+    /// to control explanations
+    fn explain_id_equivalence(&mut self, left: Id, right: Id) -> Explanation<L> {
         if self.find(left) != self.find(right) {
             panic!(
                 "Tried to explain equivalence between non-equal terms {:?} and {:?}",
-                left_expr, right_expr
+                self.id_to_expr(left),
+                self.id_to_expr(left)
             );
         }
         if let Some(explain) = &mut self.explain {
@@ -428,7 +453,13 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// Note that this function can be called again to explain any intermediate terms
     /// used in the output [`Explanation`].
     pub fn explain_existance(&mut self, expr: &RecExpr<L>) -> Explanation<L> {
-        let id = self.add_expr_internal(expr);
+        let id = self.add_expr_uncanonical(expr);
+        self.explain_existance_id(id)
+    }
+
+    /// Equivalent to calling [`explain_existance`](EGraph::explain_existance)`(`[`id_to_expr`](EGraph::id_to_expr)`(id))`
+    /// but more efficient
+    fn explain_existance_id(&mut self, id: Id) -> Explanation<L> {
         if let Some(explain) = &mut self.explain {
             explain.explain_existance(id)
         } else {
@@ -442,7 +473,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         pattern: &PatternAst<L>,
         subst: &Subst,
     ) -> Explanation<L> {
-        let id = self.add_instantiation_internal(pattern, subst);
+        let id = self.add_instantiation_noncanonical(pattern, subst);
         if let Some(explain) = &mut self.explain {
             explain.explain_existance(id)
         } else {
@@ -457,8 +488,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         right_pattern: &PatternAst<L>,
         subst: &Subst,
     ) -> Explanation<L> {
-        let left = self.add_expr_internal(left_expr);
-        let right = self.add_instantiation_internal(right_pattern, subst);
+        let left = self.add_expr_uncanonical(left_expr);
+        let right = self.add_instantiation_noncanonical(right_pattern, subst);
 
         if self.find(left) != self.find(right) {
             panic!(
@@ -549,19 +580,21 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     ///
     /// [`add_expr`]: EGraph::add_expr()
     pub fn add_expr(&mut self, expr: &RecExpr<L>) -> Id {
-        let id = self.add_expr_internal(expr);
+        let id = self.add_expr_uncanonical(expr);
         self.find(id)
     }
 
-    /// Adds an expr to the egraph, and returns the uncanonicalized id of the top enode.
-    fn add_expr_internal(&mut self, expr: &RecExpr<L>) -> Id {
+    /// Similar to [`add_expr`](EGraph::add_expr) but the `Id` returned may not be canonical
+    ///
+    /// Calling [`id_to_expr`](EGraph::id_to_expr) on this `Id` return a copy of `expr`
+    pub fn add_expr_uncanonical(&mut self, expr: &RecExpr<L>) -> Id {
         let nodes = expr.as_ref();
         let mut new_ids = Vec::with_capacity(nodes.len());
         let mut new_node_q = Vec::with_capacity(nodes.len());
         for node in nodes {
             let new_node = node.clone().map_children(|i| new_ids[usize::from(i)]);
             let size_before = self.unionfind.size();
-            let next_id = self.add_internal(new_node);
+            let next_id = self.add_uncanonical(new_node);
             if self.unionfind.size() > size_before {
                 new_node_q.push(true);
             } else {
@@ -583,11 +616,17 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// Adds a [`Pattern`] and a substitution to the [`EGraph`], returning
     /// the eclass of the instantiated pattern.
     pub fn add_instantiation(&mut self, pat: &PatternAst<L>, subst: &Subst) -> Id {
-        let id = self.add_instantiation_internal(pat, subst);
+        let id = self.add_instantiation_noncanonical(pat, subst);
         self.find(id)
     }
 
-    fn add_instantiation_internal(&mut self, pat: &PatternAst<L>, subst: &Subst) -> Id {
+    /// Similar to [`add_instantiation`](EGraph::add_instantiation) but the `Id` returned may not be
+    /// canonical
+    ///
+    /// Like [`add_uncanonical`](EGraph::add_uncanonical), when explanations are enabled calling
+    /// Calling [`id_to_expr`](EGraph::id_to_expr) on this `Id` return an corrispond to the
+    /// instantiation of the pattern
+    fn add_instantiation_noncanonical(&mut self, pat: &PatternAst<L>, subst: &Subst) -> Id {
         let nodes = pat.as_ref();
         let mut new_ids = Vec::with_capacity(nodes.len());
         let mut new_node_q = Vec::with_capacity(nodes.len());
@@ -601,7 +640,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                 ENodeOrVar::ENode(node) => {
                     let new_node = node.clone().map_children(|i| new_ids[usize::from(i)]);
                     let size_before = self.unionfind.size();
-                    let next_id = self.add_internal(new_node);
+                    let next_id = self.add_uncanonical(new_node);
                     if self.unionfind.size() > size_before {
                         new_node_q.push(true);
                     } else {
@@ -696,12 +735,31 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     ///
     /// [`add`]: EGraph::add()
     pub fn add(&mut self, enode: L) -> Id {
-        let id = self.add_internal(enode);
+        let id = self.add_uncanonical(enode);
         self.find(id)
     }
 
-    /// Adds an enode to the egraph and also returns the the enode's id (uncanonicalized).
-    fn add_internal(&mut self, mut enode: L) -> Id {
+    /// Similar to [`add`](EGraph::add) but the `Id` returned may not be canonical
+    ///
+    /// When explanations are enabled calling [`id_to_expr`](EGraph::id_to_expr) on this `Id` will
+    /// correspond to the parameter `enode`
+    ///
+    /// # Example
+    /// ```
+    /// # use egg::*;
+    /// let mut egraph: EGraph<SymbolLang, ()> = EGraph::default().with_explanations_enabled();
+    /// let a = egraph.add_uncanonical(SymbolLang::leaf("a"));
+    /// let b = egraph.add_uncanonical(SymbolLang::leaf("b"));
+    /// egraph.union(a, b);
+    /// egraph.rebuild();
+    ///
+    /// let fa = egraph.add_uncanonical(SymbolLang::new("f", vec![a]));
+    /// let fb = egraph.add_uncanonical(SymbolLang::new("f", vec![b]));
+    ///
+    /// assert_eq!(egraph.id_to_expr(fa), "(f a)".parse().unwrap());
+    /// assert_eq!(egraph.id_to_expr(fb), "(f b)".parse().unwrap());
+    /// ```
+    pub fn add_uncanonical(&mut self, mut enode: L) -> Id {
         let original = enode.clone();
         if let Some(existing_id) = self.lookup_internal(&mut enode) {
             let id = self.find(existing_id);
@@ -799,9 +857,9 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         subst: &Subst,
         rule_name: impl Into<Symbol>,
     ) -> (Id, bool) {
-        let id1 = self.add_instantiation_internal(from_pat, subst);
+        let id1 = self.add_instantiation_noncanonical(from_pat, subst);
         let size_before = self.unionfind.size();
-        let id2 = self.add_instantiation_internal(to_pat, subst);
+        let id2 = self.add_instantiation_noncanonical(to_pat, subst);
         let rhs_new = self.unionfind.size() > size_before;
 
         let did_union = self.perform_union(
@@ -815,12 +873,9 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
     /// Unions two e-classes, using a given reason to justify it.
     ///
-    ///
-    /// Unlike `union_instantiations`, this function picks arbitrary representatives
-    /// from either e-class.
-    /// When possible, use [`union_instantiations`](EGraph::union_instantiations),
-    /// since that ensures that the proof rewrites between the terms you are
-    /// actually proving equivalent.
+    /// This function picks representatives using [`id_to_expr`](EGraph::id_to_expr) so choosing
+    /// `Id`s returned by functions like [`add_uncanonical`](EGraph::add_uncanonical) is important
+    /// to control explanations
     pub fn union_trusted(&mut self, from: Id, to: Id, reason: impl Into<Symbol>) -> bool {
         self.perform_union(from, to, Some(Justification::Rule(reason.into())), false)
     }
@@ -835,6 +890,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     ///  and it lists the call site as the proof reason.
     /// You should prefer [`union_instantiations`](EGraph::union_instantiations) when
     ///  you want the proofs to always be meaningful.
+    /// Alternatively you can use [`EGraph::union_trusted`] using uncanonical `Id`s obtained from
+    ///  functions like [`EGraph::add_uncanonical`]
     /// See [`explain_equivalence`](Runner::explain_equivalence) for a more detailed
     /// explanation of the feature.
     #[track_caller]
