@@ -396,6 +396,15 @@
 <span id="391">391</span>
 <span id="392">392</span>
 <span id="393">393</span>
+<span id="394">394</span>
+<span id="395">395</span>
+<span id="396">396</span>
+<span id="397">397</span>
+<span id="398">398</span>
+<span id="399">399</span>
+<span id="400">400</span>
+<span id="401">401</span>
+<span id="402">402</span>
 </pre><pre class="rust"><code><span class="attribute">#[<span class="ident">allow</span>(<span class="ident">unused_imports</span>)]</span>
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="kw-2">*</span>;
 
@@ -408,6 +417,8 @@ based on either the data of variants or the provided strings.
 
 The final variant **must have a trailing comma**; this is due to limitations in
 macro parsing.
+
+The language discriminant will use the cases of the enum (the enum discriminant).
 
 See [`LanguageChildren`] for acceptable types of children `Id`s.
 
@@ -477,6 +488,13 @@ define_language! {
         <span class="macro-nonterminal">$</span><span class="macro-nonterminal">vis</span> <span class="kw">enum</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">name</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">decl</span>
 
         <span class="kw">impl</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">crate::Language</span> <span class="kw">for</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">name</span> {
+            <span class="kw">type</span> <span class="ident">Discriminant</span> <span class="op">=</span> <span class="ident">std::mem::Discriminant</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>;
+
+            <span class="attribute">#[<span class="ident">inline</span>(<span class="ident">always</span>)]</span>
+            <span class="kw">fn</span> <span class="ident">discriminant</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident"><span class="self">Self</span>::Discriminant</span> {
+                <span class="ident">std::mem::discriminant</span>(<span class="self">self</span>)
+            }
+
             <span class="attribute">#[<span class="ident">inline</span>(<span class="ident">always</span>)]</span>
             <span class="kw">fn</span> <span class="ident">matches</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="ident">bool</span> {
                 <span class="ident">::std::mem::discriminant</span>(<span class="self">self</span>) <span class="op">==</span> <span class="ident">::std::mem::discriminant</span>(<span class="ident">other</span>) <span class="op">&amp;&amp;</span>

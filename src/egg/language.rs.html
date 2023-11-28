@@ -871,6 +871,21 @@
 <span id="866">866</span>
 <span id="867">867</span>
 <span id="868">868</span>
+<span id="869">869</span>
+<span id="870">870</span>
+<span id="871">871</span>
+<span id="872">872</span>
+<span id="873">873</span>
+<span id="874">874</span>
+<span id="875">875</span>
+<span id="876">876</span>
+<span id="877">877</span>
+<span id="878">878</span>
+<span id="879">879</span>
+<span id="880">880</span>
+<span id="881">881</span>
+<span id="882">882</span>
+<span id="883">883</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::ops</span>::{<span class="ident">BitOr</span>, <span class="ident">Index</span>, <span class="ident">IndexMut</span>};
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">cmp::Ordering</span>, <span class="ident">convert::TryFrom</span>};
 <span class="kw">use</span> <span class="ident">std</span>::{
@@ -902,6 +917,15 @@
 <span class="doccomment">/// See [`SymbolLang`] for quick-and-dirty use cases.</span>
 <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy::len_without_is_empty</span>)]</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Language</span>: <span class="ident">Debug</span> <span class="op">+</span> <span class="ident">Clone</span> <span class="op">+</span> <span class="ident">Eq</span> <span class="op">+</span> <span class="ident">Ord</span> <span class="op">+</span> <span class="ident">Hash</span> {
+    <span class="doccomment">/// Type representing the cases of this language.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Used for short-circuiting the search for equivalent nodes.</span>
+    <span class="kw">type</span> <span class="ident">Discriminant</span>: <span class="ident">Debug</span> <span class="op">+</span> <span class="ident">Clone</span> <span class="op">+</span> <span class="ident">Eq</span> <span class="op">+</span> <span class="ident">Hash</span>;
+
+    <span class="doccomment">/// Return the `Discriminant` of this node.</span>
+    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">enum_intrinsics_non_enums</span>)]</span>
+    <span class="kw">fn</span> <span class="ident">discriminant</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident"><span class="self">Self</span>::Discriminant</span>;
+
     <span class="doccomment">/// Returns true if this enode matches another enode.</span>
     <span class="doccomment">/// This should only consider the operator, not the children `Id`s.</span>
     <span class="kw">fn</span> <span class="ident">matches</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="ident">bool</span>;
@@ -1710,6 +1734,12 @@ assert_eq!(runner.egraph.find(runner.roots[0]), runner.egraph.find(just_foo));
 }
 
 <span class="kw">impl</span> <span class="ident">Language</span> <span class="kw">for</span> <span class="ident">SymbolLang</span> {
+    <span class="kw">type</span> <span class="ident">Discriminant</span> <span class="op">=</span> <span class="ident">Symbol</span>;
+
+    <span class="kw">fn</span> <span class="ident">discriminant</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident"><span class="self">Self</span>::Discriminant</span> {
+        <span class="self">self</span>.<span class="ident">op</span>
+    }
+
     <span class="kw">fn</span> <span class="ident">matches</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="ident">bool</span> {
         <span class="self">self</span>.<span class="ident">op</span> <span class="op">==</span> <span class="ident">other</span>.<span class="ident">op</span> <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">len</span>() <span class="op">==</span> <span class="ident">other</span>.<span class="ident">len</span>()
     }

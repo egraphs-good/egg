@@ -393,7 +393,6 @@
 <span id="388">388</span>
 <span id="389">389</span>
 <span id="390">390</span>
-<span id="391">391</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="kw">crate</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident">std::result</span>;
 
@@ -438,7 +437,6 @@
 <span class="kw">where</span>
     <span class="ident">L</span>: <span class="ident">Language</span>,
 {
-    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">enum_intrinsics_non_enums</span>)]</span>
     <span class="kw">if</span> <span class="ident">eclass</span>.<span class="ident">nodes</span>.<span class="ident">len</span>() <span class="op">&lt;</span> <span class="number">50</span> {
         <span class="ident">eclass</span>
             .<span class="ident">nodes</span>
@@ -449,9 +447,9 @@
         <span class="macro">debug_assert!</span>(<span class="ident">node</span>.<span class="ident">all</span>(<span class="op">|</span><span class="ident">id</span><span class="op">|</span> <span class="ident">id</span> <span class="op">==</span> <span class="ident">Id::from</span>(<span class="number">0</span>)));
         <span class="macro">debug_assert!</span>(<span class="ident">eclass</span>.<span class="ident">nodes</span>.<span class="ident">windows</span>(<span class="number">2</span>).<span class="ident">all</span>(<span class="op">|</span><span class="ident">w</span><span class="op">|</span> <span class="ident">w</span>[<span class="number">0</span>] <span class="op">&lt;</span> <span class="ident">w</span>[<span class="number">1</span>]));
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">start</span> <span class="op">=</span> <span class="ident">eclass</span>.<span class="ident">nodes</span>.<span class="ident">binary_search</span>(<span class="ident">node</span>).<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="ident">i</span>);
-        <span class="kw">let</span> <span class="ident">discrim</span> <span class="op">=</span> <span class="ident">std::mem::discriminant</span>(<span class="ident">node</span>);
+        <span class="kw">let</span> <span class="ident">discrim</span> <span class="op">=</span> <span class="ident">node</span>.<span class="ident">discriminant</span>();
         <span class="kw">while</span> <span class="ident">start</span> <span class="op">&gt;</span> <span class="number">0</span> {
-            <span class="kw">if</span> <span class="ident">std::mem::discriminant</span>(<span class="kw-2">&amp;</span><span class="ident">eclass</span>.<span class="ident">nodes</span>[<span class="ident">start</span> <span class="op">-</span> <span class="number">1</span>]) <span class="op">==</span> <span class="ident">discrim</span> {
+            <span class="kw">if</span> <span class="ident">eclass</span>.<span class="ident">nodes</span>[<span class="ident">start</span> <span class="op">-</span> <span class="number">1</span>].<span class="ident">discriminant</span>() <span class="op">==</span> <span class="ident">discrim</span> {
                 <span class="ident">start</span> <span class="op">-</span><span class="op">=</span> <span class="number">1</span>;
             } <span class="kw">else</span> {
                 <span class="kw">break</span>;
@@ -459,7 +457,7 @@
         }
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">matching</span> <span class="op">=</span> <span class="ident">eclass</span>.<span class="ident">nodes</span>[<span class="ident">start</span>..]
             .<span class="ident">iter</span>()
-            .<span class="ident">take_while</span>(<span class="op">|</span><span class="kw-2">&amp;</span><span class="ident">n</span><span class="op">|</span> <span class="ident">std::mem::discriminant</span>(<span class="ident">n</span>) <span class="op">==</span> <span class="ident">discrim</span>)
+            .<span class="ident">take_while</span>(<span class="op">|</span><span class="kw-2">&amp;</span><span class="ident">n</span><span class="op">|</span> <span class="ident">n</span>.<span class="ident">discriminant</span>() <span class="op">==</span> <span class="ident">discrim</span>)
             .<span class="ident">filter</span>(<span class="op">|</span><span class="ident">n</span><span class="op">|</span> <span class="ident">node</span>.<span class="ident">matches</span>(<span class="ident">n</span>));
         <span class="macro">debug_assert_eq!</span>(
             <span class="ident">matching</span>.<span class="ident">clone</span>().<span class="ident">count</span>(),
