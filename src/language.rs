@@ -29,6 +29,15 @@ use thiserror::Error;
 /// See [`SymbolLang`] for quick-and-dirty use cases.
 #[allow(clippy::len_without_is_empty)]
 pub trait Language: Debug + Clone + Eq + Ord + Hash {
+    /// Type representing the cases of this language.
+    ///
+    /// Used for short-circuiting the search for equivalent nodes.
+    type Discriminant: Debug + Clone + Eq + Hash;
+
+    /// Return the `Discriminant` of this node.
+    #[allow(enum_intrinsics_non_enums)]
+    fn discriminant(&self) -> Self::Discriminant;
+
     /// Returns true if this enode matches another enode.
     /// This should only consider the operator, not the children `Id`s.
     fn matches(&self, other: &Self) -> bool;
@@ -837,6 +846,12 @@ impl SymbolLang {
 }
 
 impl Language for SymbolLang {
+    type Discriminant = Symbol;
+
+    fn discriminant(&self) -> Self::Discriminant {
+        self.op
+    }
+
     fn matches(&self, other: &Self) -> bool {
         self.op == other.op && self.len() == other.len()
     }

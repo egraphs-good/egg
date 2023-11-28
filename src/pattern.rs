@@ -139,7 +139,24 @@ pub enum ENodeOrVar<L> {
     Var(Var),
 }
 
+/// The discriminant for the language of [`Pattern`]s.
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
+pub enum ENodeOrVarDiscriminant<L: Language> {
+    ENode(L::Discriminant),
+    Var(Var),
+}
+
 impl<L: Language> Language for ENodeOrVar<L> {
+    type Discriminant = ENodeOrVarDiscriminant<L>;
+
+    #[inline(always)]
+    fn discriminant(&self) -> Self::Discriminant {
+        match self {
+            ENodeOrVar::ENode(n) => ENodeOrVarDiscriminant::ENode(n.discriminant()),
+            ENodeOrVar::Var(v) => ENodeOrVarDiscriminant::Var(*v),
+        }
+    }
+
     fn matches(&self, _other: &Self) -> bool {
         panic!("Should never call this")
     }
@@ -271,8 +288,7 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
     fn search_with_limit(&self, egraph: &EGraph<L, A>, limit: usize) -> Vec<SearchMatches<L>> {
         match self.ast.as_ref().last().unwrap() {
             ENodeOrVar::ENode(e) => {
-                #[allow(enum_intrinsics_non_enums)]
-                let key = std::mem::discriminant(e);
+                let key = e.discriminant();
                 match egraph.classes_by_op.get(&key) {
                     None => vec![],
                     Some(ids) => rewrite::search_eclasses_with_limit(
