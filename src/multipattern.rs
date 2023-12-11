@@ -22,9 +22,9 @@ use crate::*;
 ///
 /// Multipatterns currently do not support the explanations feature.
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct MultiPattern<L> {
+pub struct MultiPattern<L, V = Var> {
     asts: Vec<(Var, PatternAst<L>)>,
-    program: machine::Program<L>,
+    program: machine::Program<L, V>,
 }
 
 impl<L: Language> MultiPattern<L> {
@@ -274,11 +274,11 @@ mod tests {
         let z1 = egraph.add_string("(tag z ctx2)");
         egraph.union(x1, y1);
         egraph.union(y2, z2);
-        let rules = vec![multi_rewrite!("context-transfer"; 
-                     "?x = (tag ?a ?ctx1) = (tag ?b ?ctx1), 
-                      ?t = (lte ?ctx1 ?ctx2), 
-                      ?a1 = (tag ?a ?ctx2), 
-                      ?b1 = (tag ?b ?ctx2)" 
+        let rules = vec![multi_rewrite!("context-transfer";
+                     "?x = (tag ?a ?ctx1) = (tag ?b ?ctx1),
+                      ?t = (lte ?ctx1 ?ctx2),
+                      ?a1 = (tag ?a ?ctx2),
+                      ?b1 = (tag ?b ?ctx2)"
                       =>
                       "?a1 = ?b1")];
         let runner = Runner::default().with_egraph(egraph).run(&rules);

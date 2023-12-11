@@ -46,14 +46,25 @@ impl Debug for Var {
     }
 }
 
-/// A substitution mapping [`Var`]s to eclass [`Id`]s.
+/// A substitution mapping [`V`]s to eclass [`Id`]s.
 ///
-#[derive(Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Subst {
-    pub(crate) vec: smallvec::SmallVec<[(Var, Id); 3]>,
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Subst<V = Var> {
+    pub(crate) vec: smallvec::SmallVec<[(V, Id); 3]>,
 }
 
-impl Subst {
+impl<V> Default for Subst<V> {
+    fn default() -> Self {
+        Self {
+            vec: Default::default(),
+        }
+    }
+}
+
+impl<V> Subst<V>
+where
+    V: std::fmt::Debug + Clone + std::hash::Hash + PartialOrd + Ord + Copy + std::fmt::Display,
+{
     /// Create a `Subst` with the given initial capacity
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
@@ -62,7 +73,7 @@ impl Subst {
     }
 
     /// Insert something, returning the old `Id` if present.
-    pub fn insert(&mut self, var: Var, id: Id) -> Option<Id> {
+    pub fn insert(&mut self, var: V, id: Id) -> Option<Id> {
         for pair in &mut self.vec {
             if pair.0 == var {
                 return Some(std::mem::replace(&mut pair.1, id));
@@ -72,33 +83,39 @@ impl Subst {
         None
     }
 
-    /// Retrieve a `Var`, returning `None` if not present.
+    /// Retrieve a `V`, returning `None` if not present.
     #[inline(never)]
-    pub fn get(&self, var: Var) -> Option<&Id> {
+    pub fn get(&self, var: V) -> Option<&Id> {
         self.vec
             .iter()
             .find_map(|(v, id)| if *v == var { Some(id) } else { None })
     }
 }
 
-impl std::ops::Index<Var> for Subst {
+impl<V> std::ops::Index<V> for Subst<V>
+where
+    V: std::fmt::Debug + Clone + std::hash::Hash + PartialOrd + Ord + Copy + std::fmt::Display,
+{
     type Output = Id;
 
-    fn index(&self, var: Var) -> &Self::Output {
+    fn index(&self, var: V) -> &Self::Output {
         match self.get(var) {
             Some(id) => id,
-            None => panic!("Var '{}={}' not found in {:?}", var.0, var, self),
+            None => panic!("Var '{:?}' not found in {:?}", var, self),
         }
     }
 }
 
-impl Debug for Subst {
+impl<V> Debug for Subst<V>
+where
+    V: Debug,
+{
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let len = self.vec.len();
         write!(f, "{{")?;
         for i in 0..len {
             let (var, id) = &self.vec[i];
-            write!(f, "{}: {}", var, id)?;
+            write!(f, "{:?}: {}", var, id)?;
             if i < len - 1 {
                 write!(f, ", ")?;
             }

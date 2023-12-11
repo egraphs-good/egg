@@ -1,7 +1,7 @@
 use crate::Symbol;
 use crate::{
     util::pretty_print, Analysis, EClass, EGraph, ENodeOrVar, FromOp, HashMap, HashSet, Id,
-    Language, Pattern, PatternAst, RecExpr, Rewrite, Subst, UnionFind, Var,
+    Language, Pattern, PatternAst, RecExpr, Rewrite, Subst, UnionFind,
 };
 use saturating::Saturating;
 use std::cmp::Ordering;
@@ -360,13 +360,22 @@ impl<L: Language> Explanation<L> {
 
     /// Check the validity of the explanation with respect to the given rules.
     /// This only is able to check rule applications when the rules are implement `get_pattern_ast`.
-    pub fn check_proof<'a, R, N: Analysis<L>>(&mut self, rules: R)
+    pub fn check_proof<'a, R, N, V>(&mut self, rules: R)
     where
-        R: IntoIterator<Item = &'a Rewrite<L, N>>,
+        R: IntoIterator<Item = &'a Rewrite<L, N, V>>,
         L: 'a,
         N: 'a,
+        N: Analysis<L>,
+        V: std::hash::Hash
+            + PartialOrd
+            + Ord
+            + Clone
+            + std::fmt::Debug
+            + Copy
+            + 'a
+            + std::fmt::Display,
     {
-        let rules: Vec<&Rewrite<L, N>> = rules.into_iter().collect();
+        let rules: Vec<&Rewrite<L, N, V>> = rules.into_iter().collect();
         let rule_table = Explain::make_rule_table(rules.as_slice());
         self.make_flat_explanation();
         let flat_explanation = self.flat_explanation.as_ref().unwrap();
@@ -388,17 +397,20 @@ impl<L: Language> Explanation<L> {
         }
     }
 
-    fn check_rewrite_at<N: Analysis<L>>(
+    fn check_rewrite_at<N: Analysis<L>, V>(
         &self,
         current: &FlatTerm<L>,
         next: &FlatTerm<L>,
-        table: &HashMap<Symbol, &Rewrite<L, N>>,
+        table: &HashMap<Symbol, &Rewrite<L, N, V>>,
         is_forward: bool,
-    ) -> bool {
+    ) -> bool
+    where
+        V: std::fmt::Debug + Clone + std::hash::Hash + PartialOrd + Ord + Copy + std::fmt::Display,
+    {
         if is_forward && next.forward_rule.is_some() {
             let rule_name = next.forward_rule.as_ref().unwrap();
             if let Some(rule) = table.get(rule_name) {
-                Explanation::check_rewrite(current, next, rule)
+                Explanation::check_rewrite::<N, V>(current, next, rule)
             } else {
                 // give up when the rule is not provided
                 true
@@ -406,7 +418,7 @@ impl<L: Language> Explanation<L> {
         } else if !is_forward && next.backward_rule.is_some() {
             let rule_name = next.backward_rule.as_ref().unwrap();
             if let Some(rule) = table.get(rule_name) {
-                Explanation::check_rewrite(next, current, rule)
+                Explanation::check_rewrite::<N, V>(next, current, rule)
             } else {
                 true
             }
@@ -421,11 +433,14 @@ impl<L: Language> Explanation<L> {
     }
 
     // if the rewrite is just patterns, then it can check it
-    fn check_rewrite<'a, N: Analysis<L>>(
+    fn check_rewrite<'a, N: Analysis<L>, V>(
         current: &'a FlatTerm<L>,
         next: &'a FlatTerm<L>,
-        rewrite: &Rewrite<L, N>,
-    ) -> bool {
+        rewrite: &Rewrite<L, N, V>,
+    ) -> bool
+    where
+        V: std::fmt::Debug + Clone + std::hash::Hash + PartialOrd + Ord + Copy + std::fmt::Display,
+    {
         if let Some(lhs) = rewrite.searcher.get_pattern_ast() {
             if let Some(rhs) = rewrite.applier.get_pattern_ast() {
                 let rewritten = current.rewrite(lhs, rhs);
@@ -776,7 +791,10 @@ impl<L: Language> FlatTerm<L> {
 
     /// Rewrite the FlatTerm by matching the lhs and substituting the rhs.
     /// The lhs must be guaranteed to match.
-    pub fn rewrite(&self, lhs: &PatternAst<L>, rhs: &PatternAst<L>) -> FlatTerm<L> {
+    pub fn rewrite<V>(&self, lhs: &PatternAst<L, V>, rhs: &PatternAst<L, V>) -> FlatTerm<L>
+    where
+        V: std::fmt::Debug + Clone + std::hash::Hash + PartialOrd + Ord + Copy + std::fmt::Display,
+    {
         let lhs_nodes = lhs.as_ref();
         let rhs_nodes = rhs.as_ref();
         let mut bindings = Default::default();
@@ -802,11 +820,14 @@ impl<L: Language> FlatTerm<L> {
                 .any(|child| child.has_rewrite_backward())
     }
 
-    fn from_pattern(
-        pattern: &[ENodeOrVar<L>],
+    fn from_pattern<V>(
+        pattern: &[ENodeOrVar<L, V>],
         location: usize,
-        bindings: &HashMap<Var, &FlatTerm<L>>,
-    ) -> FlatTerm<L> {
+        bindings: &HashMap<V, &FlatTerm<L>>,
+    ) -> FlatTerm<L>
+    where
+        V: std::fmt::Debug + Clone + std::hash::Hash + PartialOrd + Ord + Copy + std::fmt::Display,
+    {
         match &pattern[location] {
             ENodeOrVar::Var(var) => (*bindings.get(var).unwrap()).clone(),
             ENodeOrVar::ENode(node) => {
@@ -823,12 +844,14 @@ impl<L: Language> FlatTerm<L> {
         }
     }
 
-    fn make_bindings<'a>(
+    fn make_bindings<'a, V>(
         &'a self,
-        pattern: &[ENodeOrVar<L>],
+        pattern: &[ENodeOrVar<L, V>],
         location: usize,
-        bindings: &mut HashMap<Var, &'a FlatTerm<L>>,
-    ) {
+        bindings: &mut HashMap<V, &'a FlatTerm<L>>,
+    ) where
+        V: std::fmt::Debug + Clone + std::hash::Hash + PartialOrd + Ord + Copy + std::fmt::Display,
+    {
         match &pattern[location] {
             ENodeOrVar::Var(var) => {
                 if let Some(existing) = bindings.get(var) {
@@ -928,11 +951,22 @@ impl<L: Language> Explain<L> {
         res.add(new_node);
     }
 
-    pub(crate) fn node_to_pattern(
+    pub(crate) fn node_to_pattern<V>(
         &self,
         node_id: Id,
         substitutions: &HashMap<Id, Id>,
-    ) -> (Pattern<L>, Subst) {
+    ) -> (Pattern<L, V>, Subst<V>)
+    where
+        V: std::hash::Hash
+            + PartialOrd
+            + Ord
+            + Clone
+            + std::fmt::Debug
+            + Copy
+            + std::str::FromStr
+            + std::fmt::Display,
+        <V as std::str::FromStr>::Err: std::fmt::Debug,
+    {
         let mut res = Default::default();
         let mut subst = Default::default();
         let mut cache = Default::default();
@@ -940,14 +974,24 @@ impl<L: Language> Explain<L> {
         (Pattern::new(res), subst)
     }
 
-    fn node_to_pattern_internal(
+    fn node_to_pattern_internal<V>(
         &self,
-        res: &mut PatternAst<L>,
+        res: &mut PatternAst<L, V>,
         node_id: Id,
         var_substitutions: &HashMap<Id, Id>,
-        subst: &mut Subst,
+        subst: &mut Subst<V>,
         cache: &mut HashMap<Id, Id>,
-    ) {
+    ) where
+        V: std::hash::Hash
+            + PartialOrd
+            + Ord
+            + Clone
+            + std::fmt::Debug
+            + Copy
+            + std::str::FromStr
+            + std::fmt::Display,
+        <V as std::str::FromStr>::Err: std::fmt::Debug,
+    {
         if let Some(existing) = var_substitutions.get(&node_id) {
             let var = format!("?{}", node_id).parse().unwrap();
             res.add(ENodeOrVar::Var(var));
@@ -974,17 +1018,26 @@ impl<L: Language> Explain<L> {
         FlatTerm::new(node, children)
     }
 
-    fn make_rule_table<'a, N: Analysis<L>>(
-        rules: &[&'a Rewrite<L, N>],
-    ) -> HashMap<Symbol, &'a Rewrite<L, N>> {
-        let mut table: HashMap<Symbol, &'a Rewrite<L, N>> = Default::default();
+    fn make_rule_table<'a, N: Analysis<L>, V>(
+        rules: &[&'a Rewrite<L, N, V>],
+    ) -> HashMap<Symbol, &'a Rewrite<L, N, V>> {
+        let mut table: HashMap<Symbol, &'a Rewrite<L, N, V>> = Default::default();
         for r in rules {
             table.insert(r.name, r);
         }
         table
     }
 
-    pub fn check_each_explain<N: Analysis<L>>(&self, rules: &[&Rewrite<L, N>]) -> bool {
+    pub fn check_each_explain<N: Analysis<L>, V>(&self, rules: &[&Rewrite<L, N, V>]) -> bool
+    where
+        V: std::hash::Hash
+            + PartialOrd
+            + Ord
+            + Clone
+            + std::fmt::Debug
+            + std::marker::Copy
+            + std::fmt::Display,
+    {
         let rule_table = Explain::make_rule_table(rules);
         for i in 0..self.explainfind.len() {
             let explain_node = &self.explainfind[i];

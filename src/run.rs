@@ -134,7 +134,7 @@ println!(
 
 ```
 */
-pub struct Runner<L: Language, N: Analysis<L>, IterData = ()> {
+pub struct Runner<L: Language, N: Analysis<L>, IterData = (), V = Var> {
     /// The [`EGraph`] used.
     pub egraph: EGraph<L, N>,
     /// Data accumulated over each [`Iteration`].
@@ -157,13 +157,14 @@ pub struct Runner<L: Language, N: Analysis<L>, IterData = ()> {
     time_limit: Duration,
 
     start_time: Option<Instant>,
-    scheduler: Box<dyn RewriteScheduler<L, N>>,
+    scheduler: Box<dyn RewriteScheduler<L, N, V>>,
 }
 
-impl<L, N> Default for Runner<L, N, ()>
+impl<L, N, V> Default for Runner<L, N, (), V>
 where
     L: Language,
     N: Analysis<L> + Default,
+    V: std::fmt::Debug + Clone + std::hash::Hash + PartialOrd + Ord + Copy + std::fmt::Display,
 {
     fn default() -> Self {
         Runner::new(N::default())
@@ -305,11 +306,12 @@ pub struct Iteration<IterData> {
 
 type RunnerResult<T> = std::result::Result<T, StopReason>;
 
-impl<L, N, IterData> Runner<L, N, IterData>
+impl<L, N, IterData, V> Runner<L, N, IterData, V>
 where
     L: Language,
     N: Analysis<L>,
-    IterData: IterationData<L, N>,
+    IterData: IterationData<L, N, V>,
+    V: std::fmt::Debug + Clone + std::hash::Hash + PartialOrd + Ord + Copy + std::fmt::Display,
 {
     /// Create a new `Runner` with the given analysis and default parameters.
     pub fn new(analysis: N) -> Self {
@@ -378,7 +380,7 @@ where
     /// Change out the [`RewriteScheduler`] used by this [`Runner`].
     /// The default one is [`BackoffScheduler`].
     ///
-    pub fn with_scheduler(self, scheduler: impl RewriteScheduler<L, N> + 'static) -> Self {
+    pub fn with_scheduler(self, scheduler: impl RewriteScheduler<L, N, V> + 'static) -> Self {
         let scheduler = Box::new(scheduler);
         Self { scheduler, ..self }
     }
@@ -405,11 +407,12 @@ where
     /// set.
     pub fn run<'a, R>(mut self, rules: R) -> Self
     where
-        R: IntoIterator<Item = &'a Rewrite<L, N>>,
+        R: IntoIterator<Item = &'a Rewrite<L, N, V>>,
         L: 'a,
         N: 'a,
+        V: 'a,
     {
-        let rules: Vec<&Rewrite<L, N>> = rules.into_iter().collect();
+        let rules: Vec<&Rewrite<L, N, V>> = rules.into_iter().collect();
         check_rules(&rules);
         self.egraph.rebuild();
         loop {
@@ -507,7 +510,7 @@ where
         }
     }
 
-    fn run_one(&mut self, rules: &[&Rewrite<L, N>]) -> Iteration<IterData> {
+    fn run_one(&mut self, rules: &[&Rewrite<L, N, V>]) -> Iteration<IterData> {
         assert!(self.stop_reason.is_none());
 
         info!("\nIteration {}", self.iterations.len());
@@ -638,7 +641,7 @@ where
     }
 }
 
-fn check_rules<L, N>(rules: &[&Rewrite<L, N>]) {
+fn check_rules<L, N, V>(rules: &[&Rewrite<L, N, V>]) {
     let mut name_counts = IndexMap::default();
     for rw in rules {
         *name_counts.entry(rw.name).or_default() += 1
@@ -664,10 +667,11 @@ the [`EGraph`] and dominating how much time is spent while running the
 
 */
 #[allow(unused_variables)]
-pub trait RewriteScheduler<L, N>
+pub trait RewriteScheduler<L, N, V>
 where
     L: Language,
     N: Analysis<L>,
+    V: std::fmt::Debug + Clone + std::hash::Hash + PartialOrd + Ord + Copy + std::fmt::Display,
 {
     /// Whether or not the [`Runner`] is allowed
     /// to say it has saturated.
@@ -687,8 +691,8 @@ where
         &mut self,
         iteration: usize,
         egraph: &EGraph<L, N>,
-        rewrite: &'a Rewrite<L, N>,
-    ) -> Vec<SearchMatches<'a, L>> {
+        rewrite: &'a Rewrite<L, N, V>,
+    ) -> Vec<SearchMatches<'a, L, V>> {
         rewrite.search(egraph)
     }
 
@@ -702,8 +706,8 @@ where
         &mut self,
         iteration: usize,
         egraph: &mut EGraph<L, N>,
-        rewrite: &Rewrite<L, N>,
-        matches: Vec<SearchMatches<L>>,
+        rewrite: &Rewrite<L, N, V>,
+        matches: Vec<SearchMatches<L, V>>,
     ) -> usize {
         rewrite.apply(egraph, &matches).len()
     }
@@ -723,10 +727,11 @@ where
 #[derive(Debug)]
 pub struct SimpleScheduler;
 
-impl<L, N> RewriteScheduler<L, N> for SimpleScheduler
+impl<L, N, V> RewriteScheduler<L, N, V> for SimpleScheduler
 where
     L: Language,
     N: Analysis<L>,
+    V: std::fmt::Debug + Clone + std::hash::Hash + PartialOrd + Ord + Copy + std::fmt::Display,
 {
 }
 
@@ -816,10 +821,11 @@ impl Default for BackoffScheduler {
     }
 }
 
-impl<L, N> RewriteScheduler<L, N> for BackoffScheduler
+impl<L, N, V> RewriteScheduler<L, N, V> for BackoffScheduler
 where
     L: Language,
     N: Analysis<L>,
+    V: std::fmt::Debug + Clone + std::hash::Hash + PartialOrd + Ord + Copy + std::fmt::Display,
 {
     fn can_stop(&mut self, iteration: usize) -> bool {
         let n_stats = self.stats.len();
@@ -867,8 +873,8 @@ where
         &mut self,
         iteration: usize,
         egraph: &EGraph<L, N>,
-        rewrite: &'a Rewrite<L, N>,
-    ) -> Vec<SearchMatches<'a, L>> {
+        rewrite: &'a Rewrite<L, N, V>,
+    ) -> Vec<SearchMatches<'a, L, V>> {
         let stats = self.rule_stats(rewrite.name);
 
         if iteration < stats.banned_until {
@@ -916,20 +922,20 @@ where
 /// [`Runner`] is generic over the [`IterationData`] that it will be in the
 /// [`Iteration`]s, but by default it uses `()`.
 ///
-pub trait IterationData<L, N>: Sized
+pub trait IterationData<L, N, V = Var>: Sized
 where
     L: Language,
     N: Analysis<L>,
 {
     /// Given the current [`Runner`], make the
     /// data to be put in this [`Iteration`].
-    fn make(runner: &Runner<L, N, Self>) -> Self;
+    fn make(runner: &Runner<L, N, Self, V>) -> Self;
 }
 
-impl<L, N> IterationData<L, N> for ()
+impl<L, N, V> IterationData<L, N, V> for ()
 where
     L: Language,
     N: Analysis<L>,
 {
-    fn make(_: &Runner<L, N, Self>) -> Self {}
+    fn make(_: &Runner<L, N, Self, V>) -> Self {}
 }

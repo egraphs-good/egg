@@ -626,7 +626,10 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// Like [`add_uncanonical`](EGraph::add_uncanonical), when explanations are enabled calling
     /// Calling [`id_to_expr`](EGraph::id_to_expr) on this `Id` return an corrispond to the
     /// instantiation of the pattern
-    fn add_instantiation_noncanonical(&mut self, pat: &PatternAst<L>, subst: &Subst) -> Id {
+    fn add_instantiation_noncanonical<V>(&mut self, pat: &PatternAst<L, V>, subst: &Subst<V>) -> Id
+    where
+        V: std::fmt::Debug + Clone + std::hash::Hash + PartialOrd + Ord + Copy + std::fmt::Display,
+    {
         let nodes = pat.as_ref();
         let mut new_ids = Vec::with_capacity(nodes.len());
         let mut new_node_q = Vec::with_capacity(nodes.len());
@@ -850,13 +853,16 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     ///
     /// Returns the id of the new eclass, along with
     /// a `bool` indicating whether a union occured.
-    pub fn union_instantiations(
+    pub fn union_instantiations<V>(
         &mut self,
-        from_pat: &PatternAst<L>,
-        to_pat: &PatternAst<L>,
-        subst: &Subst,
+        from_pat: &PatternAst<L, V>,
+        to_pat: &PatternAst<L, V>,
+        subst: &Subst<V>,
         rule_name: impl Into<Symbol>,
-    ) -> (Id, bool) {
+    ) -> (Id, bool)
+    where
+        V: std::fmt::Debug + Clone + std::hash::Hash + PartialOrd + Ord + Copy + std::fmt::Display,
+    {
         let id1 = self.add_instantiation_noncanonical(from_pat, subst);
         let size_before = self.unionfind.size();
         let id2 = self.add_instantiation_noncanonical(to_pat, subst);
@@ -1204,7 +1210,10 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         n_unions
     }
 
-    pub(crate) fn check_each_explain(&self, rules: &[&Rewrite<L, N>]) -> bool {
+    pub(crate) fn check_each_explain<V>(&self, rules: &[&Rewrite<L, N, V>]) -> bool
+    where
+        V: std::fmt::Debug + Clone + std::hash::Hash + PartialOrd + Ord + Copy + std::fmt::Display,
+    {
         if let Some(explain) = &self.explain {
             explain.check_each_explain(rules)
         } else {

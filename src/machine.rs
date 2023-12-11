@@ -14,9 +14,9 @@ struct Machine {
 struct Reg(u32);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Program<L> {
+pub struct Program<L, V> {
     instructions: Vec<Instruction<L>>,
-    subst: Subst,
+    subst: Subst<V>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -88,12 +88,12 @@ impl Machine {
         self.reg[reg.0 as usize]
     }
 
-    fn run<L, N>(
+    fn run<L, N, V>(
         &mut self,
         egraph: &EGraph<L, N>,
         instructions: &[Instruction<L>],
-        subst: &Subst,
-        yield_fn: &mut impl FnMut(&Self, &Subst) -> Result,
+        subst: &Subst<V>,
+        yield_fn: &mut impl FnMut(&Self, &Subst<V>) -> Result,
     ) -> Result
     where
         L: Language,
@@ -153,16 +153,19 @@ impl Machine {
     }
 }
 
-struct Compiler<L> {
-    v2r: IndexMap<Var, Reg>,
-    free_vars: Vec<HashSet<Var>>,
+struct Compiler<L, V> {
+    v2r: IndexMap<V, Reg>,
+    free_vars: Vec<HashSet<V>>,
     subtree_size: Vec<usize>,
     todo_nodes: HashMap<(Id, Reg), L>,
     instructions: Vec<Instruction<L>>,
     next_reg: Reg,
 }
 
-impl<L: Language> Compiler<L> {
+impl<L: Language, V> Compiler<L, V>
+where
+    V: std::fmt::Debug + Clone + std::hash::Hash + PartialOrd + Ord + Copy + std::fmt::Display,
+{
     fn new() -> Self {
         Self {
             free_vars: Default::default(),
@@ -174,7 +177,7 @@ impl<L: Language> Compiler<L> {
         }
     }
 
-    fn add_todo(&mut self, pattern: &PatternAst<L>, id: Id, reg: Reg) {
+    fn add_todo(&mut self, pattern: &PatternAst<L, V>, id: Id, reg: Reg) {
         match &pattern[id] {
             ENodeOrVar::Var(v) => {
                 if let Some(&j) = self.v2r.get(v) {
@@ -189,7 +192,7 @@ impl<L: Language> Compiler<L> {
         }
     }
 
-    fn load_pattern(&mut self, pattern: &PatternAst<L>) {
+    fn load_pattern(&mut self, pattern: &PatternAst<L, V>) {
         let len = pattern.as_ref().len();
         self.free_vars = Vec::with_capacity(len);
         self.subtree_size = Vec::with_capacity(len);
@@ -245,7 +248,7 @@ impl<L: Language> Compiler<L> {
             .all(|v| self.v2r.contains_key(v))
     }
 
-    fn compile(&mut self, patternbinder: Option<Var>, pattern: &PatternAst<L>) {
+    fn compile(&mut self, patternbinder: Option<V>, pattern: &PatternAst<L, V>) {
         self.load_pattern(pattern);
         let last_i = pattern.as_ref().len() - 1;
 
@@ -253,7 +256,7 @@ impl<L: Language> Compiler<L> {
 
         // Check if patternbinder already bound in v2r
         // Behavior common to creating a new pattern
-        let add_new_pattern = |comp: &mut Compiler<L>| {
+        let add_new_pattern = |comp: &mut Compiler<L, V>| {
             if !comp.instructions.is_empty() {
                 // After first pattern needs scan
                 comp.instructions
@@ -312,7 +315,7 @@ impl<L: Language> Compiler<L> {
         self.next_reg = next_out;
     }
 
-    fn extract(self) -> Program<L> {
+    fn extract(self) -> Program<L, V> {
         let mut subst = Subst::default();
         for (v, r) in self.v2r {
             subst.insert(v, Id::from(r.0 as usize));
@@ -324,16 +327,25 @@ impl<L: Language> Compiler<L> {
     }
 }
 
-impl<L: Language> Program<L> {
-    pub(crate) fn compile_from_pat(pattern: &PatternAst<L>) -> Self {
-        let mut compiler = Compiler::new();
+impl<L: Language, V> Program<L, V>
+where
+    V: std::fmt::Debug + Copy,
+{
+    pub(crate) fn compile_from_pat(pattern: &PatternAst<L, V>) -> Self
+    where
+        V: std::fmt::Debug + Clone + std::hash::Hash + PartialOrd + Ord + Copy + std::fmt::Display,
+    {
+        let mut compiler: Compiler<L, V> = Compiler::new();
         compiler.compile(None, pattern);
         let program = compiler.extract();
         log::debug!("Compiled {:?} to {:?}", pattern.as_ref(), program);
         program
     }
 
-    pub(crate) fn compile_from_multi_pat(patterns: &[(Var, PatternAst<L>)]) -> Self {
+    pub(crate) fn compile_from_multi_pat(patterns: &[(V, PatternAst<L, V>)]) -> Self
+    where
+        V: std::fmt::Debug + Clone + std::hash::Hash + PartialOrd + Ord + Copy + std::fmt::Display,
+    {
         let mut compiler = Compiler::new();
         for (var, pattern) in patterns {
             compiler.compile(Some(*var), pattern);
@@ -346,7 +358,7 @@ impl<L: Language> Program<L> {
         egraph: &EGraph<L, A>,
         eclass: Id,
         mut limit: usize,
-    ) -> Vec<Subst>
+    ) -> Vec<Subst<V>>
     where
         A: Analysis<L>,
     {

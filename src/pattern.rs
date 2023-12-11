@@ -62,15 +62,15 @@ use crate::*;
 ///
 /// [`FromStr`]: std::str::FromStr
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Pattern<L> {
+pub struct Pattern<L, V = Var> {
     /// The actual pattern as a [`RecExpr`]
-    pub ast: PatternAst<L>,
-    program: machine::Program<L>,
+    pub ast: PatternAst<L, V>,
+    program: machine::Program<L, V>,
 }
 
 /// A [`RecExpr`] that represents a
 /// [`Pattern`].
-pub type PatternAst<L> = RecExpr<ENodeOrVar<L>>;
+pub type PatternAst<L, V = Var> = RecExpr<ENodeOrVar<L, V>>;
 
 impl<L: Language> PatternAst<L> {
     /// Returns a new `PatternAst` with the variables renames canonically
@@ -100,16 +100,22 @@ impl<L: Language> PatternAst<L> {
     }
 }
 
-impl<L: Language> Pattern<L> {
+impl<L: Language, V> Pattern<L, V>
+where
+    V: std::fmt::Debug + Clone + std::hash::Hash + PartialOrd + Ord + Copy + std::fmt::Display,
+{
     /// Creates a new pattern from the given pattern ast.
-    pub fn new(ast: PatternAst<L>) -> Self {
+    pub fn new(ast: PatternAst<L, V>) -> Self
+    where
+        V: std::fmt::Debug + Clone + std::hash::Hash + PartialOrd + Ord + Copy + std::fmt::Display,
+    {
         let ast = ast.compact();
         let program = machine::Program::compile_from_pat(&ast);
         Pattern { ast, program }
     }
 
-    /// Returns a list of the [`Var`]s in this pattern.
-    pub fn vars(&self) -> Vec<Var> {
+    /// Returns a list of the `V` in [`ENodeOrVar::Var`]s in this pattern.
+    pub fn vars(&self) -> Vec<V> {
         let mut vars = vec![];
         for n in self.ast.as_ref() {
             if let ENodeOrVar::Var(v) = n {
@@ -132,22 +138,25 @@ impl<L: Language + Display> Pattern<L> {
 /// The language of [`Pattern`]s.
 ///
 #[derive(Debug, Hash, PartialEq, Eq, Clone, PartialOrd, Ord)]
-pub enum ENodeOrVar<L> {
+pub enum ENodeOrVar<L, V = Var> {
     /// An enode from the underlying [`Language`]
     ENode(L),
     /// A pattern variable
-    Var(Var),
+    Var(V),
 }
 
 /// The discriminant for the language of [`Pattern`]s.
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
-pub enum ENodeOrVarDiscriminant<L: Language> {
+pub enum ENodeOrVarDiscriminant<L: Language, V> {
     ENode(L::Discriminant),
-    Var(Var),
+    Var(V),
 }
 
-impl<L: Language> Language for ENodeOrVar<L> {
-    type Discriminant = ENodeOrVarDiscriminant<L>;
+impl<L: Language, V> Language for ENodeOrVar<L, V>
+where
+    V: std::fmt::Debug + Clone + std::hash::Hash + PartialOrd + Ord + Copy + std::fmt::Display,
+{
+    type Discriminant = ENodeOrVarDiscriminant<L, V>;
 
     #[inline(always)]
     fn discriminant(&self) -> Self::Discriminant {
@@ -271,21 +280,35 @@ impl<L: Language + Display> Display for Pattern<L> {
 /// many matches were found total.
 ///
 #[derive(Debug)]
-pub struct SearchMatches<'a, L: Language> {
+pub struct SearchMatches<'a, L: Language, V = Var>
+where
+    V: Clone,
+{
     /// The eclass id that these matches were found in.
     pub eclass: Id,
     /// The substitutions for each match.
-    pub substs: Vec<Subst>,
+    pub substs: Vec<Subst<V>>,
     /// Optionally, an ast for the matches used in proof production.
-    pub ast: Option<Cow<'a, PatternAst<L>>>,
+    pub ast: Option<Cow<'a, PatternAst<L, V>>>,
 }
 
-impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
-    fn get_pattern_ast(&self) -> Option<&PatternAst<L>> {
+impl<L, A, V> Searcher<L, A, V> for Pattern<L, V>
+where
+    L: Language,
+    A: Analysis<L>,
+    V: std::clone::Clone
+        + std::fmt::Debug
+        + Copy
+        + std::hash::Hash
+        + PartialOrd
+        + Ord
+        + std::fmt::Display,
+{
+    fn get_pattern_ast(&self) -> Option<&PatternAst<L, V>> {
         Some(&self.ast)
     }
 
-    fn search_with_limit(&self, egraph: &EGraph<L, A>, limit: usize) -> Vec<SearchMatches<L>> {
+    fn search_with_limit(&self, egraph: &EGraph<L, A>, limit: usize) -> Vec<SearchMatches<L, V>> {
         match self.ast.as_ref().last().unwrap() {
             ENodeOrVar::ENode(e) => {
                 let key = e.discriminant();
@@ -313,7 +336,7 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
         egraph: &EGraph<L, A>,
         eclass: Id,
         limit: usize,
-    ) -> Option<SearchMatches<L>> {
+    ) -> Option<SearchMatches<L, V>> {
         let substs = self.program.run_with_limit(egraph, eclass, limit);
         if substs.is_empty() {
             None
@@ -327,24 +350,25 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
         }
     }
 
-    fn vars(&self) -> Vec<Var> {
+    fn vars(&self) -> Vec<V> {
         Pattern::vars(self)
     }
 }
 
-impl<L, A> Applier<L, A> for Pattern<L>
+impl<L, A, V> Applier<L, A, V> for Pattern<L, V>
 where
     L: Language,
     A: Analysis<L>,
+    V: std::fmt::Debug + Clone + std::hash::Hash + PartialOrd + Ord + Copy + std::fmt::Display,
 {
-    fn get_pattern_ast(&self) -> Option<&PatternAst<L>> {
+    fn get_pattern_ast(&self) -> Option<&PatternAst<L, V>> {
         Some(&self.ast)
     }
 
     fn apply_matches(
         &self,
         egraph: &mut EGraph<L, A>,
-        matches: &[SearchMatches<L>],
+        matches: &[SearchMatches<L, V>],
         rule_name: Symbol,
     ) -> Vec<Id> {
         let mut added = vec![];
@@ -377,8 +401,8 @@ where
         &self,
         egraph: &mut EGraph<L, A>,
         eclass: Id,
-        subst: &Subst,
-        searcher_ast: Option<&PatternAst<L>>,
+        subst: &Subst<V>,
+        searcher_ast: Option<&PatternAst<L, V>>,
         rule_name: Symbol,
     ) -> Vec<Id> {
         let ast = self.ast.as_ref();
@@ -400,17 +424,20 @@ where
         }
     }
 
-    fn vars(&self) -> Vec<Var> {
+    fn vars(&self) -> Vec<V> {
         Pattern::vars(self)
     }
 }
 
-pub(crate) fn apply_pat<L: Language, A: Analysis<L>>(
+pub(crate) fn apply_pat<L: Language, A: Analysis<L>, V>(
     ids: &mut [Id],
-    pat: &[ENodeOrVar<L>],
+    pat: &[ENodeOrVar<L, V>],
     egraph: &mut EGraph<L, A>,
-    subst: &Subst,
-) -> Id {
+    subst: &Subst<V>,
+) -> Id
+where
+    V: std::fmt::Debug + Clone + std::hash::Hash + PartialOrd + Ord + Copy + std::fmt::Display,
+{
     debug_assert_eq!(pat.len(), ids.len());
     trace!("apply_rec {:2?} {:?}", pat, subst);
 
