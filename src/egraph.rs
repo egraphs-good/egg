@@ -429,7 +429,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// This function picks representatives using [`id_to_expr`](EGraph::id_to_expr) so choosing
     /// `Id`s returned by functions like [`add_uncanonical`](EGraph::add_uncanonical) is important
     /// to control explanations
-    fn explain_id_equivalence(&mut self, left: Id, right: Id) -> Explanation<L> {
+    pub fn explain_id_equivalence(&mut self, left: Id, right: Id) -> Explanation<L> {
         if self.find(left) != self.find(right) {
             panic!(
                 "Tried to explain equivalence between non-equal terms {:?} and {:?}",
