@@ -1704,7 +1704,7 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
     <span class="doccomment">/// This function picks representatives using [`id_to_expr`](EGraph::id_to_expr) so choosing</span>
     <span class="doccomment">/// `Id`s returned by functions like [`add_uncanonical`](EGraph::add_uncanonical) is important</span>
     <span class="doccomment">/// to control explanations</span>
-    <span class="kw">fn</span> <span class="ident">explain_id_equivalence</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">left</span>: <span class="ident">Id</span>, <span class="ident">right</span>: <span class="ident">Id</span>) -&gt; <span class="ident">Explanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">explain_id_equivalence</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">left</span>: <span class="ident">Id</span>, <span class="ident">right</span>: <span class="ident">Id</span>) -&gt; <span class="ident">Explanation</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">find</span>(<span class="ident">left</span>) <span class="op">!</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">find</span>(<span class="ident">right</span>) {
             <span class="macro">panic!</span>(
                 <span class="string">&quot;Tried to explain equivalence between non-equal terms {:?} and {:?}&quot;</span>,
