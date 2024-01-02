@@ -22,6 +22,7 @@ fn visit_undo_node(id: Id, undo_find: &[UndoNode], f: &mut impl FnMut(Id, &UndoN
 }
 
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde-1", derive(serde::Serialize, serde::Deserialize))]
 struct PushInfo {
     node_count: Id,
     union_count: usize,
