@@ -50,6 +50,7 @@ mod multipattern;
 mod pattern;
 mod rewrite;
 mod run;
+mod semi_persistent;
 mod subst;
 mod unionfind;
 mod util;
@@ -101,6 +102,7 @@ pub use {
     pattern::{ENodeOrVar, Pattern, PatternAst, SearchMatches},
     rewrite::{Applier, Condition, ConditionEqual, ConditionalApplier, Rewrite, Searcher},
     run::*,
+    semi_persistent::UndoLog,
     subst::{Subst, Var},
     util::*,
 };

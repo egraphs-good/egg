@@ -4,7 +4,7 @@ use std::fmt::Debug;
 #[derive(Debug, Clone, Default)]
 #[cfg_attr(feature = "serde-1", derive(serde::Serialize, serde::Deserialize))]
 pub struct UnionFind {
-    parents: Vec<Id>,
+    pub(crate) parents: Vec<Id>,
 }
 
 impl UnionFind {

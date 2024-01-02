@@ -7,6 +7,7 @@ use std::{
 #[cfg(feature = "serde-1")]
 use serde::{Deserialize, Serialize};
 
+use crate::semi_persistent::UndoLogT;
 use log::*;
 
 /** A data structure to keep track of equalities between expressions.
@@ -56,16 +57,24 @@ pub struct EGraph<L: Language, N: Analysis<L>> {
     pub analysis: N,
     /// The `Explain` used to explain equivalences in this `EGraph`.
     pub(crate) explain: Option<Explain<L>>,
-    unionfind: UnionFind,
+    #[cfg_attr(
+        feature = "serde-1",
+        serde(bound(
+            serialize = "N::UndoLog: Serialize",
+            deserialize = "N::UndoLog: for<'a> Deserialize<'a>",
+        ))
+    )]
+    pub(crate) undo_log: N::UndoLog,
+    pub(crate) unionfind: UnionFind,
     /// Stores each enode's `Id`, not the `Id` of the eclass.
     /// Enodes in the memo are canonicalized at each rebuild, but after rebuilding new
     /// unions can cause them to become out of date.
     #[cfg_attr(feature = "serde-1", serde(with = "vectorize"))]
-    memo: HashMap<L, Id>,
+    pub(crate) memo: HashMap<L, Id>,
     /// Nodes which need to be processed for rebuilding. The `Id` is the `Id` of the enode,
     /// not the canonical id of the eclass.
-    pending: Vec<(L, Id)>,
-    analysis_pending: UniqueQueue<(L, Id)>,
+    pub(crate) pending: Vec<(L, Id)>,
+    pub(crate) analysis_pending: UniqueQueue<(L, Id)>,
     #[cfg_attr(
         feature = "serde-1",
         serde(bound(
@@ -103,6 +112,8 @@ impl<L: Language, N: Analysis<L>> Debug for EGraph<L, N> {
         f.debug_struct("EGraph")
             .field("memo", &self.memo)
             .field("classes", &self.classes)
+            .field("undo_log", &self.undo_log)
+            .field("explain", &self.explain)
             .finish()
     }
 }
@@ -120,6 +131,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             memo: Default::default(),
             analysis_pending: Default::default(),
             classes_by_op: Default::default(),
+            undo_log: Default::default(),
         }
     }
 
@@ -769,9 +781,12 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                     *existing_explain
                 } else {
                     let new_id = self.unionfind.make_set();
+                    self.undo_log.add_node(&original, new_id);
                     explain.add(original, new_id, new_id);
                     self.unionfind.union(id, new_id);
+                    self.undo_log.union(id, new_id);
                     explain.union(existing_id, new_id, Justification::Congruence, true);
+                    self.undo_log.union_explain(existing_id, new_id);
                     new_id
                 }
             } else {
@@ -780,6 +795,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         } else {
             let id = self.make_new_eclass(enode);
             if let Some(explain) = self.explain.as_mut() {
+                self.undo_log.add_node(&original, id);
                 explain.add(original, id, id);
             }
 
@@ -811,7 +827,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         self.pending.push((enode.clone(), id));
 
         self.classes.insert(id, class);
-        assert!(self.memo.insert(enode, id).is_none());
+        let old = self.undo_log.modify_memo(&mut self.memo, enode, Some(id));
+        assert!(old.is_none());
 
         id
     }
@@ -919,7 +936,12 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         if id1 == id2 {
             if let Some(Justification::Rule(_)) = rule {
                 if let Some(explain) = &mut self.explain {
-                    explain.alternate_rewrite(enode_id1, enode_id2, rule.unwrap());
+                    explain.alternate_rewrite(
+                        enode_id1,
+                        enode_id2,
+                        rule.unwrap(),
+                        &mut self.undo_log,
+                    );
                 }
             }
             return false;
@@ -933,10 +955,12 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
         if let Some(explain) = &mut self.explain {
             explain.union(enode_id1, enode_id2, rule.unwrap(), any_new_rhs);
+            self.undo_log.union_explain(enode_id1, enode_id2);
         }
 
         // make id1 the new root
         self.unionfind.union(id1, id2);
+        self.undo_log.union(id1, id2);
 
         assert_ne!(id1, id2);
         let class2 = self.classes.remove(&id2).unwrap();
@@ -1105,7 +1129,9 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         while !self.pending.is_empty() || !self.analysis_pending.is_empty() {
             while let Some((mut node, class)) = self.pending.pop() {
                 node.update_children(|id| self.find_mut(id));
-                if let Some(memo_class) = self.memo.insert(node, class) {
+                if let Some(memo_class) =
+                    self.undo_log.modify_memo(&mut self.memo, node, Some(class))
+                {
                     let did_something = self.perform_union(
                         memo_class,
                         class,

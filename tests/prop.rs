@@ -17,6 +17,7 @@ type Rewrite = egg::Rewrite<Prop, ConstantFold>;
 #[derive(Default)]
 struct ConstantFold;
 impl Analysis<Prop> for ConstantFold {
+    type UndoLog = ();
     type Data = Option<(bool, PatternAst<Prop>)>;
     fn merge(&mut self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
         merge_option(to, from, |a, b| {
