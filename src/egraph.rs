@@ -57,6 +57,8 @@ pub struct EGraph<L: Language, N: Analysis<L>> {
     /// The `Explain` used to explain equivalences in this `EGraph`.
     pub(crate) explain: Option<Explain<L>>,
     unionfind: UnionFind,
+    /// Stores the original node represented by each non-canonical id
+    nodes: Vec<L>,
     /// Stores each enode's `Id`, not the `Id` of the eclass.
     /// Enodes in the memo are canonicalized at each rebuild, but after rebuilding new
     /// unions can cause them to become out of date.
@@ -64,8 +66,8 @@ pub struct EGraph<L: Language, N: Analysis<L>> {
     memo: HashMap<L, Id>,
     /// Nodes which need to be processed for rebuilding. The `Id` is the `Id` of the enode,
     /// not the canonical id of the eclass.
-    pending: Vec<(L, Id)>,
-    analysis_pending: UniqueQueue<(L, Id)>,
+    pending: Vec<Id>,
+    analysis_pending: UniqueQueue<Id>,
     #[cfg_attr(
         feature = "serde-1",
         serde(bound(
@@ -114,6 +116,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             analysis,
             classes: Default::default(),
             unionfind: Default::default(),
+            nodes: Default::default(),
             clean: false,
             explain: None,
             pending: Default::default(),
@@ -769,7 +772,9 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                     *existing_explain
                 } else {
                     let new_id = self.unionfind.make_set();
-                    explain.add(original, new_id, new_id);
+                    explain.add(original.clone(), new_id, new_id);
+                    self.nodes.push(original);
+                    debug_assert_eq!(Id::from(self.nodes.len()), new_id);
                     self.unionfind.union(id, new_id);
                     explain.union(existing_id, new_id, Justification::Congruence, true);
                     new_id
@@ -778,7 +783,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                 existing_id
             }
         } else {
-            let id = self.make_new_eclass(enode);
+            let id = self.make_new_eclass(enode, original.clone());
             if let Some(explain) = self.explain.as_mut() {
                 explain.add(original, id, id);
             }
@@ -791,24 +796,26 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     }
 
     /// This function makes a new eclass in the egraph (but doesn't touch explanations)
-    fn make_new_eclass(&mut self, enode: L) -> Id {
+    fn make_new_eclass(&mut self, enode: L, original: L) -> Id {
         let id = self.unionfind.make_set();
         log::trace!("  ...adding to {}", id);
         let class = EClass {
             id,
             nodes: vec![enode.clone()],
-            data: N::make(self, &enode),
+            data: N::make(self, &original),
             parents: Default::default(),
         };
 
+        self.nodes.push(original);
+        debug_assert_eq!(Id::from(self.nodes.len()), id);
+
         // add this enode to the parent lists of its children
         enode.for_each(|child| {
-            let tup = (enode.clone(), id);
-            self[child].parents.push(tup);
+            self[child].parents.push(id);
         });
 
         // TODO is this needed?
-        self.pending.push((enode.clone(), id));
+        self.pending.push(id);
 
         self.classes.insert(id, class);
         assert!(self.memo.insert(enode, id).is_none());
@@ -943,13 +950,13 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         let class1 = self.classes.get_mut(&id1).unwrap();
         assert_eq!(id1, class1.id);
 
-        self.pending.extend(class2.parents.iter().cloned());
+        self.pending.extend(class2.parents.iter().copied());
         let did_merge = self.analysis.merge(&mut class1.data, class2.data);
         if did_merge.0 {
-            self.analysis_pending.extend(class1.parents.iter().cloned());
+            self.analysis_pending.extend(class1.parents.iter().copied());
         }
         if did_merge.1 {
-            self.analysis_pending.extend(class2.parents.iter().cloned());
+            self.analysis_pending.extend(class2.parents.iter().copied());
         }
 
         concat_vecs(&mut class1.nodes, class2.nodes);
@@ -968,7 +975,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         let id = self.find_mut(id);
         let class = self.classes.get_mut(&id).unwrap();
         class.data = new_data;
-        self.analysis_pending.extend(class.parents.iter().cloned());
+        self.analysis_pending.extend(class.parents.iter().copied());
         N::modify(self, id)
     }
 
@@ -1103,7 +1110,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         let mut n_unions = 0;
 
         while !self.pending.is_empty() || !self.analysis_pending.is_empty() {
-            while let Some((mut node, class)) = self.pending.pop() {
+            while let Some(class) = self.pending.pop() {
+                let mut node = self.nodes[usize::from(class)].clone();
                 node.update_children(|id| self.find_mut(id));
                 if let Some(memo_class) = self.memo.insert(node, class) {
                     let did_something = self.perform_union(
@@ -1116,14 +1124,15 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                 }
             }
 
-            while let Some((node, class_id)) = self.analysis_pending.pop() {
+            while let Some(class_id) = self.analysis_pending.pop() {
+                let node = self.nodes[usize::from(class_id)].clone();
                 let class_id = self.find_mut(class_id);
                 let node_data = N::make(self, &node);
                 let class = self.classes.get_mut(&class_id).unwrap();
 
                 let did_merge = self.analysis.merge(&mut class.data, node_data);
                 if did_merge.0 {
-                    self.analysis_pending.extend(class.parents.iter().cloned());
+                    self.analysis_pending.extend(class.parents.iter().copied());
                     N::modify(self, class_id)
                 }
             }
