@@ -58,7 +58,10 @@ pub struct Explain<L: Language> {
     #[cfg_attr(feature = "serde-1", serde(with = "vectorize"))]
     #[cfg_attr(
         feature = "serde-1",
-        serde(bound(serialize = "L: Serialize", deserialize = "L: for<'a> Deserialize<'a>",))
+        serde(bound(
+            serialize = "L: serde::Serialize",
+            deserialize = "L: serde::Deserialize<'de>",
+        ))
     )]
     pub uncanon_memo: HashMap<L, Id>,
     /// By default, egg uses a greedy algorithm to find shorter explanations when they are extracted.
