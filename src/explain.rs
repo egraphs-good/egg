@@ -56,6 +56,10 @@ struct ExplainNode {
 pub struct Explain<L: Language> {
     explainfind: Vec<ExplainNode>,
     #[cfg_attr(feature = "serde-1", serde(with = "vectorize"))]
+    #[cfg_attr(
+        feature = "serde-1",
+        serde(bound(serialize = "L: Serialize", deserialize = "L: for<'a> Deserialize<'a>",))
+    )]
     pub uncanon_memo: HashMap<L, Id>,
     /// By default, egg uses a greedy algorithm to find shorter explanations when they are extracted.
     pub optimize_explanation_lengths: bool,
@@ -912,7 +916,7 @@ impl<L: Language> Explain<L> {
 
     pub(crate) fn add(&mut self, node: L, set: Id, existance_node: Id) -> Id {
         assert_eq!(self.explainfind.len(), usize::from(set));
-        self.uncanon_memo.insert(node.clone(), set);
+        self.uncanon_memo.insert(node, set);
         self.explainfind.push(ExplainNode {
             neighbors: vec![],
             parent_connection: Connection {
