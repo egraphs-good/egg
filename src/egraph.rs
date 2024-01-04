@@ -217,6 +217,9 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
     /// Make a copy of the egraph with the same nodes, but no unions between them.
     pub fn copy_without_unions(&self, analysis: N) -> Self {
+        if self.explain.is_none() {
+            panic!("Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get a copied egraph without unions");
+        }
         let mut egraph = Self::new(analysis);
         for node in &self.nodes {
             egraph.add(node.clone());
@@ -638,7 +641,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
     /// Similar to [`add_expr`](EGraph::add_expr) but the `Id` returned may not be canonical
     ///
-    /// Calling [`id_to_expr`](EGraph::id_to_expr) on this `Id` return a copy of `expr`
+    /// Calling [`id_to_expr`](EGraph::id_to_expr) on this `Id` return a copy of `expr` when explanations are enabled
     pub fn add_expr_uncanonical(&mut self, expr: &RecExpr<L>) -> Id {
         let nodes = expr.as_ref();
         let mut new_ids = Vec::with_capacity(nodes.len());
@@ -676,7 +679,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// canonical
     ///
     /// Like [`add_uncanonical`](EGraph::add_uncanonical), when explanations are enabled calling
-    /// Calling [`id_to_expr`](EGraph::id_to_expr) on this `Id` return an corrispond to the
+    /// Calling [`id_to_expr`](EGraph::id_to_expr) on this `Id` return an correspond to the
     /// instantiation of the pattern
     fn add_instantiation_noncanonical(&mut self, pat: &PatternAst<L>, subst: &Subst) -> Id {
         let nodes = pat.as_ref();
@@ -796,7 +799,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// When explanations are enabled calling [`id_to_expr`](EGraph::id_to_expr) on this `Id` will
     /// correspond to the parameter `enode`
     ///
-    /// # Example
+    /// ## Example
     /// ```
     /// # use egg::*;
     /// let mut egraph: EGraph<SymbolLang, ()> = EGraph::default().with_explanations_enabled();
@@ -811,6 +814,25 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// assert_eq!(egraph.id_to_expr(fa), "(f a)".parse().unwrap());
     /// assert_eq!(egraph.id_to_expr(fb), "(f b)".parse().unwrap());
     /// ```
+    ///
+    /// When explanations are not enabled calling [`id_to_expr`](EGraph::id_to_expr) on this `Id` will
+    /// produce an expression with equivalent but not necessarily identical children
+    ///
+    /// # Example
+    /// ```
+    /// # use egg::*;
+    /// let mut egraph: EGraph<SymbolLang, ()> = EGraph::default().with_explanations_disabled();
+    /// let a = egraph.add_uncanonical(SymbolLang::leaf("a"));
+    /// let b = egraph.add_uncanonical(SymbolLang::leaf("b"));
+    /// egraph.union(a, b);
+    /// egraph.rebuild();
+    ///
+    /// let fa = egraph.add_uncanonical(SymbolLang::new("f", vec![a]));
+    /// let fb = egraph.add_uncanonical(SymbolLang::new("f", vec![b]));
+    ///
+    /// assert_eq!(egraph.id_to_expr(fa), "(f a)".parse().unwrap());
+    /// assert_eq!(egraph.id_to_expr(fb), "(f a)".parse().unwrap());
+    /// ```
     pub fn add_uncanonical(&mut self, mut enode: L) -> Id {
         let original = enode.clone();
         if let Some(existing_id) = self.lookup_internal(&mut enode) {
@@ -822,8 +844,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                 } else {
                     let new_id = self.unionfind.make_set();
                     explain.add(original.clone(), new_id, new_id);
-                    self.nodes.push(original);
                     debug_assert_eq!(Id::from(self.nodes.len()), new_id);
+                    self.nodes.push(original);
                     self.unionfind.union(id, new_id);
                     explain.union(existing_id, new_id, Justification::Congruence, true);
                     new_id
@@ -855,8 +877,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             parents: Default::default(),
         };
 
-        self.nodes.push(original);
         debug_assert_eq!(Id::from(self.nodes.len()), id);
+        self.nodes.push(original);
 
         // add this enode to the parent lists of its children
         enode.for_each(|child| {
