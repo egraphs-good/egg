@@ -102,7 +102,7 @@ We'll use a [`Pattern`], which implements the [`Searcher`] trait,
   to search the e-graph for matches:
 
 ```
-# use egg::*;
+# use egg::legacy::*;
 // let's make an e-graph
 let mut egraph: EGraph<SymbolLang, ()> = Default::default();
 let a = egraph.add(SymbolLang::leaf("a"));

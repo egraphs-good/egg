@@ -3,7 +3,6 @@ use std::fmt::{self, Debug, Display};
 use std::sync::Arc;
 
 use crate::*;
-
 /// A rewrite that searches for the lefthand side and applies the righthand side.
 ///
 /// The [`rewrite!`] macro is the easiest way to create rewrites.
@@ -80,28 +79,28 @@ impl<L: Language, N: Analysis<L>> Rewrite<L, N> {
     /// Call [`search`] on the [`Searcher`].
     ///
     /// [`search`]: Searcher::search()
-    pub fn search(&self, egraph: &EGraph<L, N>) -> Vec<SearchMatches<L>> {
+    pub fn search(&self, egraph: &EMGraph<L, N>) -> Vec<SearchMatches<L>> {
         self.searcher.search(egraph)
     }
 
     /// Call [`search_with_limit`] on the [`Searcher`].
     ///
     /// [`search_with_limit`]: Searcher::search_with_limit()
-    pub fn search_with_limit(&self, egraph: &EGraph<L, N>, limit: usize) -> Vec<SearchMatches<L>> {
+    pub fn search_with_limit(&self, egraph: &EMGraph<L, N>, limit: usize) -> Vec<SearchMatches<L>> {
         self.searcher.search_with_limit(egraph, limit)
     }
 
     /// Call [`apply_matches`] on the [`Applier`].
     ///
     /// [`apply_matches`]: Applier::apply_matches()
-    pub fn apply(&self, egraph: &mut EGraph<L, N>, matches: &[SearchMatches<L>]) -> Vec<Id> {
+    pub fn apply(&self, egraph: &mut EMGraph<L, N>, matches: &[SearchMatches<L>]) -> Vec<Id> {
         self.applier.apply_matches(egraph, matches, self.name)
     }
 
     /// This `run` is for testing use only. You should use things
     /// from the `egg::run` module
     #[cfg(test)]
-    pub(crate) fn run(&self, egraph: &mut EGraph<L, N>) -> Vec<Id> {
+    pub(crate) fn run(&self, egraph: &mut EMGraph<L, N>) -> Vec<Id> {
         let start = crate::util::Instant::now();
 
         let matches = self.search(egraph);
@@ -125,7 +124,7 @@ impl<L: Language, N: Analysis<L>> Rewrite<L, N> {
 /// Searches the given list of e-classes with a limit.
 pub(crate) fn search_eclasses_with_limit<'a, I, S, L, N>(
     searcher: &'a S,
-    egraph: &EGraph<L, N>,
+    egraph: &EMGraph<L, N>,
     eclasses: I,
     mut limit: usize,
 ) -> Vec<SearchMatches<'a, L>>
@@ -166,7 +165,7 @@ where
 {
     /// Search one eclass, returning None if no matches can be found.
     /// This should not return a SearchMatches with no substs.
-    fn search_eclass(&self, egraph: &EGraph<L, N>, eclass: Id) -> Option<SearchMatches<L>> {
+    fn search_eclass(&self, egraph: &EMGraph<L, N>, eclass: Id) -> Option<SearchMatches<L>> {
         self.search_eclass_with_limit(egraph, eclass, usize::MAX)
     }
 
@@ -179,17 +178,17 @@ where
     /// [`search_eclass_with_limit`]: Searcher::search_eclass_with_limit
     fn search_eclass_with_limit(
         &self,
-        egraph: &EGraph<L, N>,
+        egraph: &EMGraph<L, N>,
         eclass: Id,
         limit: usize,
     ) -> Option<SearchMatches<L>>;
 
-    /// Search the whole [`EGraph`], returning a list of all the
+    /// Search the whole [`EMGraph`], returning a list of all the
     /// [`SearchMatches`] where something was found.
     /// This just calls [`search_eclass`] on each eclass.
     ///
     /// [`search_eclass`]: Searcher::search_eclass
-    fn search(&self, egraph: &EGraph<L, N>) -> Vec<SearchMatches<L>> {
+    fn search(&self, egraph: &EMGraph<L, N>) -> Vec<SearchMatches<L>> {
         egraph
             .classes()
             .filter_map(|e| self.search_eclass(egraph, e.id))
@@ -199,12 +198,12 @@ where
     /// Similar to [`search`], but return at most `limit` many matches.
     ///
     /// [`search`]: Searcher::search
-    fn search_with_limit(&self, egraph: &EGraph<L, N>, limit: usize) -> Vec<SearchMatches<L>> {
+    fn search_with_limit(&self, egraph: &EMGraph<L, N>, limit: usize) -> Vec<SearchMatches<L>> {
         search_eclasses_with_limit(self, egraph, egraph.classes().map(|e| e.id), limit)
     }
 
     /// Returns the number of matches in the e-graph
-    fn n_matches(&self, egraph: &EGraph<L, N>) -> usize {
+    fn n_matches(&self, egraph: &EMGraph<L, N>) -> usize {
         self.search(egraph).iter().map(|m| m.substs.len()).sum()
     }
 
@@ -232,7 +231,7 @@ where
 ///
 /// # Example
 /// ```
-/// use egg::{rewrite as rw, *};
+/// use egg::legacy::{rewrite as rw, *};
 /// use std::sync::Arc;
 ///
 /// define_language! {
@@ -244,19 +243,22 @@ where
 ///     }
 /// }
 ///
-/// type EGraph = egg::EGraph<Math, MinSize>;
+/// type EGraph = egg::legacy::EGraph<Math, MinSize>;
 ///
 /// // Our metadata in this case will be size of the smallest
 /// // represented expression in the eclass.
 /// #[derive(Default)]
 /// struct MinSize;
+/// impl AnalysisData<Math> for MinSize {
+///   type Data = usize;
+/// }
+///
 /// impl Analysis<Math> for MinSize {
-///     type Data = usize;
 ///     fn merge(&mut self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
 ///         merge_min(to, from)
 ///     }
-///     fn make(egraph: &mut EGraph, enode: &Math) -> Self::Data {
-///         let get_size = |i: Id| egraph[i].data;
+///     fn make<E: EGraphT<Math, N=Self>>(egraph: E, enode: &Math) -> Self::Data {
+///         let get_size = |i: Id| *egraph.data(i);
 ///         AstSize.cost(enode, get_size)
 ///     }
 /// }
@@ -285,13 +287,13 @@ where
 ///     ast: PatternAst<Math>,
 /// }
 ///
-/// impl Applier<Math, MinSize> for Funky {
+/// impl Applier<Math, WrapLatticeAnalysis<MinSize>> for Funky {
 ///
 ///     fn apply_one(&self, egraph: &mut EGraph, matched_id: Id, subst: &Subst, searcher_pattern: Option<&PatternAst<Math>>, rule_name: Symbol) -> Vec<Id> {
 ///         let a: Id = subst[self.a];
 ///         // In a custom Applier, you can inspect the analysis data,
 ///         // which is powerful combination!
-///         let size_of_a = egraph[a].data;
+///         let size_of_a = egraph[a].data.0;
 ///         if size_of_a > 50 {
 ///             println!("Too big! Not doing anything");
 ///             vec![]
@@ -337,7 +339,7 @@ where
     /// [`apply_one`]: Applier::apply_one()
     fn apply_matches(
         &self,
-        egraph: &mut EGraph<L, N>,
+        egraph: &mut EMGraph<L, N>,
         matches: &[SearchMatches<L>],
         rule_name: Symbol,
     ) -> Vec<Id> {
@@ -375,7 +377,7 @@ where
     /// [`apply_matches`]: Applier::apply_matches()
     fn apply_one(
         &self,
-        egraph: &mut EGraph<L, N>,
+        egraph: &mut EMGraph<L, N>,
         eclass: Id,
         subst: &Subst,
         searcher_ast: Option<&PatternAst<L>>,
@@ -429,7 +431,7 @@ where
 
     fn apply_one(
         &self,
-        egraph: &mut EGraph<L, N>,
+        egraph: &mut EMGraph<L, N>,
         eclass: Id,
         subst: &Subst,
         searcher_ast: Option<&PatternAst<L>>,
@@ -469,7 +471,7 @@ where
     /// `eclass` is the eclass [`Id`] where the match (`subst`) occured.
     /// If this is true, then the [`ConditionalApplier`] will fire.
     ///
-    fn check(&self, egraph: &mut EGraph<L, N>, eclass: Id, subst: &Subst) -> bool;
+    fn check(&self, egraph: &mut EMGraph<L, N>, eclass: Id, subst: &Subst) -> bool;
 
     /// Returns a list of variables that this Condition assumes are bound.
     ///
@@ -486,9 +488,9 @@ impl<L, F, N> Condition<L, N> for F
 where
     L: Language,
     N: Analysis<L>,
-    F: Fn(&mut EGraph<L, N>, Id, &Subst) -> bool,
+    F: Fn(&mut EMGraph<L, N>, Id, &Subst) -> bool,
 {
-    fn check(&self, egraph: &mut EGraph<L, N>, eclass: Id, subst: &Subst) -> bool {
+    fn check(&self, egraph: &mut EMGraph<L, N>, eclass: Id, subst: &Subst) -> bool {
         self(egraph, eclass, subst)
     }
 }
@@ -528,7 +530,7 @@ where
     L: Language,
     N: Analysis<L>,
 {
-    fn check(&self, egraph: &mut EGraph<L, N>, _eclass: Id, subst: &Subst) -> bool {
+    fn check(&self, egraph: &mut EMGraph<L, N>, _eclass: Id, subst: &Subst) -> bool {
         let mut id_buf_1 = vec![0.into(); self.p1.ast.as_ref().len()];
         let mut id_buf_2 = vec![0.into(); self.p2.ast.as_ref().len()];
         let a1 = apply_pat(&mut id_buf_1, self.p1.ast.as_ref(), egraph, subst);
@@ -549,7 +551,7 @@ mod tests {
     use crate::{SymbolLang as S, *};
     use std::str::FromStr;
 
-    type EGraph = crate::EGraph<S, ()>;
+    type EGraph = crate::legacy::EGraph<S, ()>;
 
     #[test]
     fn conditional_rewrite() {
@@ -600,7 +602,7 @@ mod tests {
         let root = egraph.add_expr(&start);
 
         fn get(egraph: &EGraph, id: Id) -> Symbol {
-            egraph[id].nodes[0].op
+            egraph[id].nodes()[0].op
         }
 
         #[derive(Debug)]
@@ -608,7 +610,7 @@ mod tests {
             _rhs: PatternAst<S>,
         }
 
-        impl Applier<SymbolLang, ()> for Appender {
+        impl Applier<SymbolLang, WrapLatticeAnalysis<()>> for Appender {
             fn apply_one(
                 &self,
                 egraph: &mut EGraph,

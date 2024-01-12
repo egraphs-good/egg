@@ -7,11 +7,9 @@ use crate::*;
 #[non_exhaustive]
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde-1", derive(serde::Serialize, serde::Deserialize))]
-pub struct EClass<L, D> {
+pub struct EClass<D> {
     /// This eclass's id.
     pub id: Id,
-    /// The equivalent enodes in this equivalence class.
-    pub nodes: Vec<L>,
     /// The analysis data associated with this eclass.
     ///
     /// Modifying this field will _not_ cause changes to propagate through the e-graph.
@@ -21,32 +19,17 @@ pub struct EClass<L, D> {
     pub(crate) parents: Vec<Id>,
 }
 
-impl<L, D> EClass<L, D> {
-    /// Returns `true` if the `eclass` is empty.
-    pub fn is_empty(&self) -> bool {
-        self.nodes.is_empty()
-    }
-
-    /// Returns the number of enodes in this eclass.
-    pub fn len(&self) -> usize {
-        self.nodes.len()
-    }
-
-    /// Iterates over the enodes in this eclass.
-    pub fn iter(&self) -> impl ExactSizeIterator<Item = &L> {
-        self.nodes.iter()
-    }
-
+impl<D> EClass<D> {
     /// Iterates over the non-canonical ids of parent enodes of this eclass.
     pub fn parents(&self) -> impl ExactSizeIterator<Item = Id> + '_ {
         self.parents.iter().copied()
     }
 }
 
-impl<L: Language, D> EClass<L, D> {
+impl<L: Language, D> EMClass<L, D> {
     /// Iterates over the childless enodes in this eclass.
     pub fn leaves(&self) -> impl Iterator<Item = &L> {
-        self.nodes.iter().filter(|&n| n.is_leaf())
+        self.iter().filter(|&n| n.is_leaf())
     }
 
     /// Asserts that the childless enodes in this eclass are unique.
@@ -63,5 +46,25 @@ impl<L: Language, D> EClass<L, D> {
                 self.leaves().collect::<crate::util::HashSet<_>>()
             );
         }
+    }
+
+    /// The equivalent enodes in this equivalence class.
+    pub fn nodes(&self) -> &[L] {
+        &self.data.1
+    }
+
+    /// Returns `true` if the `eclass` is empty.
+    pub fn is_empty(&self) -> bool {
+        self.nodes().is_empty()
+    }
+
+    /// Returns the number of enodes in this eclass.
+    pub fn len(&self) -> usize {
+        self.nodes().len()
+    }
+
+    /// Iterates over the enodes in this eclass.
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = &L> {
+        self.nodes().iter()
     }
 }

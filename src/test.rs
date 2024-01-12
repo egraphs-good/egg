@@ -7,7 +7,7 @@ use std::{fmt::Display, fs::File, io::Write, path::PathBuf};
 
 use saturating::Saturating;
 
-use crate::*;
+use crate::legacy::*;
 
 pub fn env_var<T>(s: &str) -> Option<T>
 where

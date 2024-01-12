@@ -35,48 +35,43 @@ enum ENodeOrReg<L> {
 
 #[inline(always)]
 fn for_each_matching_node<L, D>(
-    eclass: &EClass<L, D>,
+    eclass: &EMClass<L, D>,
     node: &L,
     mut f: impl FnMut(&L) -> Result,
 ) -> Result
 where
     L: Language,
 {
-    if eclass.nodes.len() < 50 {
-        eclass
-            .nodes
-            .iter()
-            .filter(|n| node.matches(n))
-            .try_for_each(f)
+    if eclass.len() < 50 {
+        eclass.iter().filter(|n| node.matches(n)).try_for_each(f)
     } else {
         debug_assert!(node.all(|id| id == Id::from(0)));
-        debug_assert!(eclass.nodes.windows(2).all(|w| w[0] < w[1]));
-        let mut start = eclass.nodes.binary_search(node).unwrap_or_else(|i| i);
+        debug_assert!(eclass.nodes().windows(2).all(|w| w[0] < w[1]));
+        let mut start = eclass.nodes().binary_search(node).unwrap_or_else(|i| i);
         let discrim = node.discriminant();
         while start > 0 {
-            if eclass.nodes[start - 1].discriminant() == discrim {
+            if eclass.data.1[start - 1].discriminant() == discrim {
                 start -= 1;
             } else {
                 break;
             }
         }
-        let mut matching = eclass.nodes[start..]
+        let mut matching = eclass.nodes()[start..]
             .iter()
             .take_while(|&n| n.discriminant() == discrim)
             .filter(|n| node.matches(n));
         debug_assert_eq!(
             matching.clone().count(),
-            eclass.nodes.iter().filter(|n| node.matches(n)).count(),
+            eclass.iter().filter(|n| node.matches(n)).count(),
             "matching node {:?}\nstart={}\n{:?} != {:?}\nnodes: {:?}",
             node,
             start,
             matching.clone().collect::<HashSet<_>>(),
             eclass
-                .nodes
                 .iter()
                 .filter(|n| node.matches(n))
                 .collect::<HashSet<_>>(),
-            eclass.nodes
+            eclass.nodes()
         );
         matching.try_for_each(&mut f)
     }
@@ -90,7 +85,7 @@ impl Machine {
 
     fn run<L, N>(
         &mut self,
-        egraph: &EGraph<L, N>,
+        egraph: &EMGraph<L, N>,
         instructions: &[Instruction<L>],
         subst: &Subst,
         yield_fn: &mut impl FnMut(&Self, &Subst) -> Result,
@@ -343,7 +338,7 @@ impl<L: Language> Program<L> {
 
     pub fn run_with_limit<A>(
         &self,
-        egraph: &EGraph<L, A>,
+        egraph: &EMGraph<L, A>,
         eclass: Id,
         mut limit: usize,
     ) -> Vec<Subst>

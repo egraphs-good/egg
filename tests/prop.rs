@@ -1,4 +1,4 @@
-use egg::*;
+use egg::legacy::*;
 
 define_language! {
     enum Prop {
@@ -11,13 +11,17 @@ define_language! {
     }
 }
 
-type EGraph = egg::EGraph<Prop, ConstantFold>;
-type Rewrite = egg::Rewrite<Prop, ConstantFold>;
+type EGraph = egg::legacy::EGraph<Prop, ConstantFold>;
+type Rewrite = egg::legacy::Rewrite<Prop, ConstantFold>;
 
 #[derive(Default)]
 struct ConstantFold;
-impl Analysis<Prop> for ConstantFold {
+
+impl AnalysisData<Prop> for ConstantFold {
     type Data = Option<(bool, PatternAst<Prop>)>;
+}
+
+impl Analysis<Prop> for ConstantFold {
     fn merge(&mut self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
         merge_option(to, from, |a, b| {
             assert_eq!(a.0, b.0, "Merged non-equal constants");
@@ -25,8 +29,8 @@ impl Analysis<Prop> for ConstantFold {
         })
     }
 
-    fn make(egraph: &mut EGraph, enode: &Prop) -> Self::Data {
-        let x = |i: &Id| egraph[*i].data.as_ref().map(|c| c.0);
+    fn make<E: EGraphT<Prop, N = Self>>(egraph: E, enode: &Prop) -> Self::Data {
+        let x = |i: &Id| egraph.data(*i).as_ref().map(|c| c.0);
         let result = match enode {
             Prop::Bool(c) => Some((*c, c.to_string().parse().unwrap())),
             Prop::Symbol(_) => None,
@@ -48,8 +52,8 @@ impl Analysis<Prop> for ConstantFold {
         result
     }
 
-    fn modify(egraph: &mut EGraph, id: Id) {
-        if let Some(c) = egraph[id].data.clone() {
+    fn modify<E: EGraphT<Prop, N = Self>>(mut egraph: E, id: Id) {
+        if let Some(c) = egraph.data(id).clone() {
             egraph.union_instantiations(
                 &c.1,
                 &c.0.to_string().parse().unwrap(),

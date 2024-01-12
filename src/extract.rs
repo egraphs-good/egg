@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use std::fmt::Debug;
 
 use crate::util::HashMap;
-use crate::{Analysis, EClass, EGraph, Id, Language, RecExpr};
+use crate::{Analysis, EGraph, Id, Language, RecExpr};
 
 /** Extracting a single [`RecExpr`] from an [`EGraph`].
 
@@ -215,7 +215,7 @@ where
             egraph,
             cost_function,
         };
-        extractor.find_costs();
+        extractor.find_costs(egraph.generate_class_nodes());
 
         extractor
     }
@@ -251,20 +251,20 @@ where
         }
     }
 
-    fn find_costs(&mut self) {
+    fn find_costs(&mut self, class_nodes: HashMap<Id, Vec<L>>) {
         let mut did_something = true;
         while did_something {
             did_something = false;
 
-            for class in self.egraph.classes() {
-                let pass = self.make_pass(class);
-                match (self.costs.get(&class.id), pass) {
+            for (&id, nodes) in &class_nodes {
+                let pass = self.make_pass(id, nodes);
+                match (self.costs.get(&id), pass) {
                     (None, Some(new)) => {
-                        self.costs.insert(class.id, new);
+                        self.costs.insert(id, new);
                         did_something = true;
                     }
                     (Some(old), Some(new)) if new.0 < old.0 => {
-                        self.costs.insert(class.id, new);
+                        self.costs.insert(id, new);
                         did_something = true;
                     }
                     _ => (),
@@ -272,23 +272,19 @@ where
             }
         }
 
-        for class in self.egraph.classes() {
-            if !self.costs.contains_key(&class.id) {
-                log::warn!(
-                    "Failed to compute cost for eclass {}: {:?}",
-                    class.id,
-                    class.nodes
-                )
+        for (&id, nodes) in &class_nodes {
+            if !self.costs.contains_key(&id) {
+                log::warn!("Failed to compute cost for eclass {}: {:?}", id, nodes)
             }
         }
     }
 
-    fn make_pass(&mut self, eclass: &EClass<L, N::Data>) -> Option<(CF::Cost, L)> {
-        let (cost, node) = eclass
+    fn make_pass(&mut self, id: Id, nodes: &[L]) -> Option<(CF::Cost, L)> {
+        let (cost, node) = nodes
             .iter()
             .map(|n| (self.node_total_cost(n), n))
             .min_by(|a, b| cmp(&a.0, &b.0))
-            .unwrap_or_else(|| panic!("Can't extract, eclass is empty: {:#?}", eclass));
+            .unwrap_or_else(|| panic!("Can't extract, eclass is empty: {:?}", id));
         cost.map(|c| (c, node.clone()))
     }
 }

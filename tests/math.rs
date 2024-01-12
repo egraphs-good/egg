@@ -1,8 +1,8 @@
-use egg::{rewrite as rw, *};
+use egg::legacy::{rewrite as rw, *};
 use ordered_float::NotNan;
 
-pub type EGraph = egg::EGraph<Math, ConstantFold>;
-pub type Rewrite = egg::Rewrite<Math, ConstantFold>;
+pub type EGraph = egg::legacy::EGraph<Math, ConstantFold>;
+pub type Rewrite = egg::legacy::Rewrite<Math, ConstantFold>;
 
 pub type Constant = NotNan<f64>;
 
@@ -47,11 +47,14 @@ impl egg::CostFunction<Math> for MathCostFn {
 
 #[derive(Default)]
 pub struct ConstantFold;
-impl Analysis<Math> for ConstantFold {
-    type Data = Option<(Constant, PatternAst<Math>)>;
 
-    fn make(egraph: &mut EGraph, enode: &Math) -> Self::Data {
-        let x = |i: &Id| egraph[*i].data.as_ref().map(|d| d.0);
+impl AnalysisData<Math> for ConstantFold {
+    type Data = Option<(Constant, PatternAst<Math>)>;
+}
+
+impl Analysis<Math> for ConstantFold {
+    fn make<E: EGraphT<Math, N = Self>>(egraph: E, enode: &Math) -> Self::Data {
+        let x = |i: &Id| egraph.data(*i).as_ref().map(|d| d.0);
         Some(match enode {
             Math::Constant(c) => (*c, format!("{}", c).parse().unwrap()),
             Math::Add([a, b]) => (
@@ -66,7 +69,7 @@ impl Analysis<Math> for ConstantFold {
                 x(a)? * x(b)?,
                 format!("(* {} {})", x(a)?, x(b)?).parse().unwrap(),
             ),
-            Math::Div([a, b]) if x(b) != Some(NotNan::new(0.0).unwrap()) => (
+            Math::Div([a, b]) if x(b) != Some(Constant::new(0.0).unwrap()) => (
                 x(a)? / x(b)?,
                 format!("(/ {} {})", x(a)?, x(b)?).parse().unwrap(),
             ),
@@ -81,8 +84,8 @@ impl Analysis<Math> for ConstantFold {
         })
     }
 
-    fn modify(egraph: &mut EGraph, id: Id) {
-        let data = egraph[id].data.clone();
+    fn modify<E: EGraphT<Math, N = Self>>(mut egraph: E, id: Id) {
+        let data = egraph.data(id).clone();
         if let Some((c, pat)) = data {
             if egraph.are_explanations_enabled() {
                 egraph.union_instantiations(
@@ -96,10 +99,10 @@ impl Analysis<Math> for ConstantFold {
                 egraph.union(id, added);
             }
             // to not prune, comment this out
-            egraph[id].nodes.retain(|n| n.is_leaf());
-
-            #[cfg(debug_assertions)]
-            egraph[id].assert_unique_leaves();
+            // egraph[id].nodes.retain(|n| n.is_leaf());
+            //
+            // #[cfg(debug_assertions)]
+            // egraph[id].assert_unique_leaves();
         }
     }
 }
@@ -109,9 +112,8 @@ fn is_const_or_distinct_var(v: &str, w: &str) -> impl Fn(&mut EGraph, Id, &Subst
     let w = w.parse().unwrap();
     move |egraph, _, subst| {
         egraph.find(subst[v]) != egraph.find(subst[w])
-            && (egraph[subst[v]].data.is_some()
+            && (egraph[subst[v]].data.0.is_some()
                 || egraph[subst[v]]
-                    .nodes
                     .iter()
                     .any(|n| matches!(n, Math::Symbol(..))))
     }
@@ -119,14 +121,13 @@ fn is_const_or_distinct_var(v: &str, w: &str) -> impl Fn(&mut EGraph, Id, &Subst
 
 fn is_const(var: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let var = var.parse().unwrap();
-    move |egraph, _, subst| egraph[subst[var]].data.is_some()
+    move |egraph, _, subst| egraph[subst[var]].data.0.is_some()
 }
 
 fn is_sym(var: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let var = var.parse().unwrap();
     move |egraph, _, subst| {
         egraph[subst[var]]
-            .nodes
             .iter()
             .any(|n| matches!(n, Math::Symbol(..)))
     }
@@ -135,7 +136,7 @@ fn is_sym(var: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
 fn is_not_zero(var: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let var = var.parse().unwrap();
     move |egraph, _, subst| {
-        if let Some(n) = &egraph[subst[var]].data {
+        if let Some(n) = &egraph[subst[var]].data.0 {
             *(n.0) != 0.0
         } else {
             true
@@ -410,8 +411,8 @@ fn math_ematching_bench() {
 
 #[test]
 fn test_basic_egraph_union_intersect() {
-    let mut egraph1 = EGraph::new(ConstantFold {}).with_explanations_enabled();
-    let mut egraph2 = EGraph::new(ConstantFold {}).with_explanations_enabled();
+    let mut egraph1 = EGraph::default().with_explanations_enabled();
+    let mut egraph2 = EGraph::default().with_explanations_enabled();
     egraph1.union_instantiations(
         &"x".parse().unwrap(),
         &"y".parse().unwrap(),
@@ -437,7 +438,7 @@ fn test_basic_egraph_union_intersect() {
         "",
     );
 
-    let mut egraph3 = egraph1.egraph_intersect(&egraph2, ConstantFold {});
+    let mut egraph3 = egraph1.egraph_intersect(&egraph2, Default::default());
 
     egraph2.egraph_union(&egraph1);
 
@@ -479,8 +480,8 @@ fn test_basic_egraph_union_intersect() {
 
 #[test]
 fn test_intersect_basic() {
-    let mut egraph1 = EGraph::new(ConstantFold {}).with_explanations_enabled();
-    let mut egraph2 = EGraph::new(ConstantFold {}).with_explanations_enabled();
+    let mut egraph1 = EGraph::default().with_explanations_enabled();
+    let mut egraph2 = EGraph::default().with_explanations_enabled();
     egraph1.union_instantiations(
         &"(+ x 0)".parse().unwrap(),
         &"(+ y 0)".parse().unwrap(),
@@ -496,7 +497,7 @@ fn test_intersect_basic() {
     egraph2.add_expr(&"(+ x 0)".parse().unwrap());
     egraph2.add_expr(&"(+ y 0)".parse().unwrap());
 
-    let mut egraph3 = egraph1.egraph_intersect(&egraph2, ConstantFold {});
+    let mut egraph3 = egraph1.egraph_intersect(&egraph2, Default::default());
 
     assert_ne!(
         egraph3.add_expr(&"x".parse().unwrap()),

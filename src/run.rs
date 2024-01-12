@@ -136,7 +136,7 @@ println!(
 */
 pub struct Runner<L: Language, N: Analysis<L>, IterData = ()> {
     /// The [`EGraph`] used.
-    pub egraph: EGraph<L, N>,
+    pub egraph: EMGraph<L, N>,
     /// Data accumulated over each [`Iteration`].
     pub iterations: Vec<Iteration<IterData>>,
     /// The roots of expressions added by the
@@ -318,7 +318,7 @@ where
             node_limit: 10_000,
             time_limit: Duration::from_secs(5),
 
-            egraph: EGraph::new(analysis),
+            egraph: EGraph::new((analysis, EMatchingAnalysis::default())),
             roots: vec![],
             iterations: vec![],
             stop_reason: None,
@@ -395,7 +395,7 @@ where
     }
 
     /// Replace the [`EGraph`] of this `Runner`.
-    pub fn with_egraph(self, egraph: EGraph<L, N>) -> Self {
+    pub fn with_egraph(self, egraph: EMGraph<L, N>) -> Self {
         Self { egraph, ..self }
     }
 
@@ -686,7 +686,7 @@ where
     fn search_rewrite<'a>(
         &mut self,
         iteration: usize,
-        egraph: &EGraph<L, N>,
+        egraph: &EMGraph<L, N>,
         rewrite: &'a Rewrite<L, N>,
     ) -> Vec<SearchMatches<'a, L>> {
         rewrite.search(egraph)
@@ -701,7 +701,7 @@ where
     fn apply_rewrite(
         &mut self,
         iteration: usize,
-        egraph: &mut EGraph<L, N>,
+        egraph: &mut EMGraph<L, N>,
         rewrite: &Rewrite<L, N>,
         matches: Vec<SearchMatches<L>>,
     ) -> usize {
@@ -866,7 +866,7 @@ where
     fn search_rewrite<'a>(
         &mut self,
         iteration: usize,
-        egraph: &EGraph<L, N>,
+        egraph: &EMGraph<L, N>,
         rewrite: &'a Rewrite<L, N>,
     ) -> Vec<SearchMatches<'a, L>> {
         let stats = self.rule_stats(rewrite.name);

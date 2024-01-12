@@ -1147,7 +1147,7 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
         left: Id,
         right: Id,
         unionfind: &mut UnionFind,
-        classes: &HashMap<Id, EClass<L, N::Data>>,
+        classes: &HashMap<Id, EClass<N::Data>>,
     ) -> Explanation<L> {
         if self.optimize_explanation_lengths {
             self.calculate_shortest_explanations::<N>(left, right, classes, unionfind);
@@ -1590,7 +1590,7 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
 
     fn find_congruence_neighbors<N: Analysis<L>>(
         &self,
-        classes: &HashMap<Id, EClass<L, N::Data>>,
+        classes: &HashMap<Id, EClass<N::Data>>,
         congruence_neighbors: &mut [Vec<Id>],
         unionfind: &UnionFind,
     ) {
@@ -1636,7 +1636,7 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
 
     pub fn get_num_congr<N: Analysis<L>>(
         &self,
-        classes: &HashMap<Id, EClass<L, N::Data>>,
+        classes: &HashMap<Id, EClass<N::Data>>,
         unionfind: &UnionFind,
     ) -> usize {
         let mut congruence_neighbors = vec![vec![]; self.explainfind.len()];
@@ -1853,7 +1853,7 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
 
     fn calculate_common_ancestor<N: Analysis<L>>(
         &self,
-        classes: &HashMap<Id, EClass<L, N::Data>>,
+        classes: &HashMap<Id, EClass<N::Data>>,
         congruence_neighbors: &[Vec<Id>],
     ) -> HashMap<(Id, Id), Id> {
         let mut common_ancestor_queries = HashMap::default();
@@ -1923,7 +1923,7 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
         &mut self,
         start: Id,
         end: Id,
-        classes: &HashMap<Id, EClass<L, N::Data>>,
+        classes: &HashMap<Id, EClass<N::Data>>,
         unionfind: &UnionFind,
     ) {
         let mut congruence_neighbors = vec![vec![]; self.explainfind.len()];

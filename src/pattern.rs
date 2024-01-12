@@ -35,7 +35,7 @@ use crate::*;
 /// This is probably how you'll create most [`Pattern`]s.
 ///
 /// ```
-/// use egg::*;
+/// use egg::legacy::*;
 /// define_language! {
 ///     enum Math {
 ///         Num(i32),
@@ -285,11 +285,11 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
         Some(&self.ast)
     }
 
-    fn search_with_limit(&self, egraph: &EGraph<L, A>, limit: usize) -> Vec<SearchMatches<L>> {
+    fn search_with_limit(&self, egraph: &EMGraph<L, A>, limit: usize) -> Vec<SearchMatches<L>> {
         match self.ast.as_ref().last().unwrap() {
             ENodeOrVar::ENode(e) => {
                 let key = e.discriminant();
-                match egraph.classes_by_op.get(&key) {
+                match egraph.analysis.1.classes_by_op.get(&key) {
                     None => vec![],
                     Some(ids) => rewrite::search_eclasses_with_limit(
                         self,
@@ -310,7 +310,7 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
 
     fn search_eclass_with_limit(
         &self,
-        egraph: &EGraph<L, A>,
+        egraph: &EMGraph<L, A>,
         eclass: Id,
         limit: usize,
     ) -> Option<SearchMatches<L>> {
@@ -343,7 +343,7 @@ where
 
     fn apply_matches(
         &self,
-        egraph: &mut EGraph<L, A>,
+        egraph: &mut EMGraph<L, A>,
         matches: &[SearchMatches<L>],
         rule_name: Symbol,
     ) -> Vec<Id> {
@@ -375,7 +375,7 @@ where
 
     fn apply_one(
         &self,
-        egraph: &mut EGraph<L, A>,
+        egraph: &mut EMGraph<L, A>,
         eclass: Id,
         subst: &Subst,
         searcher_ast: Option<&PatternAst<L>>,
@@ -408,7 +408,7 @@ where
 pub(crate) fn apply_pat<L: Language, A: Analysis<L>>(
     ids: &mut [Id],
     pat: &[ENodeOrVar<L>],
-    egraph: &mut EGraph<L, A>,
+    egraph: &mut EMGraph<L, A>,
     subst: &Subst,
 ) -> Id {
     debug_assert_eq!(pat.len(), ids.len());
@@ -434,7 +434,7 @@ mod tests {
 
     use crate::{SymbolLang as S, *};
 
-    type EGraph = crate::EGraph<S, ()>;
+    type EGraph = crate::legacy::EGraph<S, ()>;
 
     #[test]
     fn simple_match() {

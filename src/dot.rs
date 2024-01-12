@@ -22,7 +22,7 @@ The [`EGraph::dot`](EGraph::dot()) method creates `Dot`s.
 # Example
 
 ```no_run
-use egg::{*, rewrite as rw};
+use egg::legacy::{*, rewrite as rw};
 
 let rules = &[
     rw!("mul-commutes"; "(* ?x ?y)" => "(* ?y ?x)"),
@@ -192,17 +192,19 @@ where
             writeln!(f, "  {}", line)?;
         }
 
+        let classes = self.egraph.generate_class_nodes();
+
         // define all the nodes, clustered by eclass
-        for class in self.egraph.classes() {
-            writeln!(f, "  subgraph cluster_{} {{", class.id)?;
+        for (&id, class) in &classes {
+            writeln!(f, "  subgraph cluster_{} {{", id)?;
             writeln!(f, "    style=dotted")?;
             for (i, node) in class.iter().enumerate() {
-                writeln!(f, "    {}.{}[label = \"{}\"]", class.id, i, node)?;
+                writeln!(f, "    {}.{}[label = \"{}\"]", id, i, node)?;
             }
             writeln!(f, "  }}")?;
         }
 
-        for class in self.egraph.classes() {
+        for (&id, class) in &classes {
             for (i_in_class, node) in class.iter().enumerate() {
                 let mut arg_i = 0;
                 node.try_for_each(|child| {
@@ -210,19 +212,19 @@ where
                     let (anchor, label) = self.edge(arg_i, node.len());
                     let child_leader = self.egraph.find(child);
 
-                    if child_leader == class.id {
+                    if child_leader == id {
                         writeln!(
                             f,
                             // {}.0 to pick an arbitrary node in the cluster
                             "  {}.{}{} -> {}.{}:n [lhead = cluster_{}, {}]",
-                            class.id, i_in_class, anchor, class.id, i_in_class, class.id, label
+                            id, i_in_class, anchor, id, i_in_class, id, label
                         )?;
                     } else {
                         writeln!(
                             f,
                             // {}.0 to pick an arbitrary node in the cluster
                             "  {}.{}{} -> {}.0 [lhead = cluster_{}, {}]",
-                            class.id, i_in_class, anchor, child, child_leader, label
+                            id, i_in_class, anchor, child, child_leader, label
                         )?;
                     }
                     arg_i += 1;

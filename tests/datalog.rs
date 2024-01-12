@@ -1,4 +1,4 @@
-use egg::*;
+use egg::legacy::*;
 
 define_language! {
     enum Lang {

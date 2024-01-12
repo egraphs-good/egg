@@ -31,7 +31,7 @@ impl<L: Language> MultiPattern<L> {
     /// Creates a new multipattern, binding the given patterns to the corresponding variables.
     ///
     /// ```
-    /// use egg::*;
+    /// use egg::legacy::*;
     ///
     /// let mut egraph = EGraph::<SymbolLang, ()>::default();
     /// egraph.add_expr(&"(f a a)".parse().unwrap());
@@ -103,7 +103,7 @@ impl<L: Language + FromOp> FromStr for MultiPattern<L> {
 impl<L: Language, A: Analysis<L>> Searcher<L, A> for MultiPattern<L> {
     fn search_eclass_with_limit(
         &self,
-        egraph: &EGraph<L, A>,
+        egraph: &EMGraph<L, A>,
         eclass: Id,
         limit: usize,
     ) -> Option<SearchMatches<L>> {
@@ -138,7 +138,7 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for MultiPattern<L> {
 impl<L: Language, A: Analysis<L>> Applier<L, A> for MultiPattern<L> {
     fn apply_one(
         &self,
-        _egraph: &mut EGraph<L, A>,
+        _egraph: &mut EMGraph<L, A>,
         _eclass: Id,
         _subst: &Subst,
         _searcher_ast: Option<&PatternAst<L>>,
@@ -149,7 +149,7 @@ impl<L: Language, A: Analysis<L>> Applier<L, A> for MultiPattern<L> {
 
     fn apply_matches(
         &self,
-        egraph: &mut EGraph<L, A>,
+        egraph: &mut EMGraph<L, A>,
         matches: &[SearchMatches<L>],
         _rule_name: Symbol,
     ) -> Vec<Id> {
@@ -197,9 +197,9 @@ impl<L: Language, A: Analysis<L>> Applier<L, A> for MultiPattern<L> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{SymbolLang as S, *};
+    use crate::legacy::{SymbolLang as S, *};
 
-    type EGraph = crate::EGraph<S, ()>;
+    type EGraph = crate::legacy::EGraph<S, ()>;
 
     impl EGraph {
         fn add_string(&mut self, s: &str) -> Id {

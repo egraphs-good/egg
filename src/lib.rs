@@ -40,9 +40,12 @@ pub mod tutorials;
 mod dot;
 mod eclass;
 mod egraph;
+mod ematch_analysis;
 mod explain;
 mod extract;
+mod generic_analysis;
 mod language;
+mod lattice_analysis;
 #[cfg(feature = "lp")]
 mod lp_extract;
 mod machine;
@@ -53,6 +56,9 @@ mod run;
 mod subst;
 mod unionfind;
 mod util;
+
+/// Type aliases that are more similar to the types in older versions of `egg`
+pub mod legacy;
 
 /// A key to identify [`EClass`]es within an
 /// [`EGraph`].
@@ -91,12 +97,15 @@ pub use {
     dot::Dot,
     eclass::EClass,
     egraph::EGraph,
+    ematch_analysis::*,
     explain::{
         Explanation, FlatExplanation, FlatTerm, Justification, TreeExplanation, TreeTerm,
         UnionEqualities,
     },
     extract::*,
+    generic_analysis::{Analysis, AnalysisData, EGraphT},
     language::*,
+    lattice_analysis::*,
     multipattern::*,
     pattern::{ENodeOrVar, Pattern, PatternAst, SearchMatches},
     rewrite::{Applier, Condition, ConditionEqual, ConditionalApplier, Rewrite, Searcher},

@@ -1,4 +1,4 @@
-use egg::{rewrite as rw, *};
+use egg::legacy::{rewrite as rw, *};
 use fxhash::FxHashSet as HashSet;
 
 define_language! {
@@ -31,7 +31,7 @@ impl Lambda {
     }
 }
 
-type EGraph = egg::EGraph<Lambda, LambdaAnalysis>;
+type EGraph = egg::legacy::EGraph<Lambda, LambdaAnalysis>;
 
 #[derive(Default)]
 struct LambdaAnalysis;
@@ -42,8 +42,11 @@ struct Data {
     constant: Option<(Lambda, PatternAst<Lambda>)>,
 }
 
-fn eval(egraph: &EGraph, enode: &Lambda) -> Option<(Lambda, PatternAst<Lambda>)> {
-    let x = |i: &Id| egraph[*i].data.constant.as_ref().map(|c| &c.0);
+fn eval<E: EGraphT<Lambda, N = LambdaAnalysis>>(
+    egraph: &E,
+    enode: &Lambda,
+) -> Option<(Lambda, PatternAst<Lambda>)> {
+    let x = |i: &Id| egraph.data(*i).constant.as_ref().map(|c| &c.0);
     match enode {
         Lambda::Num(n) => Some((enode.clone(), format!("{}", n).parse().unwrap())),
         Lambda::Bool(b) => Some((enode.clone(), format!("{}", b).parse().unwrap())),
@@ -59,8 +62,11 @@ fn eval(egraph: &EGraph, enode: &Lambda) -> Option<(Lambda, PatternAst<Lambda>)>
     }
 }
 
-impl Analysis<Lambda> for LambdaAnalysis {
+impl AnalysisData<Lambda> for LambdaAnalysis {
     type Data = Data;
+}
+
+impl Analysis<Lambda> for LambdaAnalysis {
     fn merge(&mut self, to: &mut Data, from: Data) -> DidMerge {
         let before_len = to.free.len();
         // to.free.extend(from.free);
@@ -75,8 +81,8 @@ impl Analysis<Lambda> for LambdaAnalysis {
         })
     }
 
-    fn make(egraph: &mut EGraph, enode: &Lambda) -> Data {
-        let f = |i: &Id| egraph[*i].data.free.iter().cloned();
+    fn make<E: EGraphT<Lambda, N = Self>>(egraph: E, enode: &Lambda) -> Data {
+        let f = |i: &Id| egraph.data(*i).free.iter().cloned();
         let mut free = HashSet::default();
         match enode {
             Lambda::Var(v) => {
@@ -91,14 +97,14 @@ impl Analysis<Lambda> for LambdaAnalysis {
                 free.extend(f(a));
                 free.remove(v);
             }
-            _ => enode.for_each(|c| free.extend(&egraph[c].data.free)),
+            _ => enode.for_each(|c| free.extend(&egraph.data(c).free)),
         }
-        let constant = eval(egraph, enode);
+        let constant = eval(&egraph, enode);
         Data { constant, free }
     }
 
-    fn modify(egraph: &mut EGraph, id: Id) {
-        if let Some(c) = egraph[id].data.constant.clone() {
+    fn modify<E: EGraphT<Lambda, N = Self>>(mut egraph: E, id: Id) {
+        if let Some(c) = egraph.data(id).constant.clone() {
             if egraph.are_explanations_enabled() {
                 egraph.union_instantiations(
                     &c.0.to_string().parse().unwrap(),
@@ -123,7 +129,7 @@ fn is_not_same_var(v1: Var, v2: Var) -> impl Fn(&mut EGraph, Id, &Subst) -> bool
 }
 
 fn is_const(v: Var) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
-    move |egraph, _, subst| egraph[subst[v]].data.constant.is_some()
+    move |egraph, _, subst| egraph[subst[v]].data.0.constant.is_some()
 }
 
 fn rules() -> Vec<Rewrite<Lambda, LambdaAnalysis>> {
@@ -171,7 +177,7 @@ struct CaptureAvoid {
     if_free: Pattern<Lambda>,
 }
 
-impl Applier<Lambda, LambdaAnalysis> for CaptureAvoid {
+impl Applier<Lambda, WrapLatticeAnalysis<LambdaAnalysis>> for CaptureAvoid {
     fn apply_one(
         &self,
         egraph: &mut EGraph,
@@ -182,7 +188,7 @@ impl Applier<Lambda, LambdaAnalysis> for CaptureAvoid {
     ) -> Vec<Id> {
         let e = subst[self.e];
         let v2 = subst[self.v2];
-        let v2_free_in_e = egraph[e].data.free.contains(&v2);
+        let v2_free_in_e = egraph[e].data.0.free.contains(&v2);
         if v2_free_in_e {
             let mut subst = subst.clone();
             let sym = Lambda::Symbol(format!("_{}", eclass).into());
