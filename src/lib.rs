@@ -48,6 +48,9 @@ mod lp_extract;
 mod machine;
 mod multipattern;
 mod pattern;
+
+/// Lower level egraph API
+pub mod raw;
 mod rewrite;
 mod run;
 mod subst;

@@ -1,7 +1,7 @@
 use crate::Symbol;
 use crate::{
-    util::pretty_print, Analysis, EClass, ENodeOrVar, FromOp, HashMap, HashSet, Id, Language,
-    PatternAst, RecExpr, Rewrite, UnionFind, Var,
+    util::pretty_print, Analysis, ENodeOrVar, FromOp, HashMap, HashSet, Id, Language, PatternAst,
+    RecExpr, Rewrite, UnionFind, Var,
 };
 use saturating::Saturating;
 use std::cmp::Ordering;
@@ -10,6 +10,7 @@ use std::fmt::{self, Debug, Display, Formatter};
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
+use crate::raw::RawEGraph;
 use symbolic_expressions::Sexp;
 
 type ProofCost = Saturating<usize>;
@@ -76,9 +77,9 @@ pub struct Explain<L: Language> {
     shortest_explanation_memo: HashMap<(Id, Id), (ProofCost, Id)>,
 }
 
-pub(crate) struct ExplainNodes<'a, L: Language> {
+pub(crate) struct ExplainWith<'a, L: Language, X> {
     explain: &'a mut Explain<L>,
-    nodes: &'a [L],
+    raw: X,
 }
 
 #[derive(Default)]
@@ -1043,15 +1044,12 @@ impl<L: Language> Explain<L> {
         equalities
     }
 
-    pub(crate) fn with_nodes<'a>(&'a mut self, nodes: &'a [L]) -> ExplainNodes<'a, L> {
-        ExplainNodes {
-            explain: self,
-            nodes,
-        }
+    pub(crate) fn with_raw_egraph<'a, X>(&'a mut self, raw: X) -> ExplainWith<'a, L, X> {
+        ExplainWith { explain: self, raw }
     }
 }
 
-impl<'a, L: Language> Deref for ExplainNodes<'a, L> {
+impl<'a, L: Language, X> Deref for ExplainWith<'a, L, X> {
     type Target = Explain<L>;
 
     fn deref(&self) -> &Self::Target {
@@ -1059,15 +1057,15 @@ impl<'a, L: Language> Deref for ExplainNodes<'a, L> {
     }
 }
 
-impl<'a, L: Language> DerefMut for ExplainNodes<'a, L> {
+impl<'a, L: Language, X> DerefMut for ExplainWith<'a, L, X> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut *self.explain
     }
 }
 
-impl<'x, L: Language> ExplainNodes<'x, L> {
+impl<'x, L: Language, D> ExplainWith<'x, L, &'x RawEGraph<L, D>> {
     pub(crate) fn node(&self, node_id: Id) -> &L {
-        &self.nodes[usize::from(node_id)]
+        self.raw.id_to_node(node_id)
     }
     fn node_to_explanation(
         &self,
@@ -1142,15 +1140,9 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
         true
     }
 
-    pub(crate) fn explain_equivalence<N: Analysis<L>>(
-        &mut self,
-        left: Id,
-        right: Id,
-        unionfind: &mut UnionFind,
-        classes: &HashMap<Id, EClass<L, N::Data>>,
-    ) -> Explanation<L> {
+    pub(crate) fn explain_equivalence(&mut self, left: Id, right: Id) -> Explanation<L> {
         if self.optimize_explanation_lengths {
-            self.calculate_shortest_explanations::<N>(left, right, classes, unionfind);
+            self.calculate_shortest_explanations(left, right);
         }
 
         let mut cache = Default::default();
@@ -1588,12 +1580,7 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
         distance_memo.parent_distance[usize::from(enode)].1
     }
 
-    fn find_congruence_neighbors<N: Analysis<L>>(
-        &self,
-        classes: &HashMap<Id, EClass<L, N::Data>>,
-        congruence_neighbors: &mut [Vec<Id>],
-        unionfind: &UnionFind,
-    ) {
+    fn find_congruence_neighbors(&self, congruence_neighbors: &mut [Vec<Id>]) {
         let mut counter = 0;
         // add the normal congruence edges first
         for node in &self.explainfind {
@@ -1606,15 +1593,15 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
             }
         }
 
-        'outer: for eclass in classes.keys() {
-            let enodes = self.find_all_enodes(*eclass);
+        'outer: for eclass in self.raw.classes().map(|x| x.id) {
+            let enodes = self.find_all_enodes(eclass);
             // find all congruence nodes
             let mut cannon_enodes: HashMap<L, Vec<Id>> = Default::default();
             for enode in &enodes {
                 let cannon = self
                     .node(*enode)
                     .clone()
-                    .map_children(|child| unionfind.find(child));
+                    .map_children(|child| self.raw.find(child));
                 if let Some(others) = cannon_enodes.get_mut(&cannon) {
                     for other in others.iter() {
                         congruence_neighbors[usize::from(*enode)].push(*other);
@@ -1634,23 +1621,15 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
         }
     }
 
-    pub fn get_num_congr<N: Analysis<L>>(
-        &self,
-        classes: &HashMap<Id, EClass<L, N::Data>>,
-        unionfind: &UnionFind,
-    ) -> usize {
+    pub fn get_num_congr(&self) -> usize {
         let mut congruence_neighbors = vec![vec![]; self.explainfind.len()];
-        self.find_congruence_neighbors::<N>(classes, &mut congruence_neighbors, unionfind);
+        self.find_congruence_neighbors(&mut congruence_neighbors);
         let mut count = 0;
         for v in congruence_neighbors {
             count += v.len();
         }
 
         count / 2
-    }
-
-    pub fn get_num_nodes(&self) -> usize {
-        self.explainfind.len()
     }
 
     fn shortest_path_modulo_congruence(
@@ -1851,11 +1830,7 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
         self.explainfind[usize::from(enode)].parent_connection.next
     }
 
-    fn calculate_common_ancestor<N: Analysis<L>>(
-        &self,
-        classes: &HashMap<Id, EClass<L, N::Data>>,
-        congruence_neighbors: &[Vec<Id>],
-    ) -> HashMap<(Id, Id), Id> {
+    fn calculate_common_ancestor(&self, congruence_neighbors: &[Vec<Id>]) -> HashMap<(Id, Id), Id> {
         let mut common_ancestor_queries = HashMap::default();
         for (s_int, others) in congruence_neighbors.iter().enumerate() {
             let start = &Id::from(s_int);
@@ -1887,8 +1862,8 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
             unionfind.make_set();
             ancestor.push(Id::from(i));
         }
-        for (eclass, _) in classes.iter() {
-            let enodes = self.find_all_enodes(*eclass);
+        for eclass in self.raw.classes().map(|x| x.id) {
+            let enodes = self.find_all_enodes(eclass);
             let mut children: HashMap<Id, Vec<Id>> = HashMap::default();
             for enode in &enodes {
                 children.insert(*enode, vec![]);
@@ -1919,15 +1894,9 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
         common_ancestor
     }
 
-    fn calculate_shortest_explanations<N: Analysis<L>>(
-        &mut self,
-        start: Id,
-        end: Id,
-        classes: &HashMap<Id, EClass<L, N::Data>>,
-        unionfind: &UnionFind,
-    ) {
+    fn calculate_shortest_explanations(&mut self, start: Id, end: Id) {
         let mut congruence_neighbors = vec![vec![]; self.explainfind.len()];
-        self.find_congruence_neighbors::<N>(classes, &mut congruence_neighbors, unionfind);
+        self.find_congruence_neighbors(&mut congruence_neighbors);
         let mut parent_distance = vec![(Id::from(0), Saturating(0)); self.explainfind.len()];
         for (i, entry) in parent_distance.iter_mut().enumerate() {
             entry.0 = Id::from(i);
@@ -1935,7 +1904,7 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
 
         let mut distance_memo = DistanceMemo {
             parent_distance,
-            common_ancestor: self.calculate_common_ancestor::<N>(classes, &congruence_neighbors),
+            common_ancestor: self.calculate_common_ancestor(&congruence_neighbors),
             tree_depth: self.calculate_tree_depths(),
         };
 
