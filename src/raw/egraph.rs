@@ -56,7 +56,7 @@ impl<L: Language> EGraphResidual<L> {
         res_id
     }
 
-    /// Like [`id_to_expr`](EGraph::id_to_expr) but only goes one layer deep
+    /// Like [`id_to_expr`](EGraphResidual::id_to_expr) but only goes one layer deep
     pub fn id_to_node(&self, id: Id) -> &L {
         &self.nodes[usize::from(id)]
     }
@@ -237,7 +237,7 @@ impl<L: Language> EGraphResidual<L> {
 
     /// Returns a more debug-able representation of the egraph focusing on its uncanonical ids and nodes.
     ///
-    /// [`EGraph`]s implement [`Debug`], but it ain't pretty. It
+    /// [`RawEGraph`]s implement [`Debug`], but it's not pretty. It
     /// prints a lot of stuff you probably don't care about.
     /// This method returns a wrapper that implements [`Debug`] in a
     /// slightly nicer way, just dumping enodes in each eclass.
@@ -586,7 +586,7 @@ impl<L: Language, D> RawEGraph<L, D> {
 
     /// Returns a more debug-able representation of the egraph focusing on its classes.
     ///
-    /// [`EGraph`]s implement [`Debug`], but it ain't pretty. It
+    /// [`RawEGraph`]s implement [`Debug`], but it's not pretty. It
     /// prints a lot of stuff you probably don't care about.
     /// This method returns a wrapper that implements [`Debug`] in a
     /// slightly nicer way, just dumping enodes in each eclass.

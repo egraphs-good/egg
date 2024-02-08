@@ -1,7 +1,7 @@
 /*!
 EGraph visualization with [GraphViz]
 
-Use the [`Dot`] struct to visualize an [`EGraph`]
+Use the [`Dot`] struct to visualize an [`EGraph`](crate::EGraph)
 
 [GraphViz]: https://graphviz.gitlab.io/
 !*/
@@ -11,13 +11,13 @@ use std::fmt::{self, Debug, Display, Formatter};
 use std::io::{Error, ErrorKind, Result, Write};
 use std::path::Path;
 
-use crate::{raw, Language};
+use crate::{raw::EGraphResidual, Language};
 
 /**
-A wrapper for an [`EGraph`] that can output [GraphViz] for
+A wrapper for an [`EGraphResidual`] that can output [GraphViz] for
 visualization.
 
-The [`EGraph::dot`](EGraph::dot()) method creates `Dot`s.
+The [`EGraphResidual::dot`] method creates `Dot`s.
 
 # Example
 
@@ -51,7 +51,7 @@ instead of to its own eclass.
 [GraphViz]: https://graphviz.gitlab.io/
 **/
 pub struct Dot<'a, L: Language> {
-    pub(crate) egraph: &'a raw::EGraphResidual<L>,
+    pub(crate) egraph: &'a EGraphResidual<L>,
     /// A list of strings to be output top part of the dot file.
     pub config: Vec<String>,
     /// Whether or not to anchor the edges in the output.

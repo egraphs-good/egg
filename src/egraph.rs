@@ -316,10 +316,10 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         }
     }
 
-    /// Like [`id_to_expr`](EGraph::id_to_expr), but creates a pattern instead of a term.
+    /// Like [`id_to_expr`](EGraphResidual::id_to_expr), but creates a pattern instead of a term.
     /// When an eclass listed in the given substitutions is found, it creates a variable.
     /// It also adds this variable and the corresponding Id value to the resulting [`Subst`]
-    /// Otherwise it behaves like [`id_to_expr`](EGraph::id_to_expr).
+    /// Otherwise it behaves like [`id_to_expr`](EGraphResidual::id_to_expr).
     pub fn id_to_pattern(&self, id: Id, substitutions: &HashMap<Id, Id>) -> (Pattern<L>, Subst) {
         let mut res = Default::default();
         let mut subst = Default::default();
@@ -405,10 +405,10 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         self.explain_id_equivalence(left, right)
     }
 
-    /// Equivalent to calling [`explain_equivalence`](EGraph::explain_equivalence)`(`[`id_to_expr`](EGraph::id_to_expr)`(left),`
-    /// [`id_to_expr`](EGraph::id_to_expr)`(right))` but more efficient
+    /// Equivalent to calling [`explain_equivalence`](EGraph::explain_equivalence)`(`[`id_to_expr`](EGraphResidual::id_to_expr)`(left),`
+    /// [`id_to_expr`](EGraphResidual::id_to_expr)`(right))` but more efficient
     ///
-    /// This function picks representatives using [`id_to_expr`](EGraph::id_to_expr) so choosing
+    /// This function picks representatives using [`id_to_expr`](EGraphResidual::id_to_expr) so choosing
     /// `Id`s returned by functions like [`add_uncanonical`](EGraph::add_uncanonical) is important
     /// to control explanations
     pub fn explain_id_equivalence(&mut self, left: Id, right: Id) -> Explanation<L> {
@@ -441,7 +441,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         self.explain_existance_id(id)
     }
 
-    /// Equivalent to calling [`explain_existance`](EGraph::explain_existance)`(`[`id_to_expr`](EGraph::id_to_expr)`(id))`
+    /// Equivalent to calling [`explain_existance`](EGraph::explain_existance)`(`[`id_to_expr`](EGraphResidual::id_to_expr)`(id))`
     /// but more efficient
     fn explain_existance_id(&mut self, id: Id) -> Explanation<L> {
         if let Some(explain) = &mut self.explain {
@@ -529,7 +529,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
     /// Similar to [`add_expr`](EGraph::add_expr) but the `Id` returned may not be canonical
     ///
-    /// Calling [`id_to_expr`](EGraph::id_to_expr) on this `Id` return a copy of `expr` when explanations are enabled
+    /// Calling [`id_to_expr`](EGraphResidual::id_to_expr) on this `Id` return a copy of `expr` when explanations are enabled
     pub fn add_expr_uncanonical(&mut self, expr: &RecExpr<L>) -> Id {
         let nodes = expr.as_ref();
         let mut new_ids = Vec::with_capacity(nodes.len());
@@ -567,7 +567,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// canonical
     ///
     /// Like [`add_uncanonical`](EGraph::add_uncanonical), when explanations are enabled calling
-    /// Calling [`id_to_expr`](EGraph::id_to_expr) on this `Id` return an correspond to the
+    /// Calling [`id_to_expr`](EGraphResidual::id_to_expr) on this `Id` return an correspond to the
     /// instantiation of the pattern
     fn add_instantiation_noncanonical(&mut self, pat: &PatternAst<L>, subst: &Subst) -> Id {
         let nodes = pat.as_ref();
@@ -623,7 +623,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
     /// Similar to [`add`](EGraph::add) but the `Id` returned may not be canonical
     ///
-    /// When explanations are enabled calling [`id_to_expr`](EGraph::id_to_expr) on this `Id` will
+    /// When explanations are enabled calling [`id_to_expr`](EGraphResidual::id_to_expr) on this `Id` will
     /// correspond to the parameter `enode`
     ///
     /// ## Example
@@ -642,7 +642,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// assert_eq!(egraph.id_to_expr(fb), "(f b)".parse().unwrap());
     /// ```
     ///
-    /// When explanations are not enabled calling [`id_to_expr`](EGraph::id_to_expr) on this `Id` will
+    /// When explanations are not enabled calling [`id_to_expr`](EGraphResidual::id_to_expr) on this `Id` will
     /// produce an expression with equivalent but not necessarily identical children
     ///
     /// # Example
@@ -762,7 +762,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
     /// Unions two e-classes, using a given reason to justify it.
     ///
-    /// This function picks representatives using [`id_to_expr`](EGraph::id_to_expr) so choosing
+    /// This function picks representatives using [`id_to_expr`](EGraphResidual::id_to_expr) so choosing
     /// `Id`s returned by functions like [`add_uncanonical`](EGraph::add_uncanonical) is important
     /// to control explanations
     pub fn union_trusted(&mut self, from: Id, to: Id, reason: impl Into<Symbol>) -> bool {

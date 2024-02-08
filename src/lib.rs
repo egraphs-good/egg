@@ -92,7 +92,7 @@ pub(crate) use {explain::Explain, unionfind::UnionFind};
 
 pub use {
     dot::Dot,
-    eclass::EClass,
+    eclass::{EClass, EClassData},
     egraph::EGraph,
     explain::{
         Explanation, FlatExplanation, FlatTerm, Justification, TreeExplanation, TreeTerm,
