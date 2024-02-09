@@ -405,6 +405,9 @@
 <span id="400">400</span>
 <span id="401">401</span>
 <span id="402">402</span>
+<span id="403">403</span>
+<span id="404">404</span>
+<span id="405">405</span>
 </pre><pre class="rust"><code><span class="attribute">#[<span class="ident">allow</span>(<span class="ident">unused_imports</span>)]</span>
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="kw-2">*</span>;
 
@@ -688,6 +691,9 @@ impl Applier&lt;SimpleLanguage, ()&gt; for MySillyApplier {
 fn is_not_zero(var: &amp;&#39;static str) -&gt; impl Fn(&amp;mut EGraph, Id, &amp;Subst) -&gt; bool {
     let var = var.parse().unwrap();
     let zero = SimpleLanguage::Num(0);
+    // note this check is just an example,
+    // checking for the absence of 0 is insufficient since 0 could be merged in later
+    // see https://github.com/egraphs-good/egg/issues/297
     move |egraph, _, subst| !egraph[subst[var]].nodes.contains(&amp;zero)
 }
 ```
