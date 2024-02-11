@@ -1,4 +1,5 @@
 use crate::{raw::RawEClass, Dot, HashMap, Id, Language, RecExpr, UnionFind};
+use std::collections::BTreeMap;
 use std::ops::{Deref, DerefMut};
 use std::{
     borrow::BorrowMut,
@@ -6,6 +7,8 @@ use std::{
     iter, slice,
 };
 
+use crate::raw::dhashmap::*;
+use crate::raw::UndoLogT;
 #[cfg(feature = "serde-1")]
 use serde::{Deserialize, Serialize};
 
@@ -28,14 +31,14 @@ impl<'a> IntoIterator for Parents<'a> {
 #[derive(Clone)]
 #[cfg_attr(feature = "serde-1", derive(Serialize, Deserialize))]
 pub struct EGraphResidual<L: Language> {
-    unionfind: UnionFind,
+    pub(super) unionfind: UnionFind,
     /// Stores the original node represented by each non-canonical id
-    nodes: Vec<L>,
+    pub(super) nodes: Vec<L>,
     /// Stores each enode's `Id`, not the `Id` of the eclass.
     /// Enodes in the memo are canonicalized at each rebuild, but after rebuilding new
     /// unions can cause them to become out of date.
     #[cfg_attr(feature = "serde-1", serde(with = "vectorize"))]
-    memo: HashMap<L, Id>,
+    pub(super) memo: DHashMap<L, Id>,
 }
 
 impl<L: Language> EGraphResidual<L> {
@@ -142,15 +145,22 @@ impl<L: Language> EGraphResidual<L> {
             .map(|(id, node)| (Id::from(id), node))
     }
 
+    /// Returns an iterator over all the uncanonical ids
+    pub fn uncanonical_ids(&self) -> impl ExactSizeIterator<Item = Id> + 'static {
+        (0..self.number_of_uncanonical_nodes())
+            .into_iter()
+            .map(Id::from)
+    }
+
     /// Returns the number of enodes in the `EGraph`.
     ///
     /// Actually returns the size of the hashcons index.
     /// # Example
     /// ```
-    /// use egg::{*, SymbolLang as S};
-    /// let mut egraph = EGraph::<S, ()>::default();
-    /// let x = egraph.add(S::leaf("x"));
-    /// let y = egraph.add(S::leaf("y"));
+    /// use egg::{raw::*, SymbolLang as S};
+    /// let mut egraph = RawEGraph::<S, ()>::default();
+    /// let x = egraph.add_uncanonical(S::leaf("x"));
+    /// let y = egraph.add_uncanonical(S::leaf("y"));
     /// // only one eclass
     /// egraph.union(x, y);
     /// egraph.rebuild();
@@ -169,15 +179,15 @@ impl<L: Language> EGraphResidual<L> {
     ///
     /// # Example
     /// ```
-    /// # use egg::*;
-    /// let mut egraph: EGraph<SymbolLang, ()> = Default::default();
-    /// let a = egraph.add(SymbolLang::leaf("a"));
-    /// let b = egraph.add(SymbolLang::leaf("b"));
+    /// # use egg::{SymbolLang, raw::*};
+    /// let mut egraph: RawEGraph<SymbolLang, ()> = Default::default();
+    /// let a = egraph.add_uncanonical(SymbolLang::leaf("a"));
+    /// let b = egraph.add_uncanonical(SymbolLang::leaf("b"));
     ///
     /// // lookup will find this node if its in the egraph
     /// let mut node_f_ab = SymbolLang::new("f", vec![a, b]);
     /// assert_eq!(egraph.lookup(node_f_ab.clone()), None);
-    /// let id = egraph.add(node_f_ab.clone());
+    /// let id = egraph.add_uncanonical(node_f_ab.clone());
     /// assert_eq!(egraph.lookup(node_f_ab.clone()), Some(id));
     ///
     /// // if the query node isn't canonical, and its passed in by &mut instead of owned,
@@ -201,7 +211,7 @@ impl<L: Language> EGraphResidual<L> {
     {
         let enode = enode.borrow_mut();
         enode.update_children(|id| self.find(id));
-        self.memo.get(enode).copied()
+        self.memo.get(enode).0.copied()
     }
 
     /// Lookup the eclass of the given [`RecExpr`].
@@ -308,16 +318,17 @@ to properly handle this data
  **/
 #[derive(Clone)]
 #[cfg_attr(feature = "serde-1", derive(Serialize, Deserialize))]
-pub struct RawEGraph<L: Language, D> {
+pub struct RawEGraph<L: Language, D, U = ()> {
     #[cfg_attr(feature = "serde-1", serde(flatten))]
-    residual: EGraphResidual<L>,
+    pub(super) residual: EGraphResidual<L>,
     /// Nodes which need to be processed for rebuilding. The `Id` is the `Id` of the enode,
     /// not the canonical id of the eclass.
-    pending: Vec<Id>,
-    classes: HashMap<Id, RawEClass<D>>,
+    pub(super) pending: Vec<Id>,
+    pub(super) classes: HashMap<Id, RawEClass<D>>,
+    pub(super) undo_log: U,
 }
 
-impl<L: Language, D> Default for RawEGraph<L, D> {
+impl<L: Language, D, U: Default> Default for RawEGraph<L, D, U> {
     fn default() -> Self {
         let residual = EGraphResidual {
             unionfind: Default::default(),
@@ -328,11 +339,12 @@ impl<L: Language, D> Default for RawEGraph<L, D> {
             residual,
             pending: Default::default(),
             classes: Default::default(),
+            undo_log: Default::default(),
         }
     }
 }
 
-impl<L: Language, D> Deref for RawEGraph<L, D> {
+impl<L: Language, D, U> Deref for RawEGraph<L, D, U> {
     type Target = EGraphResidual<L>;
 
     #[inline]
@@ -341,7 +353,7 @@ impl<L: Language, D> Deref for RawEGraph<L, D> {
     }
 }
 
-impl<L: Language, D> DerefMut for RawEGraph<L, D> {
+impl<L: Language, D, U> DerefMut for RawEGraph<L, D, U> {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.residual
@@ -349,16 +361,32 @@ impl<L: Language, D> DerefMut for RawEGraph<L, D> {
 }
 
 // manual debug impl to avoid L: Language bound on EGraph defn
-impl<L: Language, D: Debug> Debug for RawEGraph<L, D> {
+impl<L: Language, D: Debug, U> Debug for RawEGraph<L, D, U> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let classes: BTreeMap<_, _> = self
+            .classes
+            .iter()
+            .map(|(x, y)| {
+                let mut parents = y.parents.clone();
+                parents.sort_unstable();
+                (
+                    *x,
+                    RawEClass {
+                        id: y.id,
+                        raw_data: &y.raw_data,
+                        parents,
+                    },
+                )
+            })
+            .collect();
         f.debug_struct("EGraph")
             .field("memo", &self.residual.memo)
-            .field("classes", &self.classes)
+            .field("classes", &classes)
             .finish()
     }
 }
 
-impl<L: Language, D> RawEGraph<L, D> {
+impl<L: Language, D, U> RawEGraph<L, D, U> {
     /// Returns an iterator over the eclasses in the egraph.
     pub fn classes(&self) -> impl ExactSizeIterator<Item = &RawEClass<D>> {
         self.classes.iter().map(|(id, class)| {
@@ -424,9 +452,28 @@ impl<L: Language, D> RawEGraph<L, D> {
             &mut self.residual,
         )
     }
+
+    /// Returns whether `self` is congruently closed
+    ///
+    /// This will always be true after calling [`raw_rebuild`](RawEGraph::raw_rebuild)
+    pub fn is_clean(&self) -> bool {
+        self.pending.is_empty()
+    }
 }
 
-impl<L: Language, D> RawEGraph<L, D> {
+/// Information about a call to [`RawEGraph::raw_union`]
+pub struct UnionInfo<D> {
+    /// The canonical id of the newly merged class
+    pub new_id: Id,
+    /// The number of parents that were in the newly merged class before it was merged
+    pub parents_cut: usize,
+    /// The id that used to canonically represent the class that was merged into `new_id`
+    pub old_id: Id,
+    /// The data that was in the class reprented by `old_id`
+    pub old_data: D,
+}
+
+impl<L: Language, D, U: UndoLogT<L, D>> RawEGraph<L, D, U> {
     /// Adds `enode` to a [`RawEGraph`] contained within a wrapper type `T`
     ///
     /// ## Parameters
@@ -465,14 +512,15 @@ impl<L: Language, D> RawEGraph<L, D> {
     pub fn raw_add<T>(
         outer: &mut T,
         get_self: impl Fn(&mut T) -> &mut Self,
-        mut enode: L,
+        original: L,
         handle_equiv: impl FnOnce(&mut T, Id, &L) -> Option<Id>,
         handle_union: impl FnOnce(&mut T, Id, Id),
         mk_data: impl FnOnce(&mut T, Id, &L) -> D,
     ) -> Id {
         let this = get_self(outer);
-        let original = enode.clone();
-        if let Some(existing_id) = this.lookup_internal(&mut enode) {
+        let enode = original.clone().map_children(|x| this.find(x));
+        let (existing_id, hash) = this.residual.memo.get(&enode);
+        if let Some(&existing_id) = existing_id {
             let canon_id = this.find(existing_id);
             // when explanations are enabled, we need a new representative for this expr
             if let Some(existing_id) = handle_equiv(outer, existing_id, &original) {
@@ -480,6 +528,8 @@ impl<L: Language, D> RawEGraph<L, D> {
             } else {
                 let this = get_self(outer);
                 let new_id = this.residual.unionfind.make_set();
+                this.undo_log.add_node(&original, &[], new_id);
+                this.undo_log.union(canon_id, new_id, Vec::new());
                 debug_assert_eq!(Id::from(this.nodes.len()), new_id);
                 this.residual.nodes.push(original);
                 this.residual.unionfind.union(canon_id, new_id);
@@ -488,6 +538,7 @@ impl<L: Language, D> RawEGraph<L, D> {
             }
         } else {
             let id = this.residual.unionfind.make_set();
+            this.undo_log.add_node(&original, enode.children(), id);
             debug_assert_eq!(Id::from(this.nodes.len()), id);
             this.residual.nodes.push(original);
 
@@ -508,7 +559,8 @@ impl<L: Language, D> RawEGraph<L, D> {
             this.pending.push(id);
 
             this.classes.insert(id, class);
-            assert!(this.residual.memo.insert(enode, id).is_none());
+            this.residual.memo.insert_with_hash(hash, enode, id);
+            this.undo_log.insert_memo(hash);
 
             id
         }
@@ -545,6 +597,7 @@ impl<L: Language, D> RawEGraph<L, D> {
         let class2 = self.classes.remove(&id2).unwrap();
         let class1 = self.classes.get_mut(&id1).unwrap();
         assert_eq!(id1, class1.id);
+
         let (p1, p2) = (Parents(&class1.parents), Parents(&class2.parents));
         merge(
             &mut class1.raw_data,
@@ -557,10 +610,11 @@ impl<L: Language, D> RawEGraph<L, D> {
 
         self.pending.extend(&class2.parents);
 
-        class1.parents.extend(class2.parents);
+        class1.parents.extend(&class2.parents);
+
+        self.undo_log.union(id1, id2, class2.parents);
     }
 
-    #[inline]
     /// Rebuild to [`RawEGraph`] to restore congruence closure
     ///
     /// ## Parameters
@@ -578,6 +632,7 @@ impl<L: Language, D> RawEGraph<L, D> {
     /// ### `handle_pending`
     /// Called with the uncanonical id of each enode whose canonical children have changned, along with a canonical
     /// version of it
+    #[inline]
     pub fn raw_rebuild<T>(
         outer: &mut T,
         get_self: impl Fn(&mut T) -> &mut Self,
@@ -590,20 +645,22 @@ impl<L: Language, D> RawEGraph<L, D> {
                 let mut node = this.id_to_node(class).clone();
                 node.update_children(|id| this.find_mut(id));
                 handle_pending(outer, class, &node);
-                if let Some(memo_class) = get_self(outer).residual.memo.insert(node, class) {
-                    perform_union(outer, memo_class, class);
+                let this = get_self(outer);
+                let (entry, hash) = this.residual.memo.entry(node);
+                match entry {
+                    Entry::Occupied((_, id)) => {
+                        let memo_class = *id;
+                        perform_union(outer, memo_class, class);
+                    }
+                    Entry::Vacant(vac) => {
+                        this.undo_log.insert_memo(hash);
+                        vac.insert(class);
+                    }
                 }
             } else {
                 break;
             }
         }
-    }
-
-    /// Returns whether `self` is congruently closed
-    ///
-    /// This will always be true after calling [`raw_rebuild`](RawEGraph::raw_rebuild)
-    pub fn is_clean(&self) -> bool {
-        self.pending.is_empty()
     }
 
     /// Returns a more debug-able representation of the egraph focusing on its classes.
@@ -620,9 +677,18 @@ impl<L: Language, D> RawEGraph<L, D> {
     {
         EGraphDump(self)
     }
+
+    /// Remove all nodes from this egraph
+    pub fn clear(&mut self) {
+        self.residual.nodes.clear();
+        self.residual.memo.clear();
+        self.residual.unionfind.clear();
+        self.pending.clear();
+        self.undo_log.clear();
+    }
 }
 
-impl<L: Language> RawEGraph<L, ()> {
+impl<L: Language, U: UndoLogT<L, ()>> RawEGraph<L, (), U> {
     /// Simplified version of [`raw_add`](RawEGraph::raw_add) for egraphs without eclass data
     pub fn add_uncanonical(&mut self, enode: L) -> Id {
         Self::raw_add(
@@ -668,9 +734,9 @@ impl<'a, L: Language> Debug for EGraphUncanonicalDump<'a, L> {
     }
 }
 
-struct EGraphDump<'a, L: Language, D>(&'a RawEGraph<L, D>);
+struct EGraphDump<'a, L: Language, D, U>(&'a RawEGraph<L, D, U>);
 
-impl<'a, L: Language, D: Debug> Debug for EGraphDump<'a, L, D> {
+impl<'a, L: Language, D: Debug, U> Debug for EGraphDump<'a, L, D, U> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut ids: Vec<Id> = self.0.classes().map(|c| c.id).collect();
         ids.sort();
