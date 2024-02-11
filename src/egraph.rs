@@ -803,11 +803,27 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         N::pre_union(self, enode_id1, enode_id2, &rule);
 
         self.clean = false;
-        if let Some((id, class2)) = self.inner.raw_union(enode_id1, enode_id2) {
-            self.merge(id, class2);
+        let mut new_root = None;
+        self.inner
+            .raw_union(enode_id1, enode_id2, |class1, id1, p1, class2, _, p2| {
+                new_root = Some(id1);
+
+                let did_merge = self.analysis.merge(&mut class1.data, class2.data);
+                if did_merge.0 {
+                    self.analysis_pending.extend(p1);
+                }
+                if did_merge.1 {
+                    self.analysis_pending.extend(p2);
+                }
+
+                concat_vecs(&mut class1.nodes, class2.nodes);
+            });
+        if let Some(id) = new_root {
             if let Some(explain) = &mut self.explain {
                 explain.union(enode_id1, enode_id2, rule.unwrap(), any_new_rhs);
             }
+            N::modify(self, id);
+
             true
         } else {
             if let Some(Justification::Rule(_)) = rule {
@@ -817,28 +833,6 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             }
             false
         }
-    }
-
-    fn merge(&mut self, id1: Id, class2: EClass<L, N::Data>) {
-        let class1 = self.inner.get_class_mut_with_cannon(id1).0;
-        let (class2, parents) = class2.destruct();
-        let did_merge = self.analysis.merge(&mut class1.data, class2.data);
-        if did_merge.0 {
-            // class1.parents already contains the combined parents,
-            // so we only take the ones that were there before the union
-            self.analysis_pending.extend(
-                class1
-                    .parents()
-                    .take(class1.parents().len() - parents.len()),
-            );
-        }
-        if did_merge.1 {
-            self.analysis_pending.extend(parents);
-        }
-
-        concat_vecs(&mut class1.nodes, class2.nodes);
-
-        N::modify(self, id1)
     }
 
     /// Update the analysis data of an e-class.

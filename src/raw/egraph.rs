@@ -3,10 +3,22 @@ use std::ops::{Deref, DerefMut};
 use std::{
     borrow::BorrowMut,
     fmt::{self, Debug},
+    iter, slice,
 };
 
 #[cfg(feature = "serde-1")]
 use serde::{Deserialize, Serialize};
+
+pub struct Parents<'a>(&'a [Id]);
+
+impl<'a> IntoIterator for Parents<'a> {
+    type Item = Id;
+    type IntoIter = iter::Copied<slice::Iter<'a, Id>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter().copied()
+    }
+}
 
 /// A [`RawEGraph`] without its classes that can be obtained by dereferencing a [`RawEGraph`].
 ///
@@ -506,16 +518,18 @@ impl<L: Language, D> RawEGraph<L, D> {
     ///
     /// The given ids need not be canonical.
     ///
-    /// Returns `None` if the two ids were already equivalent.
-    ///
-    /// Returns `Some((id, class))` if two classes were merged where `id` is the id of the newly merged class
-    /// and `class` is the old `RawEClass` that merged into `id`
+    /// If a union occurs, `merge` is called with the data, id, and parents of the two eclasses being merged
     #[inline]
-    pub fn raw_union(&mut self, enode_id1: Id, enode_id2: Id) -> Option<(Id, RawEClass<D>)> {
+    pub fn raw_union(
+        &mut self,
+        enode_id1: Id,
+        enode_id2: Id,
+        merge: impl FnOnce(&mut D, Id, Parents<'_>, D, Id, Parents<'_>),
+    ) {
         let mut id1 = self.find_mut(enode_id1);
         let mut id2 = self.find_mut(enode_id2);
         if id1 == id2 {
-            return None;
+            return;
         }
         // make sure class2 has fewer parents
         let class1_parents = self.classes[&id1].parents.len();
@@ -531,11 +545,19 @@ impl<L: Language, D> RawEGraph<L, D> {
         let class2 = self.classes.remove(&id2).unwrap();
         let class1 = self.classes.get_mut(&id1).unwrap();
         assert_eq!(id1, class1.id);
+        let (p1, p2) = (Parents(&class1.parents), Parents(&class2.parents));
+        merge(
+            &mut class1.raw_data,
+            class1.id,
+            p1,
+            class2.raw_data,
+            class2.id,
+            p2,
+        );
 
-        self.pending.extend(class2.parents());
+        self.pending.extend(&class2.parents);
 
-        class1.parents.extend(class2.parents());
-        Some((id1, class2))
+        class1.parents.extend(class2.parents);
     }
 
     #[inline]
@@ -615,7 +637,11 @@ impl<L: Language> RawEGraph<L, ()> {
 
     /// Simplified version of [`raw_union`](RawEGraph::raw_union) for egraphs without eclass data
     pub fn union(&mut self, id1: Id, id2: Id) -> bool {
-        Self::raw_union(self, id1, id2).is_some()
+        let mut unioned = false;
+        self.raw_union(id1, id2, |_, _, _, _, _, _| {
+            unioned = true;
+        });
+        unioned
     }
 
     /// Simplified version of [`raw_rebuild`](RawEGraph::raw_rebuild) for egraphs without eclass data

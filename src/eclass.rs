@@ -21,7 +21,7 @@ impl<L: Language, D: Debug> Debug for EClassData<L, D> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let mut nodes = self.nodes.clone();
         nodes.sort();
-        writeln!(f, "({:?}): {:?}", self.data, nodes)
+        write!(f, "({:?}): {:?}", self.data, nodes)
     }
 }
 
