@@ -39,7 +39,6 @@ Please cite using the BibTeX below and
 </pre></code>
 </details>
 
-Check out the [web demo](https://egraphs-good.github.io/egg-web-demo) for some quick e-graph action!
 
 ## Using egg
 
