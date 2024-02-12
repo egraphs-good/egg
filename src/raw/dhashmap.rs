@@ -88,8 +88,9 @@ impl<K: Hash + Eq, V, S: BuildHasher> DHashMap<K, V, S> {
     }
 
     #[inline]
-    pub(super) fn remove_nth(&mut self, hash: u64, idx: DHMIdx) {
-        debug_assert_eq!(self.data.len() as DHMIdx - 1, idx);
+    pub(super) fn remove_nth(&mut self, hash: u64, idx: usize) {
+        debug_assert_eq!(self.data.len() - 1, idx);
+        let idx = idx as DHMIdx;
         match self.data.find_entry(hash, |x| x.2 == idx) {
             Ok(x) => x.remove(),
             Err(_) => unreachable!(),
@@ -145,5 +146,55 @@ impl<K: Hash + Eq, V, S: Default + BuildHasher> FromIterator<(K, V)> for DHashMa
 impl<K: Debug, V: Debug, S> Debug for DHashMap<K, V, S> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_map().entries(self).finish()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::raw::dhashmap::DHashMap;
+    use std::fmt::Debug;
+    use std::hash::{Hash, Hasher};
+
+    #[derive(Eq, PartialEq, Debug, Clone)]
+    struct BadHash<T>(T);
+
+    impl<T> Hash for BadHash<T> {
+        fn hash<H: Hasher>(&self, _: &mut H) {}
+    }
+
+    fn test<K: Hash + Eq + Clone + Debug, V: Eq + Clone + Debug, const N: usize>(arr: [(K, V); N]) {
+        let mut map: DHashMap<K, V> = DHashMap::default();
+        let mut hashes = Vec::new();
+        for (k, v) in arr.iter().cloned() {
+            let (r, hash) = map.get(&k);
+            assert!(r.is_none());
+            hashes.push(hash);
+            map.insert_with_hash(hash, k, v)
+        }
+        assert_eq!(map.len(), N);
+        for (i, (k, v)) in arr.iter().enumerate().rev() {
+            let (r, hash) = map.get(k);
+            assert_eq!(Some(hash), hashes.pop());
+            assert_eq!(r, Some(v));
+            map.remove_nth(hash, i);
+            let (r2, hash2) = map.get(k);
+            assert_eq!(hash2, hash);
+            assert_eq!(r2, None);
+            assert_eq!(map.len(), i);
+        }
+    }
+
+    #[test]
+    fn test_base() {
+        test([('a', "a"), ('b', "b"), ('c', "c")])
+    }
+
+    #[test]
+    fn test_bad_hash() {
+        test([
+            (BadHash('a'), "a"),
+            (BadHash('b'), "b"),
+            (BadHash('c'), "c"),
+        ])
     }
 }

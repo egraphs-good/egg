@@ -1,4 +1,3 @@
-use crate::raw::dhashmap::DHMIdx;
 use crate::raw::{AsUnwrap, RawEClass, RawEGraph, Sealed, UndoLogT};
 use crate::util::{Entry, HashSet};
 use crate::{Id, Language};
@@ -175,7 +174,7 @@ impl<L: Language, D, U: AsUnwrap<UndoLog>> RawEGraph<L, D, U> {
         let memo_log = &mut self.undo_log.as_mut_unwrap().memo_log;
         let len = memo_log.len();
         for (hash, idx) in memo_log.drain(old_count..).zip(old_count..len).rev() {
-            self.residual.memo.remove_nth(hash, idx as DHMIdx);
+            self.residual.memo.remove_nth(hash, idx);
         }
     }
 
