@@ -1161,7 +1161,7 @@ where
             "`push` can only be called on clean egraphs"
         );
         if !self.inner.has_undo_log() {
-            panic!("Use egraph.with_push_pop() before running to call push");
+            panic!("Use egraph.with_push_pop_enabled() before running to call push");
         }
         N::pre_push(self);
         let exp_push_info = self.explain.as_ref().map(Explain::push).unwrap_or_default();
@@ -1195,7 +1195,7 @@ where
     /// Equivalent to calling [`pop`](EGraph::pop) `n` times but possibly more efficient
     pub fn pop_n(&mut self, n: usize) {
         if !self.inner.has_undo_log() {
-            panic!("Use egraph.with_push_pop() before running to call pop");
+            panic!("Use egraph.with_push_pop_enabled() before running to call pop");
         }
         if n > self.push_log.len() {
             self.clear()
