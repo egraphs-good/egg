@@ -138,7 +138,9 @@ impl<L: Language> EGraphResidual<L> {
 
     /// Returns an iterator over the uncanonical ids in the egraph and the node
     /// that would be obtained by calling [`id_to_node`](EGraphResidual::id_to_node) on each of them
-    pub fn uncanonical_nodes(&self) -> impl ExactSizeIterator<Item = (Id, &L)> {
+    pub fn uncanonical_nodes(
+        &self,
+    ) -> impl ExactSizeIterator<Item = (Id, &L)> + DoubleEndedIterator {
         self.nodes
             .iter()
             .enumerate()

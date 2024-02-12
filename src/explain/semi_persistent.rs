@@ -49,7 +49,11 @@ impl<L: Language> Explain<L> {
         self.explainfind.truncate(number_of_uncanon_nodes);
         // We can't easily undo memoize operations, so we just clear them
         self.shortest_explanation_memo.clear();
-        for (id, node) in egraph.uncanonical_nodes().skip(number_of_uncanon_nodes) {
+        for (id, node) in egraph
+            .uncanonical_nodes()
+            .skip(number_of_uncanon_nodes)
+            .rev()
+        {
             if *self.uncanon_memo.get(node).unwrap() == id {
                 self.uncanon_memo.remove(node).unwrap();
             }
