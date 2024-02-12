@@ -53,21 +53,19 @@ fn hash_one(hasher: &impl BuildHasher, hash: impl Hash) -> u64 {
 }
 
 #[inline]
-fn eq<'a, K: Eq, V>(k: &'a K) -> impl Fn(&(K, V, DHMIdx)) -> bool + 'a {
+fn eq<K: Eq, V>(k: &K) -> impl Fn(&(K, V, DHMIdx)) -> bool + '_ {
     move |x| &x.0 == k
 }
 
 #[inline]
-fn hasher_fn<'a, K: Hash, V, S: BuildHasher>(
-    hasher: &'a S,
-) -> impl Fn(&(K, V, DHMIdx)) -> u64 + 'a {
+fn hasher_fn<K: Hash, V, S: BuildHasher>(hasher: &S) -> impl Fn(&(K, V, DHMIdx)) -> u64 + '_ {
     move |x| hash_one(hasher, &x.0)
 }
 
 impl<K: Hash + Eq, V, S: BuildHasher> DHashMap<K, V, S> {
     #[inline]
     pub(super) fn entry(&mut self, k: K) -> (Entry<'_, K, V>, u64) {
-        let hash = hash_one(&mut self.hasher, &k);
+        let hash = hash_one(&self.hasher, &k);
         let len = self.data.len() as DHMIdx;
         let entry = match self.data.entry(hash, eq(&k), hasher_fn(&self.hasher)) {
             hash_table::Entry::Occupied(entry) => Entry::Occupied((k, &mut entry.into_mut().1)),
@@ -136,7 +134,7 @@ impl<K: Hash + Eq, V, S: Default + BuildHasher> FromIterator<(K, V)> for DHashMa
     fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
         let mut res = Self::default();
         iter.into_iter().for_each(|(k, v)| {
-            let hash = hash_one(&mut res.hasher, &k);
+            let hash = hash_one(&res.hasher, &k);
             res.insert_with_hash(hash, k, v)
         });
         res
@@ -158,6 +156,7 @@ mod test {
     #[derive(Eq, PartialEq, Debug, Clone)]
     struct BadHash<T>(T);
 
+    #[allow(clippy::derive_hash_xor_eq)] // We explicitly want to test a bad implementation
     impl<T> Hash for BadHash<T> {
         fn hash<H: Hasher>(&self, _: &mut H) {}
     }

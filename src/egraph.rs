@@ -707,11 +707,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             enode,
             |this, existing_id, enode| {
                 if let Some(explain) = this.explain.as_mut() {
-                    if let Some(existing_id) = explain.uncanon_memo.get(enode) {
-                        Some(*existing_id)
-                    } else {
-                        None
-                    }
+                    explain.uncanon_memo.get(enode).copied()
                 } else {
                     Some(existing_id)
                 }

@@ -1074,7 +1074,7 @@ impl<L: Language> Explain<L> {
         equalities
     }
 
-    pub(crate) fn with_raw_egraph<'a, X>(&'a mut self, raw: X) -> ExplainWith<'a, L, X> {
+    pub(crate) fn with_raw_egraph<X>(&mut self, raw: X) -> ExplainWith<'_, L, X> {
         ExplainWith { explain: self, raw }
     }
 }

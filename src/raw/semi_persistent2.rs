@@ -166,7 +166,7 @@ impl<L: Language, D, U: AsUnwrap<UndoLog>> RawEGraph<L, D, U> {
         self.pop_memo2(memo_log_count);
         self.pop_parents2(pop_parents_count, node_count);
         self.pop_unions2(union_count, node_count, state, clear, mk_data, handle_eqv);
-        self.pop_nodes2(usize::from(node_count));
+        self.pop_nodes2(node_count);
     }
 
     fn pop_memo2(&mut self, old_count: usize) {

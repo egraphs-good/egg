@@ -35,6 +35,7 @@ impl<L, D> EClass<L, D> {
     }
 
     /// Returns the number of enodes in this eclass.
+    #[allow(clippy::len_without_is_empty)] // https://github.com/rust-lang/rust-clippy/issues/11165
     pub fn len(&self) -> usize {
         self.nodes.len()
     }
