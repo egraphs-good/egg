@@ -148,7 +148,6 @@ pub fn test_runner<L, A>(
             let mut egraph = runner.egraph;
             let _ = runner.hooks;
             for mut old in history.borrow().iter().cloned().rev() {
-                dbg!(old.total_size());
                 egraph.pop();
                 assert_eq!(
                     format!("{:#?}", old.dump_uncanonical()),
