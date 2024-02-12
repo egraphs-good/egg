@@ -1,3 +1,6 @@
+mod semi_persistent;
+pub(crate) use semi_persistent::PushInfo;
+
 use crate::Symbol;
 use crate::{
     util::pretty_print, Analysis, ENodeOrVar, FromOp, HashMap, HashSet, Id, Language, PatternAst,
@@ -7,6 +10,7 @@ use saturating::Saturating;
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, VecDeque};
 use std::fmt::{self, Debug, Display, Formatter};
+use std::mem;
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
@@ -36,6 +40,18 @@ struct Connection {
     current: Id,
     justification: Justification,
     is_rewrite_forward: bool,
+}
+
+impl Connection {
+    #[inline]
+    fn end(node: Id) -> Self {
+        Connection {
+            next: node,
+            current: node,
+            justification: Justification::Congruence,
+            is_rewrite_forward: false,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -75,6 +91,7 @@ pub struct Explain<L: Language> {
     // That is, less than or equal to the result of `distance_between`
     #[cfg_attr(feature = "serde-1", serde(skip))]
     shortest_explanation_memo: HashMap<(Id, Id), (ProofCost, Id)>,
+    undo_log: semi_persistent::UndoLog,
 }
 
 pub(crate) struct ExplainWith<'a, L: Language, X> {
@@ -911,6 +928,7 @@ impl<L: Language> Explain<L> {
             uncanon_memo: Default::default(),
             shortest_explanation_memo: Default::default(),
             optimize_explanation_lengths: true,
+            undo_log: None,
         }
     }
 
@@ -920,33 +938,44 @@ impl<L: Language> Explain<L> {
 
     pub(crate) fn add(&mut self, node: L, set: Id, existance_node: Id) -> Id {
         assert_eq!(self.explainfind.len(), usize::from(set));
-        self.uncanon_memo.insert(node, set);
+        self.uncanon_memo.entry(node).or_insert(set);
+        // If the node already in uncanon memo keep the old version so it's easier to revert the add
         self.explainfind.push(ExplainNode {
             neighbors: vec![],
-            parent_connection: Connection {
-                justification: Justification::Congruence,
-                is_rewrite_forward: false,
-                next: set,
-                current: set,
-            },
+            parent_connection: Connection::end(set),
             existance_node,
         });
         set
     }
 
+    /// Reorient connections to make `node` the leader (Used for testing push/pop)
+    pub(crate) fn test_mk_root(&mut self, node: Id) {
+        self.set_parent(node, Connection::end(node))
+    }
+
     // reverse edges recursively to make this node the leader
-    fn make_leader(&mut self, node: Id) {
-        let next = self.explainfind[usize::from(node)].parent_connection.next;
-        if next != node {
-            self.make_leader(next);
-            let node_connection = &self.explainfind[usize::from(node)].parent_connection;
+    fn set_parent(&mut self, node: Id, parent: Connection) {
+        let mut prev = node;
+        let mut curr = mem::replace(
+            &mut self.explainfind[usize::from(prev)].parent_connection,
+            parent,
+        );
+        let mut count = 0;
+        while prev != curr.next {
             let pconnection = Connection {
-                justification: node_connection.justification.clone(),
-                is_rewrite_forward: !node_connection.is_rewrite_forward,
-                next: node,
-                current: next,
+                justification: curr.justification,
+                is_rewrite_forward: !curr.is_rewrite_forward,
+                next: prev,
+                current: curr.next,
             };
-            self.explainfind[usize::from(next)].parent_connection = pconnection;
+            let next = mem::replace(
+                &mut self.explainfind[usize::from(curr.next)].parent_connection,
+                pconnection,
+            );
+            prev = curr.next;
+            curr = next;
+            count += 1;
+            assert!(count < 1000);
         }
     }
 
@@ -984,6 +1013,7 @@ impl<L: Language> Explain<L> {
             .insert((node1, node2), (Saturating(1), node2));
         self.shortest_explanation_memo
             .insert((node2, node1), (Saturating(1), node1));
+        self.undo_log_union(node1);
     }
 
     pub(crate) fn union(
@@ -999,9 +1029,6 @@ impl<L: Language> Explain<L> {
         if new_rhs {
             self.set_existance_reason(node2, node1)
         }
-
-        self.make_leader(node1);
-        self.explainfind[usize::from(node1)].parent_connection.next = node2;
 
         if let Justification::Rule(_) = justification {
             self.shortest_explanation_memo
@@ -1028,7 +1055,10 @@ impl<L: Language> Explain<L> {
         self.explainfind[usize::from(node2)]
             .neighbors
             .push(other_pconnection);
-        self.explainfind[usize::from(node1)].parent_connection = pconnection;
+
+        self.set_parent(node1, pconnection);
+
+        self.undo_log_union(node1);
     }
     pub(crate) fn get_union_equalities(&self) -> UnionEqualities {
         let mut equalities = vec![];
@@ -1063,7 +1093,7 @@ impl<'a, L: Language, X> DerefMut for ExplainWith<'a, L, X> {
     }
 }
 
-impl<'x, L: Language, D> ExplainWith<'x, L, &'x RawEGraph<L, D>> {
+impl<'x, L: Language, D, U> ExplainWith<'x, L, &'x RawEGraph<L, D, U>> {
     pub(crate) fn node(&self, node_id: Id) -> &L {
         self.raw.id_to_node(node_id)
     }

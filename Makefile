@@ -6,6 +6,8 @@ test:
 	cargo test --release --features=lp
 	# don't run examples in proof-production mode
 	cargo test --release --features "test-explanations"
+	cargo test --release --features "test-push-pop" --features "test-explanations"
+	cargo test --release --features "test-push-pop" --features "push-pop-alt"
 	
 
 .PHONY: nits

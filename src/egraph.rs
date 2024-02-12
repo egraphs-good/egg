@@ -1,5 +1,6 @@
 use crate::*;
 use std::fmt::{self, Debug, Display};
+use std::mem;
 use std::ops::Deref;
 
 #[cfg(feature = "serde-1")]
@@ -9,6 +10,14 @@ use crate::eclass::EClassData;
 use crate::raw::{EGraphResidual, RawEGraph};
 use log::*;
 
+#[cfg(feature = "push-pop-alt")]
+use raw::semi_persistent1 as sp;
+
+#[cfg(not(feature = "push-pop-alt"))]
+use raw::semi_persistent2 as sp;
+
+use sp::UndoLog;
+type PushInfo = (sp::PushInfo, explain::PushInfo, usize);
 /** A data structure to keep track of equalities between expressions.
 
 Check out the [background tutorial](crate::tutorials::_01_background)
@@ -64,7 +73,7 @@ pub struct EGraph<L: Language, N: Analysis<L>> {
             deserialize = "N::Data: for<'a> Deserialize<'a>",
         ))
     )]
-    pub(crate) inner: RawEGraph<L, EClassData<L, N::Data>>,
+    pub(crate) inner: RawEGraph<L, EClassData<L, N::Data>, Option<UndoLog>>,
     #[cfg_attr(feature = "serde-1", serde(skip))]
     #[cfg_attr(feature = "serde-1", serde(default = "default_classes_by_op"))]
     pub(crate) classes_by_op: HashMap<L::Discriminant, HashSet<Id>>,
@@ -75,6 +84,8 @@ pub struct EGraph<L: Language, N: Analysis<L>> {
     /// Only manually set it if you know what you're doing.
     #[cfg_attr(feature = "serde-1", serde(skip))]
     pub clean: bool,
+    push_log: Vec<PushInfo>,
+    data_history: Vec<(Id, N::Data)>,
 }
 
 #[cfg(feature = "serde-1")]
@@ -114,6 +125,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             inner: Default::default(),
             analysis_pending: Default::default(),
             classes_by_op: Default::default(),
+            push_log: Default::default(),
+            data_history: Default::default(),
         }
     }
 
@@ -167,7 +180,11 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         if self.total_size() > 0 {
             panic!("Need to set explanations enabled before adding any expressions to the egraph.");
         }
-        self.explain = Some(Explain::new());
+        let mut explain = Explain::new();
+        if self.inner.has_undo_log() {
+            explain.enable_undo_log()
+        }
+        self.explain = Some(explain);
         self
     }
 
@@ -191,6 +208,28 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         } else {
             panic!("Need to set explanations enabled before setting length optimization.");
         }
+    }
+
+    /// Enable [`push`](EGraph::push) and [`pop`](EGraph::pop) for this `EGraph`.
+    /// This allows the egraph to revert to an earlier state
+    pub fn with_push_pop_enabled(mut self) -> Self {
+        if self.inner.has_undo_log() {
+            return self;
+        }
+        self.inner.set_undo_log(Some(UndoLog::default()));
+        if let Some(explain) = &mut self.explain {
+            explain.enable_undo_log()
+        }
+        self
+    }
+
+    /// Disable [`push`](EGraph::push) and [`pop`](EGraph::pop) for this `EGraph`.
+    pub fn with_push_pop_disabled(mut self) -> Self {
+        self.inner.set_undo_log(None);
+        if let Some(explain) = &mut self.explain {
+            explain.disable_undo_log()
+        }
+        self
     }
 
     /// Make a copy of the egraph with the same nodes, but no unions between them.
@@ -804,9 +843,14 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
         self.clean = false;
         let mut new_root = None;
+        let has_undo_log = self.inner.has_undo_log();
         self.inner
-            .raw_union(enode_id1, enode_id2, |class1, id1, p1, class2, _, p2| {
+            .raw_union(enode_id1, enode_id2, |class1, id1, p1, class2, id2, p2| {
                 new_root = Some(id1);
+                if has_undo_log && mem::size_of::<N::Data>() > 0 {
+                    self.data_history.push((id1, class1.data.clone()));
+                    self.data_history.push((id2, class2.data.clone()));
+                }
 
                 let did_merge = self.analysis.merge(&mut class1.data, class2.data);
                 if did_merge.0 {
@@ -841,9 +885,13 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// so [`Analysis::make`] and [`Analysis::merge`] will get
     /// called for other parts of the e-graph on rebuild.
     pub fn set_analysis_data(&mut self, id: Id, new_data: N::Data) {
-        let class = self.inner.get_class_mut(id).0;
-        class.data = new_data;
+        let mut canon = id;
+        let class = self.inner.get_class_mut(&mut canon).0;
+        let old_data = mem::replace(&mut class.data, new_data);
         self.analysis_pending.extend(class.parents());
+        if self.inner.has_undo_log() && mem::size_of::<N::Data>() > 0 {
+            self.data_history.push((canon, old_data))
+        }
         N::modify(self, id)
     }
 
@@ -992,8 +1040,11 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             while let Some(mut class_id) = self.analysis_pending.pop() {
                 let node = self.id_to_node(class_id).clone();
                 let node_data = N::make(self, &node);
+                let has_undo_log = self.inner.has_undo_log();
                 let class = self.inner.get_class_mut(&mut class_id).0;
-
+                if has_undo_log && mem::size_of::<N::Data>() > 0 {
+                    self.data_history.push((class.id, class.data.clone()));
+                }
                 let did_merge = self.analysis.merge(&mut class.data, node_data);
                 if did_merge.0 {
                     self.analysis_pending.extend(class.parents());
@@ -1086,6 +1137,176 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             panic!("Can't check explain when explanations are off");
         }
     }
+
+    /// Remove all nodes from this egraph
+    pub fn clear(&mut self) {
+        self.push_log.clear();
+        self.inner.clear();
+        self.clean = true;
+        if let Some(explain) = &mut self.explain {
+            explain.clear()
+        }
+        self.analysis_pending.clear();
+        self.data_history.clear();
+    }
+}
+
+impl<L: Language, N: Analysis<L>> EGraph<L, N>
+where
+    N::Data: Default,
+{
+    /// Push the current egraph off the stack
+    /// Requires that the egraph is clean
+    ///
+    /// See [`EGraph::pop`]
+    pub fn push(&mut self) {
+        assert!(
+            self.analysis_pending.is_empty() && self.inner.is_clean(),
+            "`push` can only be called on clean egraphs"
+        );
+        if !self.inner.has_undo_log() {
+            panic!("Use egraph.with_push_pop() before running to call push");
+        }
+        N::pre_push(self);
+        let exp_push_info = self.explain.as_ref().map(Explain::push).unwrap_or_default();
+        #[cfg(feature = "push-pop-alt")]
+        let raw_push_info = self.inner.push1();
+        #[cfg(not(feature = "push-pop-alt"))]
+        let raw_push_info = self.inner.push2();
+        self.push_log
+            .push((raw_push_info, exp_push_info, self.data_history.len()))
+    }
+
+    /// Pop the current egraph off the stack, replacing
+    /// it with the previously [`push`](EGraph::push)ed egraph
+    ///
+    /// ```
+    /// use egg::{EGraph, SymbolLang};
+    /// let mut egraph = EGraph::new(()).with_push_pop_enabled();
+    /// let a = egraph.add_uncanonical(SymbolLang::leaf("a"));
+    /// let b = egraph.add_uncanonical(SymbolLang::leaf("b"));
+    /// egraph.rebuild();
+    /// egraph.push();
+    /// egraph.union(a, b);
+    /// assert_eq!(egraph.find(a), egraph.find(b));
+    /// egraph.pop();
+    /// assert_ne!(egraph.find(a), egraph.find(b));
+    /// ```
+    pub fn pop(&mut self) {
+        self.pop_n(1)
+    }
+
+    /// Equivalent to calling [`pop`](EGraph::pop) `n` times but possibly more efficient
+    pub fn pop_n(&mut self, n: usize) {
+        if !self.inner.has_undo_log() {
+            panic!("Use egraph.with_push_pop() before running to call pop");
+        }
+        if n > self.push_log.len() {
+            self.clear()
+        }
+        let mut info = None;
+        for _ in 0..n {
+            info = self.push_log.pop()
+        }
+        if let Some(info) = info {
+            self.pop_internal(info);
+            N::post_pop_n(self, n);
+        }
+    }
+
+    #[cfg(not(feature = "push-pop-alt"))]
+    fn pop_internal(&mut self, (raw_info, exp_info, data_history_len): PushInfo) {
+        if let Some(explain) = &mut self.explain {
+            explain.pop(
+                exp_info,
+                raw_info.number_of_uncanonical_nodes(),
+                &self.inner,
+            )
+        }
+        self.analysis_pending.clear();
+
+        let mut has_dirty_parents = Vec::new();
+        let mut dirty_status = HashMap::default();
+        self.inner.raw_pop2(
+            raw_info,
+            &mut dirty_status,
+            |dirty_status, data, id, _| {
+                dirty_status.insert(id, false);
+                data.nodes.clear();
+            },
+            |dirty_status, id, _| {
+                has_dirty_parents.push(id);
+                dirty_status.insert(id, false);
+                EClassData {
+                    nodes: vec![],
+                    data: Default::default(),
+                }
+            },
+            |_, data, id, ctx| data.nodes.push(ctx.id_to_node(id).clone()),
+        );
+        for id in has_dirty_parents {
+            for parent in self.inner.get_class_with_cannon(id).parents() {
+                dirty_status.entry(self.find(parent)).or_insert(true);
+            }
+        }
+        for (id, needs_reset) in dirty_status {
+            if needs_reset {
+                let mut nodes = mem::take(&mut self.inner.get_class_mut_with_cannon(id).0.nodes);
+                nodes.clear();
+                self.inner
+                    .undo_ctx()
+                    .equivalent_nodes(id, |eqv| nodes.push(self.id_to_node(eqv).clone()));
+                self.inner.get_class_mut_with_cannon(id).0.nodes = nodes;
+            }
+            let (class, residual) = self.inner.get_class_mut_with_cannon(id);
+            for node in &mut class.nodes {
+                node.update_children(|id| residual.find(id));
+            }
+            class.nodes.sort_unstable();
+            class.nodes.dedup();
+        }
+
+        for (id, data) in self.data_history.drain(data_history_len..).rev() {
+            if usize::from(id) < self.inner.number_of_uncanonical_nodes() {
+                self.inner.get_class_mut_with_cannon(id).0.data = data;
+            }
+        }
+
+        self.clean = true;
+    }
+
+    #[cfg(feature = "push-pop-alt")]
+    fn pop_internal(&mut self, (raw_info, exp_info, data_history_len): PushInfo) {
+        if let Some(explain) = &mut self.explain {
+            explain.pop(
+                exp_info,
+                raw_info.number_of_uncanonical_nodes(),
+                &self.inner,
+            )
+        }
+        self.analysis_pending.clear();
+
+        self.inner.raw_pop1(raw_info, |_, _, _| EClassData {
+            nodes: vec![],
+            data: Default::default(),
+        });
+
+        for class in self.classes_mut() {
+            class.nodes.clear()
+        }
+
+        for id in self.uncanonical_ids() {
+            let node = self.id_to_node(id).clone().map_children(|x| self.find(x));
+            self[id].nodes.push(node)
+        }
+
+        for (id, data) in self.data_history.drain(data_history_len..).rev() {
+            if usize::from(id) < self.inner.number_of_uncanonical_nodes() {
+                self.inner.get_class_mut_with_cannon(id).0.data = data;
+            }
+        }
+        self.rebuild_classes();
+    }
 }
 
 #[cfg(test)]
@@ -1125,6 +1346,9 @@ mod tests {
         de(&egraph);
 
         let json_rep = serde_json::to_string_pretty(&egraph).unwrap();
+        let egraph2: EGraph<SymbolLang, ()> = serde_json::from_str(&json_rep).unwrap();
+        let json_rep2 = serde_json::to_string_pretty(&egraph2).unwrap();
+        assert_eq!(json_rep, json_rep2);
         println!("{}", json_rep);
     }
 }

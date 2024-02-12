@@ -3,6 +3,8 @@
 These are not considered part of the public api.
 */
 
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::{fmt::Display, fs::File, io::Write, path::PathBuf};
 
 use saturating::Saturating;
@@ -37,10 +39,18 @@ pub fn test_runner<L, A>(
     should_check: bool,
 ) where
     L: Language + Display + FromOp + 'static,
-    A: Analysis<L> + Default,
+    A: Analysis<L> + Default + Clone + 'static,
+    A::Data: Default + Clone,
 {
     let _ = env_logger::builder().is_test(true).try_init();
     let mut runner = runner.unwrap_or_default();
+
+    let nodes: Vec<_> = runner
+        .egraph
+        .uncanonical_nodes()
+        .map(|(_, n)| n.clone())
+        .collect();
+    runner.egraph.clear();
 
     if let Some(lim) = env_var("EGG_NODE_LIMIT") {
         runner = runner.with_node_limit(lim)
@@ -55,6 +65,22 @@ pub fn test_runner<L, A>(
     // Force sure explanations on if feature is on
     if cfg!(feature = "test-explanations") {
         runner = runner.with_explanations_enabled();
+    }
+
+    let history = Rc::new(RefCell::new(Vec::new()));
+    let history2 = history.clone();
+    // Test push if feature is on
+    if cfg!(feature = "test-push-pop") {
+        runner.egraph = runner.egraph.with_push_pop_enabled();
+        runner = runner.with_hook(move |runner| {
+            runner.egraph.push();
+            history2.borrow_mut().push(EGraph::clone(&runner.egraph));
+            Ok(())
+        });
+    }
+
+    for node in nodes {
+        runner.egraph.add_uncanonical(node);
     }
 
     runner = runner.with_expr(&start);
@@ -118,6 +144,31 @@ pub fn test_runner<L, A>(
 
         if let Some(check_fn) = check_fn {
             check_fn(runner)
+        } else if cfg!(feature = "test-push-pop") {
+            let mut egraph = runner.egraph;
+            let _ = runner.hooks;
+            for mut old in history.borrow().iter().cloned().rev() {
+                dbg!(old.total_size());
+                egraph.pop();
+                assert_eq!(
+                    format!("{:#?}", old.dump_uncanonical()),
+                    format!("{:#?}", egraph.dump_uncanonical()),
+                );
+                assert_eq!(format!("{:#?}", old), format!("{:#?}", egraph));
+                assert_eq!(
+                    format!("{:#?}", old.dump()),
+                    format!("{:#?}", egraph.dump()),
+                );
+                if let Some(explain) = &mut egraph.explain {
+                    let old_explain = old.explain.as_mut().unwrap();
+                    old_explain.clear_memo();
+                    for class in egraph.inner.classes_mut().0 {
+                        explain.test_mk_root(class.id);
+                        old_explain.test_mk_root(class.id);
+                    }
+                    assert_eq!(format!("{:#?}", old_explain), format!("{:#?}", explain));
+                }
+            }
         }
     }
 }

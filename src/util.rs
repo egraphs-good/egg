@@ -54,7 +54,7 @@ mod hashmap {
     pub(crate) type HashMap<K, V> = super::IndexMap<K, V>;
     pub(crate) type HashSet<K> = super::IndexSet<K>;
 
-    pub(crate) type Entry<'a, K, V> = indexmap::map::Entry<K, V>;
+    pub(crate) type Entry<'a, K, V> = indexmap::map::Entry<'a, K, V>;
 }
 #[cfg(not(feature = "deterministic"))]
 mod hashmap {
@@ -173,5 +173,10 @@ where
         let r = self.queue.is_empty();
         debug_assert_eq!(r, self.set.is_empty());
         r
+    }
+
+    pub fn clear(&mut self) {
+        self.queue.clear();
+        self.set.clear();
     }
 }

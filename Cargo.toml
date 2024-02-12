@@ -50,9 +50,11 @@ serde-1 = [
   "vectorize",
 ]
 wasm-bindgen = ["instant/wasm-bindgen"]
+push-pop-alt = []
 
 # private features for testing
 test-explanations = []
+test-push-pop = ["deterministic"]
 
 [package.metadata.docs.rs]
 all-features = true
