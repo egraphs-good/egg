@@ -163,6 +163,7 @@ impl<L: Language, D, U: AsUnwrap<UndoLog>> RawEGraph<L, D, U> {
             memo_log_count,
             pop_parents_count,
         } = info;
+        self.pending.clear();
         self.pop_memo2(memo_log_count);
         self.pop_parents2(pop_parents_count, node_count);
         self.pop_unions2(union_count, node_count, state, clear, mk_data, handle_eqv);
