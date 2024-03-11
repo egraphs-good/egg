@@ -151,6 +151,11 @@ impl<L: Language, D, U: AsUnwrap<UndoLog>> RawEGraph<L, D, U> {
         self.pop_nodes1(node_count);
     }
 
+    /// Return the direct parent from the union find without path compression
+    pub fn find_direct_parent(&self, id: Id) -> Id {
+        self.undo_log.as_unwrap().undo_find.parent(id)
+    }
+
     fn pop_memo1(&mut self, old_count: usize) {
         assert!(self.memo.len() >= old_count);
         let memo_log = &mut self.undo_log.as_mut_unwrap().memo_log;
