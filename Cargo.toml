@@ -2,18 +2,19 @@
 authors = ["Max Willsey <me@mwillsey.com>"]
 categories = ["data-structures"]
 description = "An implementation of egraphs"
-edition = "2018"
+edition = "2021"
 keywords = ["e-graphs"]
 license = "MIT"
 name = "egg"
 readme = "README.md"
 repository = "https://github.com/egraphs-good/egg"
 version = "0.9.5"
+rust-version = "1.63.0"
 
 [dependencies]
 env_logger = { version = "0.9.0", default-features = false }
 fxhash = "0.2.1"
-hashbrown = "0.12.1"
+hashbrown = { version = "0.14.3", default-features = false, features = ["inline-more"] }
 indexmap = "1.8.1"
 instant = "0.1.12"
 log = "0.4.17"
@@ -49,9 +50,11 @@ serde-1 = [
   "vectorize",
 ]
 wasm-bindgen = ["instant/wasm-bindgen"]
+push-pop-alt = []
 
 # private features for testing
 test-explanations = []
+test-push-pop = ["deterministic"]
 
 [package.metadata.docs.rs]
 all-features = true

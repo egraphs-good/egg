@@ -1,7 +1,7 @@
 /*!
 EGraph visualization with [GraphViz]
 
-Use the [`Dot`] struct to visualize an [`EGraph`]
+Use the [`Dot`] struct to visualize an [`EGraph`](crate::EGraph)
 
 [GraphViz]: https://graphviz.gitlab.io/
 !*/
@@ -11,13 +11,13 @@ use std::fmt::{self, Debug, Display, Formatter};
 use std::io::{Error, ErrorKind, Result, Write};
 use std::path::Path;
 
-use crate::{egraph::EGraph, Analysis, Language};
+use crate::{raw::EGraphResidual, Language};
 
 /**
-A wrapper for an [`EGraph`] that can output [GraphViz] for
+A wrapper for an [`EGraphResidual`] that can output [GraphViz] for
 visualization.
 
-The [`EGraph::dot`](EGraph::dot()) method creates `Dot`s.
+The [`EGraphResidual::dot`] method creates `Dot`s.
 
 # Example
 
@@ -50,8 +50,8 @@ instead of to its own eclass.
 
 [GraphViz]: https://graphviz.gitlab.io/
 **/
-pub struct Dot<'a, L: Language, N: Analysis<L>> {
-    pub(crate) egraph: &'a EGraph<L, N>,
+pub struct Dot<'a, L: Language> {
+    pub(crate) egraph: &'a EGraphResidual<L>,
     /// A list of strings to be output top part of the dot file.
     pub config: Vec<String>,
     /// Whether or not to anchor the edges in the output.
@@ -59,10 +59,9 @@ pub struct Dot<'a, L: Language, N: Analysis<L>> {
     pub use_anchors: bool,
 }
 
-impl<'a, L, N> Dot<'a, L, N>
+impl<'a, L> Dot<'a, L>
 where
     L: Language + Display,
-    N: Analysis<L>,
 {
     /// Writes the `Dot` to a .dot file with the given filename.
     /// Does _not_ require a `dot` binary.
@@ -170,16 +169,15 @@ where
     }
 }
 
-impl<'a, L: Language, N: Analysis<L>> Debug for Dot<'a, L, N> {
+impl<'a, L: Language> Debug for Dot<'a, L> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         f.debug_tuple("Dot").field(self.egraph).finish()
     }
 }
 
-impl<'a, L, N> Display for Dot<'a, L, N>
+impl<'a, L> Display for Dot<'a, L>
 where
     L: Language + Display,
-    N: Analysis<L>,
 {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         writeln!(f, "digraph egraph {{")?;
@@ -192,17 +190,19 @@ where
             writeln!(f, "  {}", line)?;
         }
 
+        let classes = self.egraph.generate_class_nodes();
+
         // define all the nodes, clustered by eclass
-        for class in self.egraph.classes() {
-            writeln!(f, "  subgraph cluster_{} {{", class.id)?;
+        for (&id, class) in &classes {
+            writeln!(f, "  subgraph cluster_{} {{", id)?;
             writeln!(f, "    style=dotted")?;
             for (i, node) in class.iter().enumerate() {
-                writeln!(f, "    {}.{}[label = \"{}\"]", class.id, i, node)?;
+                writeln!(f, "    {}.{}[label = \"{}\"]", id, i, node)?;
             }
             writeln!(f, "  }}")?;
         }
 
-        for class in self.egraph.classes() {
+        for (&id, class) in &classes {
             for (i_in_class, node) in class.iter().enumerate() {
                 let mut arg_i = 0;
                 node.try_for_each(|child| {
@@ -210,19 +210,19 @@ where
                     let (anchor, label) = self.edge(arg_i, node.len());
                     let child_leader = self.egraph.find(child);
 
-                    if child_leader == class.id {
+                    if child_leader == id {
                         writeln!(
                             f,
                             // {}.0 to pick an arbitrary node in the cluster
                             "  {}.{}{} -> {}.{}:n [lhead = cluster_{}, {}]",
-                            class.id, i_in_class, anchor, class.id, i_in_class, class.id, label
+                            id, i_in_class, anchor, id, i_in_class, id, label
                         )?;
                     } else {
                         writeln!(
                             f,
                             // {}.0 to pick an arbitrary node in the cluster
                             "  {}.{}{} -> {}.0 [lhead = cluster_{}, {}]",
-                            class.id, i_in_class, anchor, child, child_leader, label
+                            id, i_in_class, anchor, child, child_leader, label
                         )?;
                     }
                     arg_i += 1;

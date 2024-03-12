@@ -698,7 +698,7 @@ assert_eq!(runner.egraph.find(runner.roots[0]), runner.egraph.find(just_foo));
 */
 pub trait Analysis<L: Language>: Sized {
     /// The per-[`EClass`] data for this analysis.
-    type Data: Debug;
+    type Data: Debug + Clone;
 
     /// Makes a new [`Analysis`] data for a given e-node.
     ///
@@ -761,6 +761,14 @@ pub trait Analysis<L: Language>: Sized {
     /// `Analysis::merge` when unions are performed.
     #[allow(unused_variables)]
     fn modify(egraph: &mut EGraph<L, Self>, id: Id) {}
+
+    /// A hook called at the start of [`EGraph::push`]
+    #[allow(unused_variables)]
+    fn pre_push(egraph: &mut EGraph<L, Self>) {}
+
+    /// A hook called at the end of [`EGraph::pop_n`]
+    #[allow(unused_variables)]
+    fn post_pop_n(egraph: &mut EGraph<L, Self>, n: usize) {}
 }
 
 impl<L: Language> Analysis<L> for () {

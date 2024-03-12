@@ -33,10 +33,10 @@ impl Lambda {
 
 type EGraph = egg::EGraph<Lambda, LambdaAnalysis>;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 struct LambdaAnalysis;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Default)]
 struct Data {
     free: HashSet<Id>,
     constant: Option<(Lambda, PatternAst<Lambda>)>,

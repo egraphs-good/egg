@@ -3,29 +3,33 @@ use std::fmt::Debug;
 
 #[derive(Debug, Clone, Default)]
 #[cfg_attr(feature = "serde-1", derive(serde::Serialize, serde::Deserialize))]
+/// Data structure that stores disjoint sets of `Id`s each with a representative
 pub struct UnionFind {
-    parents: Vec<Id>,
+    pub(super) parents: Vec<Id>,
 }
 
 impl UnionFind {
+    /// Creates a singleton set and returns its representative
     pub fn make_set(&mut self) -> Id {
         let id = Id::from(self.parents.len());
         self.parents.push(id);
         id
     }
 
+    /// Returns the number of ids in all the sets
     pub fn size(&self) -> usize {
         self.parents.len()
     }
 
-    fn parent(&self, query: Id) -> Id {
+    pub(super) fn parent(&self, query: Id) -> Id {
         self.parents[usize::from(query)]
     }
 
-    fn parent_mut(&mut self, query: Id) -> &mut Id {
+    pub(super) fn parent_mut(&mut self, query: Id) -> &mut Id {
         &mut self.parents[usize::from(query)]
     }
 
+    /// Returns the representative of the set `current` belongs to
     pub fn find(&self, mut current: Id) -> Id {
         while current != self.parent(current) {
             current = self.parent(current)
@@ -33,6 +37,7 @@ impl UnionFind {
         current
     }
 
+    /// Equivalent to [`find`](UnionFind::find) but preforms path-compression to optimize further calls
     pub fn find_mut(&mut self, mut current: Id) -> Id {
         while current != self.parent(current) {
             let grandparent = self.parent(self.parent(current));
@@ -42,10 +47,15 @@ impl UnionFind {
         current
     }
 
-    /// Given two leader ids, unions the two eclasses making root1 the leader.
+    /// Given two representative ids, unions the two eclasses making root1 the representative.
     pub fn union(&mut self, root1: Id, root2: Id) -> Id {
         *self.parent_mut(root2) = root1;
         root1
+    }
+
+    /// Resets the union find
+    pub fn clear(&mut self) {
+        self.parents.clear()
     }
 }
 

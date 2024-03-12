@@ -48,10 +48,12 @@ mod lp_extract;
 mod machine;
 mod multipattern;
 mod pattern;
+
+/// Lower level egraph API
+pub mod raw;
 mod rewrite;
 mod run;
 mod subst;
-mod unionfind;
 mod util;
 
 /// A key to identify [`EClass`]es within an
@@ -85,11 +87,11 @@ impl std::fmt::Display for Id {
     }
 }
 
-pub(crate) use {explain::Explain, unionfind::UnionFind};
+pub(crate) use {explain::Explain, raw::UnionFind};
 
 pub use {
     dot::Dot,
-    eclass::EClass,
+    eclass::{EClass, EClassData},
     egraph::EGraph,
     explain::{
         Explanation, FlatExplanation, FlatTerm, Justification, TreeExplanation, TreeTerm,

@@ -53,12 +53,15 @@ pub(crate) use hashmap::*;
 mod hashmap {
     pub(crate) type HashMap<K, V> = super::IndexMap<K, V>;
     pub(crate) type HashSet<K> = super::IndexSet<K>;
+
+    pub(crate) type Entry<'a, K, V> = indexmap::map::Entry<'a, K, V>;
 }
 #[cfg(not(feature = "deterministic"))]
 mod hashmap {
     use super::BuildHasher;
     pub(crate) type HashMap<K, V> = hashbrown::HashMap<K, V, BuildHasher>;
     pub(crate) type HashSet<K> = hashbrown::HashSet<K, BuildHasher>;
+    pub(crate) type Entry<'a, K, V> = hashbrown::hash_map::Entry<'a, K, V, BuildHasher>;
 }
 
 pub(crate) type IndexMap<K, V> = indexmap::IndexMap<K, V, BuildHasher>;
@@ -125,7 +128,7 @@ pub(crate) struct UniqueQueue<T>
 where
     T: Eq + std::hash::Hash + Clone,
 {
-    set: hashbrown::HashSet<T>,
+    set: hashbrown::HashSet<T, BuildHasher>,
     queue: std::collections::VecDeque<T>,
 }
 
@@ -170,5 +173,10 @@ where
         let r = self.queue.is_empty();
         debug_assert_eq!(r, self.set.is_empty());
         r
+    }
+
+    pub fn clear(&mut self) {
+        self.queue.clear();
+        self.set.clear();
     }
 }
