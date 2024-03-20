@@ -536,8 +536,11 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     where
         F: Fn(L) -> L2,
         L2: Language,
-        <L2 as Language>::Discriminant: From<<L as Language>::Discriminant>,
+        // `N2` has to be an analysis over `L2`, and be able to be built from `N`
         N2: Analysis<L2> + From<N>,
+        // we need to be able to convert from `L::Discriminant` to `L2::Discriminant`
+        <L2 as Language>::Discriminant: From<<L as Language>::Discriminant>,
+        // we need to be able to convert `L::Data` to `L2::Data`
         <N2 as Analysis<L2>>::Data: From<<N as Analysis<L>>::Data>,
     {
         let kv_map = |(k, v): (L, Id)| ((&lang_mapper)(k), v);
