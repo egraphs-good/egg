@@ -542,34 +542,35 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     }
 }
 
-/// Translates `EGraph<L, A>` into `EGraph<L2, A2>`.
+/// Translates `EGraph<L, A>` into `EGraph<L2, A2>`. For common cases, you don't
+/// need to implement this manually. See the provided [`SimpleLanguageMapper`].
 pub trait LanguageMapper<L, A>
 where
     L: Language,
     A: Analysis<L>,
 {
-    /// Target language to translate into.
+    /// The target language to translate into.
     type L2: Language;
 
-    /// Target analysis to transate into.
+    /// The target analysis to transate into.
     type A2: Analysis<Self::L2>;
 
-    /// Map a node of `L` into a node of `L2`.
+    /// Translate a node of `L` into a node of `L2`.
     fn map_node(&self, node: L) -> Self::L2;
 
-    /// Map `L::Discriminant` into `L2::Discriminant`
+    /// Translate `L::Discriminant` into `L2::Discriminant`
     fn map_discriminant(
         &self,
         discriminant: L::Discriminant,
     ) -> <Self::L2 as Language>::Discriminant;
 
-    /// Map an analysis of type `A` into an analysis of `A2`.
+    /// Translate an analysis of type `A` into an analysis of `A2`.
     fn map_analysis(&self, analysis: A) -> Self::A2;
 
-    /// Map `A::Data` into `A2::Data`.
+    /// Translate `A::Data` into `A2::Data`.
     fn map_data(&self, data: A::Data) -> <Self::A2 as Analysis<Self::L2>>::Data;
 
-    /// Map an `EClass` over `L` into an `EClass` over `L2`.
+    /// Translate an [`EClass`] over `L` into an [`EClass`] over `L2`.
     fn map_eclass(
         &self,
         src_eclass: EClass<L, A::Data>,
@@ -619,14 +620,41 @@ where
     }
 }
 
-/// A simple implementation over `LanguageMapper` that makes conversion between
-/// EGraphs of different language types simple in common cases.
+/// An implementation of [`LanguageMapper`] that can convert an [`EGraph`] over one
+/// language into an [`EGraph`] over a different language in common cases.
 ///
-/// For example, consider the case where you have a newtype wrapper over a language
-/// type:
+/// Specifically, you can use this if have
+/// [`conversion`](https://doc.rust-lang.org/1.76.0/core/convert/index.html)
+/// implemented between your source and target language, as well as your source and
+/// target analysis.
+///
+/// Here is an example of how to use this. Consider a case where you have a newtype
+/// wrapper over an existing language type:
 ///
 /// ```rust
+/// use egg::*;
+///
+/// #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 /// struct MyLang(SymbolLang);
+/// # impl Language for MyLang {
+/// #     type Discriminant = <SymbolLang as Language>::Discriminant;
+/// #
+/// #     fn matches(&self, other: &Self) -> bool {
+/// #         self.0.matches(&other.0)
+/// #     }
+/// #
+/// #     fn children(&self) -> &[Id] {
+/// #         self.0.children()
+/// #     }
+/// #
+/// #     fn children_mut(&mut self) -> &mut [Id] {
+/// #         self.0.children_mut()
+/// #     }
+/// #
+/// #     fn discriminant(&self) -> Self::Discriminant {
+/// #         self.0.discriminant()
+/// #     }
+/// # }
 ///
 /// // some external library function
 /// pub fn external(egraph: EGraph<SymbolLang, ()>) { }
@@ -637,12 +665,34 @@ where
 /// }
 /// ```
 ///
-/// `SimpleLanguageMapper` can construct an implemention of `LanguageMapper` for
-/// your type if you have `From<MyLang> for SymbolLang` implemented.
-///
-/// Adding a `From<..>` impl allows us to conver the EGraph to the correct type:
+/// By providing an implementation of `From<MyLang> for SymbolLang`, we can
+/// construct `SimpleLanguageMapper` and use it to translate our [`EGraph`] into the
+/// right type.
 ///
 /// ```rust
+/// # use egg::*;
+/// # #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+/// # struct MyLang(SymbolLang);
+/// # impl Language for MyLang {
+/// #     type Discriminant = <SymbolLang as Language>::Discriminant;
+/// #
+/// #     fn matches(&self, other: &Self) -> bool {
+/// #         self.0.matches(&other.0)
+/// #     }
+/// #
+/// #     fn children(&self) -> &[Id] {
+/// #         self.0.children()
+/// #     }
+/// #
+/// #     fn children_mut(&mut self) -> &mut [Id] {
+/// #         self.0.children_mut()
+/// #     }
+/// #
+/// #     fn discriminant(&self) -> Self::Discriminant {
+/// #         self.0.discriminant()
+/// #     }
+/// # }
+/// # pub fn external(egraph: EGraph<SymbolLang, ()>) { }
 /// impl From<MyLang> for SymbolLang {
 ///     fn from(value: MyLang) -> Self {
 ///         value.0
@@ -653,6 +703,9 @@ where
 ///     external(SimpleLanguageMapper::default().map_egraph(egraph))
 /// }
 /// ```
+///
+/// Note that we do not need to provide any conversion for the analysis, because it
+/// is the same in both source and target e-graphs.
 pub struct SimpleLanguageMapper<L2, A2> {
     _phantom: PhantomData<(L2, A2)>,
 }
