@@ -576,6 +576,70 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     }
 }
 
+pub trait LanguageMapper<L, A>
+where
+    L: Language,
+    A: Analysis<L>,
+{
+    type L2: Language;
+    type A2: Analysis<Self::L2>;
+
+    fn map_node(&self, node: L) -> Self::L2;
+    fn map_discriminant(
+        &self,
+        discriminant: L::Discriminant,
+    ) -> <Self::L2 as Language>::Discriminant;
+    fn map_analysis(&self, analysis: A) -> Self::A2;
+    fn map_data(&self, data: A::Data) -> <Self::A2 as Analysis<Self::L2>>::Data;
+
+    fn map_eclass(
+        &self,
+        src_eclass: EClass<L, A::Data>,
+    ) -> EClass<Self::L2, <Self::A2 as Analysis<Self::L2>>::Data> {
+        EClass {
+            id: src_eclass.id,
+            nodes: src_eclass
+                .nodes
+                .into_iter()
+                .map(|l| self.map_node(l))
+                .collect(),
+            data: self.map_data(src_eclass.data),
+            parents: src_eclass
+                .parents
+                .into_iter()
+                .map(|(l, id)| (self.map_node(l), id))
+                .collect(),
+        }
+    }
+
+    fn map_egraph(&self, src_egraph: EGraph<L, A>) -> EGraph<Self::L2, Self::A2> {
+        let kv_map = |(k, v): (L, Id)| (self.map_node(k), v);
+        EGraph {
+            analysis: self.map_analysis(src_egraph.analysis),
+            explain: None,
+            unionfind: src_egraph.unionfind,
+            memo: src_egraph.memo.into_iter().map(kv_map).collect(),
+            pending: src_egraph.pending.into_iter().map(kv_map).collect(),
+            analysis_pending: src_egraph
+                .analysis_pending
+                .into_iter()
+                .map(kv_map)
+                .collect(),
+            classes: src_egraph
+                .classes
+                .into_iter()
+                .map(|(id, eclass)| (id, self.map_eclass(eclass)))
+                .collect(),
+            classes_by_op: src_egraph
+                .classes_by_op
+                .into_iter()
+                .map(|(k, v)| (self.map_discriminant(k), v))
+                .collect(),
+            clean: src_egraph.clean,
+        }
+    }
+}
+
 /// Given an `Id` using the `egraph[id]` syntax, retrieve the e-class.
 impl<L: Language, N: Analysis<L>> std::ops::Index<Id> for EGraph<L, N> {
     type Output = EClass<L, N::Data>;
