@@ -41,6 +41,26 @@ impl<L, D> EClass<L, D> {
     pub fn parents(&self) -> impl ExactSizeIterator<Item = (&L, Id)> {
         self.parents.iter().map(|(node, id)| (node, *id))
     }
+
+    /// Converts an EClass defined for language L into one
+    /// defined for language L2
+    pub fn map<F, L2, D2>(self, mapper: F) -> EClass<L2, D2>
+    where
+        F: Fn(L) -> L2,
+        D2: From<D>,
+        L2: Language,
+    {
+        EClass {
+            id: self.id,
+            nodes: self.nodes.into_iter().map(&mapper).collect(),
+            data: self.data.into(),
+            parents: self
+                .parents
+                .into_iter()
+                .map(|(l, id)| (mapper(l), id))
+                .collect(),
+        }
+    }
 }
 
 impl<L: Language, D> EClass<L, D> {

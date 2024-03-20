@@ -531,6 +531,37 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         self.unionfind.find_mut(id)
     }
 
+    /// Convert an EGraph from one language to a different language
+    pub fn map<F, L2, N2>(self, lang_mapper: F) -> EGraph<L2, N2>
+    where
+        F: Fn(L) -> L2,
+        L2: Language,
+        <L2 as Language>::Discriminant: From<<L as Language>::Discriminant>,
+        N2: Analysis<L2> + From<N>,
+        <N2 as Analysis<L2>>::Data: From<<N as Analysis<L>>::Data>,
+    {
+        let kv_map = |(k, v): (L, Id)| ((&lang_mapper)(k), v);
+        EGraph {
+            analysis: self.analysis.into(),
+            explain: None,
+            unionfind: self.unionfind,
+            memo: self.memo.into_iter().map(kv_map).collect(),
+            pending: self.pending.into_iter().map(kv_map).collect(),
+            analysis_pending: self.analysis_pending.into_iter().map(kv_map).collect(),
+            classes: self
+                .classes
+                .into_iter()
+                .map(|(id, eclass)| (id, eclass.map(&lang_mapper)))
+                .collect(),
+            classes_by_op: self
+                .classes_by_op
+                .into_iter()
+                .map(|(k, v)| (k.into(), v))
+                .collect(),
+            clean: self.clean,
+        }
+    }
+
     /// Creates a [`Dot`] to visualize this egraph. See [`Dot`].
     ///
     pub fn dot(&self) -> Dot<L, N> {
