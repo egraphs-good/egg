@@ -2,6 +2,7 @@ use crate::*;
 use std::{
     borrow::BorrowMut,
     fmt::{self, Debug, Display},
+    marker::PhantomData,
 };
 
 #[cfg(feature = "serde-1")]
@@ -531,42 +532,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         self.unionfind.find_mut(id)
     }
 
-    /// Convert an EGraph from one language to a different language
-    pub fn map<F, L2, N2>(self, lang_mapper: F) -> EGraph<L2, N2>
-    where
-        F: Fn(L) -> L2,
-        L2: Language,
-        // `N2` has to be an analysis over `L2`, and be able to be built from `N`
-        N2: Analysis<L2> + From<N>,
-        // we need to be able to convert from `L::Discriminant` to `L2::Discriminant`
-        <L2 as Language>::Discriminant: From<<L as Language>::Discriminant>,
-        // we need to be able to convert `L::Data` to `L2::Data`
-        <N2 as Analysis<L2>>::Data: From<<N as Analysis<L>>::Data>,
-    {
-        let kv_map = |(k, v): (L, Id)| ((&lang_mapper)(k), v);
-        EGraph {
-            analysis: self.analysis.into(),
-            explain: None,
-            unionfind: self.unionfind,
-            memo: self.memo.into_iter().map(kv_map).collect(),
-            pending: self.pending.into_iter().map(kv_map).collect(),
-            analysis_pending: self.analysis_pending.into_iter().map(kv_map).collect(),
-            classes: self
-                .classes
-                .into_iter()
-                .map(|(id, eclass)| (id, eclass.map(&lang_mapper)))
-                .collect(),
-            classes_by_op: self
-                .classes_by_op
-                .into_iter()
-                .map(|(k, v)| (k.into(), v))
-                .collect(),
-            clean: self.clean,
-        }
-    }
-
     /// Creates a [`Dot`] to visualize this egraph. See [`Dot`].
-    ///
     pub fn dot(&self) -> Dot<L, N> {
         Dot {
             egraph: self,
@@ -576,22 +542,34 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     }
 }
 
+/// Translates `EGraph<L, A>` into `EGraph<L2, A2>`.
 pub trait LanguageMapper<L, A>
 where
     L: Language,
     A: Analysis<L>,
 {
+    /// Target language to translate into.
     type L2: Language;
+
+    /// Target analysis to transate into.
     type A2: Analysis<Self::L2>;
 
+    /// Map a node of `L` into a node of `L2`.
     fn map_node(&self, node: L) -> Self::L2;
+
+    /// Map `L::Discriminant` into `L2::Discriminant`
     fn map_discriminant(
         &self,
         discriminant: L::Discriminant,
     ) -> <Self::L2 as Language>::Discriminant;
+
+    /// Map an analysis of type `A` into an analysis of `A2`.
     fn map_analysis(&self, analysis: A) -> Self::A2;
+
+    /// Map `A::Data` into `A2::Data`.
     fn map_data(&self, data: A::Data) -> <Self::A2 as Analysis<Self::L2>>::Data;
 
+    /// Map an `EClass` over `L` into an `EClass` over `L2`.
     fn map_eclass(
         &self,
         src_eclass: EClass<L, A::Data>,
@@ -612,6 +590,7 @@ where
         }
     }
 
+    /// Map an `EGraph` over `L` into an `EGraph` over `L2`.
     fn map_egraph(&self, src_egraph: EGraph<L, A>) -> EGraph<Self::L2, Self::A2> {
         let kv_map = |(k, v): (L, Id)| (self.map_node(k), v);
         EGraph {
@@ -637,6 +616,84 @@ where
                 .collect(),
             clean: src_egraph.clean,
         }
+    }
+}
+
+/// A simple implementation over `LanguageMapper` that makes conversion between
+/// EGraphs of different language types simple in common cases.
+///
+/// For example, consider the case where you have a newtype wrapper over a language
+/// type:
+///
+/// ```rust
+/// struct MyLang(SymbolLang);
+///
+/// // some external library function
+/// pub fn external(egraph: EGraph<SymbolLang, ()>) { }
+///
+/// fn do_thing(egraph: EGraph<MyLang, ()>) {
+///   // how do I call external?
+///   external(todo!())
+/// }
+/// ```
+///
+/// `SimpleLanguageMapper` can construct an implemention of `LanguageMapper` for
+/// your type if you have `From<MyLang> for SymbolLang` implemented.
+///
+/// Adding a `From<..>` impl allows us to conver the EGraph to the correct type:
+///
+/// ```rust
+/// impl From<MyLang> for SymbolLang {
+///     fn from(value: MyLang) -> Self {
+///         value.0
+///     }
+/// }
+///
+/// fn do_thing(egraph: EGraph<MyLang, ()>) {
+///     external(SimpleLanguageMapper::default().map_egraph(egraph))
+/// }
+/// ```
+pub struct SimpleLanguageMapper<L2, A2> {
+    _phantom: PhantomData<(L2, A2)>,
+}
+
+impl<L, A> Default for SimpleLanguageMapper<L, A> {
+    fn default() -> Self {
+        SimpleLanguageMapper {
+            _phantom: PhantomData::default(),
+        }
+    }
+}
+
+impl<L, A, L2, A2> LanguageMapper<L, A> for SimpleLanguageMapper<L2, A2>
+where
+    L: Language,
+    A: Analysis<L>,
+    L2: Language + From<L>,
+    A2: Analysis<L2> + From<A>,
+    <L2 as Language>::Discriminant: From<<L as Language>::Discriminant>,
+    <A2 as Analysis<L2>>::Data: From<<A as Analysis<L>>::Data>,
+{
+    type L2 = L2;
+    type A2 = A2;
+
+    fn map_node(&self, node: L) -> Self::L2 {
+        node.into()
+    }
+
+    fn map_discriminant(
+        &self,
+        discriminant: <L as Language>::Discriminant,
+    ) -> <Self::L2 as Language>::Discriminant {
+        discriminant.into()
+    }
+
+    fn map_analysis(&self, analysis: A) -> Self::A2 {
+        analysis.into()
+    }
+
+    fn map_data(&self, data: <A as Analysis<L>>::Data) -> <Self::A2 as Analysis<Self::L2>>::Data {
+        data.into()
     }
 }
 
