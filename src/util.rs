@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, iter::FromIterator};
 use symbolic_expressions::Sexp;
 
 use fmt::{Debug, Display, Formatter};
@@ -170,5 +170,31 @@ where
         let r = self.queue.is_empty();
         debug_assert_eq!(r, self.set.is_empty());
         r
+    }
+}
+
+impl<T> IntoIterator for UniqueQueue<T>
+where
+    T: Eq + std::hash::Hash + Clone,
+{
+    type Item = T;
+
+    type IntoIter = <std::collections::VecDeque<T> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.queue.into_iter()
+    }
+}
+
+impl<A> FromIterator<A> for UniqueQueue<A>
+where
+    A: Eq + std::hash::Hash + Clone,
+{
+    fn from_iter<T: IntoIterator<Item = A>>(iter: T) -> Self {
+        let mut queue = UniqueQueue::default();
+        for t in iter {
+            queue.insert(t);
+        }
+        queue
     }
 }
