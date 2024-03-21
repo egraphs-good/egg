@@ -57,7 +57,7 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
 [dot]: Dot
 [extract]: Extractor
 [sound]: https://itinerarium.github.io/phoneme-synthesis/?w=/'igraf/
-**/
+ **/
 #[derive(Clone)]
 #[cfg_attr(feature = "serde-1", derive(Serialize, Deserialize))]
 pub struct EGraph<L: Language, N: Analysis<L>> {
@@ -840,24 +840,25 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         self.clean = false;
         let mut new_root = None;
         let has_undo_log = self.inner.has_undo_log();
-        self.inner
-            .raw_union(enode_id1, enode_id2, |class1, id1, p1, class2, id2, p2| {
-                new_root = Some(id1);
-                if has_undo_log && mem::size_of::<N::Data>() > 0 {
-                    self.data_history.push((id1, class1.data.clone()));
-                    self.data_history.push((id2, class2.data.clone()));
-                }
+        self.inner.raw_union(enode_id1, enode_id2, |info| {
+            new_root = Some(info.id1);
+            if has_undo_log && mem::size_of::<N::Data>() > 0 {
+                self.data_history.push((info.id1, info.data1.data.clone()));
+                self.data_history.push((info.id2, info.data2.data.clone()));
+            }
 
-                let did_merge = self.analysis.merge(&mut class1.data, class2.data);
-                if did_merge.0 {
-                    self.analysis_pending.extend(p1);
-                }
-                if did_merge.1 {
-                    self.analysis_pending.extend(p2);
-                }
+            let did_merge = self.analysis.merge(&mut info.data1.data, info.data2.data);
+            if did_merge.0 {
+                self.analysis_pending
+                    .extend(info.parents1.into_iter().copied());
+            }
+            if did_merge.1 {
+                self.analysis_pending
+                    .extend(info.parents2.into_iter().copied());
+            }
 
-                concat_vecs(&mut class1.nodes, class2.nodes);
-            });
+            concat_vecs(&mut info.data1.nodes, info.data2.nodes);
+        });
         if let Some(id) = new_root {
             if let Some(explain) = &mut self.explain {
                 explain.union(enode_id1, enode_id2, rule.unwrap(), any_new_rhs);

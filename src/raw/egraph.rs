@@ -1,5 +1,6 @@
 use crate::{raw::RawEClass, Dot, HashMap, Id, Language, RecExpr, UnionFind};
 use std::collections::BTreeMap;
+use std::convert::Infallible;
 use std::ops::{Deref, DerefMut};
 use std::{
     borrow::BorrowMut,
@@ -475,6 +476,26 @@ pub struct UnionInfo<D> {
     pub old_data: D,
 }
 
+/// Information for [`RawEGraph::raw_union`] callback
+#[non_exhaustive]
+pub struct MergeInfo<'a, D: 'a> {
+    /// id that will be the root for the newly merged eclass
+    pub id1: Id,
+    /// data associated with `id1` that can be modified to reflect `data2` being merged into it
+    pub data1: &'a mut D,
+    /// parents of `id1` before the merge
+    pub parents1: &'a [Id],
+    /// id that used to be a root but will now be in `id1` eclass
+    pub id2: Id,
+    /// data associated with `id2`
+    pub data2: D,
+    /// parents of `id2` before the merge
+    pub parents2: &'a [Id],
+    /// true if `id1` was the root of the second id passed to [`RawEGraph::raw_union`]
+    /// false if `id1` was the root of the first id passed to [`RawEGraph::raw_union`]
+    pub swapped_ids: bool,
+}
+
 impl<L: Language, D, U: UndoLogT<L, D>> RawEGraph<L, D, U> {
     /// Adds `enode` to a [`RawEGraph`] contained within a wrapper type `T`
     ///
@@ -578,7 +599,7 @@ impl<L: Language, D, U: UndoLogT<L, D>> RawEGraph<L, D, U> {
         &mut self,
         enode_id1: Id,
         enode_id2: Id,
-        merge: impl FnOnce(&mut D, Id, Parents<'_>, D, Id, Parents<'_>),
+        merge: impl FnOnce(MergeInfo<'_, D>),
     ) {
         let mut id1 = self.find_mut(enode_id1);
         let mut id2 = self.find_mut(enode_id2);
@@ -588,7 +609,9 @@ impl<L: Language, D, U: UndoLogT<L, D>> RawEGraph<L, D, U> {
         // make sure class2 has fewer parents
         let class1_parents = self.classes[&id1].parents.len();
         let class2_parents = self.classes[&id2].parents.len();
+        let mut swapped = false;
         if class1_parents < class2_parents {
+            swapped = true;
             std::mem::swap(&mut id1, &mut id2);
         }
 
@@ -600,15 +623,16 @@ impl<L: Language, D, U: UndoLogT<L, D>> RawEGraph<L, D, U> {
         let class1 = self.classes.get_mut(&id1).unwrap();
         assert_eq!(id1, class1.id);
 
-        let (p1, p2) = (Parents(&class1.parents), Parents(&class2.parents));
-        merge(
-            &mut class1.raw_data,
-            class1.id,
-            p1,
-            class2.raw_data,
-            class2.id,
-            p2,
-        );
+        let info = MergeInfo {
+            id1: class1.id,
+            data1: &mut class1.raw_data,
+            parents1: &class1.parents,
+            id2: class2.id,
+            data2: class2.raw_data,
+            parents2: &class2.parents,
+            swapped_ids: swapped,
+        };
+        merge(info);
 
         self.pending.extend(&class2.parents);
 
@@ -632,15 +656,31 @@ impl<L: Language, D, U: UndoLogT<L, D>> RawEGraph<L, D, U> {
     /// In order to be correct `perform_union` should call [`raw_union`](RawEGraph::raw_union)
     ///
     /// ### `handle_pending`
-    /// Called with the uncanonical id of each enode whose canonical children have changned, along with a canonical
+    /// Called with the uncanonical id of each enode whose canonical children have changed, along with a canonical
     /// version of it
     #[inline]
     pub fn raw_rebuild<T>(
         outer: &mut T,
         get_self: impl Fn(&mut T) -> &mut Self,
         mut perform_union: impl FnMut(&mut T, Id, Id),
-        mut handle_pending: impl FnMut(&mut T, Id, &L),
+        handle_pending: impl FnMut(&mut T, Id, &L),
     ) {
+        let _: Result<(), Infallible> = RawEGraph::try_raw_rebuild(
+            outer,
+            get_self,
+            |this, id1, id2| Ok(perform_union(this, id1, id2)),
+            handle_pending,
+        );
+    }
+
+    /// Similar to [`raw_rebuild`] but allows for the union operation to fail and abort the rebuild
+    #[inline]
+    pub fn try_raw_rebuild<T, E>(
+        outer: &mut T,
+        get_self: impl Fn(&mut T) -> &mut Self,
+        mut perform_union: impl FnMut(&mut T, Id, Id) -> Result<(), E>,
+        mut handle_pending: impl FnMut(&mut T, Id, &L),
+    ) -> Result<(), E> {
         loop {
             let this = get_self(outer);
             if let Some(class) = this.pending.pop() {
@@ -652,7 +692,13 @@ impl<L: Language, D, U: UndoLogT<L, D>> RawEGraph<L, D, U> {
                 match entry {
                     Entry::Occupied((_, id)) => {
                         let memo_class = *id;
-                        perform_union(outer, memo_class, class);
+                        match perform_union(outer, memo_class, class) {
+                            Ok(()) => {}
+                            Err(e) => {
+                                get_self(outer).pending.push(class);
+                                return Err(e);
+                            }
+                        }
                     }
                     Entry::Vacant(vac) => {
                         this.undo_log.insert_memo(hash);
@@ -660,7 +706,7 @@ impl<L: Language, D, U: UndoLogT<L, D>> RawEGraph<L, D, U> {
                     }
                 }
             } else {
-                break;
+                break Ok(());
             }
         }
     }
@@ -706,7 +752,7 @@ impl<L: Language, U: UndoLogT<L, ()>> RawEGraph<L, (), U> {
     /// Simplified version of [`raw_union`](RawEGraph::raw_union) for egraphs without eclass data
     pub fn union(&mut self, id1: Id, id2: Id) -> bool {
         let mut unioned = false;
-        self.raw_union(id1, id2, |_, _, _, _, _, _| {
+        self.raw_union(id1, id2, |_| {
             unioned = true;
         });
         unioned
