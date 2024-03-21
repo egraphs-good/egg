@@ -48,6 +48,9 @@ mod lp_extract;
 mod machine;
 mod multipattern;
 mod pattern;
+
+/// Lower level egraph API
+pub mod raw;
 mod rewrite;
 mod run;
 mod subst;
@@ -89,7 +92,7 @@ pub(crate) use {explain::Explain, unionfind::UnionFind};
 
 pub use {
     dot::Dot,
-    eclass::EClass,
+    eclass::{EClass, EClassData},
     egraph::EGraph,
     explain::{
         Explanation, FlatExplanation, FlatTerm, Justification, TreeExplanation, TreeTerm,

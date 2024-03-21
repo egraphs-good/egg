@@ -1,15 +1,13 @@
-use std::fmt::Debug;
+use std::fmt::{Debug, Formatter};
 use std::iter::ExactSizeIterator;
 
 use crate::*;
 
-/// An equivalence class of enodes.
+/// The additional data required to turn a [`raw::RawEClass`] into a [`EClass`]
 #[non_exhaustive]
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 #[cfg_attr(feature = "serde-1", derive(serde::Serialize, serde::Deserialize))]
-pub struct EClass<L, D> {
-    /// This eclass's id.
-    pub id: Id,
+pub struct EClassData<L, D> {
     /// The equivalent enodes in this equivalence class.
     pub nodes: Vec<L>,
     /// The analysis data associated with this eclass.
@@ -17,9 +15,18 @@ pub struct EClass<L, D> {
     /// Modifying this field will _not_ cause changes to propagate through the e-graph.
     /// Prefer [`EGraph::set_analysis_data`] instead.
     pub data: D,
-    /// The parent enodes and their original Ids.
-    pub(crate) parents: Vec<(L, Id)>,
 }
+
+impl<L: Language, D: Debug> Debug for EClassData<L, D> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut nodes = self.nodes.clone();
+        nodes.sort();
+        write!(f, "({:?}): {:?}", self.data, nodes)
+    }
+}
+
+/// An equivalence class of enodes
+pub type EClass<L, D> = raw::RawEClass<EClassData<L, D>>;
 
 impl<L, D> EClass<L, D> {
     /// Returns `true` if the `eclass` is empty.
@@ -35,11 +42,6 @@ impl<L, D> EClass<L, D> {
     /// Iterates over the enodes in this eclass.
     pub fn iter(&self) -> impl ExactSizeIterator<Item = &L> {
         self.nodes.iter()
-    }
-
-    /// Iterates over the parent enodes of this eclass.
-    pub fn parents(&self) -> impl ExactSizeIterator<Item = (&L, Id)> {
-        self.parents.iter().map(|(node, id)| (node, *id))
     }
 }
 

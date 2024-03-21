@@ -2,7 +2,7 @@
 authors = ["Max Willsey <me@mwillsey.com>"]
 categories = ["data-structures"]
 description = "An implementation of egraphs"
-edition = "2018"
+edition = "2021"
 keywords = ["e-graphs"]
 license = "MIT"
 name = "egg"
