@@ -17,8 +17,8 @@ pub struct EClass<L, D> {
     /// Modifying this field will _not_ cause changes to propagate through the e-graph.
     /// Prefer [`EGraph::set_analysis_data`] instead.
     pub data: D,
-    /// The parent enodes and their original Ids.
-    pub(crate) parents: Vec<(L, Id)>,
+    /// The original Ids of parent enodes.
+    pub(crate) parents: Vec<Id>,
 }
 
 impl<L, D> EClass<L, D> {
@@ -37,9 +37,9 @@ impl<L, D> EClass<L, D> {
         self.nodes.iter()
     }
 
-    /// Iterates over the parent enodes of this eclass.
-    pub fn parents(&self) -> impl ExactSizeIterator<Item = (&L, Id)> {
-        self.parents.iter().map(|(node, id)| (node, *id))
+    /// Iterates over the non-canonical ids of parent enodes of this eclass.
+    pub fn parents(&self) -> impl ExactSizeIterator<Item = Id> + '_ {
+        self.parents.iter().copied()
     }
 }
 
