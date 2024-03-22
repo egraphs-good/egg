@@ -8,6 +8,7 @@ use std::{hash::Hash, str::FromStr};
 
 use crate::*;
 
+use crate::semi_persistent::{UndoLog, UndoLogT};
 use fmt::Formatter;
 use symbolic_expressions::{Sexp, SexpError};
 use thiserror::Error;
@@ -655,6 +656,7 @@ define_language! {
 struct ConstantFolding;
 impl Analysis<SimpleMath> for ConstantFolding {
     type Data = Option<i32>;
+    type UndoLog = ();
 
     fn merge(&mut self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
         egg::merge_max(to, from)
@@ -699,6 +701,12 @@ assert_eq!(runner.egraph.find(runner.roots[0]), runner.egraph.find(just_foo));
 pub trait Analysis<L: Language>: Sized {
     /// The per-[`EClass`] data for this analysis.
     type Data: Debug;
+
+    /// Determines whether the [`EGraph`] supports [`push`](EGraph::push) and [`pop`](EGraph::pop)
+    /// Setting this to `()` disables [`push`](EGraph::push) and [`pop`](EGraph::pop)
+    /// Setting this to [`UndoLog`](UndoLog) enables [`push`](EGraph::push) and [`pop`](EGraph::pop)
+    /// Doing this requires that the [`EGraph`] has explanations enabled
+    type UndoLog: UndoLogT<L>;
 
     /// Makes a new [`Analysis`] data for a given e-node.
     ///
@@ -765,6 +773,22 @@ pub trait Analysis<L: Language>: Sized {
 
 impl<L: Language> Analysis<L> for () {
     type Data = ();
+
+    type UndoLog = ();
+    fn make(_egraph: &mut EGraph<L, Self>, _enode: &L) -> Self::Data {}
+    fn merge(&mut self, _: &mut Self::Data, _: Self::Data) -> DidMerge {
+        DidMerge(false, false)
+    }
+}
+
+/// Simple [`Analysis`], similar to `()` but enables [`push`](EGraph::push) and [`pop`](EGraph::pop)
+/// Doing this requires that the [`EGraph`] has explanations enabled
+pub struct WithUndo;
+
+impl<L: Language> Analysis<L> for WithUndo {
+    type Data = ();
+
+    type UndoLog = UndoLog<L>;
     fn make(_egraph: &mut EGraph<L, Self>, _enode: &L) -> Self::Data {}
     fn merge(&mut self, _: &mut Self::Data, _: Self::Data) -> DidMerge {
         DidMerge(false, false)

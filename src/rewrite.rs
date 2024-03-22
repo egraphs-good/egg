@@ -252,6 +252,7 @@ where
 /// struct MinSize;
 /// impl Analysis<Math> for MinSize {
 ///     type Data = usize;
+///     type UndoLog = ();
 ///     fn merge(&mut self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
 ///         merge_min(to, from)
 ///     }

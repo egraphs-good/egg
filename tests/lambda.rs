@@ -61,6 +61,7 @@ fn eval(egraph: &EGraph, enode: &Lambda) -> Option<(Lambda, PatternAst<Lambda>)>
 
 impl Analysis<Lambda> for LambdaAnalysis {
     type Data = Data;
+    type UndoLog = ();
     fn merge(&mut self, to: &mut Data, from: Data) -> DidMerge {
         let before_len = to.free.len();
         // to.free.extend(from.free);

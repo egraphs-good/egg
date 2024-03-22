@@ -171,6 +171,11 @@ where
         debug_assert_eq!(r, self.set.is_empty());
         r
     }
+
+    pub fn clear(&mut self) {
+        self.set.clear();
+        self.queue.clear();
+    }
 }
 
 impl<T> IntoIterator for UniqueQueue<T>

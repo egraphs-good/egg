@@ -9,6 +9,7 @@ use std::collections::{BinaryHeap, VecDeque};
 use std::fmt::{self, Debug, Display, Formatter};
 use std::rc::Rc;
 
+use crate::semi_persistent::UndoLogT;
 use symbolic_expressions::Sexp;
 
 type ProofCost = Saturating<usize>;
@@ -29,8 +30,8 @@ pub enum Justification {
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 #[cfg_attr(feature = "serde-1", derive(serde::Serialize, serde::Deserialize))]
-struct Connection {
-    next: Id,
+pub(crate) struct Connection {
+    pub(crate) next: Id,
     current: Id,
     justification: Justification,
     is_rewrite_forward: bool,
@@ -38,23 +39,34 @@ struct Connection {
 
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde-1", derive(serde::Serialize, serde::Deserialize))]
-struct ExplainNode<L: Language> {
-    node: L,
+pub(crate) struct ExplainNode<L: Language> {
+    pub(crate) node: L,
     // neighbors includes parent connections
-    neighbors: Vec<Connection>,
-    parent_connection: Connection,
+    pub(crate) neighbors: Vec<Connection>,
+    pub(crate) parent_connection: Connection,
     // it was inserted because of:
     // 1) it's parent is inserted (points to parent enode)
     // 2) a rewrite instantiated it (points to adjacent enode)
     // 3) it was inserted directly (points to itself)
     // if 1 is true but it's also adjacent (2) then either works and it picks 2
-    existance_node: Id,
+    pub(crate) existance_node: Id,
+}
+
+impl Connection {
+    pub(crate) fn dummy(set: Id) -> Self {
+        Connection {
+            justification: Justification::Congruence,
+            is_rewrite_forward: false,
+            next: set,
+            current: set,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde-1", derive(serde::Serialize, serde::Deserialize))]
 pub struct Explain<L: Language> {
-    explainfind: Vec<ExplainNode<L>>,
+    pub(crate) explainfind: Vec<ExplainNode<L>>,
     #[cfg_attr(feature = "serde-1", serde(with = "vectorize"))]
     pub uncanon_memo: HashMap<L, Id>,
     /// By default, egg uses a greedy algorithm to find shorter explanations when they are extracted.
@@ -66,7 +78,7 @@ pub struct Explain<L: Language> {
     // Invariant: The distance is always <= the unoptimized distance
     // That is, less than or equal to the result of `distance_between`
     #[cfg_attr(feature = "serde-1", serde(skip))]
-    shortest_explanation_memo: HashMap<(Id, Id), (ProofCost, Id)>,
+    pub(crate) shortest_explanation_memo: HashMap<(Id, Id), (ProofCost, Id)>,
 }
 
 #[derive(Default)]
@@ -1048,12 +1060,7 @@ impl<L: Language> Explain<L> {
         self.explainfind.push(ExplainNode {
             node,
             neighbors: vec![],
-            parent_connection: Connection {
-                justification: Justification::Congruence,
-                is_rewrite_forward: false,
-                next: set,
-                current: set,
-            },
+            parent_connection: Connection::dummy(set),
             existance_node,
         });
         set
@@ -1075,7 +1082,13 @@ impl<L: Language> Explain<L> {
         }
     }
 
-    pub(crate) fn alternate_rewrite(&mut self, node1: Id, node2: Id, justification: Justification) {
+    pub(crate) fn alternate_rewrite(
+        &mut self,
+        node1: Id,
+        node2: Id,
+        justification: Justification,
+        undo: &mut impl UndoLogT<L>,
+    ) {
         if node1 == node2 {
             return;
         }
@@ -1084,6 +1097,7 @@ impl<L: Language> Explain<L> {
                 return;
             }
         }
+        undo.union_explain(node1, node2);
 
         let lconnection = Connection {
             justification: justification.clone(),

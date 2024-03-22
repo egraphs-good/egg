@@ -48,6 +48,7 @@ impl egg::CostFunction<Math> for MathCostFn {
 #[derive(Default)]
 pub struct ConstantFold;
 impl Analysis<Math> for ConstantFold {
+    type UndoLog = ();
     type Data = Option<(Constant, PatternAst<Math>)>;
 
     fn make(egraph: &mut EGraph, enode: &Math) -> Self::Data {
