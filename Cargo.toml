@@ -19,7 +19,7 @@ indexmap = "1.8.1"
 instant = "0.1.12"
 log = "0.4.17"
 smallvec = { version = "1.8.0", features = ["union", "const_generics"] }
-symbol_table = { version = "0.2.0", features = ["global"] }
+symbol_table = { version = "0.3.0", features = ["global"] }
 symbolic_expressions = "5.0.3"
 thiserror = "1.0.31"
 
