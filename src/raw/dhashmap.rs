@@ -40,7 +40,7 @@ impl<'a, K, V> VacantEntry<'a, K, V> {
 }
 
 pub(super) enum Entry<'a, K, V> {
-    Occupied((K, &'a mut V)),
+    Occupied((K, &'a K, &'a mut V)),
     Vacant(VacantEntry<'a, K, V>),
 }
 
@@ -68,7 +68,10 @@ impl<K: Hash + Eq, V, S: BuildHasher> DHashMap<K, V, S> {
         let hash = hash_one(&self.hasher, &k);
         let len = self.data.len() as DHMIdx;
         let entry = match self.data.entry(hash, eq(&k), hasher_fn(&self.hasher)) {
-            hash_table::Entry::Occupied(entry) => Entry::Occupied((k, &mut entry.into_mut().1)),
+            hash_table::Entry::Occupied(entry) => {
+                let x = entry.into_mut();
+                Entry::Occupied((k, &x.0, &mut x.1))
+            }
             hash_table::Entry::Vacant(entry) => Entry::Vacant(VacantEntry { len, entry, k }),
         };
         (entry, hash)

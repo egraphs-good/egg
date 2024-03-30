@@ -679,6 +679,27 @@ impl<L: Language, D, U: UndoLogT<L, D>> RawEGraph<L, D, U> {
         outer: &mut T,
         get_self: impl Fn(&mut T) -> &mut Self,
         mut perform_union: impl FnMut(&mut T, Id, Id) -> Result<(), E>,
+        handle_pending: impl FnMut(&mut T, Id, &L),
+    ) -> Result<(), E> {
+        Self::try_raw_rebuild_for_sym(
+            outer,
+            get_self,
+            |_, _| (),
+            |this, (), id1, id2| perform_union(this, id1, id2),
+            handle_pending,
+        )
+    }
+
+    /// Similar to [`try_raw_rebuild`](RawEGraph::try_raw_rebuild) but takes an extra `pre_union`
+    /// closure that allows comparing the two [equal](Eq::eq) canonical nodes used to determine
+    /// a congruent union. This can be useful in niche situations involving explanations when
+    /// node canonization sorts children to make some discriminants symmetric
+    #[inline]
+    pub fn try_raw_rebuild_for_sym<T, E, X>(
+        outer: &mut T,
+        get_self: impl Fn(&mut T) -> &mut Self,
+        mut pre_union: impl FnMut(&L, &L) -> X,
+        mut perform_union: impl FnMut(&mut T, X, Id, Id) -> Result<(), E>,
         mut handle_pending: impl FnMut(&mut T, Id, &L),
     ) -> Result<(), E> {
         loop {
@@ -690,9 +711,10 @@ impl<L: Language, D, U: UndoLogT<L, D>> RawEGraph<L, D, U> {
                 let this = get_self(outer);
                 let (entry, hash) = this.residual.memo.entry(node);
                 match entry {
-                    Entry::Occupied((_, id)) => {
+                    Entry::Occupied((new, orig, id)) => {
                         let memo_class = *id;
-                        match perform_union(outer, memo_class, class) {
+                        let pre = pre_union(orig, &new);
+                        match perform_union(outer, pre, memo_class, class) {
                             Ok(()) => {}
                             Err(e) => {
                                 get_self(outer).pending.push(class);
