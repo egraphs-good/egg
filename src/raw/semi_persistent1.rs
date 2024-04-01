@@ -23,7 +23,7 @@ impl PushInfo {
 
     /// Returns the number of unions from the state where `self` was created
     pub fn number_of_unions(&self) -> usize {
-        self.union_count as usize
+        self.union_count as usize - 1
     }
 }
 
