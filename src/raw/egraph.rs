@@ -207,6 +207,37 @@ impl<L: Language> EGraphResidual<L> {
         self.lookup_internal(enode).map(|id| self.find(id))
     }
 
+    /// Lookup the uncanonical id of the given uncanonical enode.
+    ///
+    /// Returns `Some(id)` such that `self.id_to_node(id) == enode` if possible
+    ///
+    /// # Example
+    /// ```
+    /// # use egg::{SymbolLang, raw::*};
+    /// let mut egraph: RawEGraph<SymbolLang, ()> = Default::default();
+    /// let a = egraph.add_uncanonical(SymbolLang::leaf("a"));
+    /// let b = egraph.add_uncanonical(SymbolLang::leaf("b"));
+    ///
+    /// let mut node_f_ab = SymbolLang::new("f", vec![a, b]);
+    /// let id = egraph.add_uncanonical(node_f_ab.clone());
+    /// assert_eq!(egraph.lookup_uncanonical(&node_f_ab), Some(id));
+    ///
+    /// // if the query node isn't canonical, and its passed in by &mut instead of owned,
+    /// // its children will be canonicalized
+    /// egraph.union(a, b);
+    /// egraph.rebuild();
+    /// assert_eq!(egraph.lookup_uncanonical(&node_f_ab), Some(id));
+    /// assert_eq!(egraph.lookup_uncanonical(&SymbolLang::new("f", vec![a, a])), None);
+    /// ```
+    pub fn lookup_uncanonical(&self, enode: &L) -> Option<Id> {
+        let id = *self.memo.get(enode).0?;
+        if self.id_to_node(id) == enode {
+            Some(id)
+        } else {
+            None
+        }
+    }
+
     #[inline]
     fn lookup_internal<B>(&self, mut enode: B) -> Option<Id>
     where

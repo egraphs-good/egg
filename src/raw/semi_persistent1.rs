@@ -20,6 +20,11 @@ impl PushInfo {
     pub fn number_of_uncanonical_nodes(&self) -> usize {
         self.node_count
     }
+
+    /// Returns the number of unions from the state where `self` was created
+    pub fn number_of_unions(&self) -> usize {
+        self.union_count
+    }
 }
 
 #[derive(Clone, Debug)]
