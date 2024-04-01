@@ -26,22 +26,22 @@ fn visit_undo_node(id: Id, undo_find: &[UndoNode], f: &mut impl FnMut(Id, &UndoN
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde-1", derive(serde::Serialize, serde::Deserialize))]
 pub struct PushInfo {
-    node_count: usize,
-    union_count: usize,
-    memo_log_count: usize,
-    pop_parents_count: usize,
+    node_count: u32,
+    union_count: u32,
+    memo_log_count: u32,
+    pop_parents_count: u32,
 }
 
 impl PushInfo {
     /// Returns the result of [`EGraphResidual::number_of_uncanonical_nodes`](super::EGraphResidual::number_of_uncanonical_nodes)
     /// from the state where `self` was created
     pub fn number_of_uncanonical_nodes(&self) -> usize {
-        self.node_count
+        self.node_count as usize
     }
 
     /// Returns the number of unions from the state where `self` was created
     pub fn number_of_unions(&self) -> usize {
-        self.union_count
+        self.union_count as usize
     }
 }
 
@@ -134,10 +134,10 @@ impl<L: Language, D, U: AsUnwrap<UndoLog>> RawEGraph<L, D, U> {
         assert!(self.is_clean());
         let undo = self.undo_log.as_unwrap();
         PushInfo {
-            node_count: undo.undo_find.len(),
-            union_count: undo.union_log.len(),
-            memo_log_count: undo.memo_log.len(),
-            pop_parents_count: undo.pop_parents.len(),
+            node_count: undo.undo_find.len() as u32,
+            union_count: undo.union_log.len() as u32,
+            memo_log_count: undo.memo_log.len() as u32,
+            pop_parents_count: undo.pop_parents.len() as u32,
         }
     }
 
@@ -169,10 +169,17 @@ impl<L: Language, D, U: AsUnwrap<UndoLog>> RawEGraph<L, D, U> {
             pop_parents_count,
         } = info;
         self.pending.clear();
-        self.pop_memo2(memo_log_count);
-        self.pop_parents2(pop_parents_count, node_count);
-        self.pop_unions2(union_count, node_count, state, clear, mk_data, handle_eqv);
-        self.pop_nodes2(node_count);
+        self.pop_memo2(memo_log_count as usize);
+        self.pop_parents2(pop_parents_count as usize, node_count as usize);
+        self.pop_unions2(
+            union_count as usize,
+            node_count as usize,
+            state,
+            clear,
+            mk_data,
+            handle_eqv,
+        );
+        self.pop_nodes2(node_count as usize);
     }
 
     fn pop_memo2(&mut self, old_count: usize) {
