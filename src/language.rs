@@ -708,6 +708,8 @@ pub trait Analysis<L: Language>: Sized {
     /// It is **not** `make`'s responsiblity to insert the e-node;
     /// the e-node is "being inserted" when this function is called.
     /// Doing so will create an infinite loop.
+    ///
+    /// Note that `enode`'s children may not be canonical
     fn make(egraph: &mut EGraph<L, Self>, enode: &L) -> Self::Data;
 
     /// An optional hook that allows inspection before a [`union`] occurs.

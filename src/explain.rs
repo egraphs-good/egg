@@ -1,12 +1,13 @@
 use crate::Symbol;
 use crate::{
-    util::pretty_print, Analysis, EClass, EGraph, ENodeOrVar, FromOp, HashMap, HashSet, Id,
-    Language, Pattern, PatternAst, RecExpr, Rewrite, Subst, UnionFind, Var,
+    util::pretty_print, Analysis, EClass, ENodeOrVar, FromOp, HashMap, HashSet, Id, Language,
+    PatternAst, RecExpr, Rewrite, UnionFind, Var,
 };
 use saturating::Saturating;
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, VecDeque};
 use std::fmt::{self, Debug, Display, Formatter};
+use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
 use symbolic_expressions::Sexp;
@@ -38,8 +39,7 @@ struct Connection {
 
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde-1", derive(serde::Serialize, serde::Deserialize))]
-struct ExplainNode<L: Language> {
-    node: L,
+struct ExplainNode {
     // neighbors includes parent connections
     neighbors: Vec<Connection>,
     parent_connection: Connection,
@@ -54,8 +54,15 @@ struct ExplainNode<L: Language> {
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde-1", derive(serde::Serialize, serde::Deserialize))]
 pub struct Explain<L: Language> {
-    explainfind: Vec<ExplainNode<L>>,
+    explainfind: Vec<ExplainNode>,
     #[cfg_attr(feature = "serde-1", serde(with = "vectorize"))]
+    #[cfg_attr(
+        feature = "serde-1",
+        serde(bound(
+            serialize = "L: serde::Serialize",
+            deserialize = "L: serde::Deserialize<'de>",
+        ))
+    )]
     pub uncanon_memo: HashMap<L, Id>,
     /// By default, egg uses a greedy algorithm to find shorter explanations when they are extracted.
     pub optimize_explanation_lengths: bool,
@@ -67,6 +74,11 @@ pub struct Explain<L: Language> {
     // That is, less than or equal to the result of `distance_between`
     #[cfg_attr(feature = "serde-1", serde(skip))]
     shortest_explanation_memo: HashMap<(Id, Id), (ProofCost, Id)>,
+}
+
+pub(crate) struct ExplainNodes<'a, L: Language> {
+    explain: &'a mut Explain<L>,
+    nodes: &'a [L],
 }
 
 #[derive(Default)]
@@ -883,97 +895,6 @@ impl<I: Eq + PartialEq> PartialOrd for HeapState<I> {
 }
 
 impl<L: Language> Explain<L> {
-    pub(crate) fn node(&self, node_id: Id) -> &L {
-        &self.explainfind[usize::from(node_id)].node
-    }
-    fn node_to_explanation(
-        &self,
-        node_id: Id,
-        cache: &mut NodeExplanationCache<L>,
-    ) -> Rc<TreeTerm<L>> {
-        if let Some(existing) = cache.get(&node_id) {
-            existing.clone()
-        } else {
-            let node = self.node(node_id).clone();
-            let children = node.fold(vec![], |mut sofar, child| {
-                sofar.push(vec![self.node_to_explanation(child, cache)]);
-                sofar
-            });
-            let res = Rc::new(TreeTerm::new(node, children));
-            cache.insert(node_id, res.clone());
-            res
-        }
-    }
-
-    pub(crate) fn node_to_recexpr(&self, node_id: Id) -> RecExpr<L> {
-        let mut res = Default::default();
-        let mut cache = Default::default();
-        self.node_to_recexpr_internal(&mut res, node_id, &mut cache);
-        res
-    }
-    fn node_to_recexpr_internal(
-        &self,
-        res: &mut RecExpr<L>,
-        node_id: Id,
-        cache: &mut HashMap<Id, Id>,
-    ) {
-        let new_node = self.node(node_id).clone().map_children(|child| {
-            if let Some(existing) = cache.get(&child) {
-                *existing
-            } else {
-                self.node_to_recexpr_internal(res, child, cache);
-                Id::from(res.as_ref().len() - 1)
-            }
-        });
-        res.add(new_node);
-    }
-
-    pub(crate) fn node_to_pattern(
-        &self,
-        node_id: Id,
-        substitutions: &HashMap<Id, Id>,
-    ) -> (Pattern<L>, Subst) {
-        let mut res = Default::default();
-        let mut subst = Default::default();
-        let mut cache = Default::default();
-        self.node_to_pattern_internal(&mut res, node_id, substitutions, &mut subst, &mut cache);
-        (Pattern::new(res), subst)
-    }
-
-    fn node_to_pattern_internal(
-        &self,
-        res: &mut PatternAst<L>,
-        node_id: Id,
-        var_substitutions: &HashMap<Id, Id>,
-        subst: &mut Subst,
-        cache: &mut HashMap<Id, Id>,
-    ) {
-        if let Some(existing) = var_substitutions.get(&node_id) {
-            let var = format!("?{}", node_id).parse().unwrap();
-            res.add(ENodeOrVar::Var(var));
-            subst.insert(var, *existing);
-        } else {
-            let new_node = self.node(node_id).clone().map_children(|child| {
-                if let Some(existing) = cache.get(&child) {
-                    *existing
-                } else {
-                    self.node_to_pattern_internal(res, child, var_substitutions, subst, cache);
-                    Id::from(res.as_ref().len() - 1)
-                }
-            });
-            res.add(ENodeOrVar::ENode(new_node));
-        }
-    }
-
-    fn node_to_flat_explanation(&self, node_id: Id) -> FlatTerm<L> {
-        let node = self.node(node_id).clone();
-        let children = node.fold(vec![], |mut sofar, child| {
-            sofar.push(self.node_to_flat_explanation(child));
-            sofar
-        });
-        FlatTerm::new(node, children)
-    }
-
     fn make_rule_table<'a, N: Analysis<L>>(
         rules: &[&'a Rewrite<L, N>],
     ) -> HashMap<Symbol, &'a Rewrite<L, N>> {
@@ -983,52 +904,6 @@ impl<L: Language> Explain<L> {
         }
         table
     }
-
-    pub fn check_each_explain<N: Analysis<L>>(&self, rules: &[&Rewrite<L, N>]) -> bool {
-        let rule_table = Explain::make_rule_table(rules);
-        for i in 0..self.explainfind.len() {
-            let explain_node = &self.explainfind[i];
-
-            // check that explanation reasons never form a cycle
-            let mut existance = i;
-            let mut seen_existance: HashSet<usize> = Default::default();
-            loop {
-                seen_existance.insert(existance);
-                let next = usize::from(self.explainfind[existance].existance_node);
-                if existance == next {
-                    break;
-                }
-                existance = next;
-                if seen_existance.contains(&existance) {
-                    panic!("Cycle in existance!");
-                }
-            }
-
-            if explain_node.parent_connection.next != Id::from(i) {
-                let mut current_explanation = self.node_to_flat_explanation(Id::from(i));
-                let mut next_explanation =
-                    self.node_to_flat_explanation(explain_node.parent_connection.next);
-                if let Justification::Rule(rule_name) =
-                    &explain_node.parent_connection.justification
-                {
-                    if let Some(rule) = rule_table.get(rule_name) {
-                        if !explain_node.parent_connection.is_rewrite_forward {
-                            std::mem::swap(&mut current_explanation, &mut next_explanation);
-                        }
-                        if !Explanation::check_rewrite(
-                            &current_explanation,
-                            &next_explanation,
-                            rule,
-                        ) {
-                            return false;
-                        }
-                    }
-                }
-            }
-        }
-        true
-    }
-
     pub fn new() -> Self {
         Explain {
             explainfind: vec![],
@@ -1044,9 +919,8 @@ impl<L: Language> Explain<L> {
 
     pub(crate) fn add(&mut self, node: L, set: Id, existance_node: Id) -> Id {
         assert_eq!(self.explainfind.len(), usize::from(set));
-        self.uncanon_memo.insert(node.clone(), set);
+        self.uncanon_memo.insert(node, set);
         self.explainfind.push(ExplainNode {
-            node,
             neighbors: vec![],
             parent_connection: Connection {
                 justification: Justification::Congruence,
@@ -1119,7 +993,7 @@ impl<L: Language> Explain<L> {
         new_rhs: bool,
     ) {
         if let Justification::Congruence = justification {
-            assert!(self.node(node1).matches(self.node(node2)));
+            // assert!(self.node(node1).matches(self.node(node2)));
         }
         if new_rhs {
             self.set_existance_reason(node2, node1)
@@ -1155,7 +1029,6 @@ impl<L: Language> Explain<L> {
             .push(other_pconnection);
         self.explainfind[usize::from(node1)].parent_connection = pconnection;
     }
-
     pub(crate) fn get_union_equalities(&self) -> UnionEqualities {
         let mut equalities = vec![];
         for node in &self.explainfind {
@@ -1170,13 +1043,103 @@ impl<L: Language> Explain<L> {
         equalities
     }
 
-    pub(crate) fn populate_enodes<N: Analysis<L>>(&self, mut egraph: EGraph<L, N>) -> EGraph<L, N> {
-        for i in 0..self.explainfind.len() {
-            let node = &self.explainfind[i];
-            egraph.add(node.node.clone());
+    pub(crate) fn with_nodes<'a>(&'a mut self, nodes: &'a [L]) -> ExplainNodes<'a, L> {
+        ExplainNodes {
+            explain: self,
+            nodes,
         }
+    }
+}
 
-        egraph
+impl<'a, L: Language> Deref for ExplainNodes<'a, L> {
+    type Target = Explain<L>;
+
+    fn deref(&self) -> &Self::Target {
+        self.explain
+    }
+}
+
+impl<'a, L: Language> DerefMut for ExplainNodes<'a, L> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut *self.explain
+    }
+}
+
+impl<'x, L: Language> ExplainNodes<'x, L> {
+    pub(crate) fn node(&self, node_id: Id) -> &L {
+        &self.nodes[usize::from(node_id)]
+    }
+    fn node_to_explanation(
+        &self,
+        node_id: Id,
+        cache: &mut NodeExplanationCache<L>,
+    ) -> Rc<TreeTerm<L>> {
+        if let Some(existing) = cache.get(&node_id) {
+            existing.clone()
+        } else {
+            let node = self.node(node_id).clone();
+            let children = node.fold(vec![], |mut sofar, child| {
+                sofar.push(vec![self.node_to_explanation(child, cache)]);
+                sofar
+            });
+            let res = Rc::new(TreeTerm::new(node, children));
+            cache.insert(node_id, res.clone());
+            res
+        }
+    }
+
+    fn node_to_flat_explanation(&self, node_id: Id) -> FlatTerm<L> {
+        let node = self.node(node_id).clone();
+        let children = node.fold(vec![], |mut sofar, child| {
+            sofar.push(self.node_to_flat_explanation(child));
+            sofar
+        });
+        FlatTerm::new(node, children)
+    }
+
+    pub fn check_each_explain<N: Analysis<L>>(&self, rules: &[&Rewrite<L, N>]) -> bool {
+        let rule_table = Explain::make_rule_table(rules);
+        for i in 0..self.explainfind.len() {
+            let explain_node = &self.explainfind[i];
+
+            // check that explanation reasons never form a cycle
+            let mut existance = i;
+            let mut seen_existance: HashSet<usize> = Default::default();
+            loop {
+                seen_existance.insert(existance);
+                let next = usize::from(self.explainfind[existance].existance_node);
+                if existance == next {
+                    break;
+                }
+                existance = next;
+                if seen_existance.contains(&existance) {
+                    panic!("Cycle in existance!");
+                }
+            }
+
+            if explain_node.parent_connection.next != Id::from(i) {
+                let mut current_explanation = self.node_to_flat_explanation(Id::from(i));
+                let mut next_explanation =
+                    self.node_to_flat_explanation(explain_node.parent_connection.next);
+                if let Justification::Rule(rule_name) =
+                    &explain_node.parent_connection.justification
+                {
+                    if let Some(rule) = rule_table.get(rule_name) {
+                        if !explain_node.parent_connection.is_rewrite_forward {
+                            std::mem::swap(&mut current_explanation, &mut next_explanation);
+                        }
+                        if !Explanation::check_rewrite(
+                            &current_explanation,
+                            &next_explanation,
+                            rule,
+                        ) {
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+        true
     }
 
     pub(crate) fn explain_equivalence<N: Analysis<L>>(
@@ -1328,7 +1291,7 @@ impl<L: Language> Explain<L> {
         let mut new_rest_of_proof = (*self.node_to_explanation(existance, enode_cache)).clone();
         let mut index_of_child = 0;
         let mut found = false;
-        existance_node.node.for_each(|child| {
+        self.node(existance).for_each(|child| {
             if found {
                 return;
             }
@@ -2092,7 +2055,7 @@ mod tests {
 
 #[test]
 fn simple_explain_union_trusted() {
-    use crate::SymbolLang;
+    use crate::{EGraph, SymbolLang};
     crate::init_logger();
     let mut egraph = EGraph::new(()).with_explanations_enabled();
 
