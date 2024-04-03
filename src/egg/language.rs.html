@@ -888,8 +888,6 @@
 <span id="883">883</span>
 <span id="884">884</span>
 <span id="885">885</span>
-<span id="886">886</span>
-<span id="887">887</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::ops</span>::{<span class="ident">BitOr</span>, <span class="ident">Index</span>, <span class="ident">IndexMut</span>};
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">cmp::Ordering</span>, <span class="ident">convert::TryFrom</span>};
 <span class="kw">use</span> <span class="ident">std</span>::{
@@ -1261,9 +1259,7 @@
 <span class="doccomment">/// a list of enodes.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// [`RecExpr`]s must satisfy the invariant that enodes&#39; children must refer to</span>
-<span class="doccomment">/// elements that come before it in the list. For example, the expression</span>
-<span class="doccomment">/// `(+ (* x 5) x)` could be represented by a recursive expression of the form</span>
-<span class="doccomment">/// `[Num(5), Var(&quot;x&quot;), Mul(1, 0), Add(2, 1)]`.</span>
+<span class="doccomment">/// elements that come before it in the list.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// If the `serde-1` feature is enabled, this implements</span>
 <span class="doccomment">/// [`serde::Serialize`](https://docs.rs/serde/latest/serde/trait.Serialize.html).</span>
