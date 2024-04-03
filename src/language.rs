@@ -369,7 +369,9 @@ impl LanguageChildren for Id {
 /// a list of enodes.
 ///
 /// [`RecExpr`]s must satisfy the invariant that enodes' children must refer to
-/// elements that come before it in the list.
+/// elements that come before it in the list. For example, the expression
+/// `(+ (* x 5) x)` could be represented by a recursive expression of the form
+/// `[Num(5), Var("x"), Mul(1, 0), Add(2, 1)]`.
 ///
 /// If the `serde-1` feature is enabled, this implements
 /// [`serde::Serialize`](https://docs.rs/serde/latest/serde/trait.Serialize.html).
