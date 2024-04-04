@@ -571,10 +571,39 @@ impl<L: Language, D, U: UndoLogT<L, D>> RawEGraph<L, D, U> {
         handle_union: impl FnOnce(&mut T, Id, Id),
         mk_data: impl FnOnce(&mut T, Id, &L) -> D,
     ) -> Id {
+        RawEGraph::raw_add_for_sym(
+            outer,
+            get_self,
+            original,
+            handle_equiv,
+            |_, _| (),
+            |this, (), id1, id2| handle_union(this, id1, id2),
+            mk_data,
+        )
+    }
+
+    /// Similar to [`raw_add`](RawEGraph::raw_add) but takes an extra `pre_union`
+    /// closure that allows comparing the two [equal](Eq::eq) canonical nodes used to determine
+    /// a congruent union. This can be useful in niche situations involving explanations when
+    /// node canonization sorts children to make some discriminants symmetric
+    ///
+    /// Note `pre_union` is called before `handle_equiv` even though it is only relevant when
+    /// `handle_equiv` returns `None`
+    #[inline]
+    pub fn raw_add_for_sym<T, X>(
+        outer: &mut T,
+        get_self: impl Fn(&mut T) -> &mut Self,
+        original: L,
+        handle_equiv: impl FnOnce(&mut T, Id, &L) -> Option<Id>,
+        pre_union: impl FnOnce(&L, &L) -> X,
+        handle_union: impl FnOnce(&mut T, X, Id, Id),
+        mk_data: impl FnOnce(&mut T, Id, &L) -> D,
+    ) -> Id {
         let this = get_self(outer);
         let enode = original.clone().map_children(|x| this.find(x));
-        let (existing_id, hash) = this.residual.memo.get(&enode);
-        if let Some(&existing_id) = existing_id {
+        let (existing_id, hash) = this.residual.memo.get_kv(&enode);
+        if let Some((existing_node, &existing_id)) = existing_id {
+            let pre = pre_union(existing_node, &enode);
             let canon_id = this.find(existing_id);
             // when explanations are enabled, we need a new representative for this expr
             if let Some(existing_id) = handle_equiv(outer, existing_id, &original) {
@@ -587,7 +616,7 @@ impl<L: Language, D, U: UndoLogT<L, D>> RawEGraph<L, D, U> {
                 debug_assert_eq!(Id::from(this.nodes.len()), new_id);
                 this.residual.nodes.push(original);
                 this.residual.unionfind.union(canon_id, new_id);
-                handle_union(outer, existing_id, new_id);
+                handle_union(outer, pre, existing_id, new_id);
                 new_id
             }
         } else {

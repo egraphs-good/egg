@@ -109,6 +109,12 @@ impl<K: Hash + Eq, V, S: BuildHasher> DHashMap<K, V, S> {
         (self.data.find(hash, eq(k)).map(|x| &x.1), hash)
     }
 
+    #[inline]
+    pub(super) fn get_kv(&self, k: &K) -> (Option<(&K, &V)>, u64) {
+        let hash = hash_one(&self.hasher, k);
+        (self.data.find(hash, eq(k)).map(|x| (&x.0, &x.1)), hash)
+    }
+
     pub(super) fn clear(&mut self) {
         self.data.clear()
     }
