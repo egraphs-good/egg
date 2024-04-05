@@ -381,7 +381,10 @@ impl<L: Language> Program<L> {
                         // HACK we are reusing Ids here, this is bad
                         .map(|(v, reg_id)| (*v, machine.reg(Reg(usize::from(*reg_id) as u32))))
                         .collect();
-                    matches.push(Subst { vec: subst_vec });
+                    matches.push(Subst {
+                        vec: subst_vec,
+                        data: None,
+                    });
                     limit -= 1;
                     if limit != 0 {
                         Ok(())

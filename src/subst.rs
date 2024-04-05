@@ -96,9 +96,36 @@ impl From<u32> for Var {
 
 /// A substitution mapping [`Var`]s to eclass [`Id`]s.
 ///
-#[derive(Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Default, Clone)]
 pub struct Subst {
     pub(crate) vec: smallvec::SmallVec<[(Var, Id); 3]>,
+    pub data: Option<std::sync::Arc<dyn std::any::Any + 'static + Send + Sync>>,
+}
+
+impl std::hash::Hash for Subst {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.vec.hash(state);
+    }
+}
+
+impl Ord for Subst {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.partial_cmp(other).unwrap()
+    }
+}
+
+impl PartialOrd for Subst {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.vec.partial_cmp(&other.vec)
+    }
+}
+
+impl Eq for Subst {}
+
+impl PartialEq for Subst {
+    fn eq(&self, other: &Self) -> bool {
+        self.vec == other.vec
+    }
 }
 
 impl Subst {
@@ -106,6 +133,7 @@ impl Subst {
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             vec: smallvec::SmallVec::with_capacity(capacity),
+            data: None,
         }
     }
 
@@ -127,6 +155,11 @@ impl Subst {
             .iter()
             .find_map(|(v, id)| if *v == var { Some(id) } else { None })
     }
+
+    /// Iterate over the (Var, Id) pairs in this substitution
+    pub fn iter(&self) -> impl Iterator<Item = (Var, Id)> + '_ {
+        self.vec.iter().copied()
+    }
 }
 
 impl std::ops::Index<Var> for Subst {
@@ -137,6 +170,12 @@ impl std::ops::Index<Var> for Subst {
             Some(id) => id,
             None => panic!("Var '{}={}' not found in {:?}", var, var, self),
         }
+    }
+}
+
+impl std::iter::Extend<(Var, Id)> for Subst {
+    fn extend<T: IntoIterator<Item = (Var, Id)>>(&mut self, iter: T) {
+        self.vec.extend(iter);
     }
 }
 

@@ -98,6 +98,19 @@ impl<L: Language> PatternAst<L> {
 
         new
     }
+
+    /// Return the vars from this pattern
+    pub fn vars(&self) -> Vec<Var> {
+        let mut vars = vec![];
+        for n in self.as_ref() {
+            if let ENodeOrVar::Var(v) = n {
+                if !vars.contains(v) {
+                    vars.push(*v)
+                }
+            }
+        }
+        vars
+    }
 }
 
 impl<L: Language> Pattern<L> {
@@ -110,15 +123,7 @@ impl<L: Language> Pattern<L> {
 
     /// Returns a list of the [`Var`]s in this pattern.
     pub fn vars(&self) -> Vec<Var> {
-        let mut vars = vec![];
-        for n in self.ast.as_ref() {
-            if let ENodeOrVar::Var(v) = n {
-                if !vars.contains(v) {
-                    vars.push(*v)
-                }
-            }
-        }
-        vars
+        self.ast.vars()
     }
 }
 
