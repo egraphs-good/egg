@@ -638,9 +638,6 @@ impl<L: Language, D, U: UndoLogT<L, D>> RawEGraph<L, D, U> {
                 this.get_class_mut(child).0.parents.push(id);
             });
 
-            // TODO is this needed?
-            this.pending.push(id);
-
             this.classes.insert(id, class);
             this.residual.memo.insert_with_hash(hash, enode, id);
             this.undo_log.insert_memo(hash);
