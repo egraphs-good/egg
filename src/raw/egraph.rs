@@ -604,12 +604,12 @@ impl<L: Language, D, U: UndoLogT<L, D>> RawEGraph<L, D, U> {
         let (existing_id, hash) = this.residual.memo.get_kv(&enode);
         if let Some((existing_node, &existing_id)) = existing_id {
             let pre = pre_union(existing_node, &enode);
-            let canon_id = this.find(existing_id);
             // when explanations are enabled, we need a new representative for this expr
             if let Some(existing_id) = handle_equiv(outer, existing_id, &original) {
                 existing_id
             } else {
                 let this = get_self(outer);
+                let canon_id = this.find_mut(existing_id);
                 let new_id = this.residual.unionfind.make_set();
                 this.undo_log.add_node(&original, &[], new_id);
                 this.undo_log.union(canon_id, new_id, Vec::new());
