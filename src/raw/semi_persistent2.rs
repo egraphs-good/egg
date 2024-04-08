@@ -61,14 +61,11 @@ pub struct UndoLog {
 impl Sealed for UndoLog {}
 
 impl<L: Language, D> UndoLogT<L, D> for UndoLog {
-    fn add_node(&mut self, node: &L, canon: &[Id], node_id: Id) {
+    fn add_node(&mut self, _: &L, canon: &[Id], node_id: Id) {
         debug_assert_eq!(self.undo_find.len(), usize::from(node_id));
         self.undo_find.push(UndoNode::default());
-        if !canon.is_empty() {
-            // this node's children shouldn't since it was equivalent when it was added
-            for id in node.children() {
-                self.undo_find[usize::from(*id)].parents.push(node_id)
-            }
+        for id in canon {
+            self.undo_find[usize::from(*id)].parents.push(node_id)
         }
         self.pop_parents.extend(canon)
     }
@@ -192,34 +189,20 @@ impl<L: Language, D, U: AsUnwrap<UndoLog>> RawEGraph<L, D, U> {
     }
 
     fn pop_parents2(&mut self, old_count: usize, node_count: usize) {
-        // Pop uncanonical parents within undo find
         let undo = self.undo_log.as_mut_unwrap();
-        for (id, node) in self
-            .residual
-            .nodes
-            .iter()
-            .enumerate()
-            .skip(node_count)
-            .rev()
-        {
-            for child in node.children() {
-                let parents = &mut undo.undo_find[usize::from(*child)].parents;
-                if parents.last().copied() == Some(Id::from(id)) {
-                    // Otherwise this id's children never had it added to its parents
-                    // since it was already equivalent to another node when it was added
-                    parents.pop();
-                }
-            }
-        }
-        // Pop canonical parents from classes in egraph
-        // Note, if `id` is not canonical then its class must have been merged into another class so it's parents will
-        // be rebuilt anyway
-        // If another class was merged into `id` we will be popping an incorrect parent, but again it's parents will
-        // be rebuilt anyway
+
         for id in undo.pop_parents.drain(old_count..) {
             if let Some(x) = self.classes.get_mut(&id) {
+                // Pop canonical parents from classes in egraph
+                // Note, if `id` is not canonical then its class must have been merged into another class so it's parents will
+                // be rebuilt anyway
+                // If another class was merged into `id` we will be popping an incorrect parent, but again it's parents will
+                // be rebuilt anyway
                 x.parents.pop();
             }
+            // Undo additions to undo_find parents
+            let parents = &mut undo.undo_find[usize::from(id)].parents;
+            parents.pop();
         }
     }
 

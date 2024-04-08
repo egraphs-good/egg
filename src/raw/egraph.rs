@@ -12,6 +12,7 @@ use crate::raw::dhashmap::*;
 use crate::raw::UndoLogT;
 #[cfg(feature = "serde-1")]
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 
 pub struct Parents<'a>(&'a [Id]);
 
@@ -621,7 +622,11 @@ impl<L: Language, D, U: UndoLogT<L, D>> RawEGraph<L, D, U> {
             }
         } else {
             let id = this.residual.unionfind.make_set();
-            this.undo_log.add_node(&original, enode.children(), id);
+            let mut dedup_children = SmallVec::<[Id; 8]>::from_slice(enode.children());
+            dedup_children.sort();
+            dedup_children.dedup();
+
+            this.undo_log.add_node(&original, &dedup_children, id);
             debug_assert_eq!(Id::from(this.nodes.len()), id);
             this.residual.nodes.push(original);
 
@@ -634,9 +639,9 @@ impl<L: Language, D, U: UndoLogT<L, D>> RawEGraph<L, D, U> {
             let this = get_self(outer);
 
             // add this enode to the parent lists of its children
-            enode.for_each(|child| {
-                this.get_class_mut(child).0.parents.push(id);
-            });
+            for child in dedup_children {
+                this.get_class_mut_with_cannon(child).0.parents.push(id);
+            }
 
             this.classes.insert(id, class);
             this.residual.memo.insert_with_hash(hash, enode, id);
