@@ -72,6 +72,7 @@ pub fn test_runner<L, A>(
     // Test push if feature is on
     if cfg!(feature = "test-push-pop") {
         runner.egraph = runner.egraph.with_push_pop_enabled();
+        history2.borrow_mut().push(EGraph::clone(&runner.egraph));
         runner = runner.with_hook(move |runner| {
             runner.egraph.push();
             history2.borrow_mut().push(EGraph::clone(&runner.egraph));

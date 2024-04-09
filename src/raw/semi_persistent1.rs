@@ -12,6 +12,7 @@ pub struct PushInfo {
     union_count: u32,
     memo_log_count: u32,
     pop_parents_count: u32,
+    congr_dup_count: u32,
 }
 
 impl PushInfo {
@@ -44,6 +45,7 @@ pub struct UndoLog {
     pop_parents: Vec<Id>,
     union_log: Vec<UnionInfo>,
     memo_log: Vec<u64>,
+    congr_dup_log: Vec<Id>,
 }
 
 impl Default for UndoLog {
@@ -57,6 +59,7 @@ impl Default for UndoLog {
                 added_after: 0,
             }],
             memo_log: Default::default(),
+            congr_dup_log: vec![],
         }
     }
 }
@@ -84,11 +87,16 @@ impl<L: Language, D> UndoLogT<L, D> for UndoLog {
         self.memo_log.push(hash);
     }
 
+    fn add_congruence_duplicate(&mut self, id: Id) {
+        self.congr_dup_log.push(id);
+    }
+
     fn clear(&mut self) {
         self.union_log.truncate(1);
         self.union_log[0].added_after = 0;
         self.memo_log.clear();
         self.undo_find.clear();
+        self.congr_dup_log.clear();
     }
 
     #[inline]
@@ -131,6 +139,7 @@ impl<L: Language, D, U: AsUnwrap<UndoLog>> RawEGraph<L, D, U> {
             union_count: undo.union_log.len() as u32,
             memo_log_count: undo.memo_log.len() as u32,
             pop_parents_count: undo.pop_parents.len() as u32,
+            congr_dup_count: undo.congr_dup_log.len() as u32,
         }
     }
 
@@ -149,8 +158,17 @@ impl<L: Language, D, U: AsUnwrap<UndoLog>> RawEGraph<L, D, U> {
             union_count,
             memo_log_count,
             pop_parents_count,
+            congr_dup_count,
         } = info;
         self.pending.clear();
+        for id in self
+            .undo_log
+            .as_mut_unwrap()
+            .congr_dup_log
+            .drain(congr_dup_count as usize..)
+        {
+            self.congruence_duplicates.remove(id.into());
+        }
         self.pop_memo1(memo_log_count as usize);
         self.pop_unions1(union_count as usize, pop_parents_count as usize, split);
         self.pop_nodes1(node_count as usize);

@@ -6,6 +6,7 @@ mod semi_persistent;
 /// One variant of semi_persistence
 pub mod semi_persistent1;
 
+mod bitset;
 /// Another variant of semi_persistence
 pub mod semi_persistent2;
 mod unionfind;

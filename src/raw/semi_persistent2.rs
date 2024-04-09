@@ -30,6 +30,7 @@ pub struct PushInfo {
     union_count: u32,
     memo_log_count: u32,
     pop_parents_count: u32,
+    congr_dup_count: u32,
 }
 
 impl PushInfo {
@@ -53,6 +54,7 @@ pub struct UndoLog {
     union_log: Vec<Id>,
     memo_log: Vec<u64>,
     pop_parents: Vec<Id>,
+    congr_dup_log: Vec<Id>,
     // Scratch space, should be empty other that when inside `pop`
     #[cfg_attr(feature = "serde-1", serde(skip))]
     dirty: HashSet<Id>,
@@ -79,10 +81,15 @@ impl<L: Language, D> UndoLogT<L, D> for UndoLog {
         self.memo_log.push(hash);
     }
 
+    fn add_congruence_duplicate(&mut self, id: Id) {
+        self.congr_dup_log.push(id);
+    }
+
     fn clear(&mut self) {
         self.union_log.clear();
         self.memo_log.clear();
         self.undo_find.clear();
+        self.congr_dup_log.clear();
     }
 
     fn is_enabled(&self) -> bool {
@@ -135,6 +142,7 @@ impl<L: Language, D, U: AsUnwrap<UndoLog>> RawEGraph<L, D, U> {
             union_count: undo.union_log.len() as u32,
             memo_log_count: undo.memo_log.len() as u32,
             pop_parents_count: undo.pop_parents.len() as u32,
+            congr_dup_count: undo.congr_dup_log.len() as u32,
         }
     }
 
@@ -164,10 +172,20 @@ impl<L: Language, D, U: AsUnwrap<UndoLog>> RawEGraph<L, D, U> {
             union_count,
             memo_log_count,
             pop_parents_count,
+            congr_dup_count,
         } = info;
         self.pending.clear();
+        for id in self
+            .undo_log
+            .as_mut_unwrap()
+            .congr_dup_log
+            .drain(congr_dup_count as usize..)
+        {
+            self.congruence_duplicates.remove(id.into());
+        }
+        self.pending.clear();
         self.pop_memo2(memo_log_count as usize);
-        self.pop_parents2(pop_parents_count as usize, node_count as usize);
+        self.pop_parents2(pop_parents_count as usize);
         self.pop_unions2(
             union_count as usize,
             node_count as usize,
@@ -188,7 +206,7 @@ impl<L: Language, D, U: AsUnwrap<UndoLog>> RawEGraph<L, D, U> {
         }
     }
 
-    fn pop_parents2(&mut self, old_count: usize, node_count: usize) {
+    fn pop_parents2(&mut self, old_count: usize) {
         let undo = self.undo_log.as_mut_unwrap();
 
         for id in undo.pop_parents.drain(old_count..) {

@@ -8,6 +8,7 @@ use std::{
     iter, slice,
 };
 
+use crate::raw::bitset::BitSet;
 use crate::raw::dhashmap::*;
 use crate::raw::UndoLogT;
 #[cfg(feature = "serde-1")]
@@ -359,6 +360,8 @@ pub struct RawEGraph<L: Language, D, U = ()> {
     /// Nodes which need to be processed for rebuilding. The `Id` is the `Id` of the enode,
     /// not the canonical id of the eclass.
     pub(super) pending: Vec<Id>,
+    /// `Id`s that are congruently equivalent to another `Id` that is not in this set
+    pub(super) congruence_duplicates: BitSet,
     pub(super) classes: HashMap<Id, RawEClass<D>>,
     pub(super) undo_log: U,
 }
@@ -373,6 +376,7 @@ impl<L: Language, D, U: Default> Default for RawEGraph<L, D, U> {
         RawEGraph {
             residual,
             pending: Default::default(),
+            congruence_duplicates: Default::default(),
             classes: Default::default(),
             undo_log: Default::default(),
         }
@@ -417,6 +421,7 @@ impl<L: Language, D: Debug, U> Debug for RawEGraph<L, D, U> {
         f.debug_struct("EGraph")
             .field("memo", &self.residual.memo)
             .field("classes", &classes)
+            .field("congruence_duplicates", &self.congruence_duplicates)
             .finish()
     }
 }
@@ -767,6 +772,13 @@ impl<L: Language, D, U: UndoLogT<L, D>> RawEGraph<L, D, U> {
         loop {
             let this = get_self(outer);
             if let Some(class) = this.pending.pop() {
+                if this.congruence_duplicates.contains_mut(class.into()) {
+                    // `class` is congruently equivalent to another node `croot`,
+                    // so each node that has `class` as a parent also has `croot` as a parent,
+                    // and they will always be added to pending together, so we only need to handle
+                    // `croot` when it comes up, but not `class`
+                    continue;
+                }
                 let mut node = this.id_to_node(class).clone();
                 node.update_children(|id| this.find_mut(id));
                 handle_pending(outer, class, &node);
@@ -777,7 +789,20 @@ impl<L: Language, D, U: UndoLogT<L, D>> RawEGraph<L, D, U> {
                         let memo_class = *id;
                         let pre = pre_union(orig, &new);
                         match perform_union(outer, pre, memo_class, class) {
-                            Ok(()) => {}
+                            Ok(()) => {
+                                let this = get_self(outer);
+                                debug_assert_eq!(
+                                    this.find(memo_class),
+                                    this.find(class),
+                                    "`perform_union` didn't perform_union"
+                                );
+                                // class is congruently equivalent to memo_class which isn't in
+                                // congruence_duplicates
+                                if class != memo_class {
+                                    this.congruence_duplicates.insert(class.into());
+                                    this.undo_log.add_congruence_duplicate(class);
+                                }
+                            }
                             Err(e) => {
                                 get_self(outer).pending.push(class);
                                 return Err(e);
@@ -816,6 +841,8 @@ impl<L: Language, D, U: UndoLogT<L, D>> RawEGraph<L, D, U> {
         self.residual.memo.clear();
         self.residual.unionfind.clear();
         self.pending.clear();
+        self.congruence_duplicates.clear();
+        self.classes.clear();
         self.undo_log.clear();
     }
 }

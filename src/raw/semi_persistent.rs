@@ -19,6 +19,9 @@ pub trait UndoLogT<L, D>: Default + Debug + Sealed {
     fn insert_memo(&mut self, hash: u64);
 
     #[doc(hidden)]
+    fn add_congruence_duplicate(&mut self, id: Id);
+
+    #[doc(hidden)]
     fn clear(&mut self);
 
     #[doc(hidden)]
@@ -34,6 +37,8 @@ impl<L, D> UndoLogT<L, D> for () {
 
     #[inline]
     fn insert_memo(&mut self, _: u64) {}
+
+    fn add_congruence_duplicate(&mut self, _: Id) {}
 
     #[inline]
     fn clear(&mut self) {}
@@ -62,6 +67,12 @@ impl<L, D, U: UndoLogT<L, D>> UndoLogT<L, D> for Option<U> {
     fn insert_memo(&mut self, hash: u64) {
         if let Some(undo) = self {
             undo.insert_memo(hash)
+        }
+    }
+
+    fn add_congruence_duplicate(&mut self, id: Id) {
+        if let Some(undo) = self {
+            undo.add_congruence_duplicate(id)
         }
     }
 
