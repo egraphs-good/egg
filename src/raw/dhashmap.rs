@@ -13,7 +13,7 @@ pub(super) type DHMIdx = u32;
 /// (faster than an `IndexMap`), but iteration requires allocation
 ///
 #[derive(Clone)]
-pub(super) struct DHashMap<K, V, S = crate::util::BuildHasher> {
+pub(super) struct DHashMap<K, V, S = crate::raw::util::BuildHasher> {
     data: hash_table::HashTable<(K, V, DHMIdx)>,
     hasher: S,
 }

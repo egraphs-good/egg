@@ -1,4 +1,5 @@
-use crate::{raw::RawEClass, Dot, HashMap, Id, Language, RecExpr, UnionFind};
+use crate::raw::{util::HashMap, Language, RawEClass, RecExpr, UnionFind};
+use crate::{dot::Dot, Id};
 use std::collections::BTreeMap;
 use std::convert::Infallible;
 use std::ops::{Deref, DerefMut};

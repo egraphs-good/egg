@@ -11,7 +11,7 @@ use std::fmt::{self, Debug, Display, Formatter};
 use std::io::{Error, ErrorKind, Result, Write};
 use std::path::Path;
 
-use crate::{raw::EGraphResidual, Language};
+use crate::{raw::EGraphResidual, raw::Language};
 
 /**
 A wrapper for an [`EGraphResidual`] that can output [GraphViz] for

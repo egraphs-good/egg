@@ -30,30 +30,55 @@ for less or more logging.
 #![doc = include_str!("../tests/simple.rs")]
 #![doc = "\n```"]
 
+#[cfg(feature = "egg_compat")]
 mod macros;
 
+#[cfg(feature = "egg_compat")]
 #[doc(hidden)]
 pub mod test;
 
+#[cfg(feature = "egg_compat")]
 pub mod tutorials;
 
 mod dot;
+#[cfg(feature = "egg_compat")]
 mod eclass;
+#[cfg(feature = "egg_compat")]
 mod egraph;
+#[cfg(feature = "egg_compat")]
 mod explain;
+
+#[cfg(feature = "egg_compat")]
 mod extract;
+
+#[cfg(feature = "egg_compat")]
 mod language;
-#[cfg(feature = "lp")]
+
+#[cfg(all(feature = "lp", feature = "egg_compat"))]
 mod lp_extract;
+
+#[cfg(feature = "egg_compat")]
 mod machine;
+
+#[cfg(feature = "egg_compat")]
 mod multipattern;
+
+#[cfg(feature = "egg_compat")]
 mod pattern;
 
 /// Lower level egraph API
 pub mod raw;
+
+#[cfg(feature = "egg_compat")]
 mod rewrite;
+
+#[cfg(feature = "egg_compat")]
 mod run;
+
+#[cfg(feature = "egg_compat")]
 mod subst;
+
+#[cfg(feature = "egg_compat")]
 mod util;
 
 /// A key to identify [`EClass`]es within an
@@ -87,8 +112,10 @@ impl std::fmt::Display for Id {
     }
 }
 
+#[cfg(feature = "egg_compat")]
 pub(crate) use {explain::Explain, raw::UnionFind};
 
+#[cfg(feature = "egg_compat")]
 pub use {
     dot::Dot,
     eclass::{EClass, EClassData},

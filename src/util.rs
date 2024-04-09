@@ -42,27 +42,9 @@ use crate::*;
 ///
 pub use symbol_table::GlobalSymbol as Symbol;
 
-pub(crate) type BuildHasher = fxhash::FxBuildHasher;
-
 // pub(crate) type HashMap<K, V> = hashbrown::HashMap<K, V, BuildHasher>;
 // pub(crate) type HashSet<K> = hashbrown::HashSet<K, BuildHasher>;
-
-pub(crate) use hashmap::*;
-
-#[cfg(feature = "deterministic")]
-mod hashmap {
-    pub(crate) type HashMap<K, V> = super::IndexMap<K, V>;
-    pub(crate) type HashSet<K> = super::IndexSet<K>;
-
-    pub(crate) type Entry<'a, K, V> = indexmap::map::Entry<'a, K, V>;
-}
-#[cfg(not(feature = "deterministic"))]
-mod hashmap {
-    use super::BuildHasher;
-    pub(crate) type HashMap<K, V> = hashbrown::HashMap<K, V, BuildHasher>;
-    pub(crate) type HashSet<K> = hashbrown::HashSet<K, BuildHasher>;
-    pub(crate) type Entry<'a, K, V> = hashbrown::hash_map::Entry<'a, K, V, BuildHasher>;
-}
+pub(crate) use crate::raw::util::*;
 
 pub(crate) type IndexMap<K, V> = indexmap::IndexMap<K, V, BuildHasher>;
 pub(crate) type IndexSet<K> = indexmap::IndexSet<K, BuildHasher>;

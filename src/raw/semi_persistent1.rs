@@ -1,5 +1,5 @@
-use crate::raw::{AsUnwrap, RawEClass, RawEGraph, Sealed, UndoLogT, UnionFind};
-use crate::{Id, Language};
+use crate::raw::{AsUnwrap, Language, RawEClass, RawEGraph, Sealed, UndoLogT, UnionFind};
+use crate::Id;
 use std::fmt::Debug;
 
 /// Stored information required to restore the egraph to a previous state

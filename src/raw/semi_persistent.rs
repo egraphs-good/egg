@@ -1,5 +1,5 @@
-use crate::raw::RawEGraph;
-use crate::{Id, Language};
+use crate::raw::{Language, RawEGraph};
+use crate::Id;
 use std::fmt::Debug;
 
 pub trait Sealed {}

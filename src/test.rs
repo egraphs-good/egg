@@ -42,7 +42,6 @@ pub fn test_runner<L, A>(
     A: Analysis<L> + Default + Clone + 'static,
     A::Data: Default + Clone,
 {
-    let _ = env_logger::builder().is_test(true).try_init();
     let mut runner = runner.unwrap_or_default();
 
     let nodes: Vec<_> = runner
@@ -313,6 +312,7 @@ macro_rules! test_fn {
     pub fn $name() {
         // NOTE this is no longer needed, we always check
         let check = true;
+        let _ = env_logger::builder().is_test(true).try_init();
         $crate::test::test_runner(
             stringify!($name),
             None $(.or(Some($runner)))?,

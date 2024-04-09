@@ -1,6 +1,6 @@
-use crate::raw::{AsUnwrap, RawEClass, RawEGraph, Sealed, UndoLogT};
-use crate::util::{Entry, HashSet};
-use crate::{Id, Language};
+use crate::raw::util::{Entry, HashSet};
+use crate::raw::{AsUnwrap, Language, RawEClass, RawEGraph, Sealed, UndoLogT};
+use crate::Id;
 use std::fmt::Debug;
 
 #[derive(Debug, Clone, Default)]
