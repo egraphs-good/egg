@@ -186,14 +186,9 @@ where
 
     /// Search the whole [`EGraph`], returning a list of all the
     /// [`SearchMatches`] where something was found.
-    /// This just calls [`search_eclass`] on each eclass.
-    ///
-    /// [`search_eclass`]: Searcher::search_eclass
+    /// This just calls [`Searcher::search_with_limit`] with a big limit.
     fn search(&self, egraph: &EGraph<L, N>) -> Vec<SearchMatches<L>> {
-        egraph
-            .classes()
-            .filter_map(|e| self.search_eclass(egraph, e.id))
-            .collect()
+        self.search_with_limit(egraph, usize::MAX)
     }
 
     /// Similar to [`search`], but return at most `limit` many matches.
