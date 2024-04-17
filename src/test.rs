@@ -3,8 +3,8 @@
 These are not considered part of the public api.
 */
 
-use std::{fmt::Display, fs::File, io::Write, path::PathBuf};
 use num_traits::identities::Zero;
+use std::{fmt::Display, fs::File, io::Write, path::PathBuf};
 
 use crate::*;
 

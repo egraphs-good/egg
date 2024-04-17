@@ -13,7 +13,7 @@ use std::rc::Rc;
 use symbolic_expressions::Sexp;
 
 use num_bigint::BigUint;
-use num_traits::identities::{Zero, One};
+use num_traits::identities::{One, Zero};
 
 type ProofCost = BigUint;
 
@@ -258,7 +258,7 @@ impl<L: Language + Display + FromOp> Explanation<L> {
         let mut sum: ProofCost = BigUint::zero();
         for e in self.explanation_trees.iter() {
             sum += self.tree_size(&mut seen, &mut seen_adjacent, e);
-        };
+        }
         sum
     }
 
