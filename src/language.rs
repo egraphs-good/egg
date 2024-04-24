@@ -363,14 +363,14 @@ impl LanguageChildren for Id {
     fn as_mut_slice(&mut self) -> &mut [Id]  { std::slice::from_mut(self) }
 }
 
-/// A recursive expression from a user-defined [`Language`].
+/// An expression from a user-defined [`Language`].
 ///
-/// This conceptually represents a recursive expression, but it's actually just
+/// This conceptually represents an expression, but it's actually just
 /// a list of enodes.
 ///
 /// [`Expr`]s must satisfy the invariant that enodes' children must refer to
 /// elements that come before it in the list. For example, the expression
-/// `(+ (* x 5) x)` could be represented by a recursive expression of the form
+/// `(+ (* x 5) x)` could be represented by an expression of the form
 /// `[Num(5), Var("x"), Mul(1, 0), Add(2, 1)]`.
 ///
 /// If the `serde-1` feature is enabled, this implements
