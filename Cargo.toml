@@ -21,6 +21,8 @@ smallvec = { version = "1.8.0", features = ["union", "const_generics"] }
 symbol_table = { version = "0.2.0", features = ["global"] }
 symbolic_expressions = "5.0.3"
 thiserror = "1.0.31"
+num-bigint = "0.4"
+num-traits = "0.2"
 
 # for the lp feature
 coin_cbc = { version = "0.1.6", optional = true }
