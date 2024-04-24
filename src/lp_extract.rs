@@ -155,12 +155,12 @@ where
     /// Extract a single rooted term.
     ///
     /// This is just a shortcut for [`LpExtractor::solve_multiple`].
-    pub fn solve(&mut self, root: Id) -> RecExpr<L> {
+    pub fn solve(&mut self, root: Id) -> Expr<L> {
         self.solve_multiple(&[root]).0
     }
 
     /// Extract (potentially multiple) roots
-    pub fn solve_multiple(&mut self, roots: &[Id]) -> (RecExpr<L>, Vec<Id>) {
+    pub fn solve_multiple(&mut self, roots: &[Id]) -> (Expr<L>, Vec<Id>) {
         let egraph = self.egraph;
 
         for class in self.vars.values() {
@@ -180,7 +180,7 @@ where
         );
 
         let mut todo: Vec<Id> = roots.iter().map(|id| self.egraph.find(*id)).collect();
-        let mut expr = RecExpr::default();
+        let mut expr = Expr::default();
         // converts e-class ids to e-node ids
         let mut ids: HashMap<Id, Id> = HashMap::default();
 

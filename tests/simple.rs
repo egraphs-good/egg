@@ -22,7 +22,7 @@ fn make_rules() -> Vec<Rewrite<SimpleLanguage, ()>> {
 /// parse an expression, simplify it using egg, and pretty print it back out
 fn simplify(s: &str) -> String {
     // parse the expression, the type annotation tells it which Language to use
-    let expr: RecExpr<SimpleLanguage> = s.parse().unwrap();
+    let expr: Expr<SimpleLanguage> = s.parse().unwrap();
 
     // simplify the expression using a Runner, which creates an e-graph with
     // the given expression and runs the given rules over it

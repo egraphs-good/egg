@@ -388,7 +388,7 @@ where
     /// The eclass id of this addition will be recorded in the
     /// [`roots`](Runner::roots) field, ordered by
     /// insertion order.
-    pub fn with_expr(mut self, expr: &RecExpr<L>) -> Self {
+    pub fn with_expr(mut self, expr: &Expr<L>) -> Self {
         let id = self.egraph.add_expr(expr);
         self.roots.push(id);
         self
@@ -458,12 +458,12 @@ where
     }
 
     /// Calls [`EGraph::explain_equivalence`](EGraph::explain_equivalence()).
-    pub fn explain_equivalence(&mut self, left: &RecExpr<L>, right: &RecExpr<L>) -> Explanation<L> {
+    pub fn explain_equivalence(&mut self, left: &Expr<L>, right: &Expr<L>) -> Explanation<L> {
         self.egraph.explain_equivalence(left, right)
     }
 
     /// Calls [`EGraph::explain_existance`](EGraph::explain_existance()).
-    pub fn explain_existance(&mut self, expr: &RecExpr<L>) -> Explanation<L> {
+    pub fn explain_existance(&mut self, expr: &Expr<L>) -> Explanation<L> {
         self.egraph.explain_existance(expr)
     }
 
@@ -479,7 +479,7 @@ where
     /// Get an explanation for why an expression matches a pattern.
     pub fn explain_matches(
         &mut self,
-        left: &RecExpr<L>,
+        left: &Expr<L>,
         right: &PatternAst<L>,
         subst: &Subst,
     ) -> Explanation<L> {

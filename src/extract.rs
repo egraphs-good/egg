@@ -2,9 +2,9 @@ use std::cmp::Ordering;
 use std::fmt::Debug;
 
 use crate::util::HashMap;
-use crate::{Analysis, EClass, EGraph, Id, Language, RecExpr};
+use crate::{Analysis, EClass, EGraph, Id, Language, Expr};
 
-/** Extracting a single [`RecExpr`] from an [`EGraph`].
+/** Extracting a single [`Expr`] from an [`EGraph`].
 
 ```
 use egg::*;
@@ -71,7 +71,7 @@ impl CostFunction<SymbolLang> for SillyCostFn {
     }
 }
 
-let e: RecExpr<SymbolLang> = "(do_it foo bar baz)".parse().unwrap();
+let e: Expr<SymbolLang> = "(do_it foo bar baz)".parse().unwrap();
 assert_eq!(SillyCostFn.cost_rec(&e), 102.7);
 assert_eq!(AstSize.cost_rec(&e), 4);
 assert_eq!(AstDepth.cost_rec(&e), 2);
@@ -109,7 +109,7 @@ let _ = extractor.find_best(id);
 Note that a particular e-class might occur in an expression multiple times.
 This means that pathological, but nevertheless realistic cases
 might overflow `usize` if you implement a cost function like [`AstSize`],
-even if the actual [`RecExpr`] fits compactly in memory.
+even if the actual [`Expr`] fits compactly in memory.
 You might want to use [`saturating_add`](u64::saturating_add) to
 ensure your cost function is still monotonic in this situation.
 **/
@@ -128,12 +128,12 @@ pub trait CostFunction<L: Language> {
     where
         C: FnMut(Id) -> Self::Cost;
 
-    /// Calculates the total cost of a [`RecExpr`].
+    /// Calculates the total cost of a [`Expr`].
     ///
     /// As provided, this just recursively calls `cost` all the way
-    /// down the [`RecExpr`].
+    /// down the [`Expr`].
     ///
-    fn cost_rec(&mut self, expr: &RecExpr<L>) -> Self::Cost {
+    fn cost_rec(&mut self, expr: &Expr<L>) -> Self::Cost {
         let mut costs: HashMap<Id, Self::Cost> = HashMap::default();
         for (i, node) in expr.as_ref().iter().enumerate() {
             let cost = self.cost(node, |i| costs[&i].clone());
@@ -148,7 +148,7 @@ pub trait CostFunction<L: Language> {
 
 ```
 # use egg::*;
-let e: RecExpr<SymbolLang> = "(do_it foo bar baz)".parse().unwrap();
+let e: Expr<SymbolLang> = "(do_it foo bar baz)".parse().unwrap();
 assert_eq!(AstSize.cost_rec(&e), 4);
 ```
 
@@ -169,7 +169,7 @@ impl<L: Language> CostFunction<L> for AstSize {
 
 ```
 # use egg::*;
-let e: RecExpr<SymbolLang> = "(do_it foo bar baz)".parse().unwrap();
+let e: Expr<SymbolLang> = "(do_it foo bar baz)".parse().unwrap();
 assert_eq!(AstDepth.cost_rec(&e), 2);
 ```
 
@@ -220,9 +220,9 @@ where
         extractor
     }
 
-    /// Find the cheapest (lowest cost) represented `RecExpr` in the
+    /// Find the cheapest (lowest cost) represented `Expr` in the
     /// given eclass.
-    pub fn find_best(&self, eclass: Id) -> (CF::Cost, RecExpr<L>) {
+    pub fn find_best(&self, eclass: Id) -> (CF::Cost, Expr<L>) {
         let (cost, root) = self.costs[&self.egraph.find(eclass)].clone();
         let expr = root.build_expr(|id| self.find_best_node(id).clone());
         (cost, expr)

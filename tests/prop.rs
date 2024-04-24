@@ -100,8 +100,8 @@ fn prove_something(name: &str, start: &str, rewrites: &[Rewrite], goals: &[&str]
     let _ = env_logger::builder().is_test(true).try_init();
     println!("Proving {}", name);
 
-    let start_expr: RecExpr<_> = start.parse().unwrap();
-    let goal_exprs: Vec<RecExpr<_>> = goals.iter().map(|g| g.parse().unwrap()).collect();
+    let start_expr: Expr<_> = start.parse().unwrap();
+    let goal_exprs: Vec<Expr<_>> = goals.iter().map(|g| g.parse().unwrap()).collect();
 
     let mut runner = Runner::default()
         .with_iter_limit(20)

@@ -1,7 +1,7 @@
 use crate::Symbol;
 use crate::{
     util::pretty_print, Analysis, EClass, ENodeOrVar, FromOp, HashMap, HashSet, Id, Language,
-    PatternAst, RecExpr, Rewrite, UnionFind, Var,
+    PatternAst, Expr, Rewrite, UnionFind, Var,
 };
 use saturating::Saturating;
 use std::cmp::Ordering;
@@ -702,8 +702,8 @@ impl<L: Language + Display + FromOp> FlatTerm<L> {
         expr
     }
 
-    /// Convert this FlatTerm to a RecExpr.
-    pub fn get_expr(&self) -> RecExpr<L> {
+    /// Convert this FlatTerm to a Expr.
+    pub fn get_expr(&self) -> Expr<L> {
         self.remove_rewrites().to_string().parse().unwrap()
     }
 }

@@ -310,7 +310,7 @@ egg::test_fn! {
 
 #[test]
 fn assoc_mul_saturates() {
-    let expr: RecExpr<Math> = "(* x 1)".parse().unwrap();
+    let expr: Expr<Math> = "(* x 1)".parse().unwrap();
 
     let runner: Runner<Math, ConstantFold> = Runner::default()
         .with_iter_limit(3)
@@ -322,7 +322,7 @@ fn assoc_mul_saturates() {
 
 #[test]
 fn test_union_trusted() {
-    let expr: RecExpr<Math> = "(+ (* x 1) y)".parse().unwrap();
+    let expr: Expr<Math> = "(+ (* x 1) y)".parse().unwrap();
     let expr2 = "20".parse().unwrap();
     let mut runner: Runner<Math, ConstantFold> = Runner::default()
         .with_explanations_enabled()
@@ -339,7 +339,7 @@ fn test_union_trusted() {
 #[cfg(feature = "lp")]
 #[test]
 fn math_lp_extract() {
-    let expr: RecExpr<Math> = "(pow (+ x (+ x x)) (+ x x))".parse().unwrap();
+    let expr: Expr<Math> = "(pow (+ x (+ x x)) (+ x x))".parse().unwrap();
 
     let runner: Runner<Math, ConstantFold> = Runner::default()
         .with_iter_limit(3)

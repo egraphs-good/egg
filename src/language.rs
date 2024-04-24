@@ -115,26 +115,26 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
         self.fold(false, |acc, id| acc || f(id))
     }
 
-    /// Make a [`RecExpr`] by mapping this enodes children to other [`RecExpr`]s.
+    /// Make a [`Expr`] by mapping this enodes children to other [`Expr`]s.
     ///
     /// This can be used to join together different expression with a new node.
     ///
     /// # Example
     /// ```
     /// # use egg::*;
-    /// let a_plus_2: RecExpr<SymbolLang> = "(+ a 2)".parse().unwrap();
+    /// let a_plus_2: Expr<SymbolLang> = "(+ a 2)".parse().unwrap();
     /// // here's an enode with some meaningless child ids
     /// let enode = SymbolLang::new("*", vec![Id::from(0), Id::from(0)]);
     /// // make a new expr, replacing enode's children with a_plus_2
     /// let expr = enode.join_exprs(|_id| &a_plus_2);
     /// assert_eq!(expr, "(* (+ a 2) (+ a 2))".parse().unwrap())
     /// ```
-    fn join_exprs<F, Expr>(&self, mut child_expr: F) -> RecExpr<Self>
+    fn join_exprs<F, Exp>(&self, mut child_expr: F) -> Expr<Self>
     where
-        F: FnMut(Id) -> Expr,
-        Expr: AsRef<[Self]>,
+        F: FnMut(Id) -> Exp,
+        Exp: AsRef<[Self]>,
     {
-        fn build<L: Language>(to: &mut RecExpr<L>, from: &[L]) -> Id {
+        fn build<L: Language>(to: &mut Expr<L>, from: &[L]) -> Id {
             let last = from.last().unwrap().clone();
             let new_node = last.map_children(|id| {
                 let i = usize::from(id) + 1;
@@ -143,7 +143,7 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
             to.add(new_node)
         }
 
-        let mut expr = RecExpr::default();
+        let mut expr = Expr::default();
         let node = self
             .clone()
             .map_children(|id| build(&mut expr, child_expr(id).as_ref()));
@@ -151,7 +151,7 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
         expr
     }
 
-    /// Build a [`RecExpr`] from an e-node.
+    /// Build a [`Expr`] from an e-node.
     ///
     /// The provided `get_node` function must return the same node for a given
     /// [`Id`] on multiple invocations.
@@ -169,7 +169,7 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
     /// let expr2 = get_first_enode(root).build_expr(get_first_enode);
     /// assert_eq!(expr, expr2)
     /// ```
-    fn build_expr<F>(&self, mut get_node: F) -> RecExpr<Self>
+    fn build_expr<F>(&self, mut get_node: F) -> Expr<Self>
     where
         F: FnMut(Id) -> Self,
     {
@@ -178,7 +178,7 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
     }
 
     /// Same as [`Language::build_expr`], but fallible.
-    fn try_build_expr<F, Err>(&self, mut get_node: F) -> Result<RecExpr<Self>, Err>
+    fn try_build_expr<F, Err>(&self, mut get_node: F) -> Result<Expr<Self>, Err>
     where
         F: FnMut(Id) -> Result<Self, Err>,
     {
@@ -215,7 +215,7 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
         // finally, add the root node and create the expression
         let mut nodes: Vec<Self> = set.into_iter().collect();
         nodes.push(self.clone().map_children(|id| ids[&id]));
-        Ok(RecExpr::from(nodes))
+        Ok(Expr::from(nodes))
     }
 }
 
@@ -368,7 +368,7 @@ impl LanguageChildren for Id {
 /// This conceptually represents a recursive expression, but it's actually just
 /// a list of enodes.
 ///
-/// [`RecExpr`]s must satisfy the invariant that enodes' children must refer to
+/// [`Expr`]s must satisfy the invariant that enodes' children must refer to
 /// elements that come before it in the list. For example, the expression
 /// `(+ (* x 5) x)` could be represented by a recursive expression of the form
 /// `[Num(5), Var("x"), Mul(1, 0), Add(2, 1)]`.
@@ -376,12 +376,12 @@ impl LanguageChildren for Id {
 /// If the `serde-1` feature is enabled, this implements
 /// [`serde::Serialize`](https://docs.rs/serde/latest/serde/trait.Serialize.html).
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct RecExpr<L> {
+pub struct Expr<L> {
     nodes: Vec<L>,
 }
 
 #[cfg(feature = "serde-1")]
-impl<L: Language + Display> serde::Serialize for RecExpr<L> {
+impl<L: Language + Display> serde::Serialize for Expr<L> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -391,32 +391,32 @@ impl<L: Language + Display> serde::Serialize for RecExpr<L> {
     }
 }
 
-impl<L> Default for RecExpr<L> {
+impl<L> Default for Expr<L> {
     fn default() -> Self {
         Self::from(vec![])
     }
 }
 
-impl<L> AsRef<[L]> for RecExpr<L> {
+impl<L> AsRef<[L]> for Expr<L> {
     fn as_ref(&self) -> &[L] {
         &self.nodes
     }
 }
 
-impl<L> From<Vec<L>> for RecExpr<L> {
+impl<L> From<Vec<L>> for Expr<L> {
     fn from(nodes: Vec<L>) -> Self {
         Self { nodes }
     }
 }
 
-impl<L> From<RecExpr<L>> for Vec<L> {
-    fn from(val: RecExpr<L>) -> Self {
+impl<L> From<Expr<L>> for Vec<L> {
+    fn from(val: Expr<L>) -> Self {
         val.nodes
     }
 }
 
-impl<L: Language> RecExpr<L> {
-    /// Adds a given enode to this `RecExpr`.
+impl<L: Language> Expr<L> {
+    /// Adds a given enode to this `Expr`.
     /// The enode's children `Id`s must refer to elements already in this list.
     pub fn add(&mut self, node: L) -> Id {
         debug_assert!(
@@ -458,20 +458,20 @@ impl<L: Language> RecExpr<L> {
     }
 }
 
-impl<L: Language> Index<Id> for RecExpr<L> {
+impl<L: Language> Index<Id> for Expr<L> {
     type Output = L;
     fn index(&self, id: Id) -> &L {
         &self.nodes[usize::from(id)]
     }
 }
 
-impl<L: Language> IndexMut<Id> for RecExpr<L> {
+impl<L: Language> IndexMut<Id> for Expr<L> {
     fn index_mut(&mut self, id: Id) -> &mut L {
         &mut self.nodes[usize::from(id)]
     }
 }
 
-impl<L: Language + Display> Display for RecExpr<L> {
+impl<L: Language + Display> Display for Expr<L> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.nodes.is_empty() {
             Display::fmt("()", f)
@@ -482,8 +482,8 @@ impl<L: Language + Display> Display for RecExpr<L> {
     }
 }
 
-impl<L: Language + Display> RecExpr<L> {
-    /// Convert this RecExpr into an Sexp
+impl<L: Language + Display> Expr<L> {
+    /// Convert this Expr into an Sexp
     pub(crate) fn to_sexp(&self) -> Sexp {
         let last = self.nodes.len() - 1;
         if !self.is_dag() {
@@ -519,7 +519,7 @@ impl<L: Language + Display> RecExpr<L> {
     /// # Example
     /// ```
     /// # use egg::*;
-    /// let e: RecExpr<SymbolLang> = "(* (+ 2 2) (+ x y))".parse().unwrap();
+    /// let e: Expr<SymbolLang> = "(* (+ 2 2) (+ x y))".parse().unwrap();
     /// assert_eq!(e.pretty(10), "
     /// (*
     ///   (+ 2 2)
@@ -536,9 +536,9 @@ impl<L: Language + Display> RecExpr<L> {
 }
 
 /// An error type for failures when attempting to parse an s-expression as a
-/// [`RecExpr<L>`].
+/// [`Expr<L>`].
 #[derive(Debug, Error)]
-pub enum RecExprParseError<E> {
+pub enum ExprParseError<E> {
     /// An empty s-expression was found. Usually this is caused by an
     /// empty list "()" somewhere in the input.
     #[error("found empty s-expression")]
@@ -559,16 +559,16 @@ pub enum RecExprParseError<E> {
     BadSexp(SexpError),
 }
 
-impl<L: FromOp> FromStr for RecExpr<L> {
-    type Err = RecExprParseError<L::Error>;
+impl<L: FromOp> FromStr for Expr<L> {
+    type Err = ExprParseError<L::Error>;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        use RecExprParseError::*;
+        use ExprParseError::*;
 
         fn parse_sexp_into<L: FromOp>(
             sexp: &Sexp,
-            expr: &mut RecExpr<L>,
-        ) -> Result<Id, RecExprParseError<L::Error>> {
+            expr: &mut Expr<L>,
+        ) -> Result<Id, ExprParseError<L::Error>> {
             match sexp {
                 Sexp::Empty => Err(EmptySexp),
                 Sexp::String(s) => {
@@ -591,7 +591,7 @@ impl<L: FromOp> FromStr for RecExpr<L> {
             }
         }
 
-        let mut expr = RecExpr::default();
+        let mut expr = Expr::default();
         let sexp = symbolic_expressions::parser::parse_str(s.trim()).map_err(BadSexp)?;
         parse_sexp_into(&sexp, &mut expr)?;
         Ok(expr)

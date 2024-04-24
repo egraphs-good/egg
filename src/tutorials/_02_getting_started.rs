@@ -55,16 +55,16 @@ An e-node may have any number of children, which are [`Id`]s.
 An [`Id`] is basically just a number that `egg` uses to coordinate what children
   an e-node is associated with.
 In an [`EGraph`], e-node children refer to e-classes.
-In a [`RecExpr`] (`egg`'s version of a plain old expression),
-  e-node children refer to other e-nodes in that [`RecExpr`].
+In a [`Expr`] (`egg`'s version of a plain old expression),
+  e-node children refer to other e-nodes in that [`Expr`].
 
 Most [`Language`]s, including [`SymbolLang`], can be parsed and pretty-printed.
-That means that [`RecExpr`]s in those languages
+That means that [`Expr`]s in those languages
   implement the [`FromStr`] and [`Display`] traits from the Rust standard library.
 ```
 # use egg::*;
 // Since parsing can return an error, `unwrap` just panics if the result doesn't return Ok
-let my_expression: RecExpr<SymbolLang> = "(foo a b)".parse().unwrap();
+let my_expression: Expr<SymbolLang> = "(foo a b)".parse().unwrap();
 println!("this is my expression {}", my_expression);
 
 // let's try to create an e-node, but hmmm, what do I put as the children?
@@ -74,11 +74,11 @@ let my_enode = SymbolLang::new("bar", vec![]);
 Some e-nodes are just constants and have no children (also called leaves).
 But it's intentionally kind of awkward to create e-nodes with children in isolation,
   since you would have to add meaningless [`Id`]s as children.
-The way to make meaningful [`Id`]s is by adding e-nodes to either an [`EGraph`] or a [`RecExpr`]:
+The way to make meaningful [`Id`]s is by adding e-nodes to either an [`EGraph`] or a [`Expr`]:
 
 ```
 # use egg::*;
-let mut expr = RecExpr::default();
+let mut expr = Expr::default();
 let a = expr.add(SymbolLang::leaf("a"));
 let b = expr.add(SymbolLang::leaf("b"));
 let foo = expr.add(SymbolLang::new("foo", vec![a, b]));
@@ -89,7 +89,7 @@ let a = egraph.add(SymbolLang::leaf("a"));
 let b = egraph.add(SymbolLang::leaf("b"));
 let foo = egraph.add(SymbolLang::new("foo", vec![a, b]));
 
-// we can also add RecExprs to an egraph
+// we can also add Exprs to an egraph
 let foo2 = egraph.add_expr(&expr);
 // note that if you add the same thing to an e-graph twice, you'll get back equivalent Ids
 assert_eq!(foo, foo2);
@@ -112,7 +112,7 @@ let foo = egraph.add(SymbolLang::new("foo", vec![a, b]));
 // rebuild the e-graph since we modified it
 egraph.rebuild();
 
-// we can make Patterns by parsing, similar to RecExprs
+// we can make Patterns by parsing, similar to Exprs
 // names preceded by ? are parsed as Pattern variables and will match anything
 let pat: Pattern<SymbolLang> = "(foo ?x ?x)".parse().unwrap();
 
@@ -134,7 +134,7 @@ assert!(!matches.is_empty());
 
 ## Using [`Runner`] to make an optimizer
 
-Now that we can make [`Pattern`]s and work with [`RecExpr`]s, we can make an optimizer!
+Now that we can make [`Pattern`]s and work with [`Expr`]s, we can make an optimizer!
 We'll use the [`rewrite!`] macro to easily create [`Rewrite`]s which consist of a name,
   left-hand pattern to search for,
   and right-hand pattern to apply.
@@ -179,7 +179,7 @@ assert_eq!(best_cost, 1);
 [`Language`]: super::super::Language
 [`Searcher`]: super::super::Searcher
 [`Pattern`]: super::super::Pattern
-[`RecExpr`]: super::super::RecExpr
+[`Expr`]: super::super::Expr
 [`SymbolLang`]: super::super::SymbolLang
 [`define_language!`]: super::super::define_language!
 [`rewrite!`]: super::super::rewrite!

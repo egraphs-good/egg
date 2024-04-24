@@ -63,14 +63,14 @@ use crate::*;
 /// [`FromStr`]: std::str::FromStr
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Pattern<L> {
-    /// The actual pattern as a [`RecExpr`]
+    /// The actual pattern as a [`Expr`]
     pub ast: PatternAst<L>,
     program: machine::Program<L>,
 }
 
-/// A [`RecExpr`] that represents a
+/// A [`Expr`] that represents a
 /// [`Pattern`].
-pub type PatternAst<L> = RecExpr<ENodeOrVar<L>>;
+pub type PatternAst<L> = Expr<ENodeOrVar<L>>;
 
 impl<L: Language> PatternAst<L> {
     /// Returns a new `PatternAst` with the variables renames canonically
@@ -216,7 +216,7 @@ impl<L: FromOp> FromOp for ENodeOrVar<L> {
 }
 
 impl<L: FromOp> std::str::FromStr for Pattern<L> {
-    type Err = RecExprParseError<ENodeOrVarParseError<L::Error>>;
+    type Err = ExprParseError<ENodeOrVarParseError<L::Error>>;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         PatternAst::from_str(s).map(Self::from)
@@ -226,13 +226,13 @@ impl<L: FromOp> std::str::FromStr for Pattern<L> {
 impl<'a, L: Language> From<&'a [L]> for Pattern<L> {
     fn from(expr: &'a [L]) -> Self {
         let nodes: Vec<_> = expr.iter().cloned().map(ENodeOrVar::ENode).collect();
-        let ast = RecExpr::from(nodes);
+        let ast = Expr::from(nodes);
         Self::new(ast)
     }
 }
 
-impl<L: Language> From<&RecExpr<L>> for Pattern<L> {
-    fn from(expr: &RecExpr<L>) -> Self {
+impl<L: Language> From<&Expr<L>> for Pattern<L> {
+    fn from(expr: &Expr<L>) -> Self {
         Self::from(expr.as_ref())
     }
 }
@@ -243,7 +243,7 @@ impl<L: Language> From<PatternAst<L>> for Pattern<L> {
     }
 }
 
-impl<L: Language> TryFrom<Pattern<L>> for RecExpr<L> {
+impl<L: Language> TryFrom<Pattern<L>> for Expr<L> {
     type Error = Var;
     fn try_from(pat: Pattern<L>) -> Result<Self, Self::Error> {
         let nodes = pat.ast.as_ref().iter().cloned();
@@ -253,7 +253,7 @@ impl<L: Language> TryFrom<Pattern<L>> for RecExpr<L> {
                 ENodeOrVar::Var(v) => Err(v),
             })
             .collect();
-        ns.map(RecExpr::from)
+        ns.map(Expr::from)
     }
 }
 

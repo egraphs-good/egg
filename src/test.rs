@@ -31,7 +31,7 @@ pub fn test_runner<L, A>(
     name: &str,
     runner: Option<Runner<L, A, ()>>,
     rules: &[Rewrite<L, A>],
-    start: RecExpr<L>,
+    start: Expr<L>,
     goals: &[Pattern<L>],
     check_fn: Option<fn(Runner<L, A, ()>)>,
     should_check: bool,

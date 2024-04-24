@@ -589,8 +589,8 @@ mod tests {
         crate::init_logger();
         let mut egraph = EGraph::default();
 
-        let start = RecExpr::from_str("(+ x y)").unwrap();
-        let goal = RecExpr::from_str("xy").unwrap();
+        let start = Expr::from_str("(+ x y)").unwrap();
+        let goal = Expr::from_str("xy").unwrap();
 
         let root = egraph.add_expr(&start);
 

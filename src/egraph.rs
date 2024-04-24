@@ -344,7 +344,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// Calling this function on an uncanonical `Id` returns a representative based on the how it
     /// was obtained (see [`add_uncanoncial`](EGraph::add_uncanonical),
     /// [`add_expr_uncanonical`](EGraph::add_expr_uncanonical))
-    pub fn id_to_expr(&self, id: Id) -> RecExpr<L> {
+    pub fn id_to_expr(&self, id: Id) -> Expr<L> {
         let mut res = Default::default();
         let mut cache = Default::default();
         self.id_to_expr_internal(&mut res, id, &mut cache);
@@ -353,7 +353,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
     fn id_to_expr_internal(
         &self,
-        res: &mut RecExpr<L>,
+        res: &mut Expr<L>,
         node_id: Id,
         cache: &mut HashMap<Id, Id>,
     ) -> Id {
@@ -460,8 +460,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// given by [`get_flat_string`](Explanation::get_flat_string) and [`get_string`](Explanation::get_string).
     pub fn explain_equivalence(
         &mut self,
-        left_expr: &RecExpr<L>,
-        right_expr: &RecExpr<L>,
+        left_expr: &Expr<L>,
+        right_expr: &Expr<L>,
     ) -> Explanation<L> {
         let left = self.add_expr_uncanonical(left_expr);
         let right = self.add_expr_uncanonical(right_expr);
@@ -503,7 +503,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// into the egraph and ends with the given `expr`.
     /// Note that this function can be called again to explain any intermediate terms
     /// used in the output [`Explanation`].
-    pub fn explain_existance(&mut self, expr: &RecExpr<L>) -> Explanation<L> {
+    pub fn explain_existance(&mut self, expr: &Expr<L>) -> Explanation<L> {
         let id = self.add_expr_uncanonical(expr);
         self.explain_existance_id(id)
     }
@@ -535,7 +535,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// Get an explanation for why an expression matches a pattern.
     pub fn explain_matches(
         &mut self,
-        left_expr: &RecExpr<L>,
+        left_expr: &Expr<L>,
         right_pattern: &PatternAst<L>,
         subst: &Subst,
     ) -> Explanation<L> {
@@ -825,7 +825,7 @@ impl<L: Language, N: Analysis<L>> std::ops::IndexMut<Id> for EGraph<L, N> {
 }
 
 impl<L: Language, N: Analysis<L>> EGraph<L, N> {
-    /// Adds a [`RecExpr`] to the [`EGraph`], returning the id of the RecExpr's eclass.
+    /// Adds a [`Expr`] to the [`EGraph`], returning the id of the Expr's eclass.
     ///
     /// # Example
     /// ```
@@ -839,7 +839,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// ```
     ///
     /// [`add_expr`]: EGraph::add_expr()
-    pub fn add_expr(&mut self, expr: &RecExpr<L>) -> Id {
+    pub fn add_expr(&mut self, expr: &Expr<L>) -> Id {
         let id = self.add_expr_uncanonical(expr);
         self.find(id)
     }
@@ -847,7 +847,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// Similar to [`add_expr`](EGraph::add_expr) but the `Id` returned may not be canonical
     ///
     /// Calling [`id_to_expr`](EGraph::id_to_expr) on this `Id` return a copy of `expr` when explanations are enabled
-    pub fn add_expr_uncanonical(&mut self, expr: &RecExpr<L>) -> Id {
+    pub fn add_expr_uncanonical(&mut self, expr: &Expr<L>) -> Id {
         let nodes = expr.as_ref();
         let mut new_ids = Vec::with_capacity(nodes.len());
         let mut new_node_q = Vec::with_capacity(nodes.len());
@@ -962,16 +962,16 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         self.memo.get(enode).copied()
     }
 
-    /// Lookup the eclass of the given [`RecExpr`].
+    /// Lookup the eclass of the given [`Expr`].
     ///
     /// Equivalent to the last value in [`EGraph::lookup_expr_ids`].
-    pub fn lookup_expr(&self, expr: &RecExpr<L>) -> Option<Id> {
+    pub fn lookup_expr(&self, expr: &Expr<L>) -> Option<Id> {
         self.lookup_expr_ids(expr)
             .and_then(|ids| ids.last().copied())
     }
 
-    /// Lookup the eclasses of all the nodes in the given [`RecExpr`].
-    pub fn lookup_expr_ids(&self, expr: &RecExpr<L>) -> Option<Vec<Id>> {
+    /// Lookup the eclasses of all the nodes in the given [`Expr`].
+    pub fn lookup_expr_ids(&self, expr: &Expr<L>) -> Option<Vec<Id>> {
         let nodes = expr.as_ref();
         let mut new_ids = Vec::with_capacity(nodes.len());
         for node in nodes {
@@ -1099,11 +1099,11 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         id
     }
 
-    /// Checks whether two [`RecExpr`]s are equivalent.
+    /// Checks whether two [`Expr`]s are equivalent.
     /// Returns a list of id where both expression are represented.
     /// In most cases, there will none or exactly one id.
     ///
-    pub fn equivs(&self, expr1: &RecExpr<L>, expr2: &RecExpr<L>) -> Vec<Id> {
+    pub fn equivs(&self, expr1: &Expr<L>, expr2: &Expr<L>) -> Vec<Id> {
         let pat1 = Pattern::from(expr1.as_ref());
         let pat2 = Pattern::from(expr2.as_ref());
         let matches1 = pat1.search(self);
