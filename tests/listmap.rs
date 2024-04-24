@@ -14,17 +14,33 @@ define_language! {
 }
 
 struct ListMapApplier {
-    new_list_var: Var,
     list_pattern: PatternAst<MyLang>,
+    lists: Vec<ListMapMaker>,
+}
+
+struct ListMapMaker {
+    new_list_var: Var,
     elem_pattern: PatternAst<MyLang>,
 }
 
 impl ListMapApplier {
     pub fn new(list_pattern: &str, elem_pattern: &str) -> Self {
+        Self::from_lists(list_pattern, [("?list2", elem_pattern)])
+    }
+
+    pub fn from_lists<'a>(
+        list_pattern: &'a str,
+        lists: impl IntoIterator<Item = (&'a str, &'a str)>,
+    ) -> Self {
         Self {
-            new_list_var: "?list2".parse().unwrap(),
             list_pattern: list_pattern.parse().unwrap(),
-            elem_pattern: elem_pattern.parse().unwrap(),
+            lists: lists
+                .into_iter()
+                .map(|(var, elem_pat)| ListMapMaker {
+                    new_list_var: var.parse().unwrap(),
+                    elem_pattern: elem_pat.parse().unwrap(),
+                })
+                .collect(),
         }
     }
 }
@@ -49,16 +65,19 @@ impl Applier<MyLang, ()> for ListMapApplier {
             .expect("wrong data type")
             .clone();
 
-        let new_list = list_matches
-            .iter()
-            .map(|list_subst| {
-                let mut subst = subst.clone();
-                subst.extend(list_subst.iter());
-                egraph.add_instantiation(&self.elem_pattern, &subst)
-            })
-            .collect();
+        for list_maker in &self.lists {
+            let new_list = list_matches
+                .iter()
+                .map(|list_subst| {
+                    let mut subst = subst.clone();
+                    subst.extend(list_subst.iter());
+                    egraph.add_instantiation(&list_maker.elem_pattern, &subst)
+                })
+                .collect();
 
-        subst.insert(self.new_list_var, egraph.add(MyLang::List(new_list)));
+            subst.insert(list_maker.new_list_var, egraph.add(MyLang::List(new_list)));
+        }
+
         let result_id = egraph.add_instantiation(&self.list_pattern, &subst);
 
         if egraph.union(eclass, result_id) {
@@ -70,8 +89,10 @@ impl Applier<MyLang, ()> for ListMapApplier {
 
     fn vars(&self) -> Vec<Var> {
         let mut vars = self.list_pattern.vars();
-        vars.extend(self.elem_pattern.vars());
-        vars.retain(|v| *v != self.new_list_var); // this is bound by the applier itself
+        for list_maker in &self.lists {
+            vars.extend(list_maker.elem_pattern.vars());
+            vars.retain(|v| *v != list_maker.new_list_var); // this is bound by the applier itself
+        }
         vars
     }
 }
@@ -196,6 +217,23 @@ egg::test_fn! {
     runner = Runner::default().with_iter_limit(1),
     "(g (list (f 0 1) (f 0 2) (f 0 3)))" =>
     "(f 0 (g (list 1 2 3)))"
+}
+
+egg::test_fn! {
+    pullup_multiple,
+    [
+        // {} around applier needed for macro
+        rewrite!("fg-pullup"; { ListMapSearcher::new("(g ?list)", "(f ?x ?y)") } =>
+                              { ListMapApplier::from_lists(
+                                "(f (g ?xs) (g ?ys))", [
+                                    ("?xs", "?x"),
+                                    ("?ys", "?y")
+                                ]) }),
+    ],
+    // TODO how to supprt binding the same variable in each list element?
+    runner = Runner::default().with_iter_limit(1),
+    "(g (list (f 1 11) (f 2 22) (f 3 33)))" =>
+    "(f (g (list 1 2 3)) (g (list 11 22 33)))"
 }
 
 egg::test_fn! {
