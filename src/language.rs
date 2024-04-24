@@ -70,10 +70,9 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
 
     /// Returns the number of the children this enode has.
     ///
-    /// The default implementation uses `fold` to accumulate the number of
-    /// children.
+    /// The default implementation is equivalent to `self.children().len()'.
     fn len(&self) -> usize {
-        self.fold(0, |len, _| len + 1)
+        self.children().len()
     }
 
     /// Returns true if this enode has no children.
