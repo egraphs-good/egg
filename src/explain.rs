@@ -703,7 +703,7 @@ impl<L: Language + Display + FromOp> FlatTerm<L> {
     }
 
     /// Convert this FlatTerm to a RecExpr.
-    pub fn get_recexpr(&self) -> RecExpr<L> {
+    pub fn get_expr(&self) -> RecExpr<L> {
         self.remove_rewrites().to_string().parse().unwrap()
     }
 }

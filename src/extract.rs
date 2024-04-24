@@ -224,7 +224,7 @@ where
     /// given eclass.
     pub fn find_best(&self, eclass: Id) -> (CF::Cost, RecExpr<L>) {
         let (cost, root) = self.costs[&self.egraph.find(eclass)].clone();
-        let expr = root.build_recexpr(|id| self.find_best_node(id).clone());
+        let expr = root.build_expr(|id| self.find_best_node(id).clone());
         (cost, expr)
     }
 

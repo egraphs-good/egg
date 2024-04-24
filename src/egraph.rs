@@ -834,8 +834,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// let x = egraph.add(S::leaf("x"));
     /// let y = egraph.add(S::leaf("y"));
     /// let plus = egraph.add(S::new("+", vec![x, y]));
-    /// let plus_recexpr = "(+ x y)".parse().unwrap();
-    /// assert_eq!(plus, egraph.add_expr(&plus_recexpr));
+    /// let plus_expr = "(+ x y)".parse().unwrap();
+    /// assert_eq!(plus, egraph.add_expr(&plus_expr));
     /// ```
     ///
     /// [`add_expr`]: EGraph::add_expr()

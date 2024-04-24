@@ -125,11 +125,11 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
     /// let a_plus_2: RecExpr<SymbolLang> = "(+ a 2)".parse().unwrap();
     /// // here's an enode with some meaningless child ids
     /// let enode = SymbolLang::new("*", vec![Id::from(0), Id::from(0)]);
-    /// // make a new recexpr, replacing enode's children with a_plus_2
-    /// let recexpr = enode.join_recexprs(|_id| &a_plus_2);
-    /// assert_eq!(recexpr, "(* (+ a 2) (+ a 2))".parse().unwrap())
+    /// // make a new expr, replacing enode's children with a_plus_2
+    /// let expr = enode.join_exprs(|_id| &a_plus_2);
+    /// assert_eq!(expr, "(* (+ a 2) (+ a 2))".parse().unwrap())
     /// ```
-    fn join_recexprs<F, Expr>(&self, mut child_recexpr: F) -> RecExpr<Self>
+    fn join_exprs<F, Expr>(&self, mut child_expr: F) -> RecExpr<Self>
     where
         F: FnMut(Id) -> Expr,
         Expr: AsRef<[Self]>,
@@ -146,7 +146,7 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
         let mut expr = RecExpr::default();
         let node = self
             .clone()
-            .map_children(|id| build(&mut expr, child_recexpr(id).as_ref()));
+            .map_children(|id| build(&mut expr, child_expr(id).as_ref()));
         expr.add(node);
         expr
     }
@@ -166,19 +166,19 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
     /// let expr = "(foo (bar1 (bar2 (bar3 baz))))".parse().unwrap();
     /// let root = egraph.add_expr(&expr);
     /// let get_first_enode = |id| egraph[id].nodes[0].clone();
-    /// let expr2 = get_first_enode(root).build_recexpr(get_first_enode);
+    /// let expr2 = get_first_enode(root).build_expr(get_first_enode);
     /// assert_eq!(expr, expr2)
     /// ```
-    fn build_recexpr<F>(&self, mut get_node: F) -> RecExpr<Self>
+    fn build_expr<F>(&self, mut get_node: F) -> RecExpr<Self>
     where
         F: FnMut(Id) -> Self,
     {
-        self.try_build_recexpr::<_, std::convert::Infallible>(|id| Ok(get_node(id)))
+        self.try_build_expr::<_, std::convert::Infallible>(|id| Ok(get_node(id)))
             .unwrap()
     }
 
-    /// Same as [`Language::build_recexpr`], but fallible.
-    fn try_build_recexpr<F, Err>(&self, mut get_node: F) -> Result<RecExpr<Self>, Err>
+    /// Same as [`Language::build_expr`], but fallible.
+    fn try_build_expr<F, Err>(&self, mut get_node: F) -> Result<RecExpr<Self>, Err>
     where
         F: FnMut(Id) -> Result<Self, Err>,
     {
@@ -442,7 +442,7 @@ impl<L: Language> RecExpr<L> {
     }
 
     pub(crate) fn extract(&self, new_root: Id) -> Self {
-        self[new_root].build_recexpr(|id| self[id].clone())
+        self[new_root].build_expr(|id| self[id].clone())
     }
 
     /// Checks if this expr is a DAG, i.e. doesn't have any back edges
