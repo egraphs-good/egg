@@ -1,7 +1,7 @@
 use crate::Symbol;
 use crate::{
-    util::pretty_print, Analysis, EClass, ENodeOrVar, FromOp, HashMap, HashSet, Id, Language,
-    PatternAst, Expr, Rewrite, UnionFind, Var,
+    util::pretty_print, Analysis, EClass, ENodeOrVar, Expr, FromOp, HashMap, HashSet, Id, Language,
+    PatternAst, Rewrite, UnionFind, Var,
 };
 use saturating::Saturating;
 use std::cmp::Ordering;

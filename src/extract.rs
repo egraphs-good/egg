@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use std::fmt::Debug;
 
 use crate::util::HashMap;
-use crate::{Analysis, EClass, EGraph, Id, Language, Expr};
+use crate::{Analysis, EClass, EGraph, Expr, Id, Language};
 
 /** Extracting a single [`Expr`] from an [`EGraph`].
 
