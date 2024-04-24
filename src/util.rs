@@ -61,7 +61,7 @@ mod hashmap {
     pub(crate) type HashSet<K> = hashbrown::HashSet<K, BuildHasher>;
 }
 
-pub(crate) fn hash_map_with_capacity<K, V>(cap: usize) -> hashmap::HashMap<K, V> {
+pub(crate) fn hashmap_with_capacity<K, V>(cap: usize) -> hashmap::HashMap<K, V> {
     hashmap::HashMap::with_capacity_and_hasher(cap, <_>::default())
 }
 

@@ -430,7 +430,7 @@ impl<L: Language> RecExpr<L> {
     }
 
     pub(crate) fn compact(mut self) -> Self {
-        let mut ids = hash_map_with_capacity::<Id, Id>(self.nodes.len());
+        let mut ids = hashmap_with_capacity::<Id, Id>(self.nodes.len());
         let mut set = IndexSet::default();
         for (i, node) in self.nodes.drain(..).enumerate() {
             let node = node.map_children(|id| ids[&id]);

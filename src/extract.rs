@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 use std::fmt::Debug;
 
-use crate::util::{hash_map_with_capacity, HashMap};
+use crate::util::{hashmap_with_capacity, HashMap};
 use crate::{Analysis, EClass, EGraph, Id, Language, RecExpr};
 
 /** Extracting a single [`RecExpr`] from an [`EGraph`].
@@ -135,7 +135,7 @@ pub trait CostFunction<L: Language> {
     ///
     fn cost_rec(&mut self, expr: &RecExpr<L>) -> Self::Cost {
         let nodes = expr.as_ref();
-        let mut costs = hash_map_with_capacity::<Id, Self::Cost>(nodes.len());
+        let mut costs = hashmap_with_capacity::<Id, Self::Cost>(nodes.len());
         for (i, node) in nodes.iter().enumerate() {
             let cost = self.cost(node, |i| costs[&i].clone());
             costs.insert(Id::from(i), cost);
