@@ -765,6 +765,16 @@ pub trait Analysis<L: Language>: Sized {
     /// `Analysis::merge` when unions are performed.
     #[allow(unused_variables)]
     fn modify(egraph: &mut EGraph<L, Self>, id: Id) {}
+
+    /// Whether or not e-matching should allow finding cycles.
+    ///
+    /// By default, this returns `true`.
+    ///
+    /// Setting this to `false` can improve performance in some cases, but risks
+    /// missing some equalities depending on the use case.
+    fn allow_ematching_cycles(&self) -> bool {
+        true
+    }
 }
 
 impl<L: Language> Analysis<L> for () {

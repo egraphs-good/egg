@@ -367,6 +367,14 @@ impl<L: Language> Program<L> {
                 &self.instructions,
                 &self.subst,
                 &mut |machine, subst| {
+                    if !egraph.analysis.allow_ematching_cycles() {
+                        if let Some((first, rest)) = machine.reg.split_first() {
+                            if rest.contains(first) {
+                                return Ok(());
+                            }
+                        }
+                    }
+
                     let subst_vec = subst
                         .vec
                         .iter()
