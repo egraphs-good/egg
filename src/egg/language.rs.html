@@ -890,6 +890,16 @@
 <span id="885">885</span>
 <span id="886">886</span>
 <span id="887">887</span>
+<span id="888">888</span>
+<span id="889">889</span>
+<span id="890">890</span>
+<span id="891">891</span>
+<span id="892">892</span>
+<span id="893">893</span>
+<span id="894">894</span>
+<span id="895">895</span>
+<span id="896">896</span>
+<span id="897">897</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::ops</span>::{<span class="ident">BitOr</span>, <span class="ident">Index</span>, <span class="ident">IndexMut</span>};
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">cmp::Ordering</span>, <span class="ident">convert::TryFrom</span>};
 <span class="kw">use</span> <span class="ident">std</span>::{
@@ -1657,6 +1667,16 @@ assert_eq!(runner.egraph.find(runner.roots[0]), runner.egraph.find(just_foo));
     <span class="doccomment">/// `Analysis::merge` when unions are performed.</span>
     <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">unused_variables</span>)]</span>
     <span class="kw">fn</span> <span class="ident">modify</span>(<span class="ident">egraph</span>: <span class="kw-2">&amp;mut</span> <span class="ident">EGraph</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">id</span>: <span class="ident">Id</span>) {}
+
+    <span class="doccomment">/// Whether or not e-matching should allow finding cycles.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// By default, this returns `true`.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Setting this to `false` can improve performance in some cases, but risks</span>
+    <span class="doccomment">/// missing some equalities depending on the use case.</span>
+    <span class="kw">fn</span> <span class="ident">allow_ematching_cycles</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">bool</span> {
+        <span class="bool-val">true</span>
+    }
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">L</span>: <span class="ident">Language</span><span class="op">&gt;</span> <span class="ident">Analysis</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> <span class="kw">for</span> () {

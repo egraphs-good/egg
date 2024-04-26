@@ -393,6 +393,14 @@
 <span id="388">388</span>
 <span id="389">389</span>
 <span id="390">390</span>
+<span id="391">391</span>
+<span id="392">392</span>
+<span id="393">393</span>
+<span id="394">394</span>
+<span id="395">395</span>
+<span id="396">396</span>
+<span id="397">397</span>
+<span id="398">398</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="kw">crate</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident">std::result</span>;
 
@@ -762,6 +770,14 @@
                 <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">instructions</span>,
                 <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">subst</span>,
                 <span class="kw-2">&amp;mut</span> <span class="op">|</span><span class="ident">machine</span>, <span class="ident">subst</span><span class="op">|</span> {
+                    <span class="kw">if</span> <span class="op">!</span><span class="ident">egraph</span>.<span class="ident">analysis</span>.<span class="ident">allow_ematching_cycles</span>() {
+                        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">first</span>, <span class="ident">rest</span>)) <span class="op">=</span> <span class="ident">machine</span>.<span class="ident">reg</span>.<span class="ident">split_first</span>() {
+                            <span class="kw">if</span> <span class="ident">rest</span>.<span class="ident">contains</span>(<span class="ident">first</span>) {
+                                <span class="kw">return</span> <span class="prelude-val">Ok</span>(());
+                            }
+                        }
+                    }
+
                     <span class="kw">let</span> <span class="ident">subst_vec</span> <span class="op">=</span> <span class="ident">subst</span>
                         .<span class="ident">vec</span>
                         .<span class="ident">iter</span>()
