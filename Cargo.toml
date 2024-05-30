@@ -15,7 +15,7 @@ env_logger = { version = "0.9.0", default-features = false }
 fxhash = "0.2.1"
 hashbrown = "0.12.1"
 indexmap = "1.8.1"
-instant = "0.1.12"
+quanta = "0.12"
 log = "0.4.17"
 smallvec = { version = "1.8.0", features = ["union", "const_generics"] }
 symbol_table = { version = "0.2.0", features = ["global"] }
@@ -50,7 +50,7 @@ serde-1 = [
   "symbol_table/serde",
   "vectorize",
 ]
-wasm-bindgen = ["instant/wasm-bindgen"]
+wasm-bindgen = []
 
 # private features for testing
 test-explanations = []
