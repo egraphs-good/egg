@@ -297,6 +297,29 @@
 <span id="292">292</span>
 <span id="293">293</span>
 <span id="294">294</span>
+<span id="295">295</span>
+<span id="296">296</span>
+<span id="297">297</span>
+<span id="298">298</span>
+<span id="299">299</span>
+<span id="300">300</span>
+<span id="301">301</span>
+<span id="302">302</span>
+<span id="303">303</span>
+<span id="304">304</span>
+<span id="305">305</span>
+<span id="306">306</span>
+<span id="307">307</span>
+<span id="308">308</span>
+<span id="309">309</span>
+<span id="310">310</span>
+<span id="311">311</span>
+<span id="312">312</span>
+<span id="313">313</span>
+<span id="314">314</span>
+<span id="315">315</span>
+<span id="316">316</span>
+<span id="317">317</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::str::FromStr</span>;
 <span class="kw">use</span> <span class="ident">thiserror::Error</span>;
 
@@ -406,6 +429,17 @@
         <span class="ident">eclass</span>: <span class="ident">Id</span>,
         <span class="ident">limit</span>: <span class="ident">usize</span>,
     ) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">SearchMatches</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">asts</span>.<span class="ident">as_slice</span>() {
+            [] =&gt; <span class="macro">panic!</span>(<span class="string">&quot;empty multipattern&quot;</span>),
+            [(<span class="ident">_var</span>, <span class="ident">pat</span>), ..] =&gt; {
+                <span class="kw">if</span> <span class="kw">let</span> [<span class="ident">ENodeOrVar::Var</span>(<span class="kw">_</span>)] <span class="op">=</span> <span class="ident">pat</span>.<span class="ident">as_ref</span>() {
+                    <span class="macro">panic!</span>(
+                        <span class="string">&quot;Bare cannot be first pattern variable in multipattern: {:?}&quot;</span>,
+                        <span class="self">self</span>.<span class="ident">asts</span>
+                    )
+                }
+            }
+        }
         <span class="kw">let</span> <span class="ident">substs</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">program</span>.<span class="ident">run_with_limit</span>(<span class="ident">egraph</span>, <span class="ident">eclass</span>, <span class="ident">limit</span>);
         <span class="kw">if</span> <span class="ident">substs</span>.<span class="ident">is_empty</span>() {
             <span class="prelude-val">None</span>
@@ -589,6 +623,18 @@
 
         <span class="macro">assert_ne!</span>(<span class="ident">runner</span>.<span class="ident">egraph</span>.<span class="ident">find</span>(<span class="ident">y1</span>), <span class="ident">runner</span>.<span class="ident">egraph</span>.<span class="ident">find</span>(<span class="ident">z1</span>));
         <span class="macro">assert_ne!</span>(<span class="ident">runner</span>.<span class="ident">egraph</span>.<span class="ident">find</span>(<span class="ident">x1</span>), <span class="ident">runner</span>.<span class="ident">egraph</span>.<span class="ident">find</span>(<span class="ident">z1</span>));
+    }
+
+    <span class="attribute">#[<span class="ident">test</span>]</span>
+    <span class="kw">fn</span> <span class="ident">bare_var</span>() {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">g</span> <span class="op">=</span> <span class="ident">EGraph::default</span>();
+
+        <span class="ident">g</span>.<span class="ident">add_expr</span>(<span class="kw-2">&amp;</span><span class="string">&quot;(f a)&quot;</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>());
+        <span class="ident">g</span>.<span class="ident">rebuild</span>();
+
+        <span class="kw">let</span> <span class="ident">p</span>: <span class="ident">MultiPattern</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span> <span class="op">=</span> <span class="string">&quot;?a = (f ?x), ?y = ?y&quot;</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">rw</span> <span class="op">=</span> <span class="macro">multi_rewrite!</span>(<span class="string">&quot;r&quot;</span>; { <span class="ident">p</span> } =&gt; <span class="string">&quot;?a = (g ?x ?y)&quot;</span>);
+        <span class="ident">rw</span>.<span class="ident">run</span>(<span class="kw-2">&amp;mut</span> <span class="ident">g</span>);
     }
 }
 </code></pre></div>
