@@ -107,6 +107,17 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for MultiPattern<L> {
         eclass: Id,
         limit: usize,
     ) -> Option<SearchMatches<L>> {
+        match self.asts.as_slice() {
+            [] => panic!("empty multipattern"),
+            [(_var, pat), ..] => {
+                if let [ENodeOrVar::Var(_)] = pat.as_ref() {
+                    panic!(
+                        "Bare cannot be first pattern variable in multipattern: {:?}",
+                        self.asts
+                    )
+                }
+            }
+        }
         let substs = self.program.run_with_limit(egraph, eclass, limit);
         if substs.is_empty() {
             None
@@ -290,5 +301,17 @@ mod tests {
 
         assert_ne!(runner.egraph.find(y1), runner.egraph.find(z1));
         assert_ne!(runner.egraph.find(x1), runner.egraph.find(z1));
+    }
+
+    #[test]
+    fn bare_var() {
+        let mut g = EGraph::default();
+
+        g.add_expr(&"(f a)".parse().unwrap());
+        g.rebuild();
+
+        let p: MultiPattern<S> = "?a = (f ?x), ?y = ?y".parse().unwrap();
+        let rw = multi_rewrite!("r"; { p } => "?a = (g ?x ?y)");
+        rw.run(&mut g);
     }
 }
