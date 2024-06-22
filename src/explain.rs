@@ -8,11 +8,11 @@ use num_bigint::BigUint;
 use num_traits::identities::{One, Zero};
 use symbolic_expressions::Sexp;
 
-use crate::{
-    Analysis, EClass, ENodeOrVar, FromOp, HashMap, HashSet, Id, Language, PatternAst,
-    RecExpr, Rewrite, UnionFind, util::pretty_print, Var,
-};
 use crate::Symbol;
+use crate::{
+    util::pretty_print, Analysis, EClass, ENodeOrVar, FromOp, HashMap, HashSet, Id, Language,
+    PatternAst, RecExpr, Rewrite, UnionFind, Var,
+};
 
 type ProofCost = BigUint;
 
@@ -1287,12 +1287,7 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
             }
 
             let adj = self.explain_adjacent(connection, cache, enode_cache, false);
-            let mut exp = self.explain_enode_existance(
-                existance,
-                adj,
-                cache,
-                enode_cache,
-            );
+            let mut exp = self.explain_enode_existance(existance, adj, cache, enode_cache);
             exp.push(rest_of_proof);
             return exp;
         }
@@ -2063,18 +2058,29 @@ mod tests {
         use crate::SymbolLang;
         init_logger();
 
-        let rws: Vec<Rewrite<SymbolLang, ()>> = [rewrite!("makeb"; "a" => "b"), rewrite!("makec"; "b" => "c")].iter().cloned().collect();
-        let mut egraph = Runner::default().with_explanations_enabled()
+        let rws: Vec<Rewrite<SymbolLang, ()>> =
+            [rewrite!("makeb"; "a" => "b"), rewrite!("makec"; "b" => "c")]
+                .iter()
+                .cloned()
+                .collect();
+        let mut egraph = Runner::default()
+            .with_explanations_enabled()
             .without_explanation_length_optimization()
             .with_expr(&"a".parse().unwrap())
-            .run(&rws).egraph;
+            .run(&rws)
+            .egraph;
         egraph.rebuild();
         let a: Symbol = "a".parse().unwrap();
         let b: Symbol = "b".parse().unwrap();
         let c: Symbol = "c".parse().unwrap();
         let mut exp = egraph.explain_existance(&"c".parse().unwrap());
         println!("{:?}", exp.make_flat_explanation());
-        assert_eq!(exp.make_flat_explanation().len(), 3, "Expected 3 steps, got {:?}", exp.make_flat_explanation());
+        assert_eq!(
+            exp.make_flat_explanation().len(),
+            3,
+            "Expected 3 steps, got {:?}",
+            exp.make_flat_explanation()
+        );
     }
 }
 
