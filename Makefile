@@ -2,6 +2,7 @@ all: test nits
 
 .PHONY: test
 test:
+	rustup update
 	cargo test --release
 	cargo test --release --features=lp
 	# don't run examples in proof-production mode
@@ -10,6 +11,7 @@ test:
 
 .PHONY: nits
 nits:
+	rustup update
 	rustup component add rustfmt clippy
 	cargo fmt -- --check
 	cargo clean --doc
