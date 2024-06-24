@@ -59,8 +59,39 @@ define_language! {
     }
 }
 ```
+It is also possible to define languages that are generic over some bounded type.
+
+# Example
+```rust
+# use egg::*;
+# use std::{str::FromStr, fmt::{Debug, Display}, hash::Hash};
+define_language! {
+    enum GenericLang<T: SaturationNumber> {
+        Number(T),
+        "+" = Add([Id; 2]),
+        "-" = Sub([Id; 2]),
+        "/" = Div([Id; 2]),
+        "*" = Mult([Id; 2]),
+     }
+}
+
+pub trait SaturationNumber:
+    std::fmt::Debug
+    + Clone
+    + PartialEq
+    + FromStr<Err=String> // More specifcally Err should implement `Display`.
+    + Ord
+    + PartialOrd
+    + Hash
+    + Display
+{
+}
+```
 
 [`Display`]: std::fmt::Display
+[`Debug`]: std::fmt::Debug
+[`FromStr`]: std::str::FromStr
+[`Hash`]: std::hash::Hash
 **/
 #[macro_export]
 macro_rules! define_language {
@@ -404,5 +435,76 @@ mod tests {
         let _: Rewrite<Simple, ()> = rewrite!(
             "bad"; "?a" => "?a" if ConditionEqual::new(x.clone(), x)
         );
+    }
+    // Testing a "generic" language, where the number is not specifically i32, 
+    // but anything that implements some set of traits. For ease of reading 
+    // these tests set of traits required for language to accept a generic type
+    // is collected under `SaturationNumber`. The fact that the testing suite
+    // compiles is testing the macro's parsing implementation.
+
+    #[derive(std::fmt::Debug, Clone, PartialEq, Eq, Ord, PartialOrd, std::hash::Hash)]
+    pub struct CustomNumber {
+        num: i32,
+    }
+
+    impl std::str::FromStr for CustomNumber {
+        type Err = String;
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            let num = s.parse::<i32>().map_err(|e| format!("{e:?}"))?;
+            Ok(Self { num })
+        }
+    }
+
+    impl std::fmt::Display for CustomNumber {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "{}", self.num)
+        }
+    }
+
+    impl From<i32> for CustomNumber {
+        fn from(value: i32) -> Self {
+            Self {
+                num: value
+            }
+        }
+    }
+
+    pub trait SaturationNumber:
+        std::fmt::Debug
+        + Clone
+        + PartialEq
+        + std::str::FromStr<Err=String>
+        + Ord
+        + PartialOrd
+        + std::hash::Hash
+        + std::fmt::Display
+    {
+    }
+
+    impl SaturationNumber for CustomNumber {}
+
+    define_language! {
+        pub enum GenericLang<T: SaturationNumber> {
+            Number(T),
+            "+" = Add([Id; 2]),
+            "-" = Sub([Id; 2]),
+            "/" = Div([Id; 2]),
+            "*" = Mult([Id; 2]),
+        }
+    }
+
+    #[test]
+    fn test_generic_lang_display() {
+        assert_eq!(format!("{}", GenericLang::<CustomNumber>::Add([1.into(), 2.into()])), "+");
+    }
+
+    #[test]
+    fn test_generic_lang_from_op() {
+        let add_op = GenericLang::<CustomNumber>::from_op("+", vec![1.into(), 2.into()]).unwrap();
+        if let GenericLang::Add(ids) = add_op {
+            assert_eq!(ids, [1.into(), 2.into()]);
+        } else {
+            panic!("Expected GenericLang::Add variant");
+        }
     }
 }
