@@ -64,7 +64,7 @@ define_language! {
 **/
 #[macro_export]
 macro_rules! define_language {
-    ($(#[$meta:meta])* $vis:vis enum $name:ident $(<$($gen:ident $(: $bound:ident $(+ $bounds:ident)*)?),+>)? { $($variants:tt)* }) => {
+    ($(#[$meta:meta])* $vis:vis enum $name:ident $(<$($gen:ident $(: $bound:tt $(+ $bounds:tt)*)?),+>)? { $($variants:tt)* }) => {
         $crate::__define_language!($(#[$meta])* $vis enum $name $(<$($gen $(: $bound $(+ $bounds)*)?),+>)? { $($variants)* } -> {} {} {} {} {} {});
     };
 }
@@ -72,8 +72,8 @@ macro_rules! define_language {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __define_language {
-    // Final rule to generate the enum and implementations
-    ($(#[$meta:meta])* $vis:vis enum $name:ident $(<$($gen:ident $(: $bound:ident $(+ $bounds:ident)*)?),+>)? {} ->
+    // Rule for the end of the enum definition
+    ($(#[$meta:meta])* $vis:vis enum $name:ident $(<$($gen:ident $(: $bound:tt $(+ $bounds:tt)*)?),+>)? {} ->
      $decl:tt {$($matches:tt)*} $children:tt $children_mut:tt
      $display:tt {$($from_op:tt)*}
     ) => {
@@ -81,7 +81,7 @@ macro_rules! __define_language {
         #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
         $vis enum $name $(<$($gen $(: $bound $(+ $bounds)*)?),+>)? $decl
 
-        impl $(<$($gen $(: $bound $(+ $bounds)*)?),+>)? $crate::Language for $name $(<$($gen),+>)? {
+        impl<$($($gen $(: $bound $(+ $bounds)*)?),+)? > $crate::Language for $name $(<$($gen),+>)? {
             type Discriminant = std::mem::Discriminant<Self>;
 
             #[inline(always)]
@@ -99,13 +99,13 @@ macro_rules! __define_language {
             fn children_mut(&mut self) -> &mut [Id] { match self $children_mut }
         }
 
-        impl $(<$($gen),+>)? ::std::fmt::Display for $name $(<$($gen),+>)? {
+        impl<$($($gen $(: $bound $(+ $bounds)*)?),+)? > ::std::fmt::Display for $name $(<$($gen),+>)? {
             fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
                 match (self, f) $display
             }
         }
 
-        impl $(<$($gen),+>)? $crate::FromOp for $name $(<$($gen),+>)? {
+        impl<$($($gen $(: $bound $(+ $bounds)*)?),+)? > $crate::FromOp for $name $(<$($gen),+>)? {
             type Error = $crate::FromOpError;
 
             fn from_op(op: &str, children: ::std::vec::Vec<$crate::Id>) -> ::std::result::Result<Self, Self::Error> {
@@ -118,7 +118,7 @@ macro_rules! __define_language {
     };
 
     // Rule to handle string variants with no children
-    ($(#[$meta:meta])* $vis:vis enum $name:ident $(<$($gen:ident $(: $bound:ident $(+ $bounds:ident)*)?),+>)?
+    ($(#[$meta:meta])* $vis:vis enum $name:ident $(<$($gen:ident $(: $bound:tt $(+ $bounds:tt)*)?),+>)?
      {
          $string:literal = $variant:ident,
          $($variants:tt)*
@@ -139,7 +139,7 @@ macro_rules! __define_language {
     };
 
     // Rule to handle string variants with an array of child Ids
-    ($(#[$meta:meta])* $vis:vis enum $name:ident $(<$($gen:ident $(: $bound:ident $(+ $bounds:ident)*)?),+>)?
+    ($(#[$meta:meta])* $vis:vis enum $name:ident $(<$($gen:ident $(: $bound:tt $(+ $bounds:tt)*)?),+>)?
      {
          $string:literal = $variant:ident ($ids:ty),
          $($variants:tt)*
@@ -164,7 +164,7 @@ macro_rules! __define_language {
     };
 
     // Rule to handle data variants with a single field
-    ($(#[$meta:meta])* $vis:vis enum $name:ident $(<$($gen:ident $(: $bound:ident $(+ $bounds:ident)*)?),+>)?
+    ($(#[$meta:meta])* $vis:vis enum $name:ident $(<$($gen:ident $(: $bound:tt $(+ $bounds:tt)*)?),+>)?
      {
          $variant:ident ($data:ty),
          $($variants:tt)*
@@ -185,7 +185,7 @@ macro_rules! __define_language {
     };
 
     // Rule to handle data variants with a data field and an array of child Ids
-    ($(#[$meta:meta])* $vis:vis enum $name:ident $(<$($gen:ident $(: $bound:ident $(+ $bounds:ident)*)?),+>)?
+    ($(#[$meta:meta])* $vis:vis enum $name:ident $(<$($gen:ident $(: $bound:tt $(+ $bounds:tt)*)?),+>)?
      {
          $variant:ident ($data:ty, $ids:ty),
          $($variants:tt)*
