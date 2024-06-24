@@ -436,8 +436,8 @@ mod tests {
             "bad"; "?a" => "?a" if ConditionEqual::new(x.clone(), x)
         );
     }
-    // Testing a "generic" language, where the number is not specifically i32, 
-    // but anything that implements some set of traits. For ease of reading 
+    // Testing a "generic" language, where the number is not specifically i32,
+    // but anything that implements some set of traits. For ease of reading
     // these tests set of traits required for language to accept a generic type
     // is collected under `SaturationNumber`. The fact that the testing suite
     // compiles is testing the macro's parsing implementation.
@@ -463,9 +463,7 @@ mod tests {
 
     impl From<i32> for CustomNumber {
         fn from(value: i32) -> Self {
-            Self {
-                num: value
-            }
+            Self { num: value }
         }
     }
 
@@ -473,7 +471,7 @@ mod tests {
         std::fmt::Debug
         + Clone
         + PartialEq
-        + std::str::FromStr<Err=String>
+        + std::str::FromStr<Err = String>
         + Ord
         + PartialOrd
         + std::hash::Hash
@@ -495,7 +493,10 @@ mod tests {
 
     #[test]
     fn test_generic_lang_display() {
-        assert_eq!(format!("{}", GenericLang::<CustomNumber>::Add([1.into(), 2.into()])), "+");
+        assert_eq!(
+            format!("{}", GenericLang::<CustomNumber>::Add([1.into(), 2.into()])),
+            "+"
+        );
     }
 
     #[test]
