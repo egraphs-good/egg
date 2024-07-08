@@ -39,7 +39,8 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
     fn discriminant(&self) -> Self::Discriminant;
 
     /// Returns true if this enode matches another enode.
-    /// This should only consider the operator, not the children `Id`s.
+    /// This should only consider the operator and the arity,
+    /// not the children `Id`s.
     fn matches(&self, other: &Self) -> bool;
 
     /// Returns the children of this e-node.
