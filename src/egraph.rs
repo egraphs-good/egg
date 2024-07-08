@@ -33,9 +33,7 @@ same e-class.
 
 You can use the `egraph[id]` syntax to get an [`EClass`] from an [`Id`], because
 [`EGraph`] implements
-[`Index`](struct.EGraph.html#impl-Index<Id>)
-and
-[`IndexMut`](struct.EGraph.html#impl-IndexMut<Id>).
+`Index` and `IndexMut`.
 
 Enabling the `serde-1` feature on this crate will allow you to
 de/serialize [`EGraph`]s using [`serde`](https://serde.rs/).
@@ -765,7 +763,7 @@ pub struct SimpleLanguageMapper<L2, A2> {
 impl<L, A> Default for SimpleLanguageMapper<L, A> {
     fn default() -> Self {
         SimpleLanguageMapper {
-            _phantom: PhantomData::default(),
+            _phantom: PhantomData,
         }
     }
 }
