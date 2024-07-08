@@ -1,1 +1,1 @@
-initSidebarItems({"mod":[["_01_background","Concepts: e-graphs and equality saturation"],["_02_getting_started","My first `egg` 🐣"],["_03_explanations","Explanations"]]});
+window.SIDEBAR_ITEMS = {"mod":["_01_background","_02_getting_started","_03_explanations"]};
