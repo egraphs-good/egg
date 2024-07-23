@@ -457,6 +457,11 @@ impl<L: Language> RecExpr<L> {
         }
         true
     }
+
+    /// Get the root node of this expression. When adding a new node via `add`, it becomes the new root.
+    pub fn root(&self) -> Id {
+        Id::from(self.nodes.len() - 1)
+    }
 }
 
 impl<L: Language> Index<Id> for RecExpr<L> {
