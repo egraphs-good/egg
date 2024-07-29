@@ -134,14 +134,13 @@ pub trait CostFunction<L: Language> {
     /// down the [`RecExpr`].
     ///
     fn cost_rec(&mut self, expr: &RecExpr<L>) -> Self::Cost {
-        let nodes = expr.as_ref();
-        let mut costs = hashmap_with_capacity::<Id, Self::Cost>(nodes.len());
-        for (i, node) in nodes.iter().enumerate() {
+        let mut costs = hashmap_with_capacity::<Id, Self::Cost>(expr.len());
+        for (i, node) in expr.items() {
             let cost = self.cost(node, |i| costs[&i].clone());
-            costs.insert(Id::from(i), cost);
+            costs.insert(i, cost);
         }
-        let last_id = Id::from(expr.as_ref().len() - 1);
-        costs[&last_id].clone()
+        let root = expr.root();
+        costs[&root].clone()
     }
 }
 

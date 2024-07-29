@@ -110,7 +110,7 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for MultiPattern<L> {
         match self.asts.as_slice() {
             [] => panic!("empty multipattern"),
             [(_var, pat), ..] => {
-                if let [ENodeOrVar::Var(_)] = pat.as_ref() {
+                if let [ENodeOrVar::Var(_)] = **pat {
                     panic!(
                         "Bare cannot be first pattern variable in multipattern: {:?}",
                         self.asts
@@ -134,7 +134,7 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for MultiPattern<L> {
         let mut vars = vec![];
         for (v, pat) in &self.asts {
             vars.push(*v);
-            for n in pat.as_ref() {
+            for n in pat {
                 if let ENodeOrVar::Var(v) = n {
                     vars.push(*v)
                 }
@@ -172,8 +172,8 @@ impl<L: Language, A: Analysis<L>> Applier<L, A> for MultiPattern<L> {
                 let mut subst = subst.clone();
                 let mut id_buf = vec![];
                 for (i, (v, p)) in self.asts.iter().enumerate() {
-                    id_buf.resize(p.as_ref().len(), 0.into());
-                    let id1 = crate::pattern::apply_pat(&mut id_buf, p.as_ref(), egraph, &subst);
+                    id_buf.resize(p.len(), 0.into());
+                    let id1 = crate::pattern::apply_pat(&mut id_buf, p, egraph, &subst);
                     if let Some(id2) = subst.insert(*v, id1) {
                         egraph.union(id1, id2);
                     }
@@ -190,7 +190,7 @@ impl<L: Language, A: Analysis<L>> Applier<L, A> for MultiPattern<L> {
         let mut bound_vars = HashSet::default();
         let mut vars = vec![];
         for (bv, pat) in &self.asts {
-            for n in pat.as_ref() {
+            for n in pat {
                 if let ENodeOrVar::Var(v) = n {
                     // using vars that are already bound doesn't count
                     if !bound_vars.contains(v) {
