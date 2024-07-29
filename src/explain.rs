@@ -793,11 +793,9 @@ impl<L: Language> FlatTerm<L> {
     /// Rewrite the FlatTerm by matching the lhs and substituting the rhs.
     /// The lhs must be guaranteed to match.
     pub fn rewrite(&self, lhs: &PatternAst<L>, rhs: &PatternAst<L>) -> FlatTerm<L> {
-        let lhs_nodes = lhs.as_ref();
-        let rhs_nodes = rhs.as_ref();
         let mut bindings = Default::default();
-        self.make_bindings(lhs_nodes, lhs_nodes.len() - 1, &mut bindings);
-        FlatTerm::from_pattern(rhs_nodes, rhs_nodes.len() - 1, &bindings)
+        self.make_bindings(lhs, lhs.len() - 1, &mut bindings);
+        FlatTerm::from_pattern(rhs, rhs.len() - 1, &bindings)
     }
 
     /// Checks if this term or any child has a [`forward_rule`](FlatTerm::forward_rule).
