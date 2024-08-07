@@ -1,5 +1,8 @@
 use std::fmt::{self, Debug, Formatter};
 
+#[cfg(feature = "parallel-matching")]
+use rayon::prelude::*;
+
 use log::*;
 
 use crate::*;
@@ -134,7 +137,7 @@ println!(
 
 ```
 */
-pub struct Runner<L: Language, N: Analysis<L>, IterData = ()> {
+pub struct Runner<L: Language, N: Analysis<L>, IterData: Sync + Send = ()> {
     /// The [`EGraph`] used.
     pub egraph: EGraph<L, N>,
     /// Data accumulated over each [`Iteration`].
@@ -149,7 +152,10 @@ pub struct Runner<L: Language, N: Analysis<L>, IterData = ()> {
     /// The hooks added by the
     /// [`with_hook`](Runner::with_hook()) method, in insertion order.
     #[allow(clippy::type_complexity)]
-    pub hooks: Vec<Box<dyn FnMut(&mut Self) -> Result<(), String>>>,
+    pub hooks: Vec<Box<dyn FnMut(&mut Self) -> Result<(), String> + Send + Sync>>,
+
+    /// Use parallel matching (parallelization over rules) during search.
+    pub parallel_matching: bool,
 
     // limits
     iter_limit: usize,
@@ -170,7 +176,7 @@ where
     }
 }
 
-impl<L, N, IterData> Debug for Runner<L, N, IterData>
+impl<L, N, IterData: Sync + Send> Debug for Runner<L, N, IterData>
 where
     L: Language,
     N: Analysis<L>,
@@ -184,6 +190,7 @@ where
             roots,
             stop_reason,
             hooks,
+            parallel_matching,
             iter_limit,
             node_limit,
             time_limit,
@@ -197,6 +204,7 @@ where
             .field("roots", roots)
             .field("stop_reason", stop_reason)
             .field("hooks", &vec![format_args!("<dyn FnMut ..>"); hooks.len()])
+            .field("parallel_matching", parallel_matching)
             .field("iter_limit", iter_limit)
             .field("node_limit", node_limit)
             .field("time_limit", time_limit)
@@ -323,6 +331,7 @@ where
             iterations: vec![],
             stop_reason: None,
             hooks: vec![],
+            parallel_matching: false,
 
             start_time: None,
             scheduler: Box::new(BackoffScheduler::default()),
@@ -369,7 +378,7 @@ where
     /// ```
     pub fn with_hook<F>(mut self, hook: F) -> Self
     where
-        F: FnMut(&mut Self) -> Result<(), String> + 'static,
+        F: FnMut(&mut Self) -> Result<(), String> + 'static + Send + Sync,
     {
         self.hooks.push(Box::new(hook));
         self
@@ -538,13 +547,11 @@ where
 
         let mut matches = Vec::new();
         let mut applied = IndexMap::default();
-        result = result.and_then(|_| {
-            rules.iter().try_for_each(|rw| {
-                let ms = self.scheduler.search_rewrite(i, &self.egraph, rw);
-                matches.push(ms);
-                self.check_limits()
-            })
-        });
+        if self.parallel_matching {
+            result = result.and_then(|_| self.par_find_matches(rules, &mut matches, i));
+        } else {
+            result = result.and_then(|_| self.find_matches(rules, &mut matches, i));
+        }
 
         let search_time = start_time.elapsed().as_secs_f64();
         info!("Search time: {}", search_time);
@@ -615,6 +622,53 @@ where
         }
     }
 
+    fn find_matches<'a, 'b: 'a>(
+        &mut self,
+        rules: &[&'b Rewrite<L, N>],
+        matches: &'a mut Vec<Vec<SearchMatches<'b, L>>>,
+        iter: usize,
+    ) -> RunnerResult<()> {
+        rules.iter().try_for_each(move |rw| {
+            let ms = self.scheduler.search_rewrite(iter, &self.egraph, rw);
+            matches.push(ms);
+            self.check_limits()
+        })
+    }
+
+    #[cfg(feature = "parallel-matching")]
+    fn par_find_matches<'a, 'b: 'a>(
+        &self,
+        rules: &[&'b Rewrite<L, N>],
+        matches: &'a mut Vec<Vec<SearchMatches<'b, L>>>,
+        iter: usize,
+    ) -> RunnerResult<()> {
+        let matches_result = rules
+            .par_iter()
+            .map(|rw| {
+                let ms = self.scheduler.search_rewrite_const(iter, &self.egraph, rw);
+                self.check_limits().map(|_| ms)
+            })
+            .collect();
+
+        match matches_result {
+            Ok(matches_result) => {
+                *matches = matches_result;
+                Ok(())
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    #[cfg(not(feature = "parallel-matching"))]
+    fn par_find_matches<'a, 'b: 'a>(
+        &self,
+        rules: &[&'b Rewrite<L, N>],
+        matches: &'a mut Vec<Vec<SearchMatches<'b, L>>>,
+        iter: usize,
+    ) -> RunnerResult<()> {
+        panic!("Parallel matching must be enabled with 'parallel-matching' compilation flag")
+    }
+
     fn try_start(&mut self) {
         self.start_time.get_or_insert_with(Instant::now);
     }
@@ -664,7 +718,7 @@ the [`EGraph`] and dominating how much time is spent while running the
 
 */
 #[allow(unused_variables)]
-pub trait RewriteScheduler<L, N>
+pub trait RewriteScheduler<L, N>: Sync
 where
     L: Language,
     N: Analysis<L>,
@@ -690,6 +744,22 @@ where
         rewrite: &'a Rewrite<L, N>,
     ) -> Vec<SearchMatches<'a, L>> {
         rewrite.search(egraph)
+    }
+
+    /// Like [`search_rewrite`](RewriteScheduler::search_rewrite),
+    /// but takes `&self` instead of `&mut self`,
+    /// allowing this function to be used in parallel matching.
+    /// If modification is necessary,
+    /// interior mutability has to be used (e.g. [`Arc`](std::sync::Arc)).
+    ///
+    /// Default implementation panics.
+    fn search_rewrite_const<'a>(
+        &self,
+        iteration: usize,
+        egraph: &EGraph<L, N>,
+        rewrite: &'a Rewrite<L, N>,
+    ) -> Vec<SearchMatches<'a, L>> {
+        panic!("Constant searching not implemented.")
     }
 
     /// A hook allowing you to customize rewrite application behavior.
@@ -916,7 +986,7 @@ where
 /// [`Runner`] is generic over the [`IterationData`] that it will be in the
 /// [`Iteration`]s, but by default it uses `()`.
 ///
-pub trait IterationData<L, N>: Sized
+pub trait IterationData<L, N>: Sized + Sync + Send
 where
     L: Language,
     N: Analysis<L>,

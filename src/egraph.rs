@@ -8,6 +8,9 @@ use std::{
 #[cfg(feature = "serde-1")]
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "parallel-matching")]
+use rayon::prelude::*;
+
 use log::*;
 
 /** A data structure to keep track of equalities between expressions.
@@ -133,6 +136,12 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// Returns an mutating iterator over the eclasses in the egraph.
     pub fn classes_mut(&mut self) -> impl ExactSizeIterator<Item = &mut EClass<L, N::Data>> {
         self.classes.values_mut()
+    }
+
+    /// Returns a parallel iterator over the eclasses in the egraph.
+    #[cfg(feature = "parallel-matching")]
+    pub fn par_classes(&self) -> impl ParallelIterator<Item = &EClass<L, N::Data>> {
+        self.classes.par_values()
     }
 
     /// Returns `true` if the egraph is empty
