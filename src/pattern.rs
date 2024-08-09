@@ -6,6 +6,9 @@ use std::{convert::TryFrom, str::FromStr};
 
 use thiserror::Error;
 
+#[cfg(feature = "parallel-matching")]
+use rayon::prelude::*;
+
 use crate::*;
 
 /// A pattern that can function as either a [`Searcher`] or [`Applier`].
@@ -303,6 +306,31 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
                 self,
                 egraph,
                 egraph.classes().map(|e| e.id),
+                limit,
+            ),
+        }
+    }
+
+    #[cfg(feature = "parallel-matching")]
+    fn par_search_with_limit(&self, egraph: &EGraph<L, A>, limit: usize) -> Vec<SearchMatches<L>> {
+        println!("In par_search_with_limit");
+        match self.ast.as_ref().last().unwrap() {
+            ENodeOrVar::ENode(e) => {
+                let key = e.discriminant();
+                match egraph.classes_by_op.get(&key) {
+                    None => vec![],
+                    Some(ids) => rewrite::par_search_eclasses_with_limit(
+                        self,
+                        egraph,
+                        ids.par_iter().cloned(),
+                        limit,
+                    ),
+                }
+            }
+            ENodeOrVar::Var(_) => rewrite::par_search_eclasses_with_limit(
+                self,
+                egraph,
+                egraph.par_classes().map(|e| e.id),
                 limit,
             ),
         }

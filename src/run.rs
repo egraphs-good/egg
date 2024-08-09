@@ -645,7 +645,7 @@ where
         let matches_result = rules
             .par_iter()
             .map(|rw| {
-                let ms = self.scheduler.search_rewrite_const(iter, &self.egraph, rw);
+                let ms = self.scheduler.par_search_rewrite(iter, &self.egraph, rw);
                 self.check_limits().map(|_| ms)
             })
             .collect();
@@ -662,9 +662,9 @@ where
     #[cfg(not(feature = "parallel-matching"))]
     fn par_find_matches<'a, 'b: 'a>(
         &self,
-        rules: &[&'b Rewrite<L, N>],
-        matches: &'a mut Vec<Vec<SearchMatches<'b, L>>>,
-        iter: usize,
+        _rules: &[&'b Rewrite<L, N>],
+        _matches: &'a mut Vec<Vec<SearchMatches<'b, L>>>,
+        _iter: usize,
     ) -> RunnerResult<()> {
         panic!("Parallel matching must be enabled with 'parallel-matching' compilation flag")
     }
@@ -753,13 +753,14 @@ where
     /// interior mutability has to be used (e.g. [`Arc`](std::sync::Arc)).
     ///
     /// Default implementation panics.
-    fn search_rewrite_const<'a>(
+    #[cfg(feature = "parallel-matching")]
+    fn par_search_rewrite<'a>(
         &self,
         iteration: usize,
         egraph: &EGraph<L, N>,
         rewrite: &'a Rewrite<L, N>,
     ) -> Vec<SearchMatches<'a, L>> {
-        panic!("Constant searching not implemented.")
+        rewrite.par_search(egraph)
     }
 
     /// A hook allowing you to customize rewrite application behavior.
