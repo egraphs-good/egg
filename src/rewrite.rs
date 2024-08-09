@@ -89,7 +89,7 @@ impl<L: Language, N: Analysis<L>> Rewrite<L, N> {
     pub fn search(&self, egraph: &EGraph<L, N>) -> Vec<SearchMatches<L>> {
         self.searcher.search(egraph)
     }
-    
+
     /// Call [`par_search`] on the [`Searcher`].
     ///
     /// [`par_search`]: Searcher::par_search()
@@ -269,8 +269,7 @@ where
     ///
     /// [`search_with_limit`]: Searcher::search_with_limit
     #[cfg(feature = "parallel-matching")]
-    fn par_search_with_limit(&self, egraph: &EGraph<L, N>, limit: usize) -> Vec<SearchMatches<L>>
-    {
+    fn par_search_with_limit(&self, egraph: &EGraph<L, N>, limit: usize) -> Vec<SearchMatches<L>> {
         par_search_eclasses_with_limit(self, egraph, egraph.par_classes().map(|e| e.id), limit)
     }
 
