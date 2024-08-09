@@ -1,3 +1,10 @@
+#![allow(clippy::only_used_in_recursion)]
+use crate::Symbol;
+use crate::{
+    util::pretty_print, Analysis, EClass, ENodeOrVar, FromOp, HashMap, HashSet, Id, Language,
+    PatternAst, RecExpr, Rewrite, UnionFind, Var,
+};
+
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, VecDeque};
 use std::fmt::{self, Debug, Display, Formatter};
@@ -374,11 +381,11 @@ impl<L: Language> Explanation<L> {
 
     /// Check the validity of the explanation with respect to the given rules.
     /// This only is able to check rule applications when the rules are implement `get_pattern_ast`.
-    pub fn check_proof<'a, R, N: Analysis<L>>(&mut self, rules: R)
+    pub fn check_proof<'a, R, N>(&mut self, rules: R)
     where
         R: IntoIterator<Item = &'a Rewrite<L, N>>,
         L: 'a,
-        N: 'a,
+        N: Analysis<L> + 'a,
     {
         let rules: Vec<&Rewrite<L, N>> = rules.into_iter().collect();
         let rule_table = Explain::make_rule_table(rules.as_slice());
@@ -1409,8 +1416,7 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
         let mut enodes = HashSet::default();
         let mut todo = vec![eclass];
 
-        while !todo.is_empty() {
-            let current = todo.pop().unwrap();
+        while let Some(current) = todo.pop() {
             if enodes.insert(current) {
                 for neighbor in &self.explainfind[usize::from(current)].neighbors {
                     todo.push(neighbor.next);
