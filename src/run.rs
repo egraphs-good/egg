@@ -747,12 +747,11 @@ where
     }
 
     /// Like [`search_rewrite`](RewriteScheduler::search_rewrite),
-    /// but takes `&self` instead of `&mut self`,
-    /// allowing this function to be used in parallel matching.
-    /// If modification is necessary,
+    /// but calls [`par_search`](Rewrite::par_search),
+    /// instead of [`search`](Rewrite::search).
+    /// It also acts on `&self` instead of `&mut self`,
+    /// so if modification is necessary,
     /// interior mutability has to be used (e.g. [`Arc`](std::sync::Arc)).
-    ///
-    /// Default implementation panics.
     #[cfg(feature = "parallel-matching")]
     fn par_search_rewrite<'a>(
         &self,
