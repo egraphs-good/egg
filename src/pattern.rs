@@ -313,7 +313,6 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
 
     #[cfg(feature = "parallel-matching")]
     fn par_search_with_limit(&self, egraph: &EGraph<L, A>, limit: usize) -> Vec<SearchMatches<L>> {
-        println!("In par_search_with_limit");
         match self.ast.as_ref().last().unwrap() {
             ENodeOrVar::ENode(e) => {
                 let key = e.discriminant();
