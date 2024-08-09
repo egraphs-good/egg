@@ -2071,6 +2071,39 @@
 <a href="#2071" id="2071">2071</a>
 <a href="#2072" id="2072">2072</a>
 <a href="#2073" id="2073">2073</a>
+<a href="#2074" id="2074">2074</a>
+<a href="#2075" id="2075">2075</a>
+<a href="#2076" id="2076">2076</a>
+<a href="#2077" id="2077">2077</a>
+<a href="#2078" id="2078">2078</a>
+<a href="#2079" id="2079">2079</a>
+<a href="#2080" id="2080">2080</a>
+<a href="#2081" id="2081">2081</a>
+<a href="#2082" id="2082">2082</a>
+<a href="#2083" id="2083">2083</a>
+<a href="#2084" id="2084">2084</a>
+<a href="#2085" id="2085">2085</a>
+<a href="#2086" id="2086">2086</a>
+<a href="#2087" id="2087">2087</a>
+<a href="#2088" id="2088">2088</a>
+<a href="#2089" id="2089">2089</a>
+<a href="#2090" id="2090">2090</a>
+<a href="#2091" id="2091">2091</a>
+<a href="#2092" id="2092">2092</a>
+<a href="#2093" id="2093">2093</a>
+<a href="#2094" id="2094">2094</a>
+<a href="#2095" id="2095">2095</a>
+<a href="#2096" id="2096">2096</a>
+<a href="#2097" id="2097">2097</a>
+<a href="#2098" id="2098">2098</a>
+<a href="#2099" id="2099">2099</a>
+<a href="#2100" id="2100">2100</a>
+<a href="#2101" id="2101">2101</a>
+<a href="#2102" id="2102">2102</a>
+<a href="#2103" id="2103">2103</a>
+<a href="#2104" id="2104">2104</a>
+<a href="#2105" id="2105">2105</a>
+<a href="#2106" id="2106">2106</a>
 </pre></div><pre class="rust"><code><span class="attr">#![allow(clippy::only_used_in_recursion)]
 </span><span class="kw">use </span><span class="kw">crate</span>::Symbol;
 <span class="kw">use crate</span>::{
@@ -2084,10 +2117,9 @@
 <span class="kw">use </span>std::ops::{Deref, DerefMut};
 <span class="kw">use </span>std::rc::Rc;
 
-<span class="kw">use </span>symbolic_expressions::Sexp;
-
 <span class="kw">use </span>num_bigint::BigUint;
 <span class="kw">use </span>num_traits::identities::{One, Zero};
+<span class="kw">use </span>symbolic_expressions::Sexp;
 
 <span class="kw">type </span>ProofCost = BigUint;
 
@@ -3350,18 +3382,21 @@ See [`Explanation`] for more details.
         </span><span class="kw">if </span>graphnode.parent_connection.next == existance
             || existance_node.parent_connection.next == node
         {
-            <span class="kw">let </span><span class="kw-2">mut </span>connection = graphnode.parent_connection.clone();
+            <span class="kw">let </span><span class="kw-2">mut </span>connection = <span class="kw">if </span>graphnode.parent_connection.next == existance {
+                graphnode.parent_connection.clone()
+            } <span class="kw">else </span>{
+                existance_node.parent_connection.clone()
+            };
 
             <span class="kw">if </span>graphnode.parent_connection.next == existance {
                 connection.is_rewrite_forward = !connection.is_rewrite_forward;
                 std::mem::swap(<span class="kw-2">&amp;mut </span>connection.next, <span class="kw-2">&amp;mut </span>connection.current);
             }
-            <span class="kw">return </span><span class="self">self</span>.explain_enode_existance(
-                existance,
-                <span class="self">self</span>.explain_adjacent(connection, cache, enode_cache, <span class="bool-val">false</span>),
-                cache,
-                enode_cache,
-            );
+
+            <span class="kw">let </span>adj = <span class="self">self</span>.explain_adjacent(connection, cache, enode_cache, <span class="bool-val">false</span>);
+            <span class="kw">let </span><span class="kw-2">mut </span>exp = <span class="self">self</span>.explain_enode_existance(existance, adj, cache, enode_cache);
+            exp.push(rest_of_proof);
+            <span class="kw">return </span>exp;
         }
 
         <span class="comment">// case 3)
@@ -4017,7 +4052,6 @@ See [`Explanation`] for more details.
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
-
     <span class="kw">use </span><span class="kw">super</span>::<span class="kw">super</span>::<span class="kw-2">*</span>;
 
     <span class="attr">#[test]
@@ -4121,6 +4155,38 @@ See [`Explanation`] for more details.
         </span>);
 
         egraph.dot().to_dot(<span class="string">"target/foo.dot"</span>).unwrap();
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>simple_explain_exists() {
+        <span class="doccomment">//! Same as previous test, but now I want to make a rewrite add some term and see it exists in
+        //! more then one step
+        </span><span class="kw">use </span><span class="kw">crate</span>::SymbolLang;
+        init_logger();
+
+        <span class="kw">let </span>rws: Vec&lt;Rewrite&lt;SymbolLang, ()&gt;&gt; =
+            [<span class="macro">rewrite!</span>(<span class="string">"makeb"</span>; <span class="string">"a" </span>=&gt; <span class="string">"b"</span>), <span class="macro">rewrite!</span>(<span class="string">"makec"</span>; <span class="string">"b" </span>=&gt; <span class="string">"c"</span>)]
+                .iter()
+                .cloned()
+                .collect();
+        <span class="kw">let </span><span class="kw-2">mut </span>egraph = Runner::default()
+            .with_explanations_enabled()
+            .without_explanation_length_optimization()
+            .with_expr(<span class="kw-2">&amp;</span><span class="string">"a"</span>.parse().unwrap())
+            .run(<span class="kw-2">&amp;</span>rws)
+            .egraph;
+        egraph.rebuild();
+        <span class="kw">let </span>a: Symbol = <span class="string">"a"</span>.parse().unwrap();
+        <span class="kw">let </span>b: Symbol = <span class="string">"b"</span>.parse().unwrap();
+        <span class="kw">let </span>c: Symbol = <span class="string">"c"</span>.parse().unwrap();
+        <span class="kw">let </span><span class="kw-2">mut </span>exp = egraph.explain_existance(<span class="kw-2">&amp;</span><span class="string">"c"</span>.parse().unwrap());
+        <span class="macro">println!</span>(<span class="string">"{:?}"</span>, exp.make_flat_explanation());
+        <span class="macro">assert_eq!</span>(
+            exp.make_flat_explanation().len(),
+            <span class="number">3</span>,
+            <span class="string">"Expected 3 steps, got {:?}"</span>,
+            exp.make_flat_explanation()
+        );
     }
 }
 
