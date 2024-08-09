@@ -15,12 +15,6 @@ use num_bigint::BigUint;
 use num_traits::identities::{One, Zero};
 use symbolic_expressions::Sexp;
 
-use crate::Symbol;
-use crate::{
-    util::pretty_print, Analysis, EClass, ENodeOrVar, FromOp, HashMap, HashSet, Id, Language,
-    PatternAst, RecExpr, Rewrite, UnionFind, Var,
-};
-
 type ProofCost = BigUint;
 
 const CONGRUENCE_LIMIT: usize = 2;
