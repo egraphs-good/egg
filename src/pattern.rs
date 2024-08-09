@@ -6,6 +6,9 @@ use std::{convert::TryFrom, str::FromStr};
 
 use thiserror::Error;
 
+#[cfg(feature = "parallel-matching")]
+use rayon::prelude::*;
+
 use crate::*;
 
 /// A pattern that can function as either a [`Searcher`] or [`Applier`].
@@ -308,6 +311,30 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
         }
     }
 
+    #[cfg(feature = "parallel-matching")]
+    fn par_search_with_limit(&self, egraph: &EGraph<L, A>, limit: usize) -> Vec<SearchMatches<L>> {
+        match self.ast.as_ref().last().unwrap() {
+            ENodeOrVar::ENode(e) => {
+                let key = e.discriminant();
+                match egraph.classes_by_op.get(&key) {
+                    None => vec![],
+                    Some(ids) => rewrite::par_search_eclasses_with_limit(
+                        self,
+                        egraph,
+                        ids.par_iter().cloned(),
+                        limit,
+                    ),
+                }
+            }
+            ENodeOrVar::Var(_) => rewrite::par_search_eclasses_with_limit(
+                self,
+                egraph,
+                egraph.par_classes().map(|e| e.id),
+                limit,
+            ),
+        }
+    }
+
     fn search_eclass_with_limit(
         &self,
         egraph: &EGraph<L, A>,
@@ -436,46 +463,59 @@ mod tests {
 
     type EGraph = crate::EGraph<S, ()>;
 
+    macro_rules! simple_match_test {
+        ($search_func:expr) => {
+            crate::init_logger();
+            let mut egraph = EGraph::default();
+
+            let (plus_id, _) = egraph.union_instantiations(
+                &"(+ x y)".parse().unwrap(),
+                &"(+ z w)".parse().unwrap(),
+                &Default::default(),
+                "union_plus".to_string(),
+            );
+            egraph.rebuild();
+
+            let commute_plus = rewrite!(
+                "commute_plus";
+                "(+ ?a ?b)" => "(+ ?b ?a)"
+            );
+
+            let matches = $search_func(&commute_plus, &egraph);
+
+            let n_matches: usize = matches.iter().map(|m| m.substs.len()).sum();
+            assert_eq!(n_matches, 2, "matches is wrong: {:#?}", matches);
+
+            let applications = commute_plus.apply(&mut egraph, &matches);
+            egraph.rebuild();
+            assert_eq!(applications.len(), 2);
+
+            let actual_substs: Vec<Subst> = matches.iter().flat_map(|m| m.substs.clone()).collect();
+
+            println!("Here are the substs!");
+            for m in &actual_substs {
+                println!("substs: {:?}", m);
+            }
+
+            egraph.dot().to_dot("target/simple-match.dot").unwrap();
+
+            use crate::extract::{AstSize, Extractor};
+
+            let ext = Extractor::new(&egraph, AstSize);
+            let (_, best) = ext.find_best(plus_id);
+            eprintln!("Best: {:#?}", best);
+        }
+    }
+
     #[test]
     fn simple_match() {
-        crate::init_logger();
-        let mut egraph = EGraph::default();
+        simple_match_test!(Rewrite::search);
+    }
 
-        let (plus_id, _) = egraph.union_instantiations(
-            &"(+ x y)".parse().unwrap(),
-            &"(+ z w)".parse().unwrap(),
-            &Default::default(),
-            "union_plus".to_string(),
-        );
-        egraph.rebuild();
-
-        let commute_plus = rewrite!(
-            "commute_plus";
-            "(+ ?a ?b)" => "(+ ?b ?a)"
-        );
-
-        let matches = commute_plus.search(&egraph);
-        let n_matches: usize = matches.iter().map(|m| m.substs.len()).sum();
-        assert_eq!(n_matches, 2, "matches is wrong: {:#?}", matches);
-
-        let applications = commute_plus.apply(&mut egraph, &matches);
-        egraph.rebuild();
-        assert_eq!(applications.len(), 2);
-
-        let actual_substs: Vec<Subst> = matches.iter().flat_map(|m| m.substs.clone()).collect();
-
-        println!("Here are the substs!");
-        for m in &actual_substs {
-            println!("substs: {:?}", m);
-        }
-
-        egraph.dot().to_dot("target/simple-match.dot").unwrap();
-
-        use crate::extract::{AstSize, Extractor};
-
-        let ext = Extractor::new(&egraph, AstSize);
-        let (_, best) = ext.find_best(plus_id);
-        eprintln!("Best: {:#?}", best);
+    #[test]
+    #[cfg(feature = "parallel-matching")]
+    fn par_simple_match() {
+        simple_match_test!(Rewrite::par_search);
     }
 
     #[test]
@@ -499,37 +539,50 @@ mod tests {
         assert_eq!(n_matches("(h ?x 0 0)"), 1);
     }
 
+    macro_rules! search_with_limit_test {
+        ($search_func:expr) => {
+            crate::init_logger();
+            let init_expr = &"(+ 1 (+ 2 (+ 3 (+ 4 (+ 5 6)))))".parse().unwrap();
+            let rules: Vec<Rewrite<_, ()>> = vec![
+                rewrite!("comm"; "(+ ?x ?y)" => "(+ ?y ?x)"),
+                rewrite!("assoc"; "(+ ?x (+ ?y ?z))" => "(+ (+ ?x ?y) ?z)"),
+            ];
+            let runner = Runner::default().with_expr(init_expr).run(&rules);
+            let egraph = &runner.egraph;
+
+            let len = |m: &Vec<SearchMatches<S>>| -> usize
+                { m.iter().map(|m| m.substs.len()).sum() };
+
+            let pat = &"(+ ?x (+ ?y ?z))".parse::<Pattern<S>>().unwrap();
+            let m = pat.search(egraph);
+            let match_size = 2100;
+            assert_eq!(len(&m), match_size);
+
+            for limit in [1, 10, 100, 1000, 10000] {
+                let m = $search_func(pat, egraph, limit);
+                assert_eq!(len(&m), usize::min(limit, match_size));
+            }
+
+            let id = egraph.lookup_expr(init_expr).unwrap();
+            let m = pat.search_eclass(egraph, id).unwrap();
+            let match_size = 540;
+            assert_eq!(m.substs.len(), match_size);
+
+            for limit in [1, 10, 100, 1000] {
+                let m1 = pat.search_eclass_with_limit(egraph, id, limit).unwrap();
+                assert_eq!(m1.substs.len(), usize::min(limit, match_size));
+            }
+        };
+    }
+
     #[test]
     fn search_with_limit() {
-        crate::init_logger();
-        let init_expr = &"(+ 1 (+ 2 (+ 3 (+ 4 (+ 5 6)))))".parse().unwrap();
-        let rules: Vec<Rewrite<_, ()>> = vec![
-            rewrite!("comm"; "(+ ?x ?y)" => "(+ ?y ?x)"),
-            rewrite!("assoc"; "(+ ?x (+ ?y ?z))" => "(+ (+ ?x ?y) ?z)"),
-        ];
-        let runner = Runner::default().with_expr(init_expr).run(&rules);
-        let egraph = &runner.egraph;
+        search_with_limit_test!(Pattern::search_with_limit);
+    }
 
-        let len = |m: &Vec<SearchMatches<S>>| -> usize { m.iter().map(|m| m.substs.len()).sum() };
-
-        let pat = &"(+ ?x (+ ?y ?z))".parse::<Pattern<S>>().unwrap();
-        let m = pat.search(egraph);
-        let match_size = 2100;
-        assert_eq!(len(&m), match_size);
-
-        for limit in [1, 10, 100, 1000, 10000] {
-            let m = pat.search_with_limit(egraph, limit);
-            assert_eq!(len(&m), usize::min(limit, match_size));
-        }
-
-        let id = egraph.lookup_expr(init_expr).unwrap();
-        let m = pat.search_eclass(egraph, id).unwrap();
-        let match_size = 540;
-        assert_eq!(m.substs.len(), match_size);
-
-        for limit in [1, 10, 100, 1000] {
-            let m1 = pat.search_eclass_with_limit(egraph, id, limit).unwrap();
-            assert_eq!(m1.substs.len(), usize::min(limit, match_size));
-        }
+    #[test]
+    #[cfg(feature = "parallel-matching")]
+    fn par_search_with_limit() {
+        search_with_limit_test!(Pattern::par_search_with_limit);
     }
 }

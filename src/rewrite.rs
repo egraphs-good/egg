@@ -2,6 +2,12 @@ use pattern::apply_pat;
 use std::fmt::{self, Debug, Display};
 use std::sync::Arc;
 
+#[cfg(feature = "parallel-matching")]
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+#[cfg(feature = "parallel-matching")]
+use rayon::prelude::*;
+
 use crate::*;
 
 /// A rewrite that searches for the lefthand side and applies the righthand side.
@@ -83,6 +89,14 @@ impl<L: Language, N: Analysis<L>> Rewrite<L, N> {
     pub fn search(&self, egraph: &EGraph<L, N>) -> Vec<SearchMatches<L>> {
         self.searcher.search(egraph)
     }
+    
+    /// Call [`par_search`] on the [`Searcher`].
+    ///
+    /// [`par_search`]: Searcher::par_search()
+    #[cfg(feature = "parallel-matching")]
+    pub fn par_search(&self, egraph: &EGraph<L, N>) -> Vec<SearchMatches<L>> {
+        self.searcher.par_search(egraph)
+    }
 
     /// Call [`search_with_limit`] on the [`Searcher`].
     ///
@@ -153,13 +167,58 @@ where
     ms
 }
 
+/// Searches the given list of e-classes with a limit iterating the classes in parallel.
+#[cfg(feature = "parallel-matching")]
+pub(crate) fn par_search_eclasses_with_limit<'a, I, S, L, N>(
+    searcher: &'a S,
+    egraph: &EGraph<L, N>,
+    eclasses: I,
+    limit: usize,
+) -> Vec<SearchMatches<'a, L>>
+where
+    L: Language,
+    N: Analysis<L>,
+    S: Searcher<L, N> + ?Sized,
+    I: IntoParallelIterator<Item = Id>,
+{
+    const ATOMIC_ORDERING: Ordering = Ordering::SeqCst;
+    let limit = AtomicUsize::new(limit);
+    eclasses
+        .into_par_iter()
+        .map(|eclass| {
+            let mut limit_loaded = limit.load(ATOMIC_ORDERING);
+            if limit_loaded == 0 {
+                return None;
+            }
+
+            match searcher.search_eclass_with_limit(egraph, eclass, limit_loaded) {
+                None => None,
+                Some(mut m) => {
+                    while let Err(new_limit) = limit.compare_exchange(
+                        limit_loaded,
+                        limit_loaded - m.substs.len(),
+                        ATOMIC_ORDERING,
+                        ATOMIC_ORDERING,
+                    ) {
+                        limit_loaded = new_limit;
+                        m.substs.truncate(limit_loaded);
+                    }
+
+                    Some(m)
+                }
+            }
+        })
+        .flatten()
+        .collect()
+}
+
 /// The lefthand side of a [`Rewrite`].
 ///
 /// A [`Searcher`] is something that can search the egraph and find
 /// matching substitutions.
 /// Right now the only significant [`Searcher`] is [`Pattern`].
 ///
-pub trait Searcher<L, N>
+pub trait Searcher<L, N>: Sync
 where
     L: Language,
     N: Analysis<L>,
@@ -198,9 +257,33 @@ where
         search_eclasses_with_limit(self, egraph, egraph.classes().map(|e| e.id), limit)
     }
 
+    /// Like [`search`], but iterates over the classes in parallel.
+    ///
+    /// [`search`]: Searcher::search
+    #[cfg(feature = "parallel-matching")]
+    fn par_search(&self, egraph: &EGraph<L, N>) -> Vec<SearchMatches<L>> {
+        self.par_search_with_limit(egraph, usize::MAX)
+    }
+
+    /// Like [`search_with_limit`], but iterates over the classes in parallel.
+    ///
+    /// [`search_with_limit`]: Searcher::search_with_limit
+    #[cfg(feature = "parallel-matching")]
+    fn par_search_with_limit(&self, egraph: &EGraph<L, N>, limit: usize) -> Vec<SearchMatches<L>>
+    {
+        par_search_eclasses_with_limit(self, egraph, egraph.par_classes().map(|e| e.id), limit)
+    }
+
     /// Returns the number of matches in the e-graph
     fn n_matches(&self, egraph: &EGraph<L, N>) -> usize {
         self.search(egraph).iter().map(|m| m.substs.len()).sum()
+    }
+
+    /// Returns the number of matches in the e-graph
+    /// iterating over the classes in parallel.
+    #[cfg(feature = "parallel-matching")]
+    fn par_n_matches(&self, egraph: &EGraph<L, N>) -> usize {
+        self.par_search(egraph).iter().map(|m| m.substs.len()).sum()
     }
 
     /// For patterns, return the ast directly as a reference

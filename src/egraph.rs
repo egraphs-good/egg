@@ -8,6 +8,9 @@ use std::{
 #[cfg(feature = "serde-1")]
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "parallel-matching")]
+use rayon::prelude::*;
+
 use log::*;
 
 /** A data structure to keep track of equalities between expressions.
@@ -133,6 +136,12 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// Returns an mutating iterator over the eclasses in the egraph.
     pub fn classes_mut(&mut self) -> impl ExactSizeIterator<Item = &mut EClass<L, N::Data>> {
         self.classes.values_mut()
+    }
+
+    /// Returns a parallel iterator over the eclasses in the egraph.
+    #[cfg(feature = "parallel-matching")]
+    pub fn par_classes(&self) -> impl ParallelIterator<Item = &EClass<L, N::Data>> {
+        self.classes.par_values()
     }
 
     /// Returns `true` if the egraph is empty
@@ -582,7 +591,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// This is private, but internals should use this whenever
     /// possible because it does path compression.
     fn find_mut(&mut self, id: Id) -> Id {
-        self.unionfind.find_mut(id)
+        self.unionfind.find(id)
     }
 
     /// Creates a [`Dot`] to visualize this egraph. See [`Dot`].
@@ -1308,7 +1317,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             class
                 .nodes
                 .iter_mut()
-                .for_each(|n| n.update_children(|id| uf.find_mut(id)));
+                .for_each(|n| n.update_children(|id| uf.find(id)));
             class.nodes.sort_unstable();
             class.nodes.dedup();
 
