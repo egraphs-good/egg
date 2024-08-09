@@ -62,7 +62,7 @@ impl<L: Language, N: Analysis<L>> Rewrite<L, N> {
     ///
     pub fn new(
         name: impl Into<Symbol>,
-        searcher: impl Searcher<L, N> + Send + Sync + 'static,
+        searcher: impl Searcher<L, N> + Send + 'static,
         applier: impl Applier<L, N> + Send + Sync + 'static,
     ) -> Result<Self, String> {
         let name = name.into();

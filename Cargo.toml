@@ -54,7 +54,11 @@ serde-1 = [
   "vectorize",
 ]
 wasm-bindgen = []
-parallel-matching = ["rayon", "hashbrown/rayon"]
+parallel-matching = [
+  "rayon",
+  "hashbrown/rayon",
+  "indexmap/rayon"
+]
 
 
 # private features for testing
