@@ -40,18 +40,27 @@ struct Connection {
     is_rewrite_forward: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde-1", derive(serde::Serialize, serde::Deserialize))]
+pub(crate) enum ExistanceReason {
+    /// The term was added as a child of some other term
+    ChildOf(Id),
+    /// The term was added when rewritting from another term
+    EqualTo(Id),
+    /// The term was added directly
+    Direct,
+    /// A temporary value.
+    /// Should not be present except during a call to `add_expr_uncanonical`.
+    Unset,
+}
+
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde-1", derive(serde::Serialize, serde::Deserialize))]
 struct ExplainNode {
     // neighbors includes parent connections
     neighbors: Vec<Connection>,
     parent_connection: Connection,
-    // it was inserted because of:
-    // 1) it's parent is inserted (points to parent enode)
-    // 2) a rewrite instantiated it (points to adjacent enode)
-    // 3) it was inserted directly (points to itself)
-    // if 1 is true but it's also adjacent (2) then either works and it picks 2
-    existance_node: Id,
+    existance: ExistanceReason,
 }
 
 #[derive(Debug, Clone)]
@@ -916,11 +925,7 @@ impl<L: Language> Explain<L> {
         }
     }
 
-    pub(crate) fn set_existance_reason(&mut self, node: Id, existance_node: Id) {
-        self.explainfind[usize::from(node)].existance_node = existance_node;
-    }
-
-    pub(crate) fn add(&mut self, node: L, set: Id, existance_node: Id) -> Id {
+    pub(crate) fn add(&mut self, node: L, set: Id, existance: ExistanceReason) -> Id {
         assert_eq!(self.explainfind.len(), usize::from(set));
         self.uncanon_memo.insert(node, set);
         self.explainfind.push(ExplainNode {
@@ -931,7 +936,7 @@ impl<L: Language> Explain<L> {
                 next: set,
                 current: set,
             },
-            existance_node,
+            existance,
         });
         set
     }
@@ -988,18 +993,9 @@ impl<L: Language> Explain<L> {
             .insert((node2, node1), (BigUint::one(), node1));
     }
 
-    pub(crate) fn union(
-        &mut self,
-        node1: Id,
-        node2: Id,
-        justification: Justification,
-        new_rhs: bool,
-    ) {
+    pub(crate) fn union(&mut self, node1: Id, node2: Id, justification: Justification) {
         if let Justification::Congruence = justification {
             // assert!(self.node(node1).matches(self.node(node2)));
-        }
-        if new_rhs {
-            self.set_existance_reason(node2, node1)
         }
 
         self.make_leader(node1);
@@ -1050,6 +1046,13 @@ impl<L: Language> Explain<L> {
         ExplainNodes {
             explain: self,
             nodes,
+        }
+    }
+
+    /// Sets unset existance reasons to the new reason
+    pub(crate) fn set_existance_reason(&mut self, node: Id, reason: ExistanceReason) {
+        if self.explainfind[usize::from(node)].existance == ExistanceReason::Unset {
+            self.explainfind[usize::from(node)].existance = reason;
         }
     }
 }
@@ -1106,11 +1109,16 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
             let explain_node = &self.explainfind[i];
 
             // check that explanation reasons never form a cycle
-            let mut existance = i;
-            let mut seen_existance: HashSet<usize> = Default::default();
+            let mut existance = Id::from(i);
+            let mut seen_existance: HashSet<Id> = Default::default();
             loop {
                 seen_existance.insert(existance);
-                let next = usize::from(self.explainfind[existance].existance_node);
+                let next = match self.explainfind[usize::from(existance)].existance {
+                    ExistanceReason::ChildOf(id) => id,
+                    ExistanceReason::EqualTo(id) => id,
+                    ExistanceReason::Direct => existance,
+                    ExistanceReason::Unset => panic!("Unset existance!"),
+                };
                 if existance == next {
                     break;
                 }
@@ -1164,7 +1172,7 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
     pub(crate) fn explain_existance(&mut self, left: Id) -> Explanation<L> {
         let mut cache = Default::default();
         let mut enode_cache = Default::default();
-        Explanation::new(self.explain_enode_existance(
+        Explanation::new(self.explain_term_existance(
             left,
             self.node_to_explanation(left, &mut enode_cache),
             &mut cache,
@@ -1257,60 +1265,73 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
         (left_connections, right_connections)
     }
 
-    fn explain_enode_existance(
+    /// Explains why a term came to be in the egraph, following its `ExistanceReason`.
+    /// The returned proof starts with some initial ground term, and ends with the term in question
+    /// or a term with the term in question as a sub-term.
+    fn explain_term_existance(
         &self,
-        node: Id,
+        term: Id,
+        // This term's proof should end with this `rest_of_proof` proof, connecting it
+        // to another term.
         rest_of_proof: Rc<TreeTerm<L>>,
         cache: &mut ExplainCache<L>,
         enode_cache: &mut NodeExplanationCache<L>,
     ) -> TreeExplanation<L> {
-        let graphnode = &self.explainfind[usize::from(node)];
-        let existance = graphnode.existance_node;
-        let existance_node = &self.explainfind[usize::from(existance)];
-        // case 1)
-        if existance == node {
-            return vec![self.node_to_explanation(node, enode_cache), rest_of_proof];
+        let node = &self.explainfind[usize::from(term)];
+        let existance = node.existance.clone();
+
+        match existance {
+            ExistanceReason::ChildOf(parent_id) => {
+                let mut new_rest_of_proof =
+                    (*self.node_to_explanation(parent_id, enode_cache)).clone();
+                let mut index_of_child = 0;
+                let mut found = false;
+                self.node(parent_id).for_each(|child| {
+                    if found {
+                        return;
+                    }
+                    if child == term {
+                        found = true;
+                    } else {
+                        index_of_child += 1;
+                    }
+                });
+                assert!(found);
+                new_rest_of_proof.child_proofs[index_of_child].push(rest_of_proof);
+
+                self.explain_term_existance(
+                    parent_id,
+                    Rc::new(new_rest_of_proof),
+                    cache,
+                    enode_cache,
+                )
+            }
+            ExistanceReason::EqualTo(adjacent_id) => {
+                let adjacent_node = &self.explainfind[usize::from(adjacent_id)];
+                // The node should be directly adjacent to another node
+                let connection = if node.parent_connection.next == adjacent_id {
+                    let mut connection = node.parent_connection.clone();
+                    connection.is_rewrite_forward = !connection.is_rewrite_forward;
+                    std::mem::swap(&mut connection.next, &mut connection.current);
+                    connection
+                } else {
+                    assert!(
+                        adjacent_node.parent_connection.next == term,
+                        "Existance reason between two nodes failed: not directly adjacent."
+                    );
+                    adjacent_node.parent_connection.clone()
+                };
+
+                let adj = self.explain_adjacent(connection, cache, enode_cache, false);
+                let mut exp = self.explain_term_existance(adjacent_id, adj, cache, enode_cache);
+                exp.push(rest_of_proof);
+                return exp;
+            }
+            ExistanceReason::Direct => {
+                vec![self.node_to_explanation(term, enode_cache), rest_of_proof]
+            }
+            ExistanceReason::Unset => panic!("Unset existance!"),
         }
-
-        // case 2)
-        if graphnode.parent_connection.next == existance
-            || existance_node.parent_connection.next == node
-        {
-            let mut connection = if graphnode.parent_connection.next == existance {
-                graphnode.parent_connection.clone()
-            } else {
-                existance_node.parent_connection.clone()
-            };
-
-            if graphnode.parent_connection.next == existance {
-                connection.is_rewrite_forward = !connection.is_rewrite_forward;
-                std::mem::swap(&mut connection.next, &mut connection.current);
-            }
-
-            let adj = self.explain_adjacent(connection, cache, enode_cache, false);
-            let mut exp = self.explain_enode_existance(existance, adj, cache, enode_cache);
-            exp.push(rest_of_proof);
-            return exp;
-        }
-
-        // case 3)
-        let mut new_rest_of_proof = (*self.node_to_explanation(existance, enode_cache)).clone();
-        let mut index_of_child = 0;
-        let mut found = false;
-        self.node(existance).for_each(|child| {
-            if found {
-                return;
-            }
-            if child == node {
-                found = true;
-            } else {
-                index_of_child += 1;
-            }
-        });
-        assert!(found);
-        new_rest_of_proof.child_proofs[index_of_child].push(rest_of_proof);
-
-        self.explain_enode_existance(existance, Rc::new(new_rest_of_proof), cache, enode_cache)
     }
 
     fn explain_enodes(

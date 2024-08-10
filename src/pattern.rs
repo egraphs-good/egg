@@ -356,8 +356,13 @@ where
                 let did_something;
                 let id;
                 if egraph.are_explanations_enabled() {
-                    let (id_temp, did_something_temp) =
-                        egraph.union_instantiations(sast.unwrap(), &self.ast, subst, rule_name);
+                    let (id_temp, did_something_temp) = egraph
+                        .union_instantiations_guaranteed_match(
+                            sast.unwrap(),
+                            &self.ast,
+                            subst,
+                            rule_name,
+                        );
                     did_something = did_something_temp;
                     id = id_temp;
                 } else {
@@ -387,7 +392,7 @@ where
 
         if let Some(ast) = searcher_ast {
             let (from, did_something) =
-                egraph.union_instantiations(ast, &self.ast, subst, rule_name);
+                egraph.union_instantiations_guaranteed_match(ast, &self.ast, subst, rule_name);
             if did_something {
                 vec![from]
             } else {

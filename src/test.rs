@@ -56,6 +56,8 @@ pub fn test_runner<L, A>(
         runner = runner.with_explanations_enabled();
     }
 
+    // check if the runner has expressions already
+    let has_initial_expression = runner.egraph.number_of_classes() > 0;
     runner = runner.with_expr(&start);
     // NOTE this is a bit of hack, we rely on the fact that the
     // initial root is the last expr added by the runner. We can't
@@ -104,6 +106,21 @@ pub fn test_runner<L, A>(
                 let vanilla_len = flattened.len();
                 explained.check_proof(rules);
                 assert!(!explained.get_tree_size().is_zero());
+
+                // now check for existance of the goal
+                // it should exist due to the start expression
+                let mut existance_proof = runner.explain_existance_pattern(&goal.ast, &subst);
+                existance_proof.check_proof(rules);
+                let first_term_in_existance_proof: RecExpr<L> =
+                    existance_proof.make_flat_explanation()[0].get_recexpr();
+                if !has_initial_expression {
+                    assert_eq!(
+                        first_term_in_existance_proof,
+                        start,
+                        "Existance proof failed to find original term. Existance proof: {}",
+                        existance_proof.get_flat_string()
+                    );
+                }
 
                 runner = runner.with_explanation_length_optimization();
                 let mut explained_short = runner.explain_matches(&start, &goal.ast, &subst);
