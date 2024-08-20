@@ -900,7 +900,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         for node in nodes {
             match node {
                 ENodeOrVar::Var(var) => {
-                    let id = self.find(subst[*var]);
+                    let id = subst[*var];
                     new_ids.push(id);
                     new_node_q.push(false);
                 }
@@ -1077,7 +1077,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     ) -> Id {
         let original = enode.clone();
         if let Some(existing_id) = self.lookup_internal(&mut enode) {
-            let id = self.find(existing_id);
+            let leader = self.find(existing_id);
             // when explanations are enabled, we need a new representative for this expr
             if let Some(explain) = self.explain.as_mut() {
                 if let Some(existing_explain) = explain.uncanon_memo.get(&original) {
@@ -1088,13 +1088,13 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                     explain.add(
                         original.clone(),
                         new_id,
-                        existance.unwrap_or(ExistanceReason::EqualTo(id)),
+                        existance.unwrap_or(ExistanceReason::EqualTo(existing_id)),
                     );
                     debug_assert_eq!(Id::from(self.nodes.len()), new_id);
                     self.nodes.push(original);
                     // careful to make the old id the leader!
                     // otherwise, the hash-cons may become out-of-date while adding `lhs_terms`
-                    self.unionfind.union(id, new_id);
+                    self.unionfind.union(leader, new_id);
                     explain.union(existing_id, new_id, Justification::Congruence);
                     new_id
                 }

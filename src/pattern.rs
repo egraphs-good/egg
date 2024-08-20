@@ -386,10 +386,6 @@ where
         _searcher_ast: Option<&PatternAst<L>>,
         rule_name: Symbol,
     ) -> Vec<Id> {
-        let ast = self.ast.as_ref();
-        let mut id_buf = vec![0.into(); ast.len()];
-        let id = apply_pat(&mut id_buf, ast, egraph, subst);
-
         if egraph.are_explanations_enabled() {
             let (from, did_something) =
                 egraph.union_matched_rule(lhs_term, &self.ast, subst, rule_name);
@@ -398,10 +394,15 @@ where
             } else {
                 vec![]
             }
-        } else if egraph.union(lhs_term, id) {
-            vec![lhs_term]
         } else {
-            vec![]
+            let ast = self.ast.as_ref();
+            let mut id_buf = vec![0.into(); ast.len()];
+            let id = apply_pat(&mut id_buf, ast, egraph, subst);
+            if egraph.union(lhs_term, id) {
+                vec![lhs_term]
+            } else {
+                vec![]
+            }
         }
     }
 

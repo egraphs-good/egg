@@ -553,8 +553,7 @@ where
 
         // when proofs are enabled, first add all LHS of terms to the egraph
         if self.egraph.are_explanations_enabled() {
-            result = result.and_then(|_| {
-                matches.iter_mut().try_for_each(|ms| {
+            matches.iter_mut().for_each(|ms| {
                     for rule_match in ms {
                         let sast = rule_match.ast.as_ref().expect("Expected all rewrites to have an AST for the lhs when explanations are enabled");
                         assert_eq!(rule_match.lhs_terms, None);
@@ -567,10 +566,7 @@ where
                         }
                         rule_match.lhs_terms = Some(new_terms);
                     }
-                    
-                    self.check_limits()
                 })
-            })
         }
 
         result = result.and_then(|_| {
