@@ -338,16 +338,18 @@ where
     ) -> Vec<Id> {
         let mut added = vec![];
 
-        if egraph.are_explanations_enabled() {
-            let ast = mat.ast.as_ref().map(|cow| cow.as_ref());
-            for (subst, lhs_term) in mat.substs.iter().zip(mat.lhs_terms.unwrap().iter()) {
-                let ids = self.apply_one(egraph, mat.eclass, subst, None, rule_name);
-                added.extend(ids)
-            }
-        } else {
-            for subst in &mat.substs {
-                let ids = self.apply_one(egraph, mat.eclass, subst, None, rule_name);
-                added.extend(ids)
+        for mat in matches {
+            if egraph.are_explanations_enabled() {
+                let sast = mat.ast.as_ref().map(|cow| cow.as_ref());
+                for (subst, lhs_term) in mat.substs.iter().zip(mat.lhs_terms.as_ref().unwrap().iter()) {
+                    let ids = self.apply_one(egraph, *lhs_term, subst, sast, rule_name);
+                    added.extend(ids)
+                }
+            } else {
+                for subst in &mat.substs {
+                    let ids = self.apply_one(egraph, mat.eclass, subst, None, rule_name);
+                    added.extend(ids)
+                }
             }
         }
 
@@ -429,14 +431,14 @@ where
     fn apply_one(
         &self,
         egraph: &mut EGraph<L, N>,
-        eclass: Id,
+        lhs_term: Id,
         subst: &Subst,
         searcher_ast: Option<&PatternAst<L>>,
         rule_name: Symbol,
     ) -> Vec<Id> {
-        if self.condition.check(egraph, eclass, subst) {
+        if self.condition.check(egraph, lhs_term, subst) {
             self.applier
-                .apply_one(egraph, eclass, subst, searcher_ast, rule_name)
+                .apply_one(egraph, lhs_term, subst, searcher_ast, rule_name)
         } else {
             vec![]
         }

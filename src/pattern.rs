@@ -276,7 +276,7 @@ pub struct SearchMatches<'a, L: Language> {
     pub eclass: Id,
     /// The substitutions for each match.
     pub substs: Vec<Subst>,
-    /// The particular terms for each substitution.
+    /// The particular matched terms for each substitution.
     /// This is [`None`] unless explanations are enabled.
     pub lhs_terms: Option<Vec<Id>>,
     /// Optionally, an ast for the matches used in proof production.
@@ -355,27 +355,23 @@ where
         let ast = self.ast.as_ref();
         let mut id_buf = vec![0.into(); ast.len()];
         for mat in matches {
-            let sast = mat.ast.as_ref().map(|cow| cow.as_ref());
-            for subst in &mat.substs {
-                let did_something;
-                let id;
-                if egraph.are_explanations_enabled() {
-                    let (id_temp, did_something_temp) = egraph
-                        .union_instantiations_guaranteed_match(
-                            sast.unwrap(),
-                            &self.ast,
-                            subst,
-                            rule_name,
-                        );
-                    did_something = did_something_temp;
-                    id = id_temp;
-                } else {
-                    id = apply_pat(&mut id_buf, ast, egraph, subst);
-                    did_something = egraph.union(id, mat.eclass);
-                }
+            if egraph.are_explanations_enabled() {
+                for (subst, lhs_term) in mat.substs.iter().zip(mat.lhs_terms.as_ref().unwrap()) {
+                    let (id, did_something) =
+                        egraph.union_matched_rule(*lhs_term, &self.ast, subst, rule_name);
 
-                if did_something {
-                    added.push(id)
+                    if did_something {
+                        added.push(id)
+                    }
+                }
+            } else {
+                for subst in &mat.substs {
+                    let id = apply_pat(&mut id_buf, ast, egraph, subst);
+                    let did_something = egraph.union(id, mat.eclass);
+
+                    if did_something {
+                        added.push(id)
+                    }
                 }
             }
         }
@@ -387,15 +383,16 @@ where
         egraph: &mut EGraph<L, A>,
         lhs_term: Id,
         subst: &Subst,
-        searcher_ast: Option<&PatternAst<L>>,
+        _searcher_ast: Option<&PatternAst<L>>,
         rule_name: Symbol,
     ) -> Vec<Id> {
         let ast = self.ast.as_ref();
         let mut id_buf = vec![0.into(); ast.len()];
         let id = apply_pat(&mut id_buf, ast, egraph, subst);
 
-        if let Some(ast) = searcher_ast {
-            let (from, did_something) = egraph.union_matched_rule(ast, &self.ast, subst, rule_name);
+        if egraph.are_explanations_enabled() {
+            let (from, did_something) =
+                egraph.union_matched_rule(lhs_term, &self.ast, subst, rule_name);
             if did_something {
                 vec![from]
             } else {

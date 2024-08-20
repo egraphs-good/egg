@@ -124,6 +124,7 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for MultiPattern<L> {
         } else {
             Some(SearchMatches {
                 eclass,
+                lhs_terms: None,
                 substs,
                 ast: None,
             })

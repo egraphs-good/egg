@@ -857,7 +857,6 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         let mut new_ids = Vec::with_capacity(nodes.len());
         for node in nodes {
             let new_node = node.clone().map_children(|i| new_ids[usize::from(i)]);
-            let size_before = self.unionfind.size();
             let next_id = self.add_uncanonical_with_reason(new_node, Some(ExistanceReason::Direct));
             if let Some(explain) = &mut self.explain {
                 node.for_each(|child| {
@@ -911,7 +910,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                     // When existance is Some, the new node is first added with `Unset` existance reason.
                     let next_id = self.add_uncanonical_with_reason(
                         new_node,
-                        existance.as_ref().map(|e| ExistanceReason::Unset),
+                        existance.as_ref().map(|_e| ExistanceReason::Unset),
                     );
                     if self.unionfind.size() > size_before {
                         new_node_q.push(true);
@@ -938,7 +937,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
         if let (Some(explain), Some(existance_reason)) = (&mut self.explain, existance) {
             // Finally, set the top-level existance reason correctly
-            explain.set_existance_reason(new_ids.last().unwrap().clone(), existance_reason);
+            explain.set_existance_reason(*new_ids.last().unwrap(), existance_reason);
         }
 
         // All children have existance and so does the top-level term, therefore nothing is still [`ExistanceReason::Unset`]
@@ -1093,6 +1092,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                     );
                     debug_assert_eq!(Id::from(self.nodes.len()), new_id);
                     self.nodes.push(original);
+                    // careful to make the old id the leader!
+                    // otherwise, the hash-cons may become out-of-date while adding `lhs_terms`
                     self.unionfind.union(id, new_id);
                     explain.union(existing_id, new_id, Justification::Congruence);
                     new_id
@@ -1204,18 +1205,21 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// This makes existance explanations more precise after matching a pattern.
     pub(crate) fn union_matched_rule(
         &mut self,
-        from_term: &Id,
+        from_term: Id,
         to_pat: &PatternAst<L>,
         subst: &Subst,
         rule_name: impl Into<Symbol>,
     ) -> (Id, bool) {
         // the rhs is added due to the rule
-        let id2 =
-            self.add_instantiation_noncanonical(to_pat, subst, Some(ExistanceReason::EqualTo(id1)));
+        let id2 = self.add_instantiation_noncanonical(
+            to_pat,
+            subst,
+            Some(ExistanceReason::EqualTo(from_term)),
+        );
 
         let did_union =
             self.perform_union(from_term, id2, Some(Justification::Rule(rule_name.into())));
-        (self.find(id1), did_union)
+        (self.find(from_term), did_union)
     }
 
     /// Unions two e-classes, using a given reason to justify it.

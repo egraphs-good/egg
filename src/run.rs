@@ -554,20 +554,16 @@ where
         // when proofs are enabled, first add all LHS of terms to the egraph
         if self.egraph.are_explanations_enabled() {
             result = result.and_then(|_| {
-                rules.iter().zip(&mut matches).try_for_each(|(rw, ms)| {
-                    assert_eq!(ms.lhs_terms, None);
-                    
+                matches.iter_mut().try_for_each(|ms| {
                     for rule_match in ms {
+                        let sast = rule_match.ast.as_ref().expect("Expected all rewrites to have an AST for the lhs when explanations are enabled");
+                        assert_eq!(rule_match.lhs_terms, None);
                         let mut new_terms = vec![];
                         for subst in &rule_match.substs {
-                            // get the pattern of the lhs of the rule
-                            let lhs_pattern = rw.searcher.get_pattern_ast().expect("Expected all rewrites to have an AST for the lhs when explanations are enabled");
-
                             // now instantiate the pattern with the substitution, getting the new term's id
-                            let lhs_term = self.egraph.add_instantiation_noncanonical(lhs_pattern, subst, None);
+                            let lhs_term = self.egraph.add_instantiation_noncanonical(sast, subst, None);
 
                             new_terms.push(lhs_term);
-
                         }
                         rule_match.lhs_terms = Some(new_terms);
                     }

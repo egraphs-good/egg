@@ -1144,6 +1144,9 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
                             &next_explanation,
                             rule,
                         ) {
+                            eprintln!("{:?}", current_explanation);
+                            eprintln!("{:?}", rule.name);
+                            eprintln!("{:?}", next_explanation);
                             return false;
                         }
                     }
