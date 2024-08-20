@@ -1,6 +1,7 @@
 # Changes
 
 ## [Unreleased] - ReleaseDate
+- Removed existence explanations from egg (the `explain_existance` function). This feature was buggy and not well supported. Supporting it fully required many changes, and it is incompatible with analysis. See #332 for more details.
 - Change the API of `make` to have mutable access to the e-graph for some [advanced uses cases](https://github.com/egraphs-good/egg/pull/277).
 - Fix an e-matching performance regression introduced in [this commit](https://github.com/egraphs-good/egg/commit/ae8af8815231e4aba1b78962f8c07ce837ee1c0e#diff-1d06da761111802c793c6e5ca704bfa0d6336d0becf87fddff02d81548a838ab).
 - Use `quanta` instead of `instant` crate to provide timing information. This can provide a huge speedup if you have lots of rules, since it avoids some syscalls.
