@@ -857,7 +857,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     }
 
     /// Like `add_expr_uncanonical` but with an existence reason.
-    /// When the `reason` is `None`, this method panics when the added expression
+    /// When the `reason` is [`ExistenceReason::ExpectExists`], this method panics when the added expression
     /// is not already represented by the egraph.
     fn add_expr_uncanonical_with_reason(
         &mut self,
@@ -907,7 +907,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// Calling [`id_to_expr`](EGraph::id_to_expr) on this `Id` return an correspond to the
     /// instantiation of the pattern.
     ///
-    /// When `existence` is `None`, this method panics when the instantiated pattern
+    /// When `existence` is [`ExistenceReason::ExpectExists`], this method panics when the instantiated pattern
     /// is not by congruence to another term.
     pub(crate) fn add_instantiation_noncanonical(
         &mut self,

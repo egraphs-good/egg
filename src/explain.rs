@@ -54,6 +54,10 @@ pub(crate) enum ExistenceReason {
     Unset,
 }
 
+/// When explaining the existence of a term,
+/// this enum is used to specify whether the term is
+/// 1) Expected to already be represented by the egraph (is equal to some other term via congruence)
+/// or 2) Should be inserted with a particular reason
 pub enum ExistsOrReason {
     ExpectExists,
     Reason(ExistenceReason),
