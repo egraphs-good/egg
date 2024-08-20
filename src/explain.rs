@@ -1325,7 +1325,7 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
                 let adj = self.explain_adjacent(connection, cache, enode_cache, false);
                 let mut exp = self.explain_term_existance(adjacent_id, adj, cache, enode_cache);
                 exp.push(rest_of_proof);
-                return exp;
+                exp
             }
             ExistanceReason::Direct => {
                 vec![self.node_to_explanation(term, enode_cache), rest_of_proof]

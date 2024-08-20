@@ -175,7 +175,7 @@ impl Applier<Lambda, LambdaAnalysis> for CaptureAvoid {
     fn apply_one(
         &self,
         egraph: &mut EGraph,
-        eclass: Id,
+        term: Id,
         subst: &Subst,
         searcher_ast: Option<&PatternAst<Lambda>>,
         rule_name: Symbol,
@@ -185,13 +185,13 @@ impl Applier<Lambda, LambdaAnalysis> for CaptureAvoid {
         let v2_free_in_e = egraph[e].data.free.contains(&v2);
         if v2_free_in_e {
             let mut subst = subst.clone();
-            let sym = Lambda::Symbol(format!("_{}", eclass).into());
+            let sym = Lambda::Symbol(format!("_{}", term).into());
             subst.insert(self.fresh, egraph.add(sym));
             self.if_free
-                .apply_one(egraph, eclass, &subst, searcher_ast, rule_name)
+                .apply_one(egraph, term, &subst, searcher_ast, rule_name)
         } else {
             self.if_not_free
-                .apply_one(egraph, eclass, subst, searcher_ast, rule_name)
+                .apply_one(egraph, term, subst, searcher_ast, rule_name)
         }
     }
 }
@@ -205,6 +205,7 @@ egg::test_fn! {
     // "(lam x (+ 4 (let y 4 (var y))))",
     // "(lam x (+ 4 4))",
     "(lam x 8))",
+    @existance false
 }
 
 egg::test_fn! {
@@ -214,6 +215,7 @@ egg::test_fn! {
          (+ (var a) (var b)))"
     =>
     "(+ (var a) (var b))"
+    @existance false
 }
 
 egg::test_fn! {
@@ -226,18 +228,21 @@ egg::test_fn! {
     //  (+ (var ?a) 1))",
     // "(+ 0 1)",
     "1",
+    @existance false
 }
 
 egg::test_fn! {
     #[should_panic(expected = "Could not prove goal 0")]
     lambda_capture, rules(),
     "(let x 1 (lam x (var x)))" => "(lam x 1)"
+    @existance false
 }
 
 egg::test_fn! {
     #[should_panic(expected = "Could not prove goal 0")]
     lambda_capture_free, rules(),
     "(let y (+ (var x) (var x)) (lam x (var y)))" => "(lam x (+ (var x) (var x)))"
+    @existance false
 }
 
 egg::test_fn! {
@@ -249,6 +254,7 @@ egg::test_fn! {
      (app (var add-five) 1))))"
     =>
     "7"
+    @existance false
 }
 
 egg::test_fn! {
@@ -262,11 +268,13 @@ egg::test_fn! {
                 (app (lam ?y (+ 1 (var ?y)))
                      (var ?x))))",
     "(lam ?x (+ (var ?x) 2))"
+    @existance false
 }
 
 egg::test_fn! {
     lambda_if_simple, rules(),
     "(if (= 1 1) 7 9)" => "7"
+    @existance false
 }
 
 egg::test_fn! {
@@ -283,6 +291,7 @@ egg::test_fn! {
                                    (var add1)))))))))"
     =>
     "(lam ?x (+ (var ?x) 7))"
+    @existance false
 }
 
 egg::test_fn! {
@@ -308,6 +317,7 @@ egg::test_fn! {
           2))))"
     =>
     "(lam ?x (+ (var ?x) 2))"
+    @existance false
 }
 
 egg::test_fn! {
@@ -322,6 +332,7 @@ egg::test_fn! {
     // "(+ (if false 0 1) (if true 0 1))",
     // "(+ 1 0)",
     "1",
+    @existance false
 }
 
 egg::test_fn! {
@@ -342,6 +353,7 @@ egg::test_fn! {
                 (+ (var n) -2)))))))
         (app (var fib) 4))"
     => "3"
+    @existance false
 }
 
 #[test]

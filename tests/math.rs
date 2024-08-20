@@ -85,7 +85,7 @@ impl Analysis<Math> for ConstantFold {
         let data = egraph[id].data.clone();
         if let Some((c, pat)) = data {
             if egraph.are_explanations_enabled() {
-                egraph.union_instantiations(
+                egraph.union_instantiations_guaranteed_match(
                     &pat,
                     &format!("{}", c).parse().unwrap(),
                     &Default::default(),
@@ -221,7 +221,7 @@ egg::test_fn! {
     "(+ 1 (+ 2 (+ 3 (+ 4 (+ 5 (+ 6 7))))))"
     =>
     "(+ 7 (+ 6 (+ 5 (+ 4 (+ 3 (+ 2 1))))))"
-    @check |r: Runner<Math, ()>| assert_eq!(r.egraph.number_of_classes(), 127)
+    @check |r: Runner<Math, ()>| assert_eq!(r.egraph.number_of_classes(), 127),
 }
 
 egg::test_fn! {

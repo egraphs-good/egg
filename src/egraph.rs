@@ -541,11 +541,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         subst: &Subst,
     ) -> Explanation<L> {
         let left = self.add_expr_uncanonical(left_expr);
-        let right = self.add_instantiation_noncanonical(
-            right_pattern,
-            subst,
-            Some(ExistanceReason::Direct),
-        );
+        let right = self.add_instantiation_noncanonical(right_pattern, subst, None);
 
         if self.find(left) != self.find(right) {
             panic!(
@@ -1192,8 +1188,30 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         // add the lhs directly
         let id1 =
             self.add_instantiation_noncanonical(from_pat, subst, Some(ExistanceReason::Direct));
-        // add the rhs directly
-        let id2 = self.add_instantiation_noncanonical(to_pat, subst, Some(ExistanceReason::Direct));
+        // add the rhs, with reason equal to lhs
+        let id2 =
+            self.add_instantiation_noncanonical(to_pat, subst, Some(ExistanceReason::EqualTo(id1)));
+
+        let did_union = self.perform_union(id1, id2, Some(Justification::Rule(rule_name.into())));
+        (self.find(id1), did_union)
+    }
+
+    /// Like `union_instantiations`, but assumes that the `from_pat` and substitution
+    /// is guaranteed to match the egraph already.
+    /// Using this method makes existance explanations more precise.
+    pub fn union_instantiations_guaranteed_match(
+        &mut self,
+        from_pat: &PatternAst<L>,
+        to_pat: &PatternAst<L>,
+        subst: &Subst,
+        rule_name: impl Into<Symbol>,
+    ) -> (Id, bool) {
+        // add the lhs without an existance reason,
+        // assuming it matches
+        let id1 = self.add_instantiation_noncanonical(from_pat, subst, None);
+        // add the rhs, making it equal to the lhs
+        let id2 =
+            self.add_instantiation_noncanonical(to_pat, subst, Some(ExistanceReason::EqualTo(id1)));
 
         let did_union = self.perform_union(id1, id2, Some(Justification::Rule(rule_name.into())));
         (self.find(id1), did_union)
