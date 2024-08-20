@@ -341,7 +341,11 @@ where
         for mat in matches {
             if egraph.are_explanations_enabled() {
                 let sast = mat.ast.as_ref().map(|cow| cow.as_ref());
-                for (subst, lhs_term) in mat.substs.iter().zip(mat.lhs_terms.as_ref().unwrap().iter()) {
+                for (subst, lhs_term) in mat
+                    .substs
+                    .iter()
+                    .zip(mat.lhs_terms.as_ref().unwrap().iter())
+                {
                     let ids = self.apply_one(egraph, *lhs_term, subst, sast, rule_name);
                     added.extend(ids)
                 }

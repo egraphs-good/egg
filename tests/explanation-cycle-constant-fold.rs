@@ -17,9 +17,7 @@ pub type Rewrite = egg::Rewrite<Math, ()>;
 pub type Runner = egg::Runner<Math, (), ()>;
 
 fn is_not_zero(var: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
-    |egraph, _, subst| {
-        true
-    }
+    |egraph, _, subst| true
 }
 
 #[test]
