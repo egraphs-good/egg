@@ -852,7 +852,6 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     ///
     /// Calling [`id_to_expr`](EGraph::id_to_expr) on this `Id` return a copy of `expr` when explanations are enabled
     pub fn add_expr_uncanonical(&mut self, expr: &RecExpr<L>) -> Id {
-        eprintln!("Adding {:?} directly", expr);
         self.add_expr_uncanonical_with_reason(expr, ExistsOrReason::Reason(ExistenceReason::Direct))
     }
 
@@ -1221,27 +1220,6 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         let id1 =
             self.add_instantiation_noncanonical(from_pat, subst, Some(ExistenceReason::Direct));
         // add the rhs, with reason equal to lhs
-        let id2 =
-            self.add_instantiation_noncanonical(to_pat, subst, Some(ExistenceReason::EqualTo(id1)));
-
-        let did_union = self.perform_union(id1, id2, Some(Justification::Rule(rule_name.into())));
-        (self.find(id1), did_union)
-    }
-
-    /// Like `union_instantiations`, but assumes that the `from_pat` and substitution
-    /// is guaranteed to match the egraph already.
-    /// Using this method makes existence explanations more precise.
-    pub fn union_instantiations_guaranteed_match(
-        &mut self,
-        from_pat: &PatternAst<L>,
-        to_pat: &PatternAst<L>,
-        subst: &Subst,
-        rule_name: impl Into<Symbol>,
-    ) -> (Id, bool) {
-        // add the lhs without an existence reason,
-        // assuming it matches
-        let id1 = self.add_instantiation_noncanonical(from_pat, subst, None);
-        // add the rhs, making it equal to the lhs
         let id2 =
             self.add_instantiation_noncanonical(to_pat, subst, Some(ExistenceReason::EqualTo(id1)));
 

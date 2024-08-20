@@ -423,6 +423,7 @@ impl<L: Language> Explanation<L> {
             assert!(has_forward ^ has_backward);
 
             if has_forward {
+                eprintln!("Checking rewrite forward from {:?} to {:?}", current, next);
                 assert!(self.check_rewrite_at(current, next, &rule_table, true));
             } else {
                 assert!(self.check_rewrite_at(current, next, &rule_table, false));
@@ -1326,22 +1327,19 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
             }
             ExistenceReason::EqualTo(adjacent_id) => {
                 let adjacent_node = &self.explainfind[usize::from(adjacent_id)];
-                // The node should be directly adjacent to another node
                 let connection = if node.parent_connection.next == adjacent_id {
                     let mut connection = node.parent_connection.clone();
                     connection.is_rewrite_forward = !connection.is_rewrite_forward;
                     std::mem::swap(&mut connection.next, &mut connection.current);
                     connection
                 } else {
-                    assert!(
-                        adjacent_node.parent_connection.next == term,
-                        "existence reason between two nodes failed: not directly adjacent."
-                    );
+                    assert_eq!(node.parent_connection.next, adjacent_id);
                     adjacent_node.parent_connection.clone()
                 };
 
                 let adj = self.explain_adjacent(connection, cache, enode_cache, false);
                 let mut exp = self.explain_term_existence(adjacent_id, adj, cache, enode_cache);
+
                 exp.push(rest_of_proof);
                 exp
             }

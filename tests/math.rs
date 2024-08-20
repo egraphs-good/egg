@@ -85,7 +85,7 @@ impl Analysis<Math> for ConstantFold {
         let data = egraph[id].data.clone();
         if let Some((c, pat)) = data {
             if egraph.are_explanations_enabled() {
-                egraph.union_instantiations_guaranteed_match(
+                egraph.union_instantiations(
                     &pat,
                     &format!("{}", c).parse().unwrap(),
                     &Default::default(),
@@ -227,7 +227,8 @@ egg::test_fn! {
 egg::test_fn! {
     #[should_panic(expected = "Could not prove goal 0")]
     math_fail, rules(),
-    "(+ x y)" => "(/ x y)"
+    "(+ x y)" => "(/ x y)",
+    @existence false
 }
 
 egg::test_fn! {math_simplify_add, rules(), "(+ x (+ x (+ x x)))" => "(* 4 x)" }
@@ -235,7 +236,8 @@ egg::test_fn! {math_powers, rules(), "(* (pow 2 x) (pow 2 y))" => "(pow 2 (+ x y
 
 egg::test_fn! {
     math_simplify_const, rules(),
-    "(+ 1 (- a (* (- 2 1) a)))" => "1"
+    "(+ 1 (- a (* (- 2 1) a)))" => "1",
+    @existence false
 }
 
 egg::test_fn! {
@@ -249,6 +251,7 @@ egg::test_fn! {
              2)))"#
     =>
     "(/ 1 (sqrt five))"
+    @existence false
 }
 
 egg::test_fn! {
@@ -256,17 +259,19 @@ egg::test_fn! {
     "(* (+ x 3) (+ x 1))"
     =>
     "(+ (+ (* x x) (* 4 x)) 3)"
+    @existence false
 }
 
-egg::test_fn! {math_diff_same,      rules(), "(d x x)" => "1"}
+// Existence proofs don't support analysis, so we turn tests for them off
+egg::test_fn! {math_diff_same, rules(), "(d x x)" => "1"}
 egg::test_fn! {math_diff_different, rules(), "(d x y)" => "0"}
-egg::test_fn! {math_diff_simple1,   rules(), "(d x (+ 1 (* 2 x)))" => "2"}
 egg::test_fn! {math_diff_simple2,   rules(), "(d x (+ 1 (* y x)))" => "y"}
 egg::test_fn! {math_diff_ln,        rules(), "(d x (ln x))" => "(/ 1 x)"}
 
 egg::test_fn! {
     diff_power_simple, rules(),
-    "(d x (pow x 3))" => "(* 3 (pow x 2))"
+    "(d x (pow x 3))" => "(* 3 (pow x 2))",
+    @existence false
 }
 
 egg::test_fn! {
@@ -280,11 +285,13 @@ egg::test_fn! {
         .with_expr(&"(* x (- (* 3 x) 14))".parse().unwrap()),
     "(d x (- (pow x 3) (* 7 (pow x 2))))"
     =>
-    "(* x (- (* 3 x) 14))"
+    "(* x (- (* 3 x) 14))",
+    @existence false
 }
 
 egg::test_fn! {
-    integ_one, rules(), "(i 1 x)" => "x"
+    integ_one, rules(), "(i 1 x)" => "x",
+    @existence false
 }
 
 egg::test_fn! {

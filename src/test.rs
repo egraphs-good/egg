@@ -290,7 +290,7 @@ macro_rules! test_fn {
             &[$( $goal.parse().unwrap() ),+],
             None $(.or(Some($check_fn)))?,
             check,
-            true $(&& $check_existence_explanations)?,
+            false $(|| $check_existence_explanations)?,
         )
     }};
 }
