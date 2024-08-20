@@ -205,7 +205,7 @@ egg::test_fn! {
     // "(lam x (+ 4 (let y 4 (var y))))",
     // "(lam x (+ 4 4))",
     "(lam x 8))",
-    @existance false
+    @existence false
 }
 
 egg::test_fn! {
@@ -215,7 +215,7 @@ egg::test_fn! {
          (+ (var a) (var b)))"
     =>
     "(+ (var a) (var b))"
-    @existance false
+    @existence false
 }
 
 egg::test_fn! {
@@ -228,21 +228,21 @@ egg::test_fn! {
     //  (+ (var ?a) 1))",
     // "(+ 0 1)",
     "1",
-    @existance false
+    @existence false
 }
 
 egg::test_fn! {
     #[should_panic(expected = "Could not prove goal 0")]
     lambda_capture, rules(),
     "(let x 1 (lam x (var x)))" => "(lam x 1)"
-    @existance false
+    @existence false
 }
 
 egg::test_fn! {
     #[should_panic(expected = "Could not prove goal 0")]
     lambda_capture_free, rules(),
     "(let y (+ (var x) (var x)) (lam x (var y)))" => "(lam x (+ (var x) (var x)))"
-    @existance false
+    @existence false
 }
 
 egg::test_fn! {
@@ -254,7 +254,7 @@ egg::test_fn! {
      (app (var add-five) 1))))"
     =>
     "7"
-    @existance false
+    @existence false
 }
 
 egg::test_fn! {
@@ -268,13 +268,13 @@ egg::test_fn! {
                 (app (lam ?y (+ 1 (var ?y)))
                      (var ?x))))",
     "(lam ?x (+ (var ?x) 2))"
-    @existance false
+    @existence false
 }
 
 egg::test_fn! {
     lambda_if_simple, rules(),
     "(if (= 1 1) 7 9)" => "7"
-    @existance false
+    @existence false
 }
 
 egg::test_fn! {
@@ -291,7 +291,7 @@ egg::test_fn! {
                                    (var add1)))))))))"
     =>
     "(lam ?x (+ (var ?x) 7))"
-    @existance false
+    @existence false
 }
 
 egg::test_fn! {
@@ -317,7 +317,7 @@ egg::test_fn! {
           2))))"
     =>
     "(lam ?x (+ (var ?x) 2))"
-    @existance false
+    @existence false
 }
 
 egg::test_fn! {
@@ -332,7 +332,7 @@ egg::test_fn! {
     // "(+ (if false 0 1) (if true 0 1))",
     // "(+ 1 0)",
     "1",
-    @existance false
+    @existence false
 }
 
 egg::test_fn! {
@@ -353,7 +353,7 @@ egg::test_fn! {
                 (+ (var n) -2)))))))
         (app (var fib) 4))"
     => "3"
-    @existance false
+    @existence false
 }
 
 #[test]

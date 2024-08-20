@@ -42,7 +42,7 @@ struct Connection {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde-1", derive(serde::Serialize, serde::Deserialize))]
-pub(crate) enum ExistanceReason {
+pub(crate) enum existenceReason {
     /// The term was added as a child of some other term
     ChildOf(Id),
     /// The term was added when rewritting from another term
@@ -50,7 +50,7 @@ pub(crate) enum ExistanceReason {
     /// The term was added directly
     Direct,
     /// A temporary value.
-    /// Should not be present except during a call to `add_expr_uncanonical`.
+    /// Should not be present except internally during API calls.
     Unset,
 }
 
@@ -60,7 +60,7 @@ struct ExplainNode {
     // neighbors includes parent connections
     neighbors: Vec<Connection>,
     parent_connection: Connection,
-    existance: ExistanceReason,
+    existence: existenceReason,
 }
 
 #[derive(Debug, Clone)]
@@ -925,7 +925,7 @@ impl<L: Language> Explain<L> {
         }
     }
 
-    pub(crate) fn add(&mut self, node: L, set: Id, existance: ExistanceReason) -> Id {
+    pub(crate) fn add(&mut self, node: L, set: Id, existence: existenceReason) -> Id {
         assert_eq!(self.explainfind.len(), usize::from(set));
         self.uncanon_memo.insert(node, set);
         self.explainfind.push(ExplainNode {
@@ -936,7 +936,7 @@ impl<L: Language> Explain<L> {
                 next: set,
                 current: set,
             },
-            existance,
+            existence,
         });
         set
     }
@@ -1049,10 +1049,10 @@ impl<L: Language> Explain<L> {
         }
     }
 
-    /// Sets unset existance reasons to the new reason
-    pub(crate) fn set_existance_reason(&mut self, node: Id, reason: ExistanceReason) {
-        if self.explainfind[usize::from(node)].existance == ExistanceReason::Unset {
-            self.explainfind[usize::from(node)].existance = reason;
+    /// Sets unset existence reasons to the new reason
+    pub(crate) fn set_existence_reason(&mut self, node: Id, reason: existenceReason) {
+        if self.explainfind[usize::from(node)].existence == existenceReason::Unset {
+            self.explainfind[usize::from(node)].existence = reason;
         }
     }
 }
@@ -1109,22 +1109,22 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
             let explain_node = &self.explainfind[i];
 
             // check that explanation reasons never form a cycle
-            let mut existance = Id::from(i);
-            let mut seen_existance: HashSet<Id> = Default::default();
+            let mut existence = Id::from(i);
+            let mut seen_existence: HashSet<Id> = Default::default();
             loop {
-                seen_existance.insert(existance);
-                let next = match self.explainfind[usize::from(existance)].existance {
-                    ExistanceReason::ChildOf(id) => id,
-                    ExistanceReason::EqualTo(id) => id,
-                    ExistanceReason::Direct => existance,
-                    ExistanceReason::Unset => panic!("Unset existance!"),
+                seen_existence.insert(existence);
+                let next = match self.explainfind[usize::from(existence)].existence {
+                    existenceReason::ChildOf(id) => id,
+                    existenceReason::EqualTo(id) => id,
+                    existenceReason::Direct => existence,
+                    existenceReason::Unset => panic!("Unset existence!"),
                 };
-                if existance == next {
+                if existence == next {
                     break;
                 }
-                existance = next;
-                if seen_existance.contains(&existance) {
-                    panic!("Cycle in existance!");
+                existence = next;
+                if seen_existence.contains(&existence) {
+                    panic!("Cycle in existence!");
                 }
             }
 
@@ -1169,10 +1169,10 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
         Explanation::new(self.explain_enodes(left, right, &mut cache, &mut enode_cache, false))
     }
 
-    pub(crate) fn explain_existance(&mut self, left: Id) -> Explanation<L> {
+    pub(crate) fn explain_existence(&mut self, left: Id) -> Explanation<L> {
         let mut cache = Default::default();
         let mut enode_cache = Default::default();
-        Explanation::new(self.explain_term_existance(
+        Explanation::new(self.explain_term_existence(
             left,
             self.node_to_explanation(left, &mut enode_cache),
             &mut cache,
@@ -1265,10 +1265,10 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
         (left_connections, right_connections)
     }
 
-    /// Explains why a term came to be in the egraph, following its `ExistanceReason`.
+    /// Explains why a term came to be in the egraph, following its `existenceReason`.
     /// The returned proof starts with some initial ground term, and ends with the term in question
     /// or a term with the term in question as a sub-term.
-    fn explain_term_existance(
+    fn explain_term_existence(
         &self,
         term: Id,
         // This term's proof should end with this `rest_of_proof` proof, connecting it
@@ -1278,10 +1278,10 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
         enode_cache: &mut NodeExplanationCache<L>,
     ) -> TreeExplanation<L> {
         let node = &self.explainfind[usize::from(term)];
-        let existance = node.existance.clone();
+        let existence = node.existence.clone();
 
-        match existance {
-            ExistanceReason::ChildOf(parent_id) => {
+        match existence {
+            existenceReason::ChildOf(parent_id) => {
                 let mut new_rest_of_proof =
                     (*self.node_to_explanation(parent_id, enode_cache)).clone();
                 let mut index_of_child = 0;
@@ -1299,14 +1299,14 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
                 assert!(found);
                 new_rest_of_proof.child_proofs[index_of_child].push(rest_of_proof);
 
-                self.explain_term_existance(
+                self.explain_term_existence(
                     parent_id,
                     Rc::new(new_rest_of_proof),
                     cache,
                     enode_cache,
                 )
             }
-            ExistanceReason::EqualTo(adjacent_id) => {
+            existenceReason::EqualTo(adjacent_id) => {
                 let adjacent_node = &self.explainfind[usize::from(adjacent_id)];
                 // The node should be directly adjacent to another node
                 let connection = if node.parent_connection.next == adjacent_id {
@@ -1317,20 +1317,20 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
                 } else {
                     assert!(
                         adjacent_node.parent_connection.next == term,
-                        "Existance reason between two nodes failed: not directly adjacent."
+                        "existence reason between two nodes failed: not directly adjacent."
                     );
                     adjacent_node.parent_connection.clone()
                 };
 
                 let adj = self.explain_adjacent(connection, cache, enode_cache, false);
-                let mut exp = self.explain_term_existance(adjacent_id, adj, cache, enode_cache);
+                let mut exp = self.explain_term_existence(adjacent_id, adj, cache, enode_cache);
                 exp.push(rest_of_proof);
                 exp
             }
-            ExistanceReason::Direct => {
+            existenceReason::Direct => {
                 vec![self.node_to_explanation(term, enode_cache), rest_of_proof]
             }
-            ExistanceReason::Unset => panic!("Unset existance!"),
+            existenceReason::Unset => panic!("Unset existence!"),
         }
     }
 
@@ -2094,7 +2094,7 @@ mod tests {
         let a: Symbol = "a".parse().unwrap();
         let b: Symbol = "b".parse().unwrap();
         let c: Symbol = "c".parse().unwrap();
-        let mut exp = egraph.explain_existance(&"c".parse().unwrap());
+        let mut exp = egraph.explain_existence(&"c".parse().unwrap());
         println!("{:?}", exp.make_flat_explanation());
         assert_eq!(
             exp.make_flat_explanation().len(),

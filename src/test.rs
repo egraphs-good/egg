@@ -34,7 +34,7 @@ pub fn test_runner<L, A>(
     goals: &[Pattern<L>],
     check_fn: Option<fn(Runner<L, A, ()>)>,
     should_check: bool,
-    check_existance_explanations: bool,
+    check_existence_explanations: bool,
 ) where
     L: Language + Display + FromOp + 'static,
     A: Analysis<L> + Default,
@@ -108,19 +108,19 @@ pub fn test_runner<L, A>(
                 explained.check_proof(rules);
                 assert!(!explained.get_tree_size().is_zero());
 
-                // now check for existance of the goal
+                // now check for existence of the goal
                 // it should exist due to the start expression
-                if check_existance_explanations {
-                    let mut existance_proof = runner.explain_existance_pattern(&goal.ast, &subst);
-                    existance_proof.check_proof(rules);
-                    let first_term_in_existance_proof: RecExpr<L> =
-                        existance_proof.make_flat_explanation()[0].get_recexpr();
+                if check_existence_explanations {
+                    let mut existence_proof = runner.explain_existence_pattern(&goal.ast, &subst);
+                    existence_proof.check_proof(rules);
+                    let first_term_in_existence_proof: RecExpr<L> =
+                        existence_proof.make_flat_explanation()[0].get_recexpr();
                     if !has_initial_expression {
                         assert_eq!(
-                            first_term_in_existance_proof,
+                            first_term_in_existence_proof,
                             start,
-                            "Existance proof failed to find original term. Existance proof: {}",
-                            existance_proof.get_flat_string()
+                            "existence proof failed to find original term. existence proof: {}",
+                            existence_proof.get_flat_string()
                         );
                     }
                 }
@@ -274,7 +274,7 @@ macro_rules! test_fn {
         =>
         $($goal:literal),+ $(,)?
         $(@check $check_fn:expr,)?
-        $(@existance $check_existance_explanations:expr)?
+        $(@existence $check_existence_explanations:expr)?
     ) => {
 
     $(#[$meta])*
@@ -290,7 +290,7 @@ macro_rules! test_fn {
             &[$( $goal.parse().unwrap() ),+],
             None $(.or(Some($check_fn)))?,
             check,
-            true $(&& $check_existance_explanations)?,
+            true $(&& $check_existence_explanations)?,
         )
     }};
 }

@@ -21,7 +21,7 @@ fn is_not_zero(var: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
 }
 
 #[test]
-fn repro_cycle_existance() {
+fn repro_cycle_existence() {
     let mut rules = vec![
         rewrite!("add_comm";  "(+ ?a ?b)"        => "(+ ?b ?a)"),
         rewrite!("mul_comm";  "(* ?a ?b)"        => "(* ?b ?a)"),
