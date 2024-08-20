@@ -42,7 +42,7 @@ struct Connection {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde-1", derive(serde::Serialize, serde::Deserialize))]
-pub(crate) enum existenceReason {
+pub(crate) enum ExistenceReason {
     /// The term was added as a child of some other term
     ChildOf(Id),
     /// The term was added when rewritting from another term
@@ -54,13 +54,27 @@ pub(crate) enum existenceReason {
     Unset,
 }
 
+pub enum ExistsOrReason {
+    ExpectExists,
+    Reason(ExistenceReason),
+}
+
+impl ExistsOrReason {
+    pub fn to_option(&self) -> Option<ExistenceReason> {
+        match self {
+            ExistsOrReason::ExpectExists => None,
+            ExistsOrReason::Reason(r) => Some(r.clone()),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde-1", derive(serde::Serialize, serde::Deserialize))]
 struct ExplainNode {
     // neighbors includes parent connections
     neighbors: Vec<Connection>,
     parent_connection: Connection,
-    existence: existenceReason,
+    existence: ExistenceReason,
 }
 
 #[derive(Debug, Clone)]
@@ -925,7 +939,7 @@ impl<L: Language> Explain<L> {
         }
     }
 
-    pub(crate) fn add(&mut self, node: L, set: Id, existence: existenceReason) -> Id {
+    pub(crate) fn add(&mut self, node: L, set: Id, existence: ExistenceReason) -> Id {
         assert_eq!(self.explainfind.len(), usize::from(set));
         self.uncanon_memo.insert(node, set);
         self.explainfind.push(ExplainNode {
@@ -1050,8 +1064,8 @@ impl<L: Language> Explain<L> {
     }
 
     /// Sets unset existence reasons to the new reason
-    pub(crate) fn set_existence_reason(&mut self, node: Id, reason: existenceReason) {
-        if self.explainfind[usize::from(node)].existence == existenceReason::Unset {
+    pub(crate) fn set_existence_reason(&mut self, node: Id, reason: ExistenceReason) {
+        if self.explainfind[usize::from(node)].existence == ExistenceReason::Unset {
             self.explainfind[usize::from(node)].existence = reason;
         }
     }
@@ -1114,10 +1128,10 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
             loop {
                 seen_existence.insert(existence);
                 let next = match self.explainfind[usize::from(existence)].existence {
-                    existenceReason::ChildOf(id) => id,
-                    existenceReason::EqualTo(id) => id,
-                    existenceReason::Direct => existence,
-                    existenceReason::Unset => panic!("Unset existence!"),
+                    ExistenceReason::ChildOf(id) => id,
+                    ExistenceReason::EqualTo(id) => id,
+                    ExistenceReason::Direct => existence,
+                    ExistenceReason::Unset => panic!("Unset existence!"),
                 };
                 if existence == next {
                     break;
@@ -1281,7 +1295,7 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
         let existence = node.existence.clone();
 
         match existence {
-            existenceReason::ChildOf(parent_id) => {
+            ExistenceReason::ChildOf(parent_id) => {
                 let mut new_rest_of_proof =
                     (*self.node_to_explanation(parent_id, enode_cache)).clone();
                 let mut index_of_child = 0;
@@ -1306,7 +1320,7 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
                     enode_cache,
                 )
             }
-            existenceReason::EqualTo(adjacent_id) => {
+            ExistenceReason::EqualTo(adjacent_id) => {
                 let adjacent_node = &self.explainfind[usize::from(adjacent_id)];
                 // The node should be directly adjacent to another node
                 let connection = if node.parent_connection.next == adjacent_id {
@@ -1327,10 +1341,10 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
                 exp.push(rest_of_proof);
                 exp
             }
-            existenceReason::Direct => {
+            ExistenceReason::Direct => {
                 vec![self.node_to_explanation(term, enode_cache), rest_of_proof]
             }
-            existenceReason::Unset => panic!("Unset existence!"),
+            ExistenceReason::Unset => panic!("Unset existence!"),
         }
     }
 
