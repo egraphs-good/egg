@@ -276,6 +276,9 @@ pub struct SearchMatches<'a, L: Language> {
     pub eclass: Id,
     /// The substitutions for each match.
     pub substs: Vec<Subst>,
+    /// The particular terms for each substitution.
+    /// This is [`None`] unless explanations are enabled.
+    pub lhs_terms: Option<Vec<Id>>,
     /// Optionally, an ast for the matches used in proof production.
     pub ast: Option<Cow<'a, PatternAst<L>>>,
 }
@@ -321,6 +324,7 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
             let ast = Some(Cow::Borrowed(&self.ast));
             Some(SearchMatches {
                 eclass,
+                lhs_terms: None,
                 substs,
                 ast,
             })
@@ -381,7 +385,7 @@ where
     fn apply_one(
         &self,
         egraph: &mut EGraph<L, A>,
-        eclass: Id,
+        lhs_term: Id,
         subst: &Subst,
         searcher_ast: Option<&PatternAst<L>>,
         rule_name: Symbol,
@@ -391,15 +395,14 @@ where
         let id = apply_pat(&mut id_buf, ast, egraph, subst);
 
         if let Some(ast) = searcher_ast {
-            let (from, did_something) =
-                egraph.union_instantiations_guaranteed_match(ast, &self.ast, subst, rule_name);
+            let (from, did_something) = egraph.union_matched_rule(ast, &self.ast, subst, rule_name);
             if did_something {
                 vec![from]
             } else {
                 vec![]
             }
-        } else if egraph.union(eclass, id) {
-            vec![eclass]
+        } else if egraph.union(lhs_term, id) {
+            vec![lhs_term]
         } else {
             vec![]
         }

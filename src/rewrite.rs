@@ -337,17 +337,20 @@ where
         rule_name: Symbol,
     ) -> Vec<Id> {
         let mut added = vec![];
-        for mat in matches {
-            let ast = if egraph.are_explanations_enabled() {
-                mat.ast.as_ref().map(|cow| cow.as_ref())
-            } else {
-                None
-            };
+
+        if egraph.are_explanations_enabled() {
+            let ast = mat.ast.as_ref().map(|cow| cow.as_ref());
+            for (subst, lhs_term) in mat.substs.iter().zip(mat.lhs_terms.unwrap().iter()) {
+                let ids = self.apply_one(egraph, mat.eclass, subst, None, rule_name);
+                added.extend(ids)
+            }
+        } else {
             for subst in &mat.substs {
-                let ids = self.apply_one(egraph, mat.eclass, subst, ast, rule_name);
+                let ids = self.apply_one(egraph, mat.eclass, subst, None, rule_name);
                 added.extend(ids)
             }
         }
+
         added
     }
 
@@ -358,7 +361,8 @@ where
 
     /// Apply a single substitution.
     ///
-    /// An [`Applier`] should add things and union them with `eclass`.
+    /// An [`Applier`] should add things and union them with `lhs_term`.
+    /// When explanations are enabled, the `lhs_term` is the [`Id`] of the matched term.
     /// Appliers can also inspect the eclass if necessary using the
     /// `eclass` parameter.
     ///
@@ -371,7 +375,7 @@ where
     fn apply_one(
         &self,
         egraph: &mut EGraph<L, N>,
-        eclass: Id,
+        lhs_term: Id,
         subst: &Subst,
         searcher_ast: Option<&PatternAst<L>>,
         rule_name: Symbol,

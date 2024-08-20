@@ -889,7 +889,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     ///
     /// When `existance` is `None`, this method panics when the instantiated pattern
     /// is not by congruence to another term.
-    fn add_instantiation_noncanonical(
+    pub(crate) fn add_instantiation_noncanonical(
         &mut self,
         pat: &PatternAst<L>,
         subst: &Subst,
@@ -1198,24 +1198,23 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         (self.find(id1), did_union)
     }
 
-    /// Like [`EGraph::union_instantiations`] but assumes that the `from_pat` with the substitution
-    /// is equal via congruence to an existing term in the egraph.
+    /// Like [`EGraph::union_instantiations`] but assumes that the `from_term` is a
+    /// term that the `rule_name` rule matched.
     ///
     /// This makes existance explanations more precise after matching a pattern.
-    pub(crate) fn union_instantiations_guaranteed_match(
+    pub(crate) fn union_matched_rule(
         &mut self,
-        from_pat: &PatternAst<L>,
+        from_term: &Id,
         to_pat: &PatternAst<L>,
         subst: &Subst,
         rule_name: impl Into<Symbol>,
     ) -> (Id, bool) {
-        // the lhs must be congruent to something in the egraph
-        let id1 = self.add_instantiation_noncanonical(from_pat, subst, None);
         // the rhs is added due to the rule
         let id2 =
             self.add_instantiation_noncanonical(to_pat, subst, Some(ExistanceReason::EqualTo(id1)));
 
-        let did_union = self.perform_union(id1, id2, Some(Justification::Rule(rule_name.into())));
+        let did_union =
+            self.perform_union(from_term, id2, Some(Justification::Rule(rule_name.into())));
         (self.find(id1), did_union)
     }
 
@@ -1252,6 +1251,9 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         }
     }
 
+    /// Unions two eclasses given their ids.
+    /// These ids should be non-canonical when explanations are enabled.
+    /// If the new term is equal via congruence to an existing term in the egraph, it is redundant.
     fn perform_union(&mut self, enode_id1: Id, enode_id2: Id, rule: Option<Justification>) -> bool {
         N::pre_union(self, enode_id1, enode_id2, &rule);
 
