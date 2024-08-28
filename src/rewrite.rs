@@ -185,7 +185,7 @@ where
     let limit = AtomicUsize::new(limit);
     eclasses
         .into_par_iter()
-        .map(|eclass| {
+        .flat_map(|eclass| {
             let mut limit_loaded = limit.load(ATOMIC_ORDERING);
             if limit_loaded == 0 {
                 return None;
@@ -208,7 +208,6 @@ where
                 }
             }
         })
-        .flatten()
         .collect()
 }
 
