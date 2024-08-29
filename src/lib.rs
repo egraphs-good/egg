@@ -164,6 +164,18 @@ pub use {
     util::*,
 };
 
+#[cfg(feature = "parallel-matching")]
+pub(crate) trait MaybePar: Send + Sync {}
+
+#[cfg(feature = "parallel-matching")]
+impl<T> MaybePar for T where T: Send + Sync {}
+
+#[cfg(not(feature = "parallel-matching"))]
+pub trait MaybePar {}
+
+#[cfg(not(feature = "parallel-matching"))]
+impl<T> MaybePar for T {}
+
 #[cfg(feature = "lp")]
 pub use lp_extract::*;
 

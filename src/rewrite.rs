@@ -62,7 +62,7 @@ impl<L: Language, N: Analysis<L>> Rewrite<L, N> {
     ///
     pub fn new(
         name: impl Into<Symbol>,
-        searcher: impl Searcher<L, N> + Send + 'static,
+        searcher: impl Searcher<L, N> + Send + Sync + 'static,
         applier: impl Applier<L, N> + Send + Sync + 'static,
     ) -> Result<Self, String> {
         let name = name.into();
@@ -217,7 +217,7 @@ where
 /// matching substitutions.
 /// Right now the only significant [`Searcher`] is [`Pattern`].
 ///
-pub trait Searcher<L, N>: Sync
+pub trait Searcher<L, N>: MaybePar
 where
     L: Language,
     N: Analysis<L>,

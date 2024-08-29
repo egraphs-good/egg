@@ -7,6 +7,16 @@ use log::*;
 
 use crate::*;
 
+pub trait RunnerHook<L, N, I>:
+    FnMut(&mut Runner<L, N, I>) -> Result<(), String> + MaybePar
+{
+}
+
+impl<L, N, I, T> RunnerHook<L, N, I> for T where
+    T: FnMut(&mut Runner<L, N, I>) -> Result<(), String> + MaybePar
+{
+}
+
 /** Faciliates running rewrites over an [`EGraph`].
 
 One use for [`EGraph`]s is as the basis of a rewriting system.
@@ -137,7 +147,7 @@ println!(
 
 ```
 */
-pub struct Runner<L: Language, N: Analysis<L>, IterData: Sync + Send = ()> {
+pub struct Runner<L: Language, N: Analysis<L>, IterData: MaybePar = ()> {
     /// The [`EGraph`] used.
     pub egraph: EGraph<L, N>,
     /// Data accumulated over each [`Iteration`].
@@ -152,7 +162,7 @@ pub struct Runner<L: Language, N: Analysis<L>, IterData: Sync + Send = ()> {
     /// The hooks added by the
     /// [`with_hook`](Runner::with_hook()) method, in insertion order.
     #[allow(clippy::type_complexity)]
-    pub hooks: Vec<Box<dyn FnMut(&mut Self) -> Result<(), String> + Send + Sync>>,
+    pub hooks: Vec<Box<dyn RunnerHook<L, N, IterData>>>,
 
     /// Use parallel matching (parallelization over rules) during search.
     pub parallel_matching: bool,
@@ -176,7 +186,7 @@ where
     }
 }
 
-impl<L, N, IterData: Sync + Send> Debug for Runner<L, N, IterData>
+impl<L, N, IterData: MaybePar> Debug for Runner<L, N, IterData>
 where
     L: Language,
     N: Analysis<L>,
@@ -378,7 +388,7 @@ where
     /// ```
     pub fn with_hook<F>(mut self, hook: F) -> Self
     where
-        F: FnMut(&mut Self) -> Result<(), String> + 'static + Send + Sync,
+        F: RunnerHook<L, N, IterData> + 'static,
     {
         self.hooks.push(Box::new(hook));
         self
@@ -986,7 +996,7 @@ where
 /// [`Runner`] is generic over the [`IterationData`] that it will be in the
 /// [`Iteration`]s, but by default it uses `()`.
 ///
-pub trait IterationData<L, N>: Sized + Sync + Send
+pub trait IterationData<L, N>: Sized + MaybePar
 where
     L: Language,
     N: Analysis<L>,
