@@ -4176,9 +4176,9 @@ See [`Explanation`] for more details.
             .run(<span class="kw-2">&amp;</span>rws)
             .egraph;
         egraph.rebuild();
-        <span class="kw">let </span>a: Symbol = <span class="string">"a"</span>.parse().unwrap();
-        <span class="kw">let </span>b: Symbol = <span class="string">"b"</span>.parse().unwrap();
-        <span class="kw">let </span>c: Symbol = <span class="string">"c"</span>.parse().unwrap();
+        <span class="kw">let </span>_a: Symbol = <span class="string">"a"</span>.parse().unwrap();
+        <span class="kw">let </span>_b: Symbol = <span class="string">"b"</span>.parse().unwrap();
+        <span class="kw">let </span>_c: Symbol = <span class="string">"c"</span>.parse().unwrap();
         <span class="kw">let </span><span class="kw-2">mut </span>exp = egraph.explain_existance(<span class="kw-2">&amp;</span><span class="string">"c"</span>.parse().unwrap());
         <span class="macro">println!</span>(<span class="string">"{:?}"</span>, exp.make_flat_explanation());
         <span class="macro">assert_eq!</span>(
