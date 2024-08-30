@@ -1,66 +1,50 @@
-use crate::{AtomicId, Id};
-
+use crate::Id;
 use std::fmt::Debug;
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone, Default)]
 #[cfg_attr(feature = "serde-1", derive(serde::Serialize, serde::Deserialize))]
 pub struct UnionFind {
-    // Because the correctness of the structure does not depend on exact shape of the tree but only
-    // on the fact whether the root is correct, relaxed atomic operations can be used.
-    // They may race not produce the same structure as a sequential algorithm, but the structure
-    // is going to be correct nonetheless, at minimal synchronization cost.
-    parents: Vec<AtomicId>,
+    parents: Vec<Id>,
 }
 
 impl UnionFind {
     pub fn make_set(&mut self) -> Id {
-        let idx = self.parents.len();
-        self.parents.push(AtomicId::from(idx));
-        Id::from(idx)
+        let id = Id::from(self.parents.len());
+        self.parents.push(id);
+        id
     }
 
     pub fn size(&self) -> usize {
         self.parents.len()
     }
 
-    fn parent(&self, query: Id) -> &AtomicId {
-        &self.parents[usize::from(query)]
+    fn parent(&self, query: Id) -> Id {
+        self.parents[usize::from(query)]
     }
 
-    fn parent_mut(&mut self, query: Id) -> &mut AtomicId {
+    fn parent_mut(&mut self, query: Id) -> &mut Id {
         &mut self.parents[usize::from(query)]
     }
 
-    fn parent_relaxed(&self, query: Id) -> Id {
-        self.parent(query).load_relaxed()
-    }
-
-    fn set_parent_mut(&mut self, query: Id, new_parent: Id) {
-        *self.parent_mut(query).0.get_mut() = new_parent.0;
-    }
-
-    fn set_parent_relaxed(&self, query: Id, new_parent: Id) {
-        self.parents[usize::from(query)].store_relaxed(new_parent);
-    }
-
     pub fn find(&self, mut current: Id) -> Id {
-        // Because another thread might be running the same function, `parent` and `grandparent`
-        // might not refer to actual parent and grandparent after assignment.
-        // However, they are guaranteed to point to some ancestor, which is enough for this
-        // function to keep the invariants of the unionfind.
-        let mut parent = self.parent_relaxed(current);
-        while current != parent {
-            let grandparent = self.parent_relaxed(parent);
-            self.set_parent_relaxed(current, grandparent);
+        while current != self.parent(current) {
+            current = self.parent(current)
+        }
+        current
+    }
+
+    pub fn find_mut(&mut self, mut current: Id) -> Id {
+        while current != self.parent(current) {
+            let grandparent = self.parent(self.parent(current));
+            *self.parent_mut(current) = grandparent;
             current = grandparent;
-            parent = self.parent_relaxed(current);
         }
         current
     }
 
     /// Given two leader ids, unions the two eclasses making root1 the leader.
     pub fn union(&mut self, root1: Id, root2: Id) -> Id {
-        self.set_parent_mut(root2, root1);
+        *self.parent_mut(root2) = root1;
         root1
     }
 }
@@ -69,7 +53,7 @@ impl UnionFind {
 mod tests {
     use super::*;
 
-    fn ids(us: impl IntoIterator<Item = usize>) -> Vec<AtomicId> {
+    fn ids(us: impl IntoIterator<Item = usize>) -> Vec<Id> {
         us.into_iter().map(|u| u.into()).collect()
     }
 
@@ -84,10 +68,7 @@ mod tests {
         }
 
         // test the initial condition of everyone in their own set
-        assert!(ids(0..n)
-            .into_iter()
-            .zip(uf.parents.iter())
-            .all(|(a, b)| a.load_relaxed() == b.load_relaxed()));
+        assert_eq!(uf.parents, ids(0..n));
 
         // build up one set
         uf.union(id(0), id(1));
@@ -101,14 +82,11 @@ mod tests {
 
         // this should compress all paths
         for i in 0..n {
-            uf.find(id(i));
+            uf.find_mut(id(i));
         }
 
         // indexes:         0, 1, 2, 3, 4, 5, 6, 7, 8, 9
         let expected = vec![0, 0, 0, 0, 4, 5, 6, 6, 6, 6];
-        assert!(ids(expected)
-            .into_iter()
-            .zip(uf.parents.iter())
-            .all(|(a, b)| a.load_relaxed() == b.load_relaxed()));
+        assert_eq!(uf.parents, ids(expected));
     }
 }

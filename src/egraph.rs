@@ -591,7 +591,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// This is private, but internals should use this whenever
     /// possible because it does path compression.
     fn find_mut(&mut self, id: Id) -> Id {
-        self.unionfind.find(id)
+        self.unionfind.find_mut(id)
     }
 
     /// Creates a [`Dot`] to visualize this egraph. See [`Dot`].
@@ -1317,7 +1317,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             class
                 .nodes
                 .iter_mut()
-                .for_each(|n| n.update_children(|id| uf.find(id)));
+                .for_each(|n| n.update_children(|id| uf.find_mut(id)));
             class.nodes.sort_unstable();
             class.nodes.dedup();
 

@@ -1830,14 +1830,14 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
                 common_ancestor,
             );
             unionfind.union(enode, *child);
-            ancestor[usize::from(unionfind.find(enode))] = enode;
+            ancestor[usize::from(unionfind.find_mut(enode))] = enode;
         }
 
         if common_ancestor_queries.get(&enode).is_some() {
             black_set.insert(enode);
             for other in common_ancestor_queries.get(&enode).unwrap() {
                 if black_set.contains(other) {
-                    let ancestor = ancestor[usize::from(unionfind.find(*other))];
+                    let ancestor = ancestor[usize::from(unionfind.find_mut(*other))];
                     common_ancestor.insert((enode, *other), ancestor);
                     common_ancestor.insert((*other, enode), ancestor);
                 }
