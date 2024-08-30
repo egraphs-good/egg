@@ -2059,10 +2059,7 @@ mod tests {
         init_logger();
 
         let rws: Vec<Rewrite<SymbolLang, ()>> =
-            [rewrite!("makeb"; "a" => "b"), rewrite!("makec"; "b" => "c")]
-                .iter()
-                .cloned()
-                .collect();
+            [rewrite!("makeb"; "a" => "b"), rewrite!("makec"; "b" => "c")].to_vec();
         let mut egraph = Runner::default()
             .with_explanations_enabled()
             .without_explanation_length_optimization()
