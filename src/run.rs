@@ -728,7 +728,7 @@ the [`EGraph`] and dominating how much time is spent while running the
 
 */
 #[allow(unused_variables)]
-pub trait RewriteScheduler<L, N>: Sync
+pub trait RewriteScheduler<L, N>: MaybePar
 where
     L: Language,
     N: Analysis<L>,
