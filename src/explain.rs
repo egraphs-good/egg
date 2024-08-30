@@ -2070,9 +2070,9 @@ mod tests {
             .run(&rws)
             .egraph;
         egraph.rebuild();
-        let a: Symbol = "a".parse().unwrap();
-        let b: Symbol = "b".parse().unwrap();
-        let c: Symbol = "c".parse().unwrap();
+        let _a: Symbol = "a".parse().unwrap();
+        let _b: Symbol = "b".parse().unwrap();
+        let _c: Symbol = "c".parse().unwrap();
         let mut exp = egraph.explain_existance(&"c".parse().unwrap());
         println!("{:?}", exp.make_flat_explanation());
         assert_eq!(
