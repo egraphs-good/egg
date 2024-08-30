@@ -2101,9 +2101,6 @@
 <a href="#2101" id="2101">2101</a>
 <a href="#2102" id="2102">2102</a>
 <a href="#2103" id="2103">2103</a>
-<a href="#2104" id="2104">2104</a>
-<a href="#2105" id="2105">2105</a>
-<a href="#2106" id="2106">2106</a>
 </pre></div><pre class="rust"><code><span class="attr">#![allow(clippy::only_used_in_recursion)]
 </span><span class="kw">use </span><span class="kw">crate</span>::Symbol;
 <span class="kw">use crate</span>::{
@@ -4165,10 +4162,7 @@ See [`Explanation`] for more details.
         init_logger();
 
         <span class="kw">let </span>rws: Vec&lt;Rewrite&lt;SymbolLang, ()&gt;&gt; =
-            [<span class="macro">rewrite!</span>(<span class="string">"makeb"</span>; <span class="string">"a" </span>=&gt; <span class="string">"b"</span>), <span class="macro">rewrite!</span>(<span class="string">"makec"</span>; <span class="string">"b" </span>=&gt; <span class="string">"c"</span>)]
-                .iter()
-                .cloned()
-                .collect();
+            [<span class="macro">rewrite!</span>(<span class="string">"makeb"</span>; <span class="string">"a" </span>=&gt; <span class="string">"b"</span>), <span class="macro">rewrite!</span>(<span class="string">"makec"</span>; <span class="string">"b" </span>=&gt; <span class="string">"c"</span>)].to_vec();
         <span class="kw">let </span><span class="kw-2">mut </span>egraph = Runner::default()
             .with_explanations_enabled()
             .without_explanation_length_optimization()
