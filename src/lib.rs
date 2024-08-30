@@ -105,12 +105,20 @@ pub use {
     util::*,
 };
 
+/// Trait implemented automatically either for all types
+/// (when the `parallel-matching` option is not set),
+/// or all types implementing `Send + Sync`
+/// (when the `parallel-matching` option is set).
 #[cfg(feature = "parallel-matching")]
-pub(crate) trait MaybePar: Send + Sync {}
+pub trait MaybePar: Send + Sync {}
 
 #[cfg(feature = "parallel-matching")]
 impl<T> MaybePar for T where T: Send + Sync {}
 
+/// Trait implemented automatically either for all types
+/// (when the `parallel-matching` option is not set),
+/// or all types implementing `Send + Sync`
+/// (when the `parallel-matching` option is set).
 #[cfg(not(feature = "parallel-matching"))]
 pub trait MaybePar {}
 

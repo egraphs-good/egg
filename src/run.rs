@@ -7,6 +7,8 @@ use log::*;
 
 use crate::*;
 
+/// Trait which has to be implemented for all hooks used in `Runner`.
+/// It should be implemented automatically.
 pub trait RunnerHook<L, N, I>:
     FnMut(&mut Runner<L, N, I>) -> Result<(), String> + MaybePar
 {
