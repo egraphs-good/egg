@@ -59,28 +59,60 @@ define_language! {
     }
 }
 ```
+It is also possible to define languages that are generic over some bounded type.
+
+# Example
+```rust
+# use egg::*;
+# use std::{str::FromStr, fmt::{Debug, Display}, hash::Hash};
+define_language! {
+    enum GenericLang<T: SaturationNumber> {
+        Number(T),
+        "+" = Add([Id; 2]),
+        "-" = Sub([Id; 2]),
+        "/" = Div([Id; 2]),
+        "*" = Mult([Id; 2]),
+     }
+}
+
+pub trait SaturationNumber:
+    std::fmt::Debug
+    + Clone
+    + PartialEq
+    + FromStr<Err=String> // More specifcally Err should implement `Display`.
+    + Ord
+    + PartialOrd
+    + Hash
+    + Display
+{
+}
+```
 
 [`Display`]: std::fmt::Display
+[`Debug`]: std::fmt::Debug
+[`FromStr`]: std::str::FromStr
+[`Hash`]: std::hash::Hash
 **/
 #[macro_export]
 macro_rules! define_language {
-    ($(#[$meta:meta])* $vis:vis enum $name:ident $variants:tt) => {
-        $crate::__define_language!($(#[$meta])* $vis enum $name $variants -> {} {} {} {} {} {});
+    ($(#[$meta:meta])* $vis:vis enum $name:ident $(<$($gen:ident $(: $bound:tt $(+ $bounds:tt)*)?),+>)? { $($variants:tt)* }) => {
+        $crate::__define_language!($(#[$meta])* $vis enum $name $(<$($gen $(: $bound $(+ $bounds)*)?),+>)? { $($variants)* } -> {} {} {} {} {} {});
     };
 }
 
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __define_language {
-    ($(#[$meta:meta])* $vis:vis enum $name:ident {} ->
+    // Rule for the end of the enum definition
+    ($(#[$meta:meta])* $vis:vis enum $name:ident $(<$($gen:ident $(: $bound:tt $(+ $bounds:tt)*)?),+>)? {} ->
      $decl:tt {$($matches:tt)*} $children:tt $children_mut:tt
      $display:tt {$($from_op:tt)*}
     ) => {
         $(#[$meta])*
         #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
-        $vis enum $name $decl
+        $vis enum $name $(<$($gen $(: $bound $(+ $bounds)*)?),+>)? $decl
 
-        impl $crate::Language for $name {
+        impl<$($($gen $(: $bound $(+ $bounds)*)?),+)? > $crate::Language for $name $(<$($gen),+>)? {
             type Discriminant = std::mem::Discriminant<Self>;
 
             #[inline(always)]
@@ -98,15 +130,13 @@ macro_rules! __define_language {
             fn children_mut(&mut self) -> &mut [Id] { match self $children_mut }
         }
 
-        impl ::std::fmt::Display for $name {
+        impl<$($($gen $(: $bound $(+ $bounds)*)?),+)? > ::std::fmt::Display for $name $(<$($gen),+>)? {
             fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-                // We need to pass `f` to the match expression for hygiene
-                // reasons.
                 match (self, f) $display
             }
         }
 
-        impl $crate::FromOp for $name {
+        impl<$($($gen $(: $bound $(+ $bounds)*)?),+)? > $crate::FromOp for $name $(<$($gen),+>)? {
             type Error = $crate::FromOpError;
 
             fn from_op(op: &str, children: ::std::vec::Vec<$crate::Id>) -> ::std::result::Result<Self, Self::Error> {
@@ -118,7 +148,8 @@ macro_rules! __define_language {
         }
     };
 
-    ($(#[$meta:meta])* $vis:vis enum $name:ident
+    // Rule to handle string variants with no children
+    ($(#[$meta:meta])* $vis:vis enum $name:ident $(<$($gen:ident $(: $bound:tt $(+ $bounds:tt)*)?),+>)?
      {
          $string:literal = $variant:ident,
          $($variants:tt)*
@@ -127,18 +158,19 @@ macro_rules! __define_language {
      { $($display:tt)* } { $($from_op:tt)* }
     ) => {
         $crate::__define_language!(
-            $(#[$meta])* $vis enum $name
+            $(#[$meta])* $vis enum $name $(<$($gen $(: $bound $(+ $bounds)*)?),+>)?
             { $($variants)* } ->
-            { $($decl)*          $variant, }
-            { $($matches)*       ($name::$variant, $name::$variant) => true, }
-            { $($children)*      $name::$variant => &[], }
-            { $($children_mut)*  $name::$variant => &mut [], }
-            { $($display)*       ($name::$variant, f) => f.write_str($string), }
-            { $($from_op)*       ($string, children) if children.is_empty() => Ok($name::$variant), }
+            { $($decl)* $variant, }
+            { $($matches)* ($name::$variant, $name::$variant) => true, }
+            { $($children)* $name::$variant => &[], }
+            { $($children_mut)* $name::$variant => &mut [], }
+            { $($display)* ($name::$variant, f) => f.write_str($string), }
+            { $($from_op)* ($string, children) if children.is_empty() => Ok($name::$variant), }
         );
     };
 
-    ($(#[$meta:meta])* $vis:vis enum $name:ident
+    // Rule to handle string variants with an array of child Ids
+    ($(#[$meta:meta])* $vis:vis enum $name:ident $(<$($gen:ident $(: $bound:tt $(+ $bounds:tt)*)?),+>)?
      {
          $string:literal = $variant:ident ($ids:ty),
          $($variants:tt)*
@@ -147,14 +179,14 @@ macro_rules! __define_language {
      { $($display:tt)* } { $($from_op:tt)* }
     ) => {
         $crate::__define_language!(
-            $(#[$meta])* $vis enum $name
+            $(#[$meta])* $vis enum $name $(<$($gen $(: $bound $(+ $bounds)*)?),+>)?
             { $($variants)* } ->
-            { $($decl)*          $variant($ids), }
-            { $($matches)*       ($name::$variant(l), $name::$variant(r)) => $crate::LanguageChildren::len(l) == $crate::LanguageChildren::len(r), }
-            { $($children)*      $name::$variant(ids) => $crate::LanguageChildren::as_slice(ids), }
-            { $($children_mut)*  $name::$variant(ids) => $crate::LanguageChildren::as_mut_slice(ids), }
-            { $($display)*       ($name::$variant(..), f) => f.write_str($string), }
-            { $($from_op)*       (op, children) if op == $string && <$ids as $crate::LanguageChildren>::can_be_length(children.len()) => {
+            { $($decl)* $variant($ids), }
+            { $($matches)* ($name::$variant(l), $name::$variant(r)) => $crate::LanguageChildren::len(l) == $crate::LanguageChildren::len(r), }
+            { $($children)* $name::$variant(ids) => $crate::LanguageChildren::as_slice(ids), }
+            { $($children_mut)* $name::$variant(ids) => $crate::LanguageChildren::as_mut_slice(ids), }
+            { $($display)* ($name::$variant(..), f) => f.write_str($string), }
+            { $($from_op)* (op, children) if op == $string && <$ids as $crate::LanguageChildren>::can_be_length(children.len()) => {
                   let children = <$ids as $crate::LanguageChildren>::from_vec(children);
                   Ok($name::$variant(children))
               },
@@ -162,7 +194,8 @@ macro_rules! __define_language {
         );
     };
 
-    ($(#[$meta:meta])* $vis:vis enum $name:ident
+    // Rule to handle data variants with a single field
+    ($(#[$meta:meta])* $vis:vis enum $name:ident $(<$($gen:ident $(: $bound:tt $(+ $bounds:tt)*)?),+>)?
      {
          $variant:ident ($data:ty),
          $($variants:tt)*
@@ -171,18 +204,19 @@ macro_rules! __define_language {
      { $($display:tt)* } { $($from_op:tt)* }
     ) => {
         $crate::__define_language!(
-            $(#[$meta])* $vis enum $name
+            $(#[$meta])* $vis enum $name $(<$($gen $(: $bound $(+ $bounds)*)?),+>)?
             { $($variants)* } ->
-            { $($decl)*          $variant($data), }
-            { $($matches)*       ($name::$variant(data1), $name::$variant(data2)) => data1 == data2, }
-            { $($children)*      $name::$variant(_data) => &[], }
-            { $($children_mut)*  $name::$variant(_data) => &mut [], }
-            { $($display)*       ($name::$variant(data), f) => ::std::fmt::Display::fmt(data, f), }
-            { $($from_op)*       (op, children) if op.parse::<$data>().is_ok() && children.is_empty() => Ok($name::$variant(op.parse().unwrap())), }
+            { $($decl)* $variant($data), }
+            { $($matches)* ($name::$variant(data1), $name::$variant(data2)) => data1 == data2, }
+            { $($children)* $name::$variant(_data) => &[], }
+            { $($children_mut)* $name::$variant(_data) => &mut [], }
+            { $($display)* ($name::$variant(data), f) => ::std::fmt::Display::fmt(data, f), }
+            { $($from_op)* (op, children) if op.parse::<$data>().is_ok() && children.is_empty() => Ok($name::$variant(op.parse().unwrap())), }
         );
     };
 
-    ($(#[$meta:meta])* $vis:vis enum $name:ident
+    // Rule to handle data variants with a data field and an array of child Ids
+    ($(#[$meta:meta])* $vis:vis enum $name:ident $(<$($gen:ident $(: $bound:tt $(+ $bounds:tt)*)?),+>)?
      {
          $variant:ident ($data:ty, $ids:ty),
          $($variants:tt)*
@@ -191,14 +225,14 @@ macro_rules! __define_language {
      { $($display:tt)* } { $($from_op:tt)* }
     ) => {
         $crate::__define_language!(
-            $(#[$meta])* $vis enum $name
+            $(#[$meta])* $vis enum $name $(<$($gen $(: $bound $(+ $bounds)*)?),+>)?
             { $($variants)* } ->
-            { $($decl)*          $variant($data, $ids), }
-            { $($matches)*       ($name::$variant(d1, l), $name::$variant(d2, r)) => d1 == d2 && $crate::LanguageChildren::len(l) == $crate::LanguageChildren::len(r), }
-            { $($children)*      $name::$variant(_, ids) => $crate::LanguageChildren::as_slice(ids), }
-            { $($children_mut)*  $name::$variant(_, ids) => $crate::LanguageChildren::as_mut_slice(ids), }
-            { $($display)*       ($name::$variant(data, _), f) => ::std::fmt::Display::fmt(data, f), }
-            { $($from_op)*       (op, children) if op.parse::<$data>().is_ok() && <$ids as $crate::LanguageChildren>::can_be_length(children.len()) => {
+            { $($decl)* $variant($data, $ids), }
+            { $($matches)* ($name::$variant(d1, l), $name::$variant(d2, r)) => d1 == d2 && $crate::LanguageChildren::len(l) == $crate::LanguageChildren::len(r), }
+            { $($children)* $name::$variant(_, ids) => $crate::LanguageChildren::as_slice(ids), }
+            { $($children_mut)* $name::$variant(_, ids) => $crate::LanguageChildren::as_mut_slice(ids), }
+            { $($display)* ($name::$variant(data, _), f) => ::std::fmt::Display::fmt(data, f), }
+            { $($from_op)* (op, children) if op.parse::<$data>().is_ok() && <$ids as $crate::LanguageChildren>::can_be_length(children.len()) => {
                   let data = op.parse::<$data>().unwrap();
                   let children = <$ids as $crate::LanguageChildren>::from_vec(children);
                   Ok($name::$variant(data, children))
@@ -401,5 +435,77 @@ mod tests {
         let _: Rewrite<Simple, ()> = rewrite!(
             "bad"; "?a" => "?a" if ConditionEqual::new(x.clone(), x)
         );
+    }
+    // Testing a "generic" language, where the number is not specifically i32,
+    // but anything that implements some set of traits. For ease of reading
+    // these tests set of traits required for language to accept a generic type
+    // is collected under `SaturationNumber`. The fact that the testing suite
+    // compiles is testing the macro's parsing implementation.
+
+    #[derive(std::fmt::Debug, Clone, PartialEq, Eq, Ord, PartialOrd, std::hash::Hash)]
+    pub struct CustomNumber {
+        num: i32,
+    }
+
+    impl std::str::FromStr for CustomNumber {
+        type Err = String;
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            let num = s.parse::<i32>().map_err(|e| format!("{e:?}"))?;
+            Ok(Self { num })
+        }
+    }
+
+    impl std::fmt::Display for CustomNumber {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "{}", self.num)
+        }
+    }
+
+    impl From<i32> for CustomNumber {
+        fn from(value: i32) -> Self {
+            Self { num: value }
+        }
+    }
+
+    pub trait SaturationNumber:
+        std::fmt::Debug
+        + Clone
+        + PartialEq
+        + std::str::FromStr<Err = String>
+        + Ord
+        + PartialOrd
+        + std::hash::Hash
+        + std::fmt::Display
+    {
+    }
+
+    impl SaturationNumber for CustomNumber {}
+
+    define_language! {
+        pub enum GenericLang<T: SaturationNumber> {
+            Number(T),
+            "+" = Add([Id; 2]),
+            "-" = Sub([Id; 2]),
+            "/" = Div([Id; 2]),
+            "*" = Mult([Id; 2]),
+        }
+    }
+
+    #[test]
+    fn test_generic_lang_display() {
+        assert_eq!(
+            format!("{}", GenericLang::<CustomNumber>::Add([1.into(), 2.into()])),
+            "+"
+        );
+    }
+
+    #[test]
+    fn test_generic_lang_from_op() {
+        let add_op = GenericLang::<CustomNumber>::from_op("+", vec![1.into(), 2.into()]).unwrap();
+        if let GenericLang::Add(ids) = add_op {
+            assert_eq!(ids, [1.into(), 2.into()]);
+        } else {
+            panic!("Expected GenericLang::Add variant");
+        }
     }
 }
