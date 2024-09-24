@@ -1,4 +1,6 @@
-use std::ops::{BitOr, Index, IndexMut};
+use std::borrow::{Borrow, BorrowMut};
+use std::iter::FromIterator;
+use std::ops::{BitOr, Deref, DerefMut, Index, IndexMut};
 use std::{cmp::Ordering, convert::TryFrom};
 use std::{
     convert::Infallible,
@@ -213,10 +215,10 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
             }
         }
 
-        // finally, add the root node and create the expression
-        let mut nodes: Vec<Self> = set.into_iter().collect();
-        nodes.push(self.clone().map_children(|id| ids[&id]));
-        Ok(RecExpr::from(nodes))
+        // finally, create the expression and add the root node
+        let mut expr: RecExpr<_> = set.into_iter().collect();
+        expr.add(self.clone().map_children(|id| ids[&id]));
+        Ok(expr)
     }
 }
 
@@ -398,9 +400,41 @@ impl<L> Default for RecExpr<L> {
     }
 }
 
+impl<L> Borrow<[L]> for RecExpr<L> {
+    fn borrow(&self) -> &[L] {
+        &self.nodes
+    }
+}
+
+impl<L> BorrowMut<[L]> for RecExpr<L> {
+    fn borrow_mut(&mut self) -> &mut [L] {
+        &mut self.nodes
+    }
+}
+
+impl<L> Deref for RecExpr<L> {
+    type Target = [L];
+
+    fn deref(&self) -> &Self::Target {
+        self.borrow()
+    }
+}
+
+impl<L> DerefMut for RecExpr<L> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.borrow_mut()
+    }
+}
+
 impl<L> AsRef<[L]> for RecExpr<L> {
     fn as_ref(&self) -> &[L] {
         &self.nodes
+    }
+}
+
+impl<L> AsMut<[L]> for RecExpr<L> {
+    fn as_mut(&mut self) -> &mut [L] {
+        &mut self.nodes
     }
 }
 
@@ -416,22 +450,28 @@ impl<L> From<RecExpr<L>> for Vec<L> {
     }
 }
 
+impl<L> FromIterator<L> for RecExpr<L> {
+    fn from_iter<T: IntoIterator<Item = L>>(iter: T) -> Self {
+        Self::from(iter.into_iter().collect::<Vec<_>>())
+    }
+}
+
 impl<L: Language> RecExpr<L> {
     /// Adds a given enode to this `RecExpr`.
-    /// The enode's children `Id`s must refer to elements already in this list.
+    /// The enode's children [`Id`]s must refer to elements already in this list.
     pub fn add(&mut self, node: L) -> Id {
         debug_assert!(
-            node.all(|id| usize::from(id) < self.nodes.len()),
+            node.all(|id| id <= self.root()),
             "node {:?} has children not in this expr: {:?}",
             node,
             self
         );
         self.nodes.push(node);
-        Id::from(self.nodes.len() - 1)
+        self.root()
     }
 
     pub(crate) fn compact(mut self) -> Self {
-        let mut ids = hashmap_with_capacity::<Id, Id>(self.nodes.len());
+        let mut ids = hashmap_with_capacity::<Id, Id>(self.len());
         let mut set = IndexSet::default();
         for (i, node) in self.nodes.drain(..).enumerate() {
             let node = node.map_children(|id| ids[&id]);
@@ -446,21 +486,31 @@ impl<L: Language> RecExpr<L> {
         self[new_root].build_recexpr(|id| self[id].clone())
     }
 
+    /// Returns an iterator over the [`Id`]s in this expression.
+    pub fn ids(&self) -> impl ExactSizeIterator<Item = Id> + DoubleEndedIterator {
+        (0..self.len()).map(Id::from)
+    }
+
+    /// Returns an iterator over the [`Id`]s and enodes of this expression.
+    pub fn items(&self) -> impl ExactSizeIterator<Item = (Id, &L)> + DoubleEndedIterator {
+        self.ids().zip(self)
+    }
+
+    /// Returns an iterator over the [`Id`]s and enodes of this expression.
+    pub fn items_mut(
+        &mut self,
+    ) -> impl ExactSizeIterator<Item = (Id, &mut L)> + DoubleEndedIterator {
+        self.ids().zip(self)
+    }
+
     /// Checks if this expr is a DAG, i.e. doesn't have any back edges
     pub fn is_dag(&self) -> bool {
-        for (i, n) in self.nodes.iter().enumerate() {
-            for &child in n.children() {
-                if usize::from(child) >= i {
-                    return false;
-                }
-            }
-        }
-        true
+        self.items().all(|(id, n)| n.all(|child| child < id))
     }
 
     /// Get the root node of this expression. When adding a new node via `add`, it becomes the new root.
     pub fn root(&self) -> Id {
-        Id::from(self.nodes.len() - 1)
+        self.ids().last().unwrap()
     }
 }
 
@@ -474,6 +524,33 @@ impl<L: Language> Index<Id> for RecExpr<L> {
 impl<L: Language> IndexMut<Id> for RecExpr<L> {
     fn index_mut(&mut self, id: Id) -> &mut L {
         &mut self.nodes[usize::from(id)]
+    }
+}
+
+impl<L> IntoIterator for RecExpr<L> {
+    type Item = L;
+    type IntoIter = std::vec::IntoIter<L>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.nodes.into_iter()
+    }
+}
+
+impl<'a, L> IntoIterator for &'a RecExpr<L> {
+    type Item = &'a L;
+    type IntoIter = std::slice::Iter<'a, L>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a, L> IntoIterator for &'a mut RecExpr<L> {
+    type Item = &'a mut L;
+    type IntoIter = std::slice::IterMut<'a, L>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
     }
 }
 

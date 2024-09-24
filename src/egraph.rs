@@ -846,10 +846,9 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     ///
     /// Calling [`id_to_expr`](EGraph::id_to_expr) on this `Id` return a copy of `expr` when explanations are enabled
     pub fn add_expr_uncanonical(&mut self, expr: &RecExpr<L>) -> Id {
-        let nodes = expr.as_ref();
-        let mut new_ids = Vec::with_capacity(nodes.len());
-        let mut new_node_q = Vec::with_capacity(nodes.len());
-        for node in nodes {
+        let mut new_ids = Vec::with_capacity(expr.len());
+        let mut new_node_q = Vec::with_capacity(expr.len());
+        for node in expr {
             let new_node = node.clone().map_children(|i| new_ids[usize::from(i)]);
             let size_before = self.unionfind.size();
             let next_id = self.add_uncanonical(new_node);
@@ -885,10 +884,9 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// Calling [`id_to_expr`](EGraph::id_to_expr) on this `Id` return an correspond to the
     /// instantiation of the pattern
     fn add_instantiation_noncanonical(&mut self, pat: &PatternAst<L>, subst: &Subst) -> Id {
-        let nodes = pat.as_ref();
-        let mut new_ids = Vec::with_capacity(nodes.len());
-        let mut new_node_q = Vec::with_capacity(nodes.len());
-        for node in nodes {
+        let mut new_ids = Vec::with_capacity(pat.len());
+        let mut new_node_q = Vec::with_capacity(pat.len());
+        for node in pat {
             match node {
                 ENodeOrVar::Var(var) => {
                     let id = self.find(subst[*var]);
@@ -970,9 +968,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
     /// Lookup the eclasses of all the nodes in the given [`RecExpr`].
     pub fn lookup_expr_ids(&self, expr: &RecExpr<L>) -> Option<Vec<Id>> {
-        let nodes = expr.as_ref();
-        let mut new_ids = Vec::with_capacity(nodes.len());
-        for node in nodes {
+        let mut new_ids = Vec::with_capacity(expr.len());
+        for node in expr {
             let node = node.clone().map_children(|i| new_ids[usize::from(i)]);
             let id = self.lookup(node)?;
             new_ids.push(id)
@@ -1102,8 +1099,8 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// In most cases, there will none or exactly one id.
     ///
     pub fn equivs(&self, expr1: &RecExpr<L>, expr2: &RecExpr<L>) -> Vec<Id> {
-        let pat1 = Pattern::from(expr1.as_ref());
-        let pat2 = Pattern::from(expr2.as_ref());
+        let pat1 = Pattern::from(expr1);
+        let pat2 = Pattern::from(expr2);
         let matches1 = pat1.search(self);
         trace!("Matches1: {:?}", matches1);
 
