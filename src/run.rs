@@ -160,6 +160,7 @@ pub struct Runner<L: Language, N: Analysis<L>, IterData = ()> {
 pub struct RunnerLimits {
     iter_limit: usize,
     node_limit: usize,
+    memory_limit: usize,
     time_limit: Duration,
     start_time: Option<Instant>,
 }
@@ -183,6 +184,11 @@ impl RunnerLimits {
 
         if iteration >= self.iter_limit {
             return Err(StopReason::IterationLimit(iteration));
+        }
+
+        let memory_usage = memory_stats::memory_stats().expect("Could not read memory");
+        if memory_usage.physical_mem > self.memory_limit {
+            return Err(StopReason::MemoryLimit(memory_usage.physical_mem));
         }
 
         Ok(())
@@ -241,6 +247,8 @@ pub enum StopReason {
     IterationLimit(usize),
     /// The enode limit was hit. The data is the enode limit.
     NodeLimit(usize),
+    /// The memory limit was hit. The data is the memory limit in bytes.
+    MemoryLimit(usize),
     /// The time limit was hit. The data is the time limit in seconds.
     TimeLimit(f64),
     /// Some other reason to stop.
@@ -341,6 +349,7 @@ where
             limits: RunnerLimits {
                 iter_limit: 30,
                 node_limit: 10_000,
+                memory_limit: 64_000_000_000,
                 time_limit: Duration::from_secs(5),
                 start_time: None,
             },
@@ -362,6 +371,13 @@ where
     /// Sets the egraph size limit (in enodes). Default: 10,000
     pub fn with_node_limit(mut self, node_limit: usize) -> Self {
         self.limits.node_limit = node_limit;
+        self
+    }
+
+    /// Sets the physical memory limit of the `Runner` thread.
+    /// Default: 64,000,000,000
+    pub fn with_memory_limit(mut self, memory_limit: usize) -> Self {
+        self.limits.memory_limit = memory_limit;
         self
     }
 
