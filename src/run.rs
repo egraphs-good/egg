@@ -456,6 +456,32 @@ where
         self
     }
 
+    /// Variant of `run` that takes `&mut self`.
+    pub fn run_mut<'a, R>(&mut self, rules: R)
+    where
+        R: IntoIterator<Item = &'a Rewrite<L, N>>,
+        L: 'a,
+        N: 'a,
+    {
+        let rules: Vec<&Rewrite<L, N>> = rules.into_iter().collect();
+        check_rules(&rules);
+        self.egraph.rebuild();
+        loop {
+            let iter = self.run_one(&rules);
+            self.iterations.push(iter);
+            let stop_reason = self.iterations.last().unwrap().stop_reason.clone();
+            // we need to check_limits after the iteration is complete to check for iter_limit
+            if let Some(stop_reason) = stop_reason.or_else(|| self.check_limits().err()) {
+                info!("Stopping: {:?}", stop_reason);
+                self.stop_reason = Some(stop_reason);
+                break;
+            }
+        }
+
+        assert!(!self.iterations.is_empty());
+        assert!(self.stop_reason.is_some());
+    }
+
     /// Enable explanations for this runner's egraph.
     /// This allows the runner to explain why two expressions are
     /// equivalent with the [`explain_equivalence`](Runner::explain_equivalence) function.
