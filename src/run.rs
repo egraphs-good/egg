@@ -465,6 +465,7 @@ where
     {
         self.iterations.clear();
         self.stop_reason = None;
+        self.limits.start_time = None;
         let rules: Vec<&Rewrite<L, N>> = rules.into_iter().collect();
         check_rules(&rules);
         self.egraph.rebuild();
