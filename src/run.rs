@@ -463,6 +463,8 @@ where
         L: 'a,
         N: 'a,
     {
+        self.iterations.clear();
+        self.stop_reason = None;
         let rules: Vec<&Rewrite<L, N>> = rules.into_iter().collect();
         check_rules(&rules);
         self.egraph.rebuild();
