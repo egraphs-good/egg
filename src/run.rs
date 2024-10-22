@@ -99,9 +99,9 @@ pub struct MyIterData {
     smallest_so_far: usize,
 }
 
-type MyRunner = Runner<SimpleLanguage, (), MyIterData>;
+type MyRunner = Runner<SimpleLanguage, (), MyIterData, ()>;
 
-impl IterationData<SimpleLanguage, ()> for MyIterData {
+impl IterationData<SimpleLanguage, (), ()> for MyIterData {
     fn make(runner: &MyRunner) -> Self {
         let root = runner.roots[0];
         let mut extractor = Extractor::new(&runner.egraph, AstSize);
@@ -134,9 +134,11 @@ println!(
 
 ```
 */
-pub struct Runner<L: Language, N: Analysis<L>, IterData = ()> {
+pub struct Runner<L: Language, N: Analysis<L>, IterData = (), Data = ()> {
     /// The [`EGraph`] used.
     pub egraph: EGraph<L, N>,
+    /// Data stored inside the runner, useful for making that data available to hooks
+    pub data: Data,
     /// Data accumulated over each [`Iteration`].
     pub iterations: Vec<Iteration<IterData>>,
     /// The roots of expressions added by the
@@ -189,7 +191,7 @@ impl RunnerLimits {
     }
 }
 
-impl<L, N> Default for Runner<L, N, ()>
+impl<L, N> Default for Runner<L, N, (), ()>
 where
     L: Language,
     N: Analysis<L> + Default,
@@ -199,17 +201,19 @@ where
     }
 }
 
-impl<L, N, IterData> Debug for Runner<L, N, IterData>
+impl<L, N, IterData, Data> Debug for Runner<L, N, IterData, Data>
 where
     L: Language,
     N: Analysis<L>,
     IterData: Debug,
+    Data: Debug,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         // Use an exhaustive pattern match to ensure the Debug implementation and the struct stay in sync.
         let Runner {
             egraph,
             iterations,
+            data,
             roots,
             stop_reason,
             hooks,
@@ -219,6 +223,7 @@ where
 
         f.debug_struct("Runner")
             .field("egraph", egraph)
+            .field("data", data)
             .field("iterations", iterations)
             .field("roots", roots)
             .field("stop_reason", stop_reason)
@@ -329,14 +334,22 @@ pub struct Iteration<IterData> {
 /// Type alias for the result of a [`Runner`].
 pub type RunnerResult<T> = std::result::Result<T, StopReason>;
 
-impl<L, N, IterData> Runner<L, N, IterData>
+impl<L, N, IterData, Data> Runner<L, N, IterData, Data>
 where
     L: Language,
     N: Analysis<L>,
-    IterData: IterationData<L, N>,
+    IterData: IterationData<L, N, Data>,
 {
     /// Create a new `Runner` with the given analysis and default parameters.
-    pub fn new(analysis: N) -> Self {
+    pub fn new(analysis: N) -> Self
+    where
+        Data: Default,
+    {
+        Self::new_with_data(analysis, Data::default())
+    }
+
+    /// Create a new `Runner` with the given analysis, data, and default parameters.
+    pub fn new_with_data(analysis: N, data: Data) -> Self {
         Self {
             limits: RunnerLimits {
                 iter_limit: 30,
@@ -345,6 +358,7 @@ where
                 start_time: None,
             },
             egraph: EGraph::new(analysis),
+            data,
             roots: vec![],
             iterations: vec![],
             stop_reason: None,
@@ -985,20 +999,20 @@ where
 /// [`Runner`] is generic over the [`IterationData`] that it will be in the
 /// [`Iteration`]s, but by default it uses `()`.
 ///
-pub trait IterationData<L, N>: Sized
+pub trait IterationData<L, N, Data>: Sized
 where
     L: Language,
     N: Analysis<L>,
 {
     /// Given the current [`Runner`], make the
     /// data to be put in this [`Iteration`].
-    fn make(runner: &Runner<L, N, Self>) -> Self;
+    fn make(runner: &Runner<L, N, Self, Data>) -> Self;
 }
 
-impl<L, N> IterationData<L, N> for ()
+impl<L, N, Data> IterationData<L, N, Data> for ()
 where
     L: Language,
     N: Analysis<L>,
 {
-    fn make(_: &Runner<L, N, Self>) -> Self {}
+    fn make(_: &Runner<L, N, Self, Data>) -> Self {}
 }
