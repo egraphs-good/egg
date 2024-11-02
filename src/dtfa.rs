@@ -2,8 +2,6 @@ use std::{cell::RefCell, collections::VecDeque, hash::{Hash, Hasher}, ops::{Add,
 
 use hashbrown::{HashMap, HashSet};
 
-use crate::StopReason;
-
 type State = u32;
 type Symbol = u32;
 
@@ -35,7 +33,7 @@ struct TransitionTable {
 }
 
 impl TransitionTable {
-    fn new(rules: Vec<SymbolicRule>) -> TransitionTable {
+    pub fn new(rules: Vec<SymbolicRule>) -> TransitionTable {
         let mut table_rules: Vec<SymbolicRulePtr> = Vec::new();
         let mut table_state_map: HashMap<State, Vec<SymbolicRulePtr>> = HashMap::new();
         for rule in rules {
@@ -90,20 +88,45 @@ impl SubAssign<u64> for Hash64 {
     }
 }
 
+type ContextId = u32;
+
+#[derive(Debug, Clone)]
 struct Context {
     //change hash in O(1)
+    symbol: Symbol,
+    //elements doesn't change after initialization
     elements: Vec<State>,
     empty_index: usize,
     stored_hash: Hash64
 }
 
+struct ContextIndexIterator {
+    index: usize,
+    length: usize
+}
+
+impl Iterator for ContextIndexIterator {
+    type Item = usize;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index < self.length {
+            let index = self.index;
+            self.index += 1;
+            Some(index)
+        } else {
+            None
+        }
+    }
+}
+
 impl Context {
-    fn new(elements: Vec<State>, empty_index: usize) -> Self {
-        let stored_hash: Hash64 = elements.iter().cloned().fold(Hash64::new(0), |mut acc, value| {
-            acc.accumulate(value as u64);
-            acc
-        });
+    fn new(symbol: Symbol, elements: Vec<State>, empty_index: usize) -> Self {
+        let mut stored_hash: Hash64 = Hash64::new(Self::hash_symbol(symbol));
+        for (index, state) in elements.iter().cloned().enumerate() {
+            stored_hash += Self::hash_element(state, index);
+        }
         let mut result: Context = Context {
+            symbol,
             elements,
             empty_index,
             stored_hash
@@ -111,31 +134,46 @@ impl Context {
         result.replace_element_with_empty(empty_index);
         return result;
     }
-    fn replace_empty_element(&mut self, element: State) {
-        let element_hash = self.hash_element(EMPTY, self.empty_index);
-        self.stored_hash -= element_hash;
-        let element_hash = self.hash_element(element, self.empty_index);
-        self.stored_hash += element_hash;
-
-        self.elements[self.empty_index] = element;
-        self.empty_index = self.elements.len();
+    fn index_iter(&self) -> ContextIndexIterator {
+        return ContextIndexIterator {
+            index: 0,
+            length: self.elements.len()
+        };
     }
-    fn replace_element_with_empty(&mut self, index: usize) {
-        let element_hash = self.hash_element(self.elements[index], index);
-        self.stored_hash -= element_hash;
-        let element_hash = self.hash_element(EMPTY, index);
-        self.stored_hash += element_hash;
-
-        self.empty_index = index;
-        self.elements[self.empty_index] = EMPTY;
-    }
-    fn hash_element(&mut self, element: State, index: usize) -> u64 {
+    fn hash_element(element: State, index: usize) -> u64 {
         let mut result: u64 = element as u64;
         result = (result ^ (result >> 30)) * 0xbf58476d1ce4e5b9;
         result = (result ^ (result >> 27)) * 0x94d049bb133111eb;
         result = result ^ (result >> 31);
         result = result.rotate_left((index % 32) as u32);
         return result;
+    }
+    fn hash_symbol(symbol: Symbol) -> u64 {
+        let mut result: u64 = symbol as u64;
+        result = (result ^ (result >> 30)) * 0xbf58476d1ce4e5b9;
+        result = (result ^ (result >> 27)) * 0x94d049bb133111eb;
+        result = result ^ (result >> 31);
+        return result;
+    }
+    fn replace_empty_element(&mut self) {
+        let element_hash = Self::hash_element(EMPTY, self.empty_index);
+        self.stored_hash -= element_hash;
+        let element_hash = Self::hash_element(self.elements[self.empty_index], self.empty_index);
+        self.stored_hash += element_hash;
+
+        self.empty_index = self.elements.len();
+    }
+    fn replace_element_with_empty(&mut self, index: usize) {
+        let element_hash = Self::hash_element(self.elements[index], index);
+        self.stored_hash -= element_hash;
+        let element_hash = Self::hash_element(EMPTY, index);
+        self.stored_hash += element_hash;
+
+        self.empty_index = index;
+    }
+    fn move_empty_index(&mut self, index: usize) {
+        self.replace_empty_element();
+        self.replace_element_with_empty(index);
     }
 }
 
@@ -150,11 +188,68 @@ impl PartialEq for Context {
         if self.stored_hash != other.stored_hash {
             return false;
         }
-        return self.empty_index == other.empty_index && self.elements == other.elements;
+        return self.symbol == other.symbol &&
+            self.empty_index == other.empty_index &&
+            self.elements == other.elements;
     }
 }
 
 impl Eq for Context {}
+
+struct ContextSet {
+    elements: HashSet<ContextId>,
+    stored_hash: Hash64
+}
+
+impl ContextSet {
+    fn new(elements: Vec<ContextId>) -> Self {
+        let stored_hash: Hash64 = elements.iter().fold(Hash64(0), |acc, &num| acc + Self::hash_element(num));
+        return ContextSet {
+            elements: elements.into_iter().collect(),
+            stored_hash
+        };
+    }
+    fn new_empty() -> Self {
+        return ContextSet {
+            elements: HashSet::new(),
+            stored_hash: Hash64(0)
+        };
+    }
+    fn hash_element(element: ContextId) -> u64 {
+        let mut result: u64 = element as u64;
+        result = (result ^ (result >> 30)) * 0xbf58476d1ce4e5b9;
+        result = (result ^ (result >> 27)) * 0x94d049bb133111eb;
+        result = result ^ (result >> 31);
+        return result;
+    }
+    fn insert(&mut self, element: ContextId) {
+        if self.elements.insert(element) {
+            self.stored_hash += Self::hash_element(element);
+        }
+    }
+    fn remove(&mut self, element: ContextId) {
+        if self.elements.remove(&element) {
+            self.stored_hash -= Self::hash_element(element);
+        }
+    }
+}
+
+impl Hash for ContextSet {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        return self.stored_hash.hash(state);
+    }
+}
+
+impl PartialEq for ContextSet {
+    fn eq(&self, other: &Self) -> bool {
+        if self.stored_hash != other.stored_hash {
+            return false;
+        }
+        return self.elements == other.elements;
+    }
+}
+
+impl Eq for ContextSet {}
 
 type FineBlockId = u32;
 
@@ -168,43 +263,54 @@ impl FineBlock {
     fn size(&self) -> usize {
         return self.elements.len();
     }
+    fn contains(&self, state: State) -> bool {
+        return self.elements.contains(&state);
+    }
 }
 
 type CoarsePartitionPtr = Rc<RefCell<CoarsePartition>>;
 type FinePartitionPtr = Rc<RefCell<FinePartition>>;
 type TransitionTablePtr = Rc<RefCell<TransitionTable>>;
 
+type ObservationMap = HashMap<State, HashMap<Context, u32>>;
+
 #[derive(Debug)]
 struct FinePartition {
     id_to_block: HashMap<FineBlockId, FineBlock>,
     state_to_block: HashMap<State, FineBlockId>,
+    context_to_id: HashMap<Context, ContextId>,
     coarse_partition_ptr: CoarsePartitionPtr,
-    transition_table_ptr: TransitionTablePtr
+    transition_table_ptr: TransitionTablePtr,
     free_ids: VecDeque<FineBlockId>
 }
 
 impl FinePartition {
     fn new(coarse_partition: CoarsePartitionPtr, transition_table: TransitionTablePtr, q: &HashSet<State>, f: &HashSet<State>) -> Self {
-        let id: FineBlockId = 0;
+        let q_id: FineBlockId = 0;
         let block: FineBlock = FineBlock {
-            id,
+            id: q_id,
             elements: q.clone()
         };
         let mut result: Self = FinePartition {
             id_to_block: HashMap::new(),
             state_to_block: HashMap::new(),
-            coarse_partition_ptr: coarse_partition,
-            transition_table_ptr: transition_table,
+            context_to_id: HashMap::new(),
+            coarse_partition_ptr: coarse_partition.clone(),
+            transition_table_ptr: transition_table.clone(),
             free_ids: VecDeque::new()
         };
-        result.id_to_block.insert(id, block);
+
+        //Insert all Q states
+        result.id_to_block.insert(q_id, block);
         for &state in q {
-            result.state_to_block.insert(state, id);
+            result.state_to_block.insert(state, q_id);
         }
-        result.splitf(id);
 
+        //splitf(Q)
+        result.splitf(q_id);
+
+        //separate F accepting states
         let mut states_to_cut: HashMap<FineBlockId, Vec<State>> = HashMap::new();
-
         for (id, block) in &result.id_to_block {
             for state in &block.elements {
                 if f.contains(state) {
@@ -212,7 +318,6 @@ impl FinePartition {
                 }
             }
         }
-
         for (id, state_vec) in &states_to_cut {
             result.cut_from_set(id, state_vec);
         }
@@ -221,6 +326,13 @@ impl FinePartition {
     }
     fn get_equiv_classes(&self) -> Vec<Vec<State>> {
         todo!();
+    }
+    fn get_context_id(&mut self, context: &Context) -> ContextId {
+        let context_id: u32 = self.context_to_id.len() as u32;
+        if !self.context_to_id.contains_key(context) {
+            self.context_to_id.insert(context.clone(), context_id);
+        }
+        return self.context_to_id.get(context).unwrap().clone();
     }
     fn get_free_id(&mut self) -> FineBlockId {
         if self.free_ids.is_empty() {
@@ -243,25 +355,16 @@ impl FinePartition {
         assert!(self.id_to_block.contains_key(&id));
         return self.id_to_block.get(&id).unwrap().size();
     }
-    fn splitf(&mut self, b: FineBlockId) {
-        todo!();
-        //loop transition rules
-        //init context
-        //loop args and change hash in O(1)
-        //observations: state -> context -> count
-        //for each context: map obskey -> vec state
-        //loop through map, divide
-    }
-    fn splitfn(&mut self, s: CoarseBlockId, b: FineBlockId) {
-        todo!();
-    }
     fn cut_from_set(&mut self, b: &FineBlockId, set: &Vec<State>) {
+        //b must be valid
         assert!(self.id_to_block.contains_key(b));
+        //all elements in set must be in block b
         {
-            let block: &mut FineBlock = self.get_block_mut(b.clone());
-            assert!(set.iter().all(|&state| block.elements.contains(&state)));
+            let block: &mut FineBlock = self.get_block_mut(*b);
+            assert!(set.iter().all(|&state| block.contains(state)));
 
-            if set.len() == block.elements.len() {
+            //don't split if equal
+            if set.len() == block.size() {
                 return;
             }
         }
@@ -287,6 +390,26 @@ impl FinePartition {
         self.id_to_block.insert(new_block_id, new_block);
         self.coarse_partition_ptr.borrow_mut().alert_fine_block_split(*b, new_block_id);
     }
+    fn generate_obs(&self, block_id: FineBlockId) -> ObservationMap {
+        todo!();
+    }
+    fn splitf(&mut self, b: FineBlockId) {
+        todo!();
+        //loop transition rules
+        //init context
+        //loop args and change hash in O(1)
+        //observations: state -> context -> count
+        //for each context: map obskey -> vec state
+        //loop through map, divide
+    }
+    fn splitfn(&mut self, s: CoarseBlockId, b: FineBlockId) {
+        assert!(self.coarse_partition_ptr.borrow().get_block(s).contains(b));
+        let s_obsmap: &mut ObservationMap = self.coarse_partition_ptr.borrow_mut().obs_q.get_mut(&s).unwrap();
+        let b_obsmap: ObservationMap = self.generate_obs(b);
+
+
+        
+    }
 }
 
 type CoarseBlockId = u32;
@@ -306,7 +429,10 @@ impl CoarseBlock {
         assert!(!self.elements.contains(&fine_id));
         self.elements.insert(fine_id);
     }
-    fn len(&self) -> usize {
+    fn contains(&self, fine_id: FineBlockId) -> bool {
+        return self.elements.contains(&fine_id);
+    }
+    fn size(&self) -> usize {
         return self.elements.len();
     }
 }
@@ -317,7 +443,8 @@ struct CoarsePartition {
     fine_id_to_id: HashMap<FineBlockId, CoarseBlockId>,
     compound_blocks: HashSet<CoarseBlockId>,
     fine_partition: Option<FinePartitionPtr>,
-    free_ids: VecDeque<CoarseBlockId>
+    free_ids: VecDeque<CoarseBlockId>,
+    obs_q: HashMap<CoarseBlockId, ObservationMap>
 }
 
 impl CoarsePartition {
@@ -327,7 +454,8 @@ impl CoarsePartition {
             fine_id_to_id: HashMap::new(),
             compound_blocks: HashSet::new(),
             fine_partition: None,
-            free_ids: VecDeque::new()
+            free_ids: VecDeque::new(),
+            obs_q: HashMap::new()
         };
     }
     fn add_block(&mut self, fine_id: FineBlockId) {
@@ -348,7 +476,7 @@ impl CoarsePartition {
     }
     fn remove_empty_block(&mut self, id: CoarseBlockId) {
         assert!(self.id_to_block.contains_key(&id));
-        assert_eq!(self.id_to_block.get(&id).unwrap().len(), 0);
+        assert_eq!(self.id_to_block.get(&id).unwrap().size(), 0);
         self.id_to_block.remove(&id);
         self.free_ids.push_back(id);
     }
@@ -430,15 +558,18 @@ impl DTFA {
     fn minimize(&self) -> Vec<Vec<State>> {
         let p: CoarsePartitionPtr = Rc::new(RefCell::new(CoarsePartition::new()));
         let r: FinePartitionPtr = Rc::new(RefCell::new(FinePartition::new(
-                    p.clone(), self.transition_table.clone(), &self.states, &self.accepting_states
+            p.clone(), self.transition_table.clone(), &self.states, &self.accepting_states
         )));
 
         while p.borrow_mut().num_compound_blocks() != 0 {
             let s: CoarseBlockId = p.borrow().choose_compound_block();
             let b: FineBlockId = p.borrow().choose_smaller_half(s);
-            p.borrow_mut().cut(b);
             r.borrow_mut().splitf(b);
             r.borrow_mut().splitfn(s, b);
+
+            //cut coarse partition after processing fine partition
+            //obs counts for coarse blocks are needed for splitfn
+            p.borrow_mut().cut(b);
         }
 
         return r.borrow().get_equiv_classes();
