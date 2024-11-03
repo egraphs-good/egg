@@ -1,5 +1,8 @@
+#![allow(dead_code)]
+
 use std::{cell::RefCell, collections::VecDeque, hash::{Hash, Hasher}, ops::{Add, AddAssign, Sub, SubAssign}, rc::Rc, u32};
 
+use derivative::Derivative;
 use hashbrown::{HashMap, HashSet};
 
 type State = u32;
@@ -33,7 +36,7 @@ struct TransitionTable {
 }
 
 impl TransitionTable {
-    pub fn new(rules: Vec<SymbolicRule>) -> TransitionTable {
+    fn new(rules: Vec<SymbolicRule>) -> TransitionTable {
         let mut table_rules: Vec<SymbolicRulePtr> = Vec::new();
         let mut table_state_map: HashMap<State, Vec<SymbolicRulePtr>> = HashMap::new();
         for rule in rules {
@@ -45,6 +48,9 @@ impl TransitionTable {
             rules: table_rules,
             state_to_rule: table_state_map
         }
+    }
+    fn rule_iter_by_output(&self, state: State) -> impl Iterator<Item = &SymbolicRulePtr> {
+        return self.state_to_rule.get(&state).unwrap().iter();
     }
 }
 
@@ -100,58 +106,39 @@ struct Context {
     stored_hash: Hash64
 }
 
-struct ContextIndexIterator {
-    index: usize,
-    length: usize
-}
-
-impl Iterator for ContextIndexIterator {
-    type Item = usize;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.index < self.length {
-            let index = self.index;
-            self.index += 1;
-            Some(index)
-        } else {
-            None
-        }
-    }
-}
-
 impl Context {
     fn new(symbol: Symbol, elements: Vec<State>, empty_index: usize) -> Self {
         let mut stored_hash: Hash64 = Hash64::new(Self::hash_symbol(symbol));
         for (index, state) in elements.iter().cloned().enumerate() {
             stored_hash += Self::hash_element(state, index);
         }
+        let element_count = elements.len();
         let mut result: Context = Context {
             symbol,
             elements,
             empty_index,
             stored_hash
         };
-        result.replace_element_with_empty(empty_index);
+        if element_count != 0 {
+            result.replace_element_with_empty(empty_index);
+        }
         return result;
     }
-    fn index_iter(&self) -> ContextIndexIterator {
-        return ContextIndexIterator {
-            index: 0,
-            length: self.elements.len()
-        };
+    fn elements_iter(&self) -> impl Iterator<Item = &State>{
+        return self.elements.iter();
     }
     fn hash_element(element: State, index: usize) -> u64 {
         let mut result: u64 = element as u64;
-        result = (result ^ (result >> 30)) * 0xbf58476d1ce4e5b9;
-        result = (result ^ (result >> 27)) * 0x94d049bb133111eb;
+        result = (result ^ (result >> 30)).wrapping_mul(0xbf58476d1ce4e5b9);
+        result = (result ^ (result >> 27)).wrapping_mul(0x94d049bb133111eb);
         result = result ^ (result >> 31);
         result = result.rotate_left((index % 32) as u32);
         return result;
     }
     fn hash_symbol(symbol: Symbol) -> u64 {
         let mut result: u64 = symbol as u64;
-        result = (result ^ (result >> 30)) * 0xbf58476d1ce4e5b9;
-        result = (result ^ (result >> 27)) * 0x94d049bb133111eb;
+        result = (result ^ (result >> 30)).wrapping_mul(0xbf58476d1ce4e5b9);
+        result = (result ^ (result >> 27)).wrapping_mul(0x94d049bb133111eb);
         result = result ^ (result >> 31);
         return result;
     }
@@ -196,6 +183,7 @@ impl PartialEq for Context {
 
 impl Eq for Context {}
 
+#[derive(Clone)]
 struct ContextSet {
     elements: HashSet<ContextId>,
     stored_hash: Hash64
@@ -217,8 +205,8 @@ impl ContextSet {
     }
     fn hash_element(element: ContextId) -> u64 {
         let mut result: u64 = element as u64;
-        result = (result ^ (result >> 30)) * 0xbf58476d1ce4e5b9;
-        result = (result ^ (result >> 27)) * 0x94d049bb133111eb;
+        result = (result ^ (result >> 30)).wrapping_mul(0xbf58476d1ce4e5b9);
+        result = (result ^ (result >> 27)).wrapping_mul(0x94d049bb133111eb);
         result = result ^ (result >> 31);
         return result;
     }
@@ -253,7 +241,7 @@ impl Eq for ContextSet {}
 
 type FineBlockId = u32;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct FineBlock {
     id: FineBlockId,
     elements: HashSet<State>
@@ -266,19 +254,25 @@ impl FineBlock {
     fn contains(&self, state: State) -> bool {
         return self.elements.contains(&state);
     }
+    fn elements_iter(&self) -> impl Iterator<Item = &State>{
+        return self.elements.iter();
+    }
 }
 
 type CoarsePartitionPtr = Rc<RefCell<CoarsePartition>>;
 type FinePartitionPtr = Rc<RefCell<FinePartition>>;
 type TransitionTablePtr = Rc<RefCell<TransitionTable>>;
 
-type ObservationMap = HashMap<State, HashMap<Context, u32>>;
+type ObservationMap = HashMap<State, HashMap<ContextId, u32>>;
 
-#[derive(Debug)]
+#[derive(Derivative)]
+#[derivative(Debug)]
 struct FinePartition {
     id_to_block: HashMap<FineBlockId, FineBlock>,
     state_to_block: HashMap<State, FineBlockId>,
     context_to_id: HashMap<Context, ContextId>,
+    obs_q: HashMap<CoarseBlockId, ObservationMap>,
+    #[derivative(Debug="ignore")]
     coarse_partition_ptr: CoarsePartitionPtr,
     transition_table_ptr: TransitionTablePtr,
     free_ids: VecDeque<FineBlockId>
@@ -295,6 +289,7 @@ impl FinePartition {
             id_to_block: HashMap::new(),
             state_to_block: HashMap::new(),
             context_to_id: HashMap::new(),
+            obs_q: HashMap::new(),
             coarse_partition_ptr: coarse_partition.clone(),
             transition_table_ptr: transition_table.clone(),
             free_ids: VecDeque::new()
@@ -305,9 +300,10 @@ impl FinePartition {
         for &state in q {
             result.state_to_block.insert(state, q_id);
         }
+        coarse_partition.borrow_mut().add_block(q_id);
 
         //splitf(Q)
-        result.splitf(q_id);
+        result.splitf(result.get_block(q_id).clone());
 
         //separate F accepting states
         let mut states_to_cut: HashMap<FineBlockId, Vec<State>> = HashMap::new();
@@ -324,8 +320,17 @@ impl FinePartition {
 
         return result;
     }
+    fn get_block_id_from_state(&self, state: State) -> FineBlockId {
+        return *self.state_to_block.get(&state).unwrap();
+    }
     fn get_equiv_classes(&self) -> Vec<Vec<State>> {
-        todo!();
+        let mut result: Vec<Vec<State>> = Vec::new();
+
+        for (_, block) in self.id_to_block.iter() {
+            result.push(block.elements_iter().cloned().collect());
+        }
+
+        return result;
     }
     fn get_context_id(&mut self, context: &Context) -> ContextId {
         let context_id: u32 = self.context_to_id.len() as u32;
@@ -390,25 +395,103 @@ impl FinePartition {
         self.id_to_block.insert(new_block_id, new_block);
         self.coarse_partition_ptr.borrow_mut().alert_fine_block_split(*b, new_block_id);
     }
-    fn generate_obs(&self, block_id: FineBlockId) -> ObservationMap {
-        todo!();
-    }
-    fn splitf(&mut self, b: FineBlockId) {
-        todo!();
-        //loop transition rules
-        //init context
-        //loop args and change hash in O(1)
-        //observations: state -> context -> count
-        //for each context: map obskey -> vec state
-        //loop through map, divide
-    }
-    fn splitfn(&mut self, s: CoarseBlockId, b: FineBlockId) {
-        assert!(self.coarse_partition_ptr.borrow().get_block(s).contains(b));
-        let s_obsmap: &mut ObservationMap = self.coarse_partition_ptr.borrow_mut().obs_q.get_mut(&s).unwrap();
-        let b_obsmap: ObservationMap = self.generate_obs(b);
+    fn generate_obs(&mut self, block: &FineBlock) -> ObservationMap {
+        //iterates rules and counts obs
+        let mut result: ObservationMap = ObservationMap::new();
+        for output in block.elements_iter() {
+            let rule_ptrs: Vec<_> = self.transition_table_ptr.borrow().rule_iter_by_output(*output).cloned().collect();
+            for rule_ptr in rule_ptrs {
+                let mut current_context: Context = Context::new(
+                    rule_ptr.borrow().symbol,
+                    rule_ptr.borrow().input.clone(),
+                    0);
 
+                let element_iter: Vec<(usize, State)> = current_context.elements_iter().cloned().enumerate().collect();
+                for (index, state) in element_iter {
+                    current_context.move_empty_index(index);
+                    let current_id: ContextId = self.get_context_id(&current_context);
+                    if !result.contains_key(&state) {
+                        result.insert(state, HashMap::new());
+                    }
+                    *result.get_mut(&state).unwrap().entry(current_id).or_insert(0) += 1;
+                }
+            }
+        }
+        return result;
+    }
+    fn generate_context_setfn(&mut self, s_id: CoarseBlockId, b_map: &ObservationMap) -> HashMap<State, ContextSet> {
+        //all contexts where equal
+        let mut result: HashMap<State, ContextSet> = HashMap::new();
+        for (state, context_map) in b_map.iter() {
+            for (context, count) in context_map.iter() {
+                let s_map: &ObservationMap = self.obs_q.get(&s_id).unwrap();
+                if s_map.get(state).unwrap().get(context).unwrap() != count {
+                    continue;
+                }
+                if !result.contains_key(state) {
+                    result.insert(*state, ContextSet::new_empty());
+                }
+                result.get_mut(state).unwrap().insert(*context);
+            }
+        }
+        return result;
+    }
+    fn splitf(&mut self, b: FineBlock) -> ObservationMap {
+        let b_obsmap: ObservationMap = self.generate_obs(&b);
 
-        
+        //repartition with b obs
+        let mut next_partition: HashMap<FineBlockId, HashMap<ContextSet, Vec<State>>> = HashMap::new();
+        for (state, context_map) in b_obsmap.iter() {
+            let fine_id: FineBlockId = self.get_block_id_from_state(*state);
+            let context_set: ContextSet = ContextSet::new(context_map.keys().cloned().collect());
+
+            if !next_partition.contains_key(&fine_id) {
+                next_partition.insert(fine_id, HashMap::new());
+            }
+            next_partition.get_mut(&fine_id).unwrap().entry(context_set).or_insert(Vec::new()).push(*state);
+        }
+
+        //cut
+        for (fine_id, context_partition) in next_partition.iter() {
+            for (_, partition) in context_partition.iter() {
+                self.cut_from_set(fine_id, partition);
+            }
+        }
+
+        return b_obsmap;
+    }
+    fn splitfn(&mut self, s: CoarseBlockId, b_obsmap: ObservationMap) {
+        let context_map: HashMap<State, ContextSet> = self.generate_context_setfn(s, &b_obsmap);
+
+        //repartition with b counts
+        let mut next_partition: HashMap<FineBlockId, HashMap<ContextSet, Vec<State>>> = HashMap::new();
+        for (state, context_set) in context_map.iter() {
+            let fine_id: FineBlockId = self.get_block_id_from_state(*state);
+            let current_map: &mut HashMap<ContextSet, Vec<State>> = next_partition.entry(fine_id).or_insert(HashMap::new());
+            if !current_map.contains_key(context_set) {
+                current_map.insert(context_set.clone(), Vec::new());
+            }
+
+            current_map.get_mut(context_set).unwrap().push(*state);
+        }
+
+        //cut
+        for (fine_id, context_partition) in next_partition.iter() {
+            for (_, partition) in context_partition.iter() {
+                self.cut_from_set(fine_id, partition);
+            }
+        }
+
+        //subtract b counts from s counts
+        let s_obsmap: &mut ObservationMap = self.obs_q.get_mut(&s).unwrap();
+        for (state, context_cnt) in b_obsmap.iter() {
+            for (context, cnt) in context_cnt.iter() {
+                *s_obsmap.get_mut(state).unwrap().get_mut(context).unwrap() -= cnt;
+            }
+        }
+
+        //coarse partition will get cut, update entries in advance
+        self.obs_q.insert(s, b_obsmap);
     }
 }
 
@@ -437,14 +520,15 @@ impl CoarseBlock {
     }
 }
 
-#[derive(Debug)]
+#[derive(Derivative)]
+#[derivative(Debug)]
 struct CoarsePartition {
     id_to_block: HashMap<CoarseBlockId, CoarseBlock>,
     fine_id_to_id: HashMap<FineBlockId, CoarseBlockId>,
     compound_blocks: HashSet<CoarseBlockId>,
+    #[derivative(Debug="ignore")]
     fine_partition: Option<FinePartitionPtr>,
     free_ids: VecDeque<CoarseBlockId>,
-    obs_q: HashMap<CoarseBlockId, ObservationMap>
 }
 
 impl CoarsePartition {
@@ -454,8 +538,7 @@ impl CoarsePartition {
             fine_id_to_id: HashMap::new(),
             compound_blocks: HashSet::new(),
             fine_partition: None,
-            free_ids: VecDeque::new(),
-            obs_q: HashMap::new()
+            free_ids: VecDeque::new()
         };
     }
     fn add_block(&mut self, fine_id: FineBlockId) {
@@ -486,7 +569,7 @@ impl CoarsePartition {
 
         let block: &mut CoarseBlock = self.id_to_block.get_mut(&id).unwrap();
         block.remove(fine_id);
-        match block.len() {
+        match block.size() {
             0 => {self.remove_empty_block(id);},
             1 => {self.compound_blocks.remove(&id);},
             _ => {}
@@ -535,6 +618,7 @@ impl CoarsePartition {
         let id: CoarseBlockId = self.fine_id_to_id.get(&original).unwrap().clone();
 
         self.get_block_mut(id).insert(new);
+        self.fine_id_to_id.insert(new, id);
     }
 }
 
@@ -561,15 +645,20 @@ impl DTFA {
             p.clone(), self.transition_table.clone(), &self.states, &self.accepting_states
         )));
 
+        //link p to r
+        p.borrow_mut().set_fine_partition(r.clone());
+
+        println!("{:#?}", p);
+        println!("{:#?}", r);
+
         while p.borrow_mut().num_compound_blocks() != 0 {
             let s: CoarseBlockId = p.borrow().choose_compound_block();
             let b: FineBlockId = p.borrow().choose_smaller_half(s);
-            r.borrow_mut().splitf(b);
-            r.borrow_mut().splitfn(s, b);
+            let b_save: FineBlock = r.borrow().get_block(b).clone();
 
-            //cut coarse partition after processing fine partition
-            //obs counts for coarse blocks are needed for splitfn
             p.borrow_mut().cut(b);
+
+            r.borrow_mut().splitfn(s, r.borrow_mut().splitf(b_save));
         }
 
         return r.borrow().get_equiv_classes();
@@ -582,6 +671,24 @@ mod tests {
 
     #[test]
     fn dtfa() {
-        print!("TESTING DTFA");
+        let symbol_id: HashMap<char, Symbol> = HashMap::from([
+            ('a', 0),
+            ('b', 1),
+            ('f', 2)
+        ]);
+
+        let automaton: DTFA = DTFA::new(
+            vec![1,2,3,4].into_iter().collect(),
+            vec![3,4].into_iter().collect(),
+            vec![
+                SymbolicRule::new(symbol_id[&'a'], vec![], 1),
+                SymbolicRule::new(symbol_id[&'b'], vec![], 2),
+                SymbolicRule::new(symbol_id[&'f'], vec![1,2], 3),
+                SymbolicRule::new(symbol_id[&'f'], vec![1,1], 4),
+            ]
+        );
+
+        let equiv_classes = automaton.minimize();
+        println!("{:?}", equiv_classes);
     }
 }
