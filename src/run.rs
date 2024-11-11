@@ -149,10 +149,10 @@ pub struct Runner<L: Language, N: Analysis<L>, IterData = ()> {
     /// The hooks added by the
     /// [`with_hook`](Runner::with_hook()) method, in insertion order.
     #[allow(clippy::type_complexity)]
-    pub hooks: Vec<Box<dyn FnMut(&mut Self) -> Result<(), String> + Send>>,
+    pub hooks: Vec<Box<dyn FnMut(&mut Self) -> Result<(), String> + Send + Sync>>,
 
     limits: RunnerLimits,
-    scheduler: Box<dyn RewriteScheduler<L, N> + Send>,
+    scheduler: Box<dyn RewriteScheduler<L, N> + Send + Sync>,
 }
 
 /// Describes the limits that would stop a [`Runner`].
@@ -396,7 +396,7 @@ where
     /// ```
     pub fn with_hook<F>(mut self, hook: F) -> Self
     where
-        F: FnMut(&mut Self) -> Result<(), String> + Send + 'static,
+        F: FnMut(&mut Self) -> Result<(), String> + Send + Sync + 'static,
     {
         self.hooks.push(Box::new(hook));
         self
@@ -405,7 +405,7 @@ where
     /// Change out the [`RewriteScheduler`] used by this [`Runner`].
     /// The default one is [`BackoffScheduler`].
     ///
-    pub fn with_scheduler(self, scheduler: impl RewriteScheduler<L, N> + Send + 'static) -> Self {
+    pub fn with_scheduler(self, scheduler: impl RewriteScheduler<L, N> + Send + Sync + 'static) -> Self {
         let scheduler = Box::new(scheduler);
         Self { scheduler, ..self }
     }
