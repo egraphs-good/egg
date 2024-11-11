@@ -152,7 +152,7 @@ pub struct Runner<L: Language, N: Analysis<L>, IterData = ()> {
     pub hooks: Vec<Box<dyn FnMut(&mut Self) -> Result<(), String>>>,
 
     limits: RunnerLimits,
-    scheduler: Box<dyn RewriteScheduler<L, N>>,
+    scheduler: Box<dyn RewriteScheduler<L, N> + Send>,
 }
 
 /// Describes the limits that would stop a [`Runner`].
@@ -405,7 +405,7 @@ where
     /// Change out the [`RewriteScheduler`] used by this [`Runner`].
     /// The default one is [`BackoffScheduler`].
     ///
-    pub fn with_scheduler(self, scheduler: impl RewriteScheduler<L, N> + 'static) -> Self {
+    pub fn with_scheduler(self, scheduler: impl RewriteScheduler<L, N> + Send + 'static) -> Self {
         let scheduler = Box::new(scheduler);
         Self { scheduler, ..self }
     }
