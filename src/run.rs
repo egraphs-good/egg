@@ -149,7 +149,7 @@ pub struct Runner<L: Language, N: Analysis<L>, IterData = ()> {
     /// The hooks added by the
     /// [`with_hook`](Runner::with_hook()) method, in insertion order.
     #[allow(clippy::type_complexity)]
-    pub hooks: Vec<Box<dyn FnMut(&mut Self) -> Result<(), String>>>,
+    pub hooks: Vec<Box<dyn FnMut(&mut Self) -> Result<(), String> + Send>>,
 
     limits: RunnerLimits,
     scheduler: Box<dyn RewriteScheduler<L, N> + Send>,
@@ -396,7 +396,7 @@ where
     /// ```
     pub fn with_hook<F>(mut self, hook: F) -> Self
     where
-        F: FnMut(&mut Self) -> Result<(), String> + 'static,
+        F: FnMut(&mut Self) -> Result<(), String> + Send + 'static,
     {
         self.hooks.push(Box::new(hook));
         self
