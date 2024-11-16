@@ -10,6 +10,7 @@ type Symbol = u32;
 
 const EMPTY: State = 0;
 
+/* symbol (input[0],input[1],...) -> output */
 #[derive(Debug)]
 pub struct SymbolicRule {
     symbol: Symbol,
@@ -29,6 +30,7 @@ impl SymbolicRule {
 
 type SymbolicRulePtr = Rc<RefCell<SymbolicRule>>;
 
+/* list of rules and maps each output state q to rules f(...) -> q */
 #[derive(Debug)]
 pub struct TransitionTable {
     rules: Vec<SymbolicRulePtr>,
@@ -54,6 +56,7 @@ impl TransitionTable {
     }
 }
 
+/* additive hash type, overflows and underflows wrap around */
 #[derive(Debug, Clone, Copy, PartialEq, Hash)]
 pub struct Hash64(u64);
 
@@ -96,11 +99,19 @@ impl SubAssign<u64> for Hash64 {
 
 type ContextId = u32;
 
+/* f(input[0],q,input[2],...) -> q'
+ * Formal def of context c[q] is (input[0],[],...)
+ * where [] is the special empty symbol.
+ * In obsf and obsfn, context is always used with
+ * symbol f so Context struct keeps them together.
+ *
+ * Hash computed in O(|elements|) and hash is changed
+ * in O(1) for each element changed. Changing location
+ * of special symbol [] also only takes O(1).
+ */
 #[derive(Debug, Clone)]
 pub struct Context {
-    //change hash in O(1)
     symbol: Symbol,
-    //elements doesn't change after initialization
     elements: Vec<State>,
     empty_index: usize,
     stored_hash: Hash64
@@ -127,6 +138,11 @@ impl Context {
     pub fn elements_iter(&self) -> impl Iterator<Item = &State>{
         return self.elements.iter();
     }
+    /* Stole this from stack overflow,
+     * added rotate_left to make index
+     * relevant in hash computation to
+     * make collisions less likely.
+     */
     pub fn hash_element(element: State, index: usize) -> u64 {
         let mut result: u64 = element as u64;
         result = (result ^ (result >> 30)).wrapping_mul(0xbf58476d1ce4e5b9);
@@ -179,7 +195,10 @@ impl PartialEq for Context {
         self.empty_index != other.empty_index {
             return false;
         }
-        /* Check if all elements are equal. Empty index represents the special symbol [] so skip. */
+        /* Check if all elements are equal.
+         * Empty index represents the special
+         * symbol [] so skip. 
+         */
         let skip_index = self.empty_index;
         for (i, (a, b)) in self.elements_iter().zip(other.elements_iter()).enumerate() {
             if i != skip_index && a != b {
@@ -192,6 +211,12 @@ impl PartialEq for Context {
 
 impl Eq for Context {}
 
+/* ContextId assigned to every unique context.
+ * ContextSet represents set of contexts to
+ * use as key in hash table. Assume ContextIds
+ * are accurate and leaves up to user to ensure
+ * correct usage.
+ */
 #[derive(Clone)]
 pub struct ContextSet {
     elements: HashSet<ContextId>,
