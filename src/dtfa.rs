@@ -305,6 +305,7 @@ pub struct FinePartition {
     id_to_block: HashMap<FineBlockId, FineBlock>,
     state_to_block: HashMap<State, FineBlockId>,
     context_to_id: HashMap<Context, ContextId>,
+    /* Each block has its own obs counts */
     obs_q: HashMap<CoarseBlockId, ObservationMap>,
     #[derivative(Debug="ignore")]
     coarse_partition_ptr: CoarsePartitionPtr,
@@ -429,6 +430,16 @@ impl FinePartition {
         self.id_to_block.insert(new_block_id, new_block);
         self.coarse_partition_ptr.borrow_mut().alert_fine_block_split(*b, new_block_id);
     }
+    /* block is dest states for rules like f() -> q
+     * where q in block.
+     * loop through rules where dest in block.
+     * For each rule, generate context and loop
+     * through the input states, switching current
+     * idx with special symbol []. ObsMap is a map
+     * from state -> context -> count where state
+     * is instances where it was substituted in the
+     * context special symbol position for a rule.
+     */
     pub fn generate_obs(&mut self, block: &FineBlock) -> ObservationMap {
         //iterates rules and counts obs
         let mut result: ObservationMap = ObservationMap::new();
@@ -453,12 +464,17 @@ impl FinePartition {
         }
         return result;
     }
+    /* b_map is observations of fine block. For
+     * each state, generate context set containing
+     * contexts for which coarse_obs == fine_obs
+     * counts.
+     */
     pub fn generate_context_setfn(&mut self, s_id: CoarseBlockId, b_map: &ObservationMap) -> HashMap<State, ContextSet> {
         //all contexts where equal
         let mut result: HashMap<State, ContextSet> = HashMap::new();
+        let s_map: &ObservationMap = self.obs_q.get(&s_id).unwrap();
         for (state, context_map) in b_map.iter() {
             for (context, count) in context_map.iter() {
-                let s_map: &ObservationMap = self.obs_q.get(&s_id).unwrap();
                 if s_map.get(state).unwrap().get(context).unwrap() != count {
                     continue;
                 }
@@ -709,7 +725,7 @@ impl DTFA {
             let b_save: FineBlock = r.borrow().get_block(b).clone();
 
             p.borrow_mut().cut(b);
-
+            /* splitfn(fine_block) returns obsmap of fine_block */
             r.borrow_mut().splitfn(s, r.borrow_mut().splitf(b_save));
         }
 
@@ -783,4 +799,22 @@ mod tests {
         let (_, fine_partition) = get_partition_pair(&get_dtfa());
         println!("{:#?}", fine_partition.borrow().context_to_id);
     }
+    
+    #[test]
+    pub fn test_cut_from_set() {
+        let (_, fine_partition) = get_partition_pair(&get_dtfa());
+        println!("original: {:#?}", fine_partition);
+        fine_partition.borrow_mut().cut_from_set(&0, &vec![3,4]);
+        println!("cut: {:#?}", fine_partition);
+    }
+
+    #[test]
+    pub fn test_gen_obs() {
+        let (_, fine_partition) = get_partition_pair(&get_dtfa());
+        let block = fine_partition.borrow().get_block(0).clone();
+        println!("{:#?}", fine_partition.borrow().context_to_id);
+        let obs = fine_partition.borrow_mut().generate_obs(&block);
+        println!("{:#?}", obs);
+    }
+    //TODO: move obs_q to coarse partition, initialize obs_q
 }
