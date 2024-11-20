@@ -312,6 +312,8 @@ pub struct Iteration<IterData> {
     /// The number of eclasses in the egraph at the start of this
     /// iteration.
     pub egraph_classes: usize,
+    /// Maximum memory usage during this iteration.
+    pub mem_usage: usize,
     /// A map from rule name to number of times it was _newly_ applied
     /// in this iteration.
     pub applied: IndexMap<Symbol, usize>,
@@ -633,6 +635,10 @@ where
             self.egraph.number_of_classes()
         );
 
+        let mem_usage = memory_stats::memory_stats()
+            .expect("Could not read memory")
+            .physical_mem;
+
         let can_be_saturated = applied.is_empty()
             && self.scheduler.can_stop(i)
             // now make sure the hooks didn't do anything
@@ -651,6 +657,7 @@ where
             applied,
             egraph_nodes,
             egraph_classes,
+            mem_usage,
             hook_time,
             search_time,
             apply_time,
