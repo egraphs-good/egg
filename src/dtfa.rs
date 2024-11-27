@@ -305,7 +305,10 @@ pub struct FinePartition {
     id_to_block: HashMap<FineBlockId, FineBlock>,
     state_to_block: HashMap<State, FineBlockId>,
     context_to_id: HashMap<Context, ContextId>,
-    /* Each block has its own obs counts */
+    /* CoarseBlock -> State -> Context -> Count
+     * q states in Coarse Block
+     *
+     */
     obs_q: HashMap<CoarseBlockId, ObservationMap>,
     #[derivative(Debug="ignore")]
     coarse_partition_ptr: CoarsePartitionPtr,
@@ -330,12 +333,18 @@ impl FinePartition {
             free_ids: VecDeque::new()
         };
 
-        //Insert all Q states
+        //Generate ObsMap for Q
+        let coarse_id: CoarseBlockId = coarse_partition.borrow_mut().add_block(q_id);
+        //Can use generate_obs because fine_block is not split yet
+        let p0_obsmap: ObservationMap = result.generate_obs(&block);
+
+        result.obs_q.insert(coarse_id, p0_obsmap);
+
+        //Insert all Q states and add fine_block
         result.id_to_block.insert(q_id, block);
         for &state in q {
             result.state_to_block.insert(state, q_id);
         }
-        coarse_partition.borrow_mut().add_block(q_id);
 
         //splitf(Q)
         result.splitf(result.get_block(q_id).clone());
@@ -439,12 +448,19 @@ impl FinePartition {
      * from state -> context -> count where state
      * is instances where it was substituted in the
      * context special symbol position for a rule.
+     *
+     * TLDR:
+     * block has states q
+     * for each rule f(s1,s2,...) -> q:
+     *     iterate si, context_si where context_si
+     *     is f(s0,...,[si],...):
+     *         obsmap[si][context_si]++;
      */
     pub fn generate_obs(&mut self, block: &FineBlock) -> ObservationMap {
         //iterates rules and counts obs
         let mut result: ObservationMap = ObservationMap::new();
-        for output in block.elements_iter() {
-            let rule_ptrs: Vec<_> = self.transition_table_ptr.borrow().rule_iter_by_output(*output).cloned().collect();
+        for output_q in block.elements_iter() {
+            let rule_ptrs: Vec<_> = self.transition_table_ptr.borrow().rule_iter_by_output(*output_q).cloned().collect();
             for rule_ptr in rule_ptrs {
                 let mut current_context: Context = Context::new(
                     rule_ptr.borrow().symbol,
@@ -592,7 +608,7 @@ impl CoarsePartition {
         };
     }
     /* Adds coarse block with one element */
-    pub fn add_block(&mut self, fine_id: FineBlockId) {
+    pub fn add_block(&mut self, fine_id: FineBlockId) -> CoarseBlockId {
         assert!(!self.fine_id_to_id.contains_key(&fine_id));
         let new_id: CoarseBlockId = self.get_free_id();
         let new_block: CoarseBlock = CoarseBlock {
@@ -601,6 +617,7 @@ impl CoarsePartition {
         };
         self.fine_id_to_id.insert(fine_id, new_id);
         self.id_to_block.insert(new_id, new_block);
+        return new_id;
     }
     /* Get unused coarse block id */
     pub fn get_free_id(&mut self) -> CoarseBlockId {
@@ -655,8 +672,10 @@ impl CoarsePartition {
         assert!(self.compound_blocks.contains(&b));
         assert!(self.fine_partition.is_some());
         let b_block: &CoarseBlock = self.get_block(b);
-        let first_fine_id: FineBlockId = b_block.elements.get(&0).unwrap().clone();
-        let second_fine_id: FineBlockId = b_block.elements.get(&1).unwrap().clone();
+
+        let mut iter = b_block.elements.iter();
+        let first_fine_id: FineBlockId = iter.next().unwrap().clone();
+        let second_fine_id: FineBlockId = iter.next().unwrap().clone();
 
         let fine_partition = self.fine_partition.as_ref().unwrap().borrow();
 
@@ -725,8 +744,9 @@ impl DTFA {
             let b_save: FineBlock = r.borrow().get_block(b).clone();
 
             p.borrow_mut().cut(b);
-            /* splitfn(fine_block) returns obsmap of fine_block */
-            r.borrow_mut().splitfn(s, r.borrow_mut().splitf(b_save));
+            /* splitf(fine_block) returns obsmap of fine_block */
+            let obsmap: ObservationMap = r.borrow_mut().splitf(b_save);
+            r.borrow_mut().splitfn(s, obsmap);
         }
 
         return r.borrow().get_equiv_classes();
@@ -816,5 +836,4 @@ mod tests {
         let obs = fine_partition.borrow_mut().generate_obs(&block);
         println!("{:#?}", obs);
     }
-    //TODO: move obs_q to coarse partition, initialize obs_q
 }
