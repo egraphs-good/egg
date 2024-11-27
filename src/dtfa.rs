@@ -307,7 +307,8 @@ pub struct FinePartition {
     context_to_id: HashMap<Context, ContextId>,
     /* CoarseBlock -> State -> Context -> Count
      * q states in Coarse Block
-     *
+     * for all rules f(s1,s2,...) -> q where q in
+     * block: count obs for si
      */
     obs_q: HashMap<CoarseBlockId, ObservationMap>,
     #[derivative(Debug="ignore")]
@@ -337,6 +338,7 @@ impl FinePartition {
         let coarse_id: CoarseBlockId = coarse_partition.borrow_mut().add_block(q_id);
         //Can use generate_obs because fine_block is not split yet
         let p0_obsmap: ObservationMap = result.generate_obs(&block);
+        println!("obsmap: {:#?}", p0_obsmap);
 
         result.obs_q.insert(coarse_id, p0_obsmap);
 
@@ -835,5 +837,13 @@ mod tests {
         println!("{:#?}", fine_partition.borrow().context_to_id);
         let obs = fine_partition.borrow_mut().generate_obs(&block);
         println!("{:#?}", obs);
+    }
+
+    #[test]
+    pub fn test_init_obs_q() {
+        let (_, fine_partition) = get_partition_pair(&get_dtfa());
+        println!("original: contextid: {:#?}, {:#?}",
+            fine_partition.borrow().context_to_id,
+            fine_partition.borrow().obs_q);
     }
 }
