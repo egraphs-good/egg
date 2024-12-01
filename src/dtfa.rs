@@ -441,8 +441,7 @@ impl FinePartition {
         self.id_to_block.insert(new_block_id, new_block);
         self.coarse_partition_ptr.borrow_mut().alert_fine_block_split(*b, new_block_id);
     }
-    /* block is dest states for rules like f() -> q
-     * where q in block.
+    /* block: states q for rules like f() -> q. 
      * loop through rules where dest in block.
      * For each rule, generate context and loop
      * through the input states, switching current
@@ -504,6 +503,32 @@ impl FinePartition {
         }
         return result;
     }
+    /* Before coarse block S gets cut, update
+     * the obsmap counts using the obsmap for
+     * fine block that will be cut from S.
+     * Ex: If S has fine block B and B will be
+     * cut, then compute obsmap for B and run
+     * this function with (S, obsmap_B) as args.
+     */
+    pub fn subtract_obsmap_from_coarse_block(&mut self, block_to_subtract_from_id: CoarseBlockId, b_obsmap: &ObservationMap) {
+        let block_to_subtract_from: &mut ObservationMap = self.obs_q.get_mut(&block_to_subtract_from_id).unwrap();
+        for (state, context_cnt) in b_obsmap.iter() { 
+            let to_subtract_from_cnts: &mut HashMap<ContextId, u32> = block_to_subtract_from.get_mut(state).unwrap();
+            for (context, cnt) in context_cnt.iter() {
+                /* remove key if will be 0, obsmap can
+                 * only have positive keys.
+                 */
+                if to_subtract_from_cnts[context] == *cnt {
+                    to_subtract_from_cnts.remove(context);
+                    continue;
+                }
+                *to_subtract_from_cnts.get_mut(context).unwrap() -= cnt;
+            }
+        }
+    }
+    pub fn set_coarse_block_obsmap(&mut self, coarse_id: CoarseBlockId, b_obsmap: ObservationMap) {
+        self.obs_q.insert(coarse_id, b_obsmap);
+    }
     pub fn splitf(&mut self, b: FineBlock) -> ObservationMap {
         let b_obsmap: ObservationMap = self.generate_obs(&b);
 
@@ -528,7 +553,7 @@ impl FinePartition {
 
         return b_obsmap;
     }
-    pub fn splitfn(&mut self, s: CoarseBlockId, b_obsmap: ObservationMap) {
+    pub fn splitfn(&mut self, s: CoarseBlockId, b_obsmap: &ObservationMap) {
         let context_map: HashMap<State, ContextSet> = self.generate_context_setfn(s, &b_obsmap);
 
         //repartition with b counts
@@ -549,17 +574,6 @@ impl FinePartition {
                 self.cut_from_set(fine_id, partition);
             }
         }
-
-        //subtract b counts from s counts
-        let s_obsmap: &mut ObservationMap = self.obs_q.get_mut(&s).unwrap();
-        for (state, context_cnt) in b_obsmap.iter() {
-            for (context, cnt) in context_cnt.iter() {
-                *s_obsmap.get_mut(state).unwrap().get_mut(context).unwrap() -= cnt;
-            }
-        }
-
-        //coarse partition will get cut, update entries in advance
-        self.obs_q.insert(s, b_obsmap);
     }
 }
 
@@ -698,9 +712,9 @@ impl CoarsePartition {
         assert!(self.fine_id_to_id.contains_key(&id));
         return self.fine_id_to_id.get(&id).unwrap().clone();
     }
-    pub fn cut(&mut self, b: FineBlockId) {
+    pub fn cut(&mut self, b: FineBlockId) -> CoarseBlockId {
         self.remove_fine_id(b);
-        self.add_block(b);
+        return self.add_block(b);
     }
     pub fn alert_fine_block_split(&mut self, original: FineBlockId, new: FineBlockId) {
         assert!(!self.fine_id_to_id.contains_key(&new));
@@ -745,10 +759,26 @@ impl DTFA {
             let b: FineBlockId = p.borrow().choose_smaller_half(s);
             let b_save: FineBlock = r.borrow().get_block(b).clone();
 
-            p.borrow_mut().cut(b);
-            /* splitf(fine_block) returns obsmap of fine_block */
-            let obsmap: ObservationMap = r.borrow_mut().splitf(b_save);
-            r.borrow_mut().splitfn(s, obsmap);
+            /* splitf(b) returns obsmap of b such that
+             * obsf_q(f,c,b) are counted in the obsmap.
+             * b contains the dest states for rules in
+             * the obsf def.
+             */
+            let b_obsmap: ObservationMap = r.borrow_mut().splitf(b_save);
+            r.borrow_mut().splitfn(s, &b_obsmap);
+
+            /* Since b will be removed from its coarse
+             * block, subtract the context counts using
+             * the computed b_obsmap.
+             */
+            r.borrow_mut().subtract_obsmap_from_coarse_block(s, &b_obsmap);
+
+            // Cut b into a new coarse block
+            let new_coarse_id: CoarseBlockId = p.borrow_mut().cut(b);
+
+            // new_coarse_id block does not have obsmap.
+            // Set the obsmap for the new block.
+            r.borrow_mut().set_coarse_block_obsmap(new_coarse_id, b_obsmap)
         }
 
         return r.borrow().get_equiv_classes();
