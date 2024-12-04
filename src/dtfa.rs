@@ -338,7 +338,6 @@ impl FinePartition {
         let coarse_id: CoarseBlockId = coarse_partition.borrow_mut().add_block(q_id);
         //Can use generate_obs because fine_block is not split yet
         let p0_obsmap: ObservationMap = result.generate_obs(&block);
-        println!("obsmap: {:#?}", p0_obsmap);
 
         result.obs_q.insert(coarse_id, p0_obsmap);
 
@@ -751,9 +750,6 @@ impl DTFA {
         //link p to r
         p.borrow_mut().set_fine_partition(r.clone());
 
-        println!("{:#?}", p);
-        println!("{:#?}", r);
-
         while p.borrow_mut().num_compound_blocks() != 0 {
             let s: CoarseBlockId = p.borrow().choose_compound_block();
             let b: FineBlockId = p.borrow().choose_smaller_half(s);
@@ -778,7 +774,7 @@ impl DTFA {
 
             // new_coarse_id block does not have obsmap.
             // Set the obsmap for the new block.
-            r.borrow_mut().set_coarse_block_obsmap(new_coarse_id, b_obsmap)
+            r.borrow_mut().set_coarse_block_obsmap(new_coarse_id, b_obsmap);
         }
 
         return r.borrow().get_equiv_classes();
@@ -787,6 +783,7 @@ impl DTFA {
 
 #[cfg(test)]
 mod tests {
+// quicksave: cargo test --lib dtfa::tests::<testname> -- --nocapture
 
     use super::*;
 
@@ -801,10 +798,13 @@ mod tests {
             vec![1,2,3,4].into_iter().collect(),
             vec![3,4].into_iter().collect(),
             vec![
-                SymbolicRule::new(symbol_id[&'a'], vec![], 1),
+                SymbolicRule::new(symbol_id[&'a'], vec![1], 1),
+                SymbolicRule::new(symbol_id[&'a'], vec![2], 2),
                 SymbolicRule::new(symbol_id[&'b'], vec![], 2),
                 SymbolicRule::new(symbol_id[&'f'], vec![1,2], 3),
                 SymbolicRule::new(symbol_id[&'f'], vec![1,1], 4),
+                SymbolicRule::new(symbol_id[&'f'], vec![2,2], 4),
+                SymbolicRule::new(symbol_id[&'f'], vec![2,1], 4),
             ]
         );
         return automaton;
