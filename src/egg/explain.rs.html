@@ -3722,8 +3722,8 @@ See [`Explanation`] for more details.
                     <span class="kw">for </span>other <span class="kw">in </span>others.iter() {
                         congruence_neighbors[usize::from(<span class="kw-2">*</span>enode)].push(<span class="kw-2">*</span>other);
                         congruence_neighbors[usize::from(<span class="kw-2">*</span>other)].push(<span class="kw-2">*</span>enode);
+                        counter += <span class="number">1</span>;
                     }
-                    counter += <span class="number">1</span>;
                     others.push(<span class="kw-2">*</span>enode);
                 } <span class="kw">else </span>{
                     counter += <span class="number">1</span>;
