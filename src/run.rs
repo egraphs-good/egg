@@ -455,6 +455,9 @@ where
         N: 'a,
     {
         let rules: Vec<&Rewrite<L, N>> = rules.into_iter().collect();
+        let current_memory_usage = memory_stats::memory_stats().expect("Could not read memory");
+        // we need to add the current memory usage to the limit at the start of growing the egraph
+        self.limits.memory_limit += current_memory_usage.physical_mem;
         check_rules(&rules);
         self.egraph.rebuild();
         loop {
