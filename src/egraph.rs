@@ -143,6 +143,14 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         self.classes_by_op.get(&op).map(|s| s.iter().copied())
     }
 
+    /// Exposes the actual nodes in the egraph.
+    ///
+    /// Un-canonical id's can be used to index into this.
+    /// In normal circumstances, you should not need to use this.
+    pub fn nodes(&self) -> &[L] {
+        &self.nodes
+    }
+
     /// Returns `true` if the egraph is empty
     /// # Example
     /// ```
