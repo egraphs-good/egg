@@ -528,11 +528,6 @@
 <a href="#528" id="528">528</a>
 <a href="#529" id="529">529</a>
 <a href="#530" id="530">530</a>
-<a href="#531" id="531">531</a>
-<a href="#532" id="532">532</a>
-<a href="#533" id="533">533</a>
-<a href="#534" id="534">534</a>
-<a href="#535" id="535">535</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>fmt::Formatter;
 <span class="kw">use </span>log::<span class="kw-2">*</span>;
 <span class="kw">use </span>std::borrow::Cow;
@@ -824,14 +819,9 @@
         <span class="kw">match </span><span class="self">self</span>.ast.as_ref().last().unwrap() {
             ENodeOrVar::ENode(e) =&gt; {
                 <span class="kw">let </span>key = e.discriminant();
-                <span class="kw">match </span>egraph.classes_by_op.get(<span class="kw-2">&amp;</span>key) {
+                <span class="kw">match </span>egraph.classes_for_op(<span class="kw-2">&amp;</span>key) {
                     <span class="prelude-val">None </span>=&gt; <span class="macro">vec!</span>[],
-                    <span class="prelude-val">Some</span>(ids) =&gt; rewrite::search_eclasses_with_limit(
-                        <span class="self">self</span>,
-                        egraph,
-                        ids.iter().cloned(),
-                        limit,
-                    ),
+                    <span class="prelude-val">Some</span>(ids) =&gt; rewrite::search_eclasses_with_limit(<span class="self">self</span>, egraph, ids, limit),
                 }
             }
             ENodeOrVar::Var(<span class="kw">_</span>) =&gt; rewrite::search_eclasses_with_limit(
