@@ -289,14 +289,9 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
         match self.ast.as_ref().last().unwrap() {
             ENodeOrVar::ENode(e) => {
                 let key = e.discriminant();
-                match egraph.classes_by_op.get(&key) {
+                match egraph.classes_for_op(&key) {
                     None => vec![],
-                    Some(ids) => rewrite::search_eclasses_with_limit(
-                        self,
-                        egraph,
-                        ids.iter().cloned(),
-                        limit,
-                    ),
+                    Some(ids) => rewrite::search_eclasses_with_limit(self, egraph, ids, limit),
                 }
             }
             ENodeOrVar::Var(_) => rewrite::search_eclasses_with_limit(

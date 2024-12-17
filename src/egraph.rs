@@ -77,7 +77,7 @@ pub struct EGraph<L: Language, N: Analysis<L>> {
     pub(crate) classes: HashMap<Id, EClass<L, N::Data>>,
     #[cfg_attr(feature = "serde-1", serde(skip))]
     #[cfg_attr(feature = "serde-1", serde(default = "default_classes_by_op"))]
-    pub(crate) classes_by_op: HashMap<L::Discriminant, HashSet<Id>>,
+    classes_by_op: HashMap<L::Discriminant, HashSet<Id>>,
     /// Whether or not reading operation are allowed on this e-graph.
     /// Mutating operations will set this to `false`, and
     /// [`EGraph::rebuild`] will set it to true.
@@ -133,6 +133,14 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// Returns an mutating iterator over the eclasses in the egraph.
     pub fn classes_mut(&mut self) -> impl ExactSizeIterator<Item = &mut EClass<L, N::Data>> {
         self.classes.values_mut()
+    }
+
+    /// Returns an iterator over the eclasses that contain a given op.
+    pub fn classes_for_op(
+        &self,
+        op: &L::Discriminant,
+    ) -> Option<impl ExactSizeIterator<Item = Id> + '_> {
+        self.classes_by_op.get(&op).map(|s| s.iter().copied())
     }
 
     /// Returns `true` if the egraph is empty
