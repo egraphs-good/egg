@@ -94,8 +94,8 @@ macro_rules! __define_language {
                 match (self, other) { $($matches)* _ => false }
             }
 
-            fn children(&self) -> &[Id] { match self $children }
-            fn children_mut(&mut self) -> &mut [Id] { match self $children_mut }
+            fn children(&self) -> &[$crate::Id] { match self $children }
+            fn children_mut(&mut self) -> &mut [$crate::Id] { match self $children_mut }
         }
 
         impl ::std::fmt::Display for $name {
