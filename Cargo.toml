@@ -13,12 +13,12 @@ version = "0.9.5"
 [dependencies]
 env_logger = { version = "0.9.0", default-features = false }
 fxhash = "0.2.1"
-hashbrown = "0.12.1"
-indexmap = "1.8.1"
+hashbrown = "0.15.2"
+indexmap = "2.7.0"
 quanta = "0.12"
 log = "0.4.17"
 smallvec = { version = "1.8.0", features = ["union", "const_generics"] }
-symbol_table = { version = "0.2.0", features = ["global"] }
+symbol_table = { version = "0.4.0", features = ["global"] }
 symbolic_expressions = "5.0.3"
 thiserror = "1.0.31"
 num-bigint = "0.4"
@@ -45,7 +45,7 @@ lp = ["coin_cbc"]
 reports = ["serde-1", "serde_json"]
 serde-1 = [
   "serde",
-  "indexmap/serde-1",
+  "indexmap/serde",
   "hashbrown/serde",
   "symbol_table/serde",
   "vectorize",

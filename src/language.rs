@@ -32,7 +32,7 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
     /// Type representing the cases of this language.
     ///
     /// Used for short-circuiting the search for equivalent nodes.
-    type Discriminant: Debug + Clone + Eq + Hash;
+    type Discriminant: Debug + Clone + Eq + Hash;    
 
     /// Return the `Discriminant` of this node.
     #[allow(enum_intrinsics_non_enums)]
