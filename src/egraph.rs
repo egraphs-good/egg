@@ -136,10 +136,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     }
 
     /// Returns an iterator over the eclasses that contain a given op.
-    pub fn classes_for_op<Q>(
-        &self,
-        op: &Q,
-    ) -> Option<impl ExactSizeIterator<Item = Id> + '_> 
+    pub fn classes_for_op<Q>(&self, op: &Q) -> Option<impl ExactSizeIterator<Item = Id> + '_>
     where
         Q: indexmap::Equivalent<L::Discriminant> + core::hash::Hash,
     {
