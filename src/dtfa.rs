@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use std::{cell::RefCell, collections::VecDeque, hash::{Hash, Hasher}, ops::{Add, AddAssign, Sub, SubAssign}, rc::Rc, u32};
+use std::{cell::RefCell, collections::VecDeque, hash::{Hash, Hasher}, ops::{Add, AddAssign, Sub, SubAssign}, rc::Rc, u32, vec};
 
 use derivative::Derivative;
 use hashbrown::{HashMap, HashSet};
@@ -8,10 +8,11 @@ use hashbrown::{HashMap, HashSet};
 type State = u32;
 type Symbol = u32;
 
+/* 0 is a reserved state */
 const EMPTY: State = 0;
 
 /* symbol (input[0],input[1],...) -> output */
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SymbolicRule {
     symbol: Symbol,
     input: Vec<State>,
@@ -725,17 +726,17 @@ impl CoarsePartition {
 }
 
 #[derive(Debug)]
-pub struct DTFA {
+pub struct Dtfa {
     states: HashSet<State>,
     accepting_states: HashSet<State>,
     transition_table: TransitionTablePtr
 }
 
-impl DTFA {
+impl Dtfa {
     pub fn new(states: HashSet<State>, accepting_states: HashSet<State>, rules: Vec<SymbolicRule>) -> Self {
         assert!(!states.contains(&EMPTY));
         assert!(!accepting_states.contains(&EMPTY));
-        return DTFA {
+        return Dtfa {
             states,
             accepting_states,
             transition_table: Rc::new(RefCell::new(TransitionTable::new(rules)))
@@ -781,20 +782,126 @@ impl DTFA {
     }
 }
 
+pub struct DtfaMapper<StateType, SymbolType>
+where
+    StateType: Eq + Hash + Clone,
+    SymbolType: Eq + Hash + Clone,
+{
+    to_state: HashMap<StateType, State>,
+    to_statetype: HashMap<State, StateType>,
+    accepting_states: HashSet<StateType>,
+    next_free_state: State,
+
+    to_symbol: HashMap<SymbolType, Symbol>,
+    to_symboltype: HashMap<Symbol, SymbolType>,
+    next_free_symbol: Symbol,
+    
+    rules: Vec<SymbolicRule>
+}
+
+impl<StateType, SymbolType> DtfaMapper<StateType, SymbolType>
+where
+    StateType: Eq + Hash + Clone,
+    SymbolType: Eq + Hash + Clone,
+{
+    pub fn new<StateCollection, SymbolCollection>(
+        states: StateCollection, symbols: SymbolCollection
+    ) -> Self 
+    where
+        StateCollection: IntoIterator<Item = StateType>,
+        SymbolCollection: IntoIterator<Item = SymbolType>,
+    {
+        let mut result: Self = Self::default();
+
+        for state in states {
+            result.add_state(state);
+        }
+        for symbol in symbols {
+            result.add_symbol(symbol);
+        }
+
+        return result;
+    }
+    pub fn default() -> Self {
+        return Self {
+            to_state: HashMap::new(),
+            next_free_state: 1,
+            to_symbol: HashMap::new(),
+            next_free_symbol: 0,
+            rules: Vec::new()
+        };
+    }
+    pub fn add_state(&mut self, state: StateType) {
+        if self.to_state.contains_key(&state) {
+            return;
+        }
+        self.to_state.insert(state.clone(), self.next_free_state);
+        self.to_statetype.insert(self.next_free_state, state);
+        self.next_free_state += 1;
+    }
+    pub fn add_accepting_state(&mut self, state: StateType) {
+        self.add_state(state.clone());
+        self.accepting_states.insert(state);
+    }
+    pub fn add_symbol(&mut self, symbol: SymbolType) {
+        if self.to_symbol.contains_key(&symbol) {
+            return;
+        }
+        self.to_symbol.insert(symbol.clone(), self.next_free_symbol);
+        self.to_symboltype.insert(self.next_free_symbol, symbol);
+        self.next_free_symbol += 1;
+    }
+    pub fn add_rule(&mut self, symbol: SymbolType, input: Vec<StateType>, output: StateType) {
+        assert!(self.to_symbol.contains_key(&symbol));
+        assert!(input.iter().all(|state| self.to_state.contains_key(state)));
+        assert!(self.to_state.contains_key(&output));
+
+        self.rules.push(SymbolicRule::new(
+            self.to_symbol[&symbol],
+            input.iter().map(|state| self.to_state[state]).collect(),
+            self.to_state[&output]
+        ));
+    }
+    pub fn get_states(&self) -> HashSet<State> {
+        let result: HashSet<State> = self.to_state.values().cloned().collect();
+        return result;
+    }
+    pub fn get_symbols(&self) -> HashSet<Symbol> {
+        let result: HashSet<Symbol> = self.to_symbol.values().cloned().collect();
+        return result;
+    }
+    pub fn get_accepting_states(&self) -> HashSet<State> {
+        let result: HashSet<State> = self.accepting_states.iter().map(|state| self.to_state[state]).collect();
+        return result;
+    }
+    pub fn get_rules(&self) -> Vec<SymbolicRule> {
+        return self.rules.clone();
+    }
+    pub fn get_equiv(&self, state_vec: Vec<Vec<State>>) -> Vec<Vec<StateType>> {
+        assert!(state_vec.iter().flatten().all(|state| self.to_statetype.contains_key(state)));
+        let result: Vec<Vec<StateType>> = state_vec.iter().map(|inner_vec|
+            inner_vec.iter().map(|state|
+                self.to_statetype[&state].clone()
+            ).collect()
+        ).collect();
+        return result;
+    }
+}
+
 #[cfg(test)]
 mod tests {
 // quicksave: cargo test --lib dtfa::tests::<testname> -- --nocapture
 
     use super::*;
 
-    pub fn get_dtfa() -> DTFA {
+    pub fn get_dtfa() -> Dtfa {
         let symbol_id: HashMap<char, Symbol> = HashMap::from([
             ('a', 0),
             ('b', 1),
             ('f', 2)
         ]);
 
-        let automaton: DTFA = DTFA::new(
+        let automaton: Dtfa = DTFA::new(
             vec![1,2,3,4].into_iter().collect(),
             vec![3,4].into_iter().collect(),
             vec![
@@ -810,7 +917,7 @@ mod tests {
         return automaton;
     }
 
-    pub fn get_partition_pair(automaton: &DTFA) -> (CoarsePartitionPtr, FinePartitionPtr) {
+    pub fn get_partition_pair(automaton: &Dtfa) -> (CoarsePartitionPtr, FinePartitionPtr) {
         let p: CoarsePartitionPtr = Rc::new(RefCell::new(CoarsePartition::new()));
         let r: FinePartitionPtr = Rc::new(RefCell::new(FinePartition::new(
             p.clone(), automaton.transition_table.clone(), &automaton.states, &automaton.accepting_states
@@ -823,7 +930,7 @@ mod tests {
 
     #[test]
     pub fn dtfa() {
-        let automaton: DTFA = get_dtfa();
+        let automaton: Dtfa = get_dtfa();
         let equiv_classes = automaton.minimize();
         println!("{:?}", equiv_classes);
     }
