@@ -805,7 +805,9 @@ where
     SymbolType: Eq + Hash + Clone,
 {
     pub fn new<StateCollection, SymbolCollection>(
-        states: StateCollection, symbols: SymbolCollection
+        states: StateCollection,
+        accepting: StateCollection,
+        symbols: SymbolCollection
     ) -> Self 
     where
         StateCollection: IntoIterator<Item = StateType>,
@@ -816,6 +818,9 @@ where
         for state in states {
             result.add_state(state);
         }
+        for accept_state in accepting {
+            result.add_accepting_state(accept_state);
+        }
         for symbol in symbols {
             result.add_symbol(symbol);
         }
@@ -825,9 +830,14 @@ where
     pub fn default() -> Self {
         return Self {
             to_state: HashMap::new(),
+            to_statetype: HashMap::new(),
+            accepting_states: HashSet::new(),
             next_free_state: 1,
+
             to_symbol: HashMap::new(),
+            to_symboltype: HashMap::new(),
             next_free_symbol: 0,
+
             rules: Vec::new()
         };
     }

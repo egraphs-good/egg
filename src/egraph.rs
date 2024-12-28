@@ -5,6 +5,8 @@ use std::{
     marker::PhantomData,
 };
 
+use dtfa::{Dtfa, DtfaMapper};
+use hashbrown::HashSet;
 #[cfg(feature = "serde-1")]
 use serde::{Deserialize, Serialize};
 
@@ -592,6 +594,46 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             config: vec![],
             use_anchors: true,
         }
+    }
+
+    fn get_dtfa_states(&self) -> HashSet<Id> {
+        todo!();
+    }
+
+    fn get_dtfa_accepting(&self) -> HashSet<Id> {
+        todo!();
+    } 
+
+    fn get_dtfa_symbols(&self) -> HashSet<L> {
+        todo!();
+    }
+
+    fn add_dtfa_rules_to_mapper(&self, dtfa_map: &mut DtfaMapper<Id, L>) {
+        todo!();
+    }
+
+    fn merge_equiv_eclasses<EquivClasses>(&mut self, equiv_classes: EquivClasses)
+    where
+        EquivClasses: IntoIterator,
+        EquivClasses::Item: IntoIterator<Item = Id>,
+    {
+        todo!();
+    }
+
+    /// Minimizes the Egraph
+    pub fn minimize(&mut self) {
+        let mut dtfa_map: DtfaMapper<Id, L> = DtfaMapper::new(
+            self.get_dtfa_states(), self.get_dtfa_accepting(), self.get_dtfa_symbols()
+        );
+        self.add_dtfa_rules_to_mapper(&mut dtfa_map);
+
+        let dtfa: Dtfa = Dtfa::new(
+            dtfa_map.get_states(),
+            dtfa_map.get_accepting_states(),
+            dtfa_map.get_rules()
+        );
+
+        self.merge_equiv_eclasses(dtfa_map.get_equiv(dtfa.minimize()));
     }
 }
 
