@@ -597,19 +597,32 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     }
 
     fn get_dtfa_states(&self) -> HashSet<Id> {
-        todo!();
+        let result: HashSet<Id> = self.classes().map(|eclass|
+            self.find(eclass.id)
+        ).collect();
+        return result;
     }
 
-    fn get_dtfa_accepting(&self) -> HashSet<Id> {
-        todo!();
+    fn get_dtfa_accepting(&self, runner_roots: &Vec<Id>) -> HashSet<Id> {
+        let result: HashSet<Id> = runner_roots.iter().cloned().collect();
+        return result;
     } 
 
     fn get_dtfa_symbols(&self) -> HashSet<L> {
-        todo!();
+        let result: HashSet<L> = self.nodes.iter().cloned().collect();
+        return result;
     }
 
     fn add_dtfa_rules_to_mapper(&self, dtfa_map: &mut DtfaMapper<Id, L>) {
-        todo!();
+        for eclass in self.classes() {
+            let output_state = self.find(eclass.id);
+            for symbol in eclass.iter() {
+                let input_state: Vec<Id> = symbol.children().iter().cloned().map(|state|
+                    self.find(state)
+                ).collect();
+                dtfa_map.add_rule(symbol.clone(), input_state, output_state);
+            }
+        }
     }
 
     fn merge_equiv_eclasses<EquivClasses>(&mut self, equiv_classes: EquivClasses)
@@ -617,13 +630,24 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         EquivClasses: IntoIterator,
         EquivClasses::Item: IntoIterator<Item = Id>,
     {
-        todo!();
+        for equiv_class in equiv_classes {
+            let mut class_ids = equiv_class.into_iter().peekable();
+            assert!(class_ids.peek().is_some(), "Equivalence class is empty");
+
+            let class_id: Id = class_ids.next().unwrap();
+
+            for other_id in class_ids {
+                let necessary: bool = self.union(class_id, other_id);
+                assert!(necessary);
+            }
+        }
+        self.rebuild();
     }
 
     /// Minimizes the Egraph
-    pub fn minimize(&mut self) {
+    pub fn minimize(&mut self, runner_roots: &Vec<Id>) {
         let mut dtfa_map: DtfaMapper<Id, L> = DtfaMapper::new(
-            self.get_dtfa_states(), self.get_dtfa_accepting(), self.get_dtfa_symbols()
+            self.get_dtfa_states(), self.get_dtfa_accepting(runner_roots), self.get_dtfa_symbols()
         );
         self.add_dtfa_rules_to_mapper(&mut dtfa_map);
 
