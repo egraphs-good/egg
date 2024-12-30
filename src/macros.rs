@@ -60,27 +60,67 @@ define_language! {
 }
 ```
 
+It is also possible to define languages that are generic over some bounded type.
+You must use the `where`-like syntax below to specify the bounds on the type, they cannot go in the `enum` definition.
+You need at least the following bounds, since they are required by the [`Language`] trait.
+# Example
+```rust
+use egg::*;
+use std::{
+    fmt::{Debug, Display},
+    hash::Hash,
+    str::FromStr,
+};
+define_language! {
+    enum GenericLang<S, T> {
+        String(S),
+        Number(T),
+        "+" = Add([Id; 2]),
+        "-" = Sub([Id; 2]),
+        "/" = Div([Id; 2]),
+        "*" = Mult([Id; 2]),
+    }
+    where
+    S: Hash + Debug + Display + Clone + Eq + Ord + Hash + FromStr,
+    T: Hash + Debug + Display + Clone + Eq + Ord + Hash + FromStr,
+    // also required by the macro impl that parses S, T
+    <S as FromStr>::Err: Debug,
+    <T as FromStr>::Err: Debug,
+}
+```
+
 [`Display`]: std::fmt::Display
 **/
 #[macro_export]
 macro_rules! define_language {
-    ($(#[$meta:meta])* $vis:vis enum $name:ident $variants:tt) => {
-        $crate::__define_language!($(#[$meta])* $vis enum $name $variants -> {} {} {} {} {} {});
+    ($(#[$meta:meta])* $vis:vis enum $name:ident
+     // annoying parsing hack to parse generic bounds https://stackoverflow.com/a/51580104
+    //  $(<$gen:ident $(, $($gen2:ident),*)?>)?
+     $(<$($gen:ident),*>)?
+     { $($variants:tt)* }
+     $(where $($where:tt)*)?) => {
+        $crate::__define_language!(
+            $(#[$meta])* $vis enum $name [$($($gen),*)?] { $($variants)* }
+            [$($($where)*)?]
+            -> {} {} {} {} {} {}
+        );
     };
 }
 
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __define_language {
-    ($(#[$meta:meta])* $vis:vis enum $name:ident {} ->
+    ($(#[$meta:meta])* $vis:vis enum $name:ident [$($gen:ident),*] {}
+     [$($where:tt)*]
+     ->
      $decl:tt {$($matches:tt)*} $children:tt $children_mut:tt
      $display:tt {$($from_op:tt)*}
     ) => {
         $(#[$meta])*
         #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
-        $vis enum $name $decl
+        $vis enum $name <$($gen),*> $decl
 
-        impl $crate::Language for $name {
+        impl<$($gen),*> $crate::Language for $name <$($gen),*> where $($where)* {
             type Discriminant = std::mem::Discriminant<Self>;
 
             #[inline(always)]
@@ -98,7 +138,7 @@ macro_rules! __define_language {
             fn children_mut(&mut self) -> &mut [$crate::Id] { match self $children_mut }
         }
 
-        impl ::std::fmt::Display for $name {
+        impl<$($gen),*> ::std::fmt::Display for $name <$($gen),*> where $($where)* {
             fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
                 // We need to pass `f` to the match expression for hygiene
                 // reasons.
@@ -106,7 +146,7 @@ macro_rules! __define_language {
             }
         }
 
-        impl $crate::FromOp for $name {
+        impl<$($gen),*> $crate::FromOp for $name <$($gen),*> where $($where)* {
             type Error = $crate::FromOpError;
 
             fn from_op(op: &str, children: ::std::vec::Vec<$crate::Id>) -> ::std::result::Result<Self, Self::Error> {
@@ -118,17 +158,21 @@ macro_rules! __define_language {
         }
     };
 
-    ($(#[$meta:meta])* $vis:vis enum $name:ident
+    ($(#[$meta:meta])* $vis:vis enum $name:ident [$($gen:ident),*]
      {
          $string:literal = $variant:ident,
          $($variants:tt)*
-     } ->
+     }
+     [$($where:tt)*]
+     ->
      { $($decl:tt)* } { $($matches:tt)* } { $($children:tt)* } { $($children_mut:tt)* }
      { $($display:tt)* } { $($from_op:tt)* }
     ) => {
         $crate::__define_language!(
-            $(#[$meta])* $vis enum $name
-            { $($variants)* } ->
+            $(#[$meta])* $vis enum $name [$($gen),*]
+            { $($variants)* }
+            [$($where)*]
+             ->
             { $($decl)*          $variant, }
             { $($matches)*       ($name::$variant, $name::$variant) => true, }
             { $($children)*      $name::$variant => &[], }
@@ -138,17 +182,21 @@ macro_rules! __define_language {
         );
     };
 
-    ($(#[$meta:meta])* $vis:vis enum $name:ident
+    ($(#[$meta:meta])* $vis:vis enum $name:ident [$($gen:ident),*]
      {
          $string:literal = $variant:ident ($ids:ty),
          $($variants:tt)*
-     } ->
+     }
+     [$($where:tt)*]
+     ->
      { $($decl:tt)* } { $($matches:tt)* } { $($children:tt)* } { $($children_mut:tt)* }
      { $($display:tt)* } { $($from_op:tt)* }
     ) => {
         $crate::__define_language!(
-            $(#[$meta])* $vis enum $name
-            { $($variants)* } ->
+            $(#[$meta])* $vis enum $name [$($gen),*]
+            { $($variants)* }
+            [$($where)*]
+            ->
             { $($decl)*          $variant($ids), }
             { $($matches)*       ($name::$variant(l), $name::$variant(r)) => $crate::LanguageChildren::len(l) == $crate::LanguageChildren::len(r), }
             { $($children)*      $name::$variant(ids) => $crate::LanguageChildren::as_slice(ids), }
@@ -162,17 +210,21 @@ macro_rules! __define_language {
         );
     };
 
-    ($(#[$meta:meta])* $vis:vis enum $name:ident
+    ($(#[$meta:meta])* $vis:vis enum $name:ident [$($gen:ident),*]
      {
          $variant:ident ($data:ty),
          $($variants:tt)*
-     } ->
+     }
+     [$($where:tt)*]
+     ->
      { $($decl:tt)* } { $($matches:tt)* } { $($children:tt)* } { $($children_mut:tt)* }
      { $($display:tt)* } { $($from_op:tt)* }
     ) => {
         $crate::__define_language!(
-            $(#[$meta])* $vis enum $name
-            { $($variants)* } ->
+            $(#[$meta])* $vis enum $name [$($gen),*]
+            { $($variants)* }
+            [$($where)*]
+            ->
             { $($decl)*          $variant($data), }
             { $($matches)*       ($name::$variant(data1), $name::$variant(data2)) => data1 == data2, }
             { $($children)*      $name::$variant(_data) => &[], }
@@ -182,17 +234,21 @@ macro_rules! __define_language {
         );
     };
 
-    ($(#[$meta:meta])* $vis:vis enum $name:ident
+    ($(#[$meta:meta])* $vis:vis enum $name:ident [$($gen:ident)*]
      {
          $variant:ident ($data:ty, $ids:ty),
          $($variants:tt)*
-     } ->
+     }
+     [$($where:tt)*]
+     ->
      { $($decl:tt)* } { $($matches:tt)* } { $($children:tt)* } { $($children_mut:tt)* }
      { $($display:tt)* } { $($from_op:tt)* }
     ) => {
         $crate::__define_language!(
-            $(#[$meta])* $vis enum $name
-            { $($variants)* } ->
+            $(#[$meta])* $vis enum $name [$($gen)*]
+            { $($variants)* }
+            [$($where)*]
+            ->
             { $($decl)*          $variant($data, $ids), }
             { $($matches)*       ($name::$variant(d1, l), $name::$variant(d2, r)) => d1 == d2 && $crate::LanguageChildren::len(l) == $crate::LanguageChildren::len(r), }
             { $($children)*      $name::$variant(_, ids) => $crate::LanguageChildren::as_slice(ids), }
