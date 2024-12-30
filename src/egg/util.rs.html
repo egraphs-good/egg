@@ -208,7 +208,7 @@
 <span class="kw">use </span>fmt::{Debug, Display, Formatter};
 
 <span class="attr">#[cfg(feature = <span class="string">"serde-1"</span>)]
-</span><span class="kw">use </span>::serde::{Deserialize, Serialize};
+</span><span class="kw">use </span>serde::{Deserialize, Serialize};
 
 <span class="attr">#[allow(unused_imports)]
 </span><span class="kw">use crate</span>::<span class="kw-2">*</span>;
@@ -246,7 +246,7 @@
 ///
 </span><span class="kw">pub use </span>symbol_table::GlobalSymbol <span class="kw">as </span>Symbol;
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">type </span>BuildHasher = fxhash::FxBuildHasher;
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">type </span>BuildHasher = rustc_hash::FxBuildHasher;
 
 <span class="comment">// pub(crate) type HashMap&lt;K, V&gt; = hashbrown::HashMap&lt;K, V, BuildHasher&gt;;
 // pub(crate) type HashSet&lt;K&gt; = hashbrown::HashSet&lt;K, BuildHasher&gt;;
