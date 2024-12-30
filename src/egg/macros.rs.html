@@ -499,8 +499,8 @@ define_language! {
                 <span class="kw">match </span>(<span class="self">self</span>, other) { $(<span class="macro-nonterminal">$matches</span>)* <span class="kw">_ </span>=&gt; <span class="bool-val">false </span>}
             }
 
-            <span class="kw">fn </span>children(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[Id] { <span class="kw">match </span><span class="self">self </span><span class="macro-nonterminal">$children </span>}
-            <span class="kw">fn </span>children_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>[Id] { <span class="kw">match </span><span class="self">self </span><span class="macro-nonterminal">$children_mut </span>}
+            <span class="kw">fn </span>children(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[<span class="macro-nonterminal">$crate::Id</span>] { <span class="kw">match </span><span class="self">self </span><span class="macro-nonterminal">$children </span>}
+            <span class="kw">fn </span>children_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>[<span class="macro-nonterminal">$crate::Id</span>] { <span class="kw">match </span><span class="self">self </span><span class="macro-nonterminal">$children_mut </span>}
         }
 
         <span class="kw">impl </span>::std::fmt::Display <span class="kw">for </span><span class="macro-nonterminal">$name </span>{
