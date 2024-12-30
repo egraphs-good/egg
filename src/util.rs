@@ -4,7 +4,7 @@ use symbolic_expressions::Sexp;
 use fmt::{Debug, Display, Formatter};
 
 #[cfg(feature = "serde-1")]
-use ::serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 #[allow(unused_imports)]
 use crate::*;
@@ -42,7 +42,7 @@ use crate::*;
 ///
 pub use symbol_table::GlobalSymbol as Symbol;
 
-pub(crate) type BuildHasher = fxhash::FxBuildHasher;
+pub(crate) type BuildHasher = rustc_hash::FxBuildHasher;
 
 // pub(crate) type HashMap<K, V> = hashbrown::HashMap<K, V, BuildHasher>;
 // pub(crate) type HashSet<K> = hashbrown::HashSet<K, BuildHasher>;
