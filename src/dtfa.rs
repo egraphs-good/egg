@@ -911,7 +911,7 @@ mod tests {
             ('f', 2)
         ]);
 
-        let automaton: Dtfa = DTFA::new(
+        let automaton: Dtfa = Dtfa::new(
             vec![1,2,3,4].into_iter().collect(),
             vec![3,4].into_iter().collect(),
             vec![
