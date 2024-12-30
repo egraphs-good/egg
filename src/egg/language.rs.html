@@ -967,7 +967,6 @@
     </span><span class="kw">fn </span>try_for_each&lt;E, F&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut </span>f: F) -&gt; <span class="prelude-ty">Result</span>&lt;(), E&gt;
     <span class="kw">where
         </span>F: FnMut(Id) -&gt; <span class="prelude-ty">Result</span>&lt;(), E&gt;,
-        E: Clone,
     {
         <span class="self">self</span>.fold(<span class="prelude-val">Ok</span>(()), |res, id| res.and_then(|<span class="kw">_</span>| f(id)))
     }
@@ -1000,10 +999,11 @@
     </span><span class="kw">fn </span>fold&lt;F, T&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, init: T, <span class="kw-2">mut </span>f: F) -&gt; T
     <span class="kw">where
         </span>F: FnMut(T, Id) -&gt; T,
-        T: Clone,
     {
         <span class="kw">let </span><span class="kw-2">mut </span>acc = init;
-        <span class="self">self</span>.for_each(|id| acc = f(acc.clone(), id));
+        <span class="kw">for </span>id <span class="kw">in </span><span class="self">self</span>.children().iter().copied() {
+            acc = f(acc, id)
+        }
         acc
     }
 
