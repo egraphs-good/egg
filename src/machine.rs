@@ -142,11 +142,11 @@ impl<L: Language> Compiler<L> {
     }
 
     fn load_pattern(&mut self, pattern: &PatternAst<L>) {
-        let len = pattern.as_ref().len();
+        let len = pattern.len();
         self.free_vars = Vec::with_capacity(len);
         self.subtree_size = Vec::with_capacity(len);
 
-        for node in pattern.as_ref() {
+        for node in pattern {
             let mut free = HashSet::default();
             let mut size = 0;
             match node {
@@ -199,7 +199,7 @@ impl<L: Language> Compiler<L> {
 
     fn compile(&mut self, patternbinder: Option<Var>, pattern: &PatternAst<L>) {
         self.load_pattern(pattern);
-        let last_i = pattern.as_ref().len() - 1;
+        let root = pattern.root();
 
         let mut next_out = self.next_reg;
 
@@ -211,13 +211,13 @@ impl<L: Language> Compiler<L> {
                 comp.instructions
                     .push(Instruction::Scan { out: comp.next_reg });
             }
-            comp.add_todo(pattern, Id::from(last_i), comp.next_reg);
+            comp.add_todo(pattern, root, comp.next_reg);
         };
 
         if let Some(v) = patternbinder {
             if let Some(&i) = self.v2r.get(&v) {
                 // patternbinder already bound
-                self.add_todo(pattern, Id::from(last_i), i);
+                self.add_todo(pattern, root, i);
             } else {
                 // patternbinder is new variable
                 next_out.0 += 1;
@@ -236,7 +236,6 @@ impl<L: Language> Compiler<L> {
                 self.instructions.push(Instruction::Lookup {
                     i: reg,
                     term: extracted
-                        .as_ref()
                         .iter()
                         .map(|n| match n {
                             ENodeOrVar::ENode(n) => ENodeOrReg::ENode(n.clone()),

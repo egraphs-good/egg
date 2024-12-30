@@ -1,6 +1,7 @@
 use fmt::Formatter;
 use log::*;
 use std::borrow::Cow;
+use std::convert::TryInto;
 use std::fmt::{self, Display};
 use std::{convert::TryFrom, str::FromStr};
 
@@ -86,7 +87,7 @@ impl<L: Language> PatternAst<L> {
             }
         }
 
-        for n in self.as_ref() {
+        for n in self {
             new.add(match n {
                 ENodeOrVar::ENode(_) => n.clone(),
                 ENodeOrVar::Var(v) => {
@@ -111,7 +112,7 @@ impl<L: Language> Pattern<L> {
     /// Returns a list of the [`Var`]s in this pattern.
     pub fn vars(&self) -> Vec<Var> {
         let mut vars = vec![];
-        for n in self.ast.as_ref() {
+        for n in &self.ast {
             if let ENodeOrVar::Var(v) = n {
                 if !vars.contains(v) {
                     vars.push(*v)
@@ -225,8 +226,14 @@ impl<L: FromOp> std::str::FromStr for Pattern<L> {
 
 impl<'a, L: Language> From<&'a [L]> for Pattern<L> {
     fn from(expr: &'a [L]) -> Self {
-        let nodes: Vec<_> = expr.iter().cloned().map(ENodeOrVar::ENode).collect();
-        let ast = RecExpr::from(nodes);
+        let ast = expr.iter().cloned().map(ENodeOrVar::ENode).collect();
+        Self::new(ast)
+    }
+}
+
+impl<L: Language> From<RecExpr<L>> for Pattern<L> {
+    fn from(expr: RecExpr<L>) -> Self {
+        let ast = expr.into_iter().map(ENodeOrVar::ENode).collect();
         Self::new(ast)
     }
 }
@@ -243,17 +250,22 @@ impl<L: Language> From<PatternAst<L>> for Pattern<L> {
     }
 }
 
-impl<L: Language> TryFrom<Pattern<L>> for RecExpr<L> {
+impl<L: Language> TryFrom<PatternAst<L>> for RecExpr<L> {
     type Error = Var;
-    fn try_from(pat: Pattern<L>) -> Result<Self, Self::Error> {
-        let nodes = pat.ast.as_ref().iter().cloned();
-        let ns: Result<Vec<_>, _> = nodes
+    fn try_from(ast: PatternAst<L>) -> Result<Self, Self::Error> {
+        ast.into_iter()
             .map(|n| match n {
                 ENodeOrVar::ENode(n) => Ok(n),
                 ENodeOrVar::Var(v) => Err(v),
             })
-            .collect();
-        ns.map(RecExpr::from)
+            .collect()
+    }
+}
+
+impl<L: Language> TryFrom<Pattern<L>> for RecExpr<L> {
+    type Error = Var;
+    fn try_from(pat: Pattern<L>) -> Result<Self, Self::Error> {
+        pat.ast.try_into()
     }
 }
 
@@ -286,7 +298,7 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
     }
 
     fn search_with_limit(&self, egraph: &EGraph<L, A>, limit: usize) -> Vec<SearchMatches<L>> {
-        match self.ast.as_ref().last().unwrap() {
+        match self.ast.last().unwrap() {
             ENodeOrVar::ENode(e) => {
                 let key = e.discriminant();
                 match egraph.classes_for_op(&key) {
@@ -343,8 +355,7 @@ where
         rule_name: Symbol,
     ) -> Vec<Id> {
         let mut added = vec![];
-        let ast = self.ast.as_ref();
-        let mut id_buf = vec![0.into(); ast.len()];
+        let mut id_buf = vec![0.into(); self.ast.len()];
         for mat in matches {
             let sast = mat.ast.as_ref().map(|cow| cow.as_ref());
             for subst in &mat.substs {
@@ -356,7 +367,7 @@ where
                     did_something = did_something_temp;
                     id = id_temp;
                 } else {
-                    id = apply_pat(&mut id_buf, ast, egraph, subst);
+                    id = apply_pat(&mut id_buf, &self.ast, egraph, subst);
                     did_something = egraph.union(id, mat.eclass);
                 }
 
@@ -376,9 +387,8 @@ where
         searcher_ast: Option<&PatternAst<L>>,
         rule_name: Symbol,
     ) -> Vec<Id> {
-        let ast = self.ast.as_ref();
-        let mut id_buf = vec![0.into(); ast.len()];
-        let id = apply_pat(&mut id_buf, ast, egraph, subst);
+        let mut id_buf = vec![0.into(); self.ast.len()];
+        let id = apply_pat(&mut id_buf, &self.ast, egraph, subst);
 
         if let Some(ast) = searcher_ast {
             let (from, did_something) =

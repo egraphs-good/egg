@@ -350,12 +350,12 @@ fn math_lp_extract() {
     let best = Extractor::new(&runner.egraph, AstSize).find_best(root).1;
     let lp_best = LpExtractor::new(&runner.egraph, AstSize).solve(root);
 
-    println!("input   [{}] {}", expr.as_ref().len(), expr);
-    println!("normal  [{}] {}", best.as_ref().len(), best);
-    println!("ilp cse [{}] {}", lp_best.as_ref().len(), lp_best);
+    println!("input   [{}] {}", expr.len(), expr);
+    println!("normal  [{}] {}", best.len(), best);
+    println!("ilp cse [{}] {}", lp_best.len(), lp_best);
 
     assert_ne!(best, lp_best);
-    assert_eq!(lp_best.as_ref().len(), 4);
+    assert_eq!(lp_best.len(), 4);
 }
 
 #[test]

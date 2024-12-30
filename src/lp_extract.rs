@@ -52,7 +52,7 @@ impl<L: Language, N: Analysis<L>> LpCostFunction<L, N> for AstSize {
 /// // Using ILP only counts common sub-expressions once,
 /// // so it can lead to a smaller DAG expression.
 /// assert_eq!(lp_best.to_string(), "(f x x x)");
-/// assert_eq!(lp_best.as_ref().len(), 2);
+/// assert_eq!(lp_best.len(), 2);
 /// ```
 #[cfg_attr(docsrs, doc(cfg(feature = "lp")))]
 pub struct LpExtractor<'a, L: Language, N: Analysis<L>> {
@@ -260,7 +260,7 @@ mod tests {
         let (exp, ids) = ext.solve_multiple(&[f, g]);
         println!("{:?}", exp);
         println!("{}", exp);
-        assert_eq!(exp.as_ref().len(), 4);
+        assert_eq!(exp.len(), 4);
         assert_eq!(ids.len(), 2);
     }
 }
