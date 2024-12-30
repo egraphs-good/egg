@@ -64,7 +64,6 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
     fn try_for_each<E, F>(&self, mut f: F) -> Result<(), E>
     where
         F: FnMut(Id) -> Result<(), E>,
-        E: Clone,
     {
         self.fold(Ok(()), |res, id| res.and_then(|_| f(id)))
     }
@@ -97,10 +96,11 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
     fn fold<F, T>(&self, init: T, mut f: F) -> T
     where
         F: FnMut(T, Id) -> T,
-        T: Clone,
     {
         let mut acc = init;
-        self.for_each(|id| acc = f(acc.clone(), id));
+        for id in self.children().iter().copied() {
+            acc = f(acc, id)
+        }
         acc
     }
 
