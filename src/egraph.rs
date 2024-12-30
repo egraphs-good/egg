@@ -600,16 +600,23 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         let result: HashSet<Id> = self.classes().map(|eclass|
             self.find(eclass.id)
         ).collect();
+
+        assert!(!result.is_empty());
         return result;
     }
 
     fn get_dtfa_accepting(&self, runner_roots: &Vec<Id>) -> HashSet<Id> {
+        assert!(!runner_roots.is_empty());
         let result: HashSet<Id> = runner_roots.iter().cloned().collect();
+
+        assert!(!result.is_empty());
         return result;
     } 
 
     fn get_dtfa_symbols(&self) -> HashSet<L> {
         let result: HashSet<L> = self.nodes.iter().cloned().collect();
+
+        assert!(!result.is_empty());
         return result;
     }
 

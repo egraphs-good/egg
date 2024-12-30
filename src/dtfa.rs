@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use std::{cell::RefCell, collections::VecDeque, hash::{Hash, Hasher}, ops::{Add, AddAssign, Sub, SubAssign}, rc::Rc, u32, vec};
+use std::{cell::RefCell, collections::VecDeque, hash::{Hash, Hasher}, ops::{Add, AddAssign, Sub, SubAssign}, rc::Rc, u32};
 
 use derivative::Derivative;
 use hashbrown::{HashMap, HashSet};
@@ -53,6 +53,9 @@ impl TransitionTable {
         }
     }
     pub fn rule_iter_by_output(&self, state: State) -> impl Iterator<Item = &SymbolicRulePtr> {
+        if !self.state_to_rule.contains_key(&state) {
+            return [].iter();
+        }
         return self.state_to_rule.get(&state).unwrap().iter();
     }
 }
@@ -782,6 +785,8 @@ impl Dtfa {
     }
 }
 
+#[derive(Derivative)]
+#[derivative(Debug)]
 pub struct DtfaMapper<StateType, SymbolType>
 where
     StateType: Eq + Hash + Clone,
@@ -792,10 +797,14 @@ where
     accepting_states: HashSet<StateType>,
     next_free_state: State,
 
+    #[derivative(Debug="ignore")]
     to_symbol: HashMap<SymbolType, Symbol>,
+    #[derivative(Debug="ignore")]
     to_symboltype: HashMap<Symbol, SymbolType>,
+    #[derivative(Debug="ignore")]
     next_free_symbol: Symbol,
     
+    #[derivative(Debug="ignore")]
     rules: Vec<SymbolicRule>
 }
 
