@@ -1564,9 +1564,6 @@
 <a href="#1564" id="1564">1564</a>
 <a href="#1565" id="1565">1565</a>
 <a href="#1566" id="1566">1566</a>
-<a href="#1567" id="1567">1567</a>
-<a href="#1568" id="1568">1568</a>
-<a href="#1569" id="1569">1569</a>
 </pre></div><pre class="rust"><code><span class="kw">use crate</span>::<span class="kw-2">*</span>;
 <span class="kw">use </span>std::{
     borrow::BorrowMut,
@@ -2431,10 +2428,9 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
     ///
     /// Calling [`id_to_expr`](EGraph::id_to_expr) on this `Id` return a copy of `expr` when explanations are enabled
     </span><span class="kw">pub fn </span>add_expr_uncanonical(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: <span class="kw-2">&amp;</span>RecExpr&lt;L&gt;) -&gt; Id {
-        <span class="kw">let </span>nodes = expr.as_ref();
-        <span class="kw">let </span><span class="kw-2">mut </span>new_ids = Vec::with_capacity(nodes.len());
-        <span class="kw">let </span><span class="kw-2">mut </span>new_node_q = Vec::with_capacity(nodes.len());
-        <span class="kw">for </span>node <span class="kw">in </span>nodes {
+        <span class="kw">let </span><span class="kw-2">mut </span>new_ids = Vec::with_capacity(expr.len());
+        <span class="kw">let </span><span class="kw-2">mut </span>new_node_q = Vec::with_capacity(expr.len());
+        <span class="kw">for </span>node <span class="kw">in </span>expr {
             <span class="kw">let </span>new_node = node.clone().map_children(|i| new_ids[usize::from(i)]);
             <span class="kw">let </span>size_before = <span class="self">self</span>.unionfind.size();
             <span class="kw">let </span>next_id = <span class="self">self</span>.add_uncanonical(new_node);
@@ -2470,10 +2466,9 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
     /// Calling [`id_to_expr`](EGraph::id_to_expr) on this `Id` return an correspond to the
     /// instantiation of the pattern
     </span><span class="kw">fn </span>add_instantiation_noncanonical(<span class="kw-2">&amp;mut </span><span class="self">self</span>, pat: <span class="kw-2">&amp;</span>PatternAst&lt;L&gt;, subst: <span class="kw-2">&amp;</span>Subst) -&gt; Id {
-        <span class="kw">let </span>nodes = pat.as_ref();
-        <span class="kw">let </span><span class="kw-2">mut </span>new_ids = Vec::with_capacity(nodes.len());
-        <span class="kw">let </span><span class="kw-2">mut </span>new_node_q = Vec::with_capacity(nodes.len());
-        <span class="kw">for </span>node <span class="kw">in </span>nodes {
+        <span class="kw">let </span><span class="kw-2">mut </span>new_ids = Vec::with_capacity(pat.len());
+        <span class="kw">let </span><span class="kw-2">mut </span>new_node_q = Vec::with_capacity(pat.len());
+        <span class="kw">for </span>node <span class="kw">in </span>pat {
             <span class="kw">match </span>node {
                 ENodeOrVar::Var(var) =&gt; {
                     <span class="kw">let </span>id = <span class="self">self</span>.find(subst[<span class="kw-2">*</span>var]);
@@ -2555,9 +2550,8 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
 
     <span class="doccomment">/// Lookup the eclasses of all the nodes in the given [`RecExpr`].
     </span><span class="kw">pub fn </span>lookup_expr_ids(<span class="kw-2">&amp;</span><span class="self">self</span>, expr: <span class="kw-2">&amp;</span>RecExpr&lt;L&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;Vec&lt;Id&gt;&gt; {
-        <span class="kw">let </span>nodes = expr.as_ref();
-        <span class="kw">let </span><span class="kw-2">mut </span>new_ids = Vec::with_capacity(nodes.len());
-        <span class="kw">for </span>node <span class="kw">in </span>nodes {
+        <span class="kw">let </span><span class="kw-2">mut </span>new_ids = Vec::with_capacity(expr.len());
+        <span class="kw">for </span>node <span class="kw">in </span>expr {
             <span class="kw">let </span>node = node.clone().map_children(|i| new_ids[usize::from(i)]);
             <span class="kw">let </span>id = <span class="self">self</span>.lookup(node)<span class="question-mark">?</span>;
             new_ids.push(id)
@@ -2687,8 +2681,8 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
     /// In most cases, there will none or exactly one id.
     ///
     </span><span class="kw">pub fn </span>equivs(<span class="kw-2">&amp;</span><span class="self">self</span>, expr1: <span class="kw-2">&amp;</span>RecExpr&lt;L&gt;, expr2: <span class="kw-2">&amp;</span>RecExpr&lt;L&gt;) -&gt; Vec&lt;Id&gt; {
-        <span class="kw">let </span>pat1 = Pattern::from(expr1.as_ref());
-        <span class="kw">let </span>pat2 = Pattern::from(expr2.as_ref());
+        <span class="kw">let </span>pat1 = Pattern::from(expr1);
+        <span class="kw">let </span>pat2 = Pattern::from(expr2);
         <span class="kw">let </span>matches1 = pat1.search(<span class="self">self</span>);
         <span class="macro">trace!</span>(<span class="string">"Matches1: {:?}"</span>, matches1);
 

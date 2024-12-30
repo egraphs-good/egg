@@ -429,10 +429,10 @@ These are not considered part of the public api.
 
     <span class="macro">eprintln!</span>(<span class="string">"{} patterns"</span>, patterns.len());
 
-    patterns.retain(|p| p.ast.as_ref().len() &gt; <span class="number">1</span>);
+    patterns.retain(|p| p.ast.len() &gt; <span class="number">1</span>);
     patterns.sort_by_key(|p| p.to_string());
     patterns.dedup();
-    patterns.sort_by_key(|p| p.ast.as_ref().len());
+    patterns.sort_by_key(|p| p.ast.len());
 
     <span class="kw">let </span>iter_limit = env_var(<span class="string">"EGG_ITER_LIMIT"</span>).unwrap_or(<span class="number">1</span>);
     <span class="kw">let </span>node_limit = env_var(<span class="string">"EGG_NODE_LIMIT"</span>).unwrap_or(<span class="number">1_000_000</span>);

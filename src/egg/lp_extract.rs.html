@@ -318,7 +318,7 @@
 /// // Using ILP only counts common sub-expressions once,
 /// // so it can lead to a smaller DAG expression.
 /// assert_eq!(lp_best.to_string(), "(f x x x)");
-/// assert_eq!(lp_best.as_ref().len(), 2);
+/// assert_eq!(lp_best.len(), 2);
 /// ```
 </span><span class="attr">#[cfg_attr(docsrs, doc(cfg(feature = <span class="string">"lp"</span>)))]
 </span><span class="kw">pub struct </span>LpExtractor&lt;<span class="lifetime">'a</span>, L: Language, N: Analysis&lt;L&gt;&gt; {
@@ -526,7 +526,7 @@
         </span><span class="kw">let </span>(exp, ids) = ext.solve_multiple(<span class="kw-2">&amp;</span>[f, g]);
         <span class="macro">println!</span>(<span class="string">"{:?}"</span>, exp);
         <span class="macro">println!</span>(<span class="string">"{}"</span>, exp);
-        <span class="macro">assert_eq!</span>(exp.as_ref().len(), <span class="number">4</span>);
+        <span class="macro">assert_eq!</span>(exp.len(), <span class="number">4</span>);
         <span class="macro">assert_eq!</span>(ids.len(), <span class="number">2</span>);
     }
 }

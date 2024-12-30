@@ -1175,10 +1175,10 @@
     N: Analysis&lt;L&gt;,
 {
     <span class="kw">fn </span>check(<span class="kw-2">&amp;</span><span class="self">self</span>, egraph: <span class="kw-2">&amp;mut </span>EGraph&lt;L, N&gt;, _eclass: Id, subst: <span class="kw-2">&amp;</span>Subst) -&gt; bool {
-        <span class="kw">let </span><span class="kw-2">mut </span>id_buf_1 = <span class="macro">vec!</span>[<span class="number">0</span>.into(); <span class="self">self</span>.p1.ast.as_ref().len()];
-        <span class="kw">let </span><span class="kw-2">mut </span>id_buf_2 = <span class="macro">vec!</span>[<span class="number">0</span>.into(); <span class="self">self</span>.p2.ast.as_ref().len()];
-        <span class="kw">let </span>a1 = apply_pat(<span class="kw-2">&amp;mut </span>id_buf_1, <span class="self">self</span>.p1.ast.as_ref(), egraph, subst);
-        <span class="kw">let </span>a2 = apply_pat(<span class="kw-2">&amp;mut </span>id_buf_2, <span class="self">self</span>.p2.ast.as_ref(), egraph, subst);
+        <span class="kw">let </span><span class="kw-2">mut </span>id_buf_1 = <span class="macro">vec!</span>[<span class="number">0</span>.into(); <span class="self">self</span>.p1.ast.len()];
+        <span class="kw">let </span><span class="kw-2">mut </span>id_buf_2 = <span class="macro">vec!</span>[<span class="number">0</span>.into(); <span class="self">self</span>.p2.ast.len()];
+        <span class="kw">let </span>a1 = apply_pat(<span class="kw-2">&amp;mut </span>id_buf_1, <span class="kw-2">&amp;</span><span class="self">self</span>.p1.ast, egraph, subst);
+        <span class="kw">let </span>a2 = apply_pat(<span class="kw-2">&amp;mut </span>id_buf_2, <span class="kw-2">&amp;</span><span class="self">self</span>.p2.ast, egraph, subst);
         a1 == a2
     }
 

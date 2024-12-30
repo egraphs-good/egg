@@ -347,7 +347,6 @@
 <a href="#347" id="347">347</a>
 <a href="#348" id="348">348</a>
 <a href="#349" id="349">349</a>
-<a href="#350" id="350">350</a>
 </pre></div><pre class="rust"><code><span class="kw">use crate</span>::<span class="kw-2">*</span>;
 <span class="kw">use </span>std::result;
 
@@ -492,11 +491,11 @@
     }
 
     <span class="kw">fn </span>load_pattern(<span class="kw-2">&amp;mut </span><span class="self">self</span>, pattern: <span class="kw-2">&amp;</span>PatternAst&lt;L&gt;) {
-        <span class="kw">let </span>len = pattern.as_ref().len();
+        <span class="kw">let </span>len = pattern.len();
         <span class="self">self</span>.free_vars = Vec::with_capacity(len);
         <span class="self">self</span>.subtree_size = Vec::with_capacity(len);
 
-        <span class="kw">for </span>node <span class="kw">in </span>pattern.as_ref() {
+        <span class="kw">for </span>node <span class="kw">in </span>pattern {
             <span class="kw">let </span><span class="kw-2">mut </span>free = HashSet::default();
             <span class="kw">let </span><span class="kw-2">mut </span>size = <span class="number">0</span>;
             <span class="kw">match </span>node {
@@ -549,7 +548,7 @@
 
     <span class="kw">fn </span>compile(<span class="kw-2">&amp;mut </span><span class="self">self</span>, patternbinder: <span class="prelude-ty">Option</span>&lt;Var&gt;, pattern: <span class="kw-2">&amp;</span>PatternAst&lt;L&gt;) {
         <span class="self">self</span>.load_pattern(pattern);
-        <span class="kw">let </span>last_i = pattern.as_ref().len() - <span class="number">1</span>;
+        <span class="kw">let </span>root = pattern.root();
 
         <span class="kw">let </span><span class="kw-2">mut </span>next_out = <span class="self">self</span>.next_reg;
 
@@ -561,13 +560,13 @@
                 </span>comp.instructions
                     .push(Instruction::Scan { out: comp.next_reg });
             }
-            comp.add_todo(pattern, Id::from(last_i), comp.next_reg);
+            comp.add_todo(pattern, root, comp.next_reg);
         };
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(v) = patternbinder {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>i) = <span class="self">self</span>.v2r.get(<span class="kw-2">&amp;</span>v) {
                 <span class="comment">// patternbinder already bound
-                </span><span class="self">self</span>.add_todo(pattern, Id::from(last_i), i);
+                </span><span class="self">self</span>.add_todo(pattern, root, i);
             } <span class="kw">else </span>{
                 <span class="comment">// patternbinder is new variable
                 </span>next_out.<span class="number">0 </span>+= <span class="number">1</span>;
@@ -586,7 +585,6 @@
                 <span class="self">self</span>.instructions.push(Instruction::Lookup {
                     i: reg,
                     term: extracted
-                        .as_ref()
                         .iter()
                         .map(|n| <span class="kw">match </span>n {
                             ENodeOrVar::ENode(n) =&gt; ENodeOrReg::ENode(n.clone()),

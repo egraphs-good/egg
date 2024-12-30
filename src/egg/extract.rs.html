@@ -313,7 +313,6 @@
 <a href="#313" id="313">313</a>
 <a href="#314" id="314">314</a>
 <a href="#315" id="315">315</a>
-<a href="#316" id="316">316</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::cmp::Ordering;
 <span class="kw">use </span>std::fmt::Debug;
 
@@ -450,14 +449,13 @@ ensure your cost function is still monotonic in this situation.
     /// down the [`RecExpr`].
     ///
     </span><span class="kw">fn </span>cost_rec(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: <span class="kw-2">&amp;</span>RecExpr&lt;L&gt;) -&gt; <span class="self">Self</span>::Cost {
-        <span class="kw">let </span>nodes = expr.as_ref();
-        <span class="kw">let </span><span class="kw-2">mut </span>costs = hashmap_with_capacity::&lt;Id, <span class="self">Self</span>::Cost&gt;(nodes.len());
-        <span class="kw">for </span>(i, node) <span class="kw">in </span>nodes.iter().enumerate() {
+        <span class="kw">let </span><span class="kw-2">mut </span>costs = hashmap_with_capacity::&lt;Id, <span class="self">Self</span>::Cost&gt;(expr.len());
+        <span class="kw">for </span>(i, node) <span class="kw">in </span>expr.items() {
             <span class="kw">let </span>cost = <span class="self">self</span>.cost(node, |i| costs[<span class="kw-2">&amp;</span>i].clone());
-            costs.insert(Id::from(i), cost);
+            costs.insert(i, cost);
         }
-        <span class="kw">let </span>last_id = Id::from(expr.as_ref().len() - <span class="number">1</span>);
-        costs[<span class="kw-2">&amp;</span>last_id].clone()
+        <span class="kw">let </span>root = expr.root();
+        costs[<span class="kw-2">&amp;</span>root].clone()
     }
 }
 

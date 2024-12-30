@@ -528,9 +528,20 @@
 <a href="#528" id="528">528</a>
 <a href="#529" id="529">529</a>
 <a href="#530" id="530">530</a>
+<a href="#531" id="531">531</a>
+<a href="#532" id="532">532</a>
+<a href="#533" id="533">533</a>
+<a href="#534" id="534">534</a>
+<a href="#535" id="535">535</a>
+<a href="#536" id="536">536</a>
+<a href="#537" id="537">537</a>
+<a href="#538" id="538">538</a>
+<a href="#539" id="539">539</a>
+<a href="#540" id="540">540</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>fmt::Formatter;
 <span class="kw">use </span>log::<span class="kw-2">*</span>;
 <span class="kw">use </span>std::borrow::Cow;
+<span class="kw">use </span>std::convert::TryInto;
 <span class="kw">use </span>std::fmt::{<span class="self">self</span>, Display};
 <span class="kw">use </span>std::{convert::TryFrom, str::FromStr};
 
@@ -616,7 +627,7 @@
             }
         }
 
-        <span class="kw">for </span>n <span class="kw">in </span><span class="self">self</span>.as_ref() {
+        <span class="kw">for </span>n <span class="kw">in </span><span class="self">self </span>{
             new.add(<span class="kw">match </span>n {
                 ENodeOrVar::ENode(<span class="kw">_</span>) =&gt; n.clone(),
                 ENodeOrVar::Var(v) =&gt; {
@@ -641,7 +652,7 @@
     <span class="doccomment">/// Returns a list of the [`Var`]s in this pattern.
     </span><span class="kw">pub fn </span>vars(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;Var&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>vars = <span class="macro">vec!</span>[];
-        <span class="kw">for </span>n <span class="kw">in </span><span class="self">self</span>.ast.as_ref() {
+        <span class="kw">for </span>n <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.ast {
             <span class="kw">if let </span>ENodeOrVar::Var(v) = n {
                 <span class="kw">if </span>!vars.contains(v) {
                     vars.push(<span class="kw-2">*</span>v)
@@ -755,8 +766,14 @@
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, L: Language&gt; From&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>[L]&gt; <span class="kw">for </span>Pattern&lt;L&gt; {
     <span class="kw">fn </span>from(expr: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[L]) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span>nodes: Vec&lt;<span class="kw">_</span>&gt; = expr.iter().cloned().map(ENodeOrVar::ENode).collect();
-        <span class="kw">let </span>ast = RecExpr::from(nodes);
+        <span class="kw">let </span>ast = expr.iter().cloned().map(ENodeOrVar::ENode).collect();
+        <span class="self">Self</span>::new(ast)
+    }
+}
+
+<span class="kw">impl</span>&lt;L: Language&gt; From&lt;RecExpr&lt;L&gt;&gt; <span class="kw">for </span>Pattern&lt;L&gt; {
+    <span class="kw">fn </span>from(expr: RecExpr&lt;L&gt;) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>ast = expr.into_iter().map(ENodeOrVar::ENode).collect();
         <span class="self">Self</span>::new(ast)
     }
 }
@@ -773,17 +790,22 @@
     }
 }
 
-<span class="kw">impl</span>&lt;L: Language&gt; TryFrom&lt;Pattern&lt;L&gt;&gt; <span class="kw">for </span>RecExpr&lt;L&gt; {
+<span class="kw">impl</span>&lt;L: Language&gt; TryFrom&lt;PatternAst&lt;L&gt;&gt; <span class="kw">for </span>RecExpr&lt;L&gt; {
     <span class="kw">type </span>Error = Var;
-    <span class="kw">fn </span>try_from(pat: Pattern&lt;L&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="self">Self</span>::Error&gt; {
-        <span class="kw">let </span>nodes = pat.ast.as_ref().iter().cloned();
-        <span class="kw">let </span>ns: <span class="prelude-ty">Result</span>&lt;Vec&lt;<span class="kw">_</span>&gt;, <span class="kw">_</span>&gt; = nodes
+    <span class="kw">fn </span>try_from(ast: PatternAst&lt;L&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="self">Self</span>::Error&gt; {
+        ast.into_iter()
             .map(|n| <span class="kw">match </span>n {
                 ENodeOrVar::ENode(n) =&gt; <span class="prelude-val">Ok</span>(n),
                 ENodeOrVar::Var(v) =&gt; <span class="prelude-val">Err</span>(v),
             })
-            .collect();
-        ns.map(RecExpr::from)
+            .collect()
+    }
+}
+
+<span class="kw">impl</span>&lt;L: Language&gt; TryFrom&lt;Pattern&lt;L&gt;&gt; <span class="kw">for </span>RecExpr&lt;L&gt; {
+    <span class="kw">type </span>Error = Var;
+    <span class="kw">fn </span>try_from(pat: Pattern&lt;L&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="self">Self</span>::Error&gt; {
+        pat.ast.try_into()
     }
 }
 
@@ -816,7 +838,7 @@
     }
 
     <span class="kw">fn </span>search_with_limit(<span class="kw-2">&amp;</span><span class="self">self</span>, egraph: <span class="kw-2">&amp;</span>EGraph&lt;L, A&gt;, limit: usize) -&gt; Vec&lt;SearchMatches&lt;L&gt;&gt; {
-        <span class="kw">match </span><span class="self">self</span>.ast.as_ref().last().unwrap() {
+        <span class="kw">match </span><span class="self">self</span>.ast.last().unwrap() {
             ENodeOrVar::ENode(e) =&gt; {
                 <span class="kw">let </span>key = e.discriminant();
                 <span class="kw">match </span>egraph.classes_for_op(<span class="kw-2">&amp;</span>key) {
@@ -873,8 +895,7 @@
         rule_name: Symbol,
     ) -&gt; Vec&lt;Id&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>added = <span class="macro">vec!</span>[];
-        <span class="kw">let </span>ast = <span class="self">self</span>.ast.as_ref();
-        <span class="kw">let </span><span class="kw-2">mut </span>id_buf = <span class="macro">vec!</span>[<span class="number">0</span>.into(); ast.len()];
+        <span class="kw">let </span><span class="kw-2">mut </span>id_buf = <span class="macro">vec!</span>[<span class="number">0</span>.into(); <span class="self">self</span>.ast.len()];
         <span class="kw">for </span>mat <span class="kw">in </span>matches {
             <span class="kw">let </span>sast = mat.ast.as_ref().map(|cow| cow.as_ref());
             <span class="kw">for </span>subst <span class="kw">in </span><span class="kw-2">&amp;</span>mat.substs {
@@ -886,7 +907,7 @@
                     did_something = did_something_temp;
                     id = id_temp;
                 } <span class="kw">else </span>{
-                    id = apply_pat(<span class="kw-2">&amp;mut </span>id_buf, ast, egraph, subst);
+                    id = apply_pat(<span class="kw-2">&amp;mut </span>id_buf, <span class="kw-2">&amp;</span><span class="self">self</span>.ast, egraph, subst);
                     did_something = egraph.union(id, mat.eclass);
                 }
 
@@ -906,9 +927,8 @@
         searcher_ast: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>PatternAst&lt;L&gt;&gt;,
         rule_name: Symbol,
     ) -&gt; Vec&lt;Id&gt; {
-        <span class="kw">let </span>ast = <span class="self">self</span>.ast.as_ref();
-        <span class="kw">let </span><span class="kw-2">mut </span>id_buf = <span class="macro">vec!</span>[<span class="number">0</span>.into(); ast.len()];
-        <span class="kw">let </span>id = apply_pat(<span class="kw-2">&amp;mut </span>id_buf, ast, egraph, subst);
+        <span class="kw">let </span><span class="kw-2">mut </span>id_buf = <span class="macro">vec!</span>[<span class="number">0</span>.into(); <span class="self">self</span>.ast.len()];
+        <span class="kw">let </span>id = apply_pat(<span class="kw-2">&amp;mut </span>id_buf, <span class="kw-2">&amp;</span><span class="self">self</span>.ast, egraph, subst);
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(ast) = searcher_ast {
             <span class="kw">let </span>(from, did_something) =

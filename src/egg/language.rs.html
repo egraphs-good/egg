@@ -901,7 +901,86 @@
 <a href="#901" id="901">901</a>
 <a href="#902" id="902">902</a>
 <a href="#903" id="903">903</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span>std::ops::{BitOr, Index, IndexMut};
+<a href="#904" id="904">904</a>
+<a href="#905" id="905">905</a>
+<a href="#906" id="906">906</a>
+<a href="#907" id="907">907</a>
+<a href="#908" id="908">908</a>
+<a href="#909" id="909">909</a>
+<a href="#910" id="910">910</a>
+<a href="#911" id="911">911</a>
+<a href="#912" id="912">912</a>
+<a href="#913" id="913">913</a>
+<a href="#914" id="914">914</a>
+<a href="#915" id="915">915</a>
+<a href="#916" id="916">916</a>
+<a href="#917" id="917">917</a>
+<a href="#918" id="918">918</a>
+<a href="#919" id="919">919</a>
+<a href="#920" id="920">920</a>
+<a href="#921" id="921">921</a>
+<a href="#922" id="922">922</a>
+<a href="#923" id="923">923</a>
+<a href="#924" id="924">924</a>
+<a href="#925" id="925">925</a>
+<a href="#926" id="926">926</a>
+<a href="#927" id="927">927</a>
+<a href="#928" id="928">928</a>
+<a href="#929" id="929">929</a>
+<a href="#930" id="930">930</a>
+<a href="#931" id="931">931</a>
+<a href="#932" id="932">932</a>
+<a href="#933" id="933">933</a>
+<a href="#934" id="934">934</a>
+<a href="#935" id="935">935</a>
+<a href="#936" id="936">936</a>
+<a href="#937" id="937">937</a>
+<a href="#938" id="938">938</a>
+<a href="#939" id="939">939</a>
+<a href="#940" id="940">940</a>
+<a href="#941" id="941">941</a>
+<a href="#942" id="942">942</a>
+<a href="#943" id="943">943</a>
+<a href="#944" id="944">944</a>
+<a href="#945" id="945">945</a>
+<a href="#946" id="946">946</a>
+<a href="#947" id="947">947</a>
+<a href="#948" id="948">948</a>
+<a href="#949" id="949">949</a>
+<a href="#950" id="950">950</a>
+<a href="#951" id="951">951</a>
+<a href="#952" id="952">952</a>
+<a href="#953" id="953">953</a>
+<a href="#954" id="954">954</a>
+<a href="#955" id="955">955</a>
+<a href="#956" id="956">956</a>
+<a href="#957" id="957">957</a>
+<a href="#958" id="958">958</a>
+<a href="#959" id="959">959</a>
+<a href="#960" id="960">960</a>
+<a href="#961" id="961">961</a>
+<a href="#962" id="962">962</a>
+<a href="#963" id="963">963</a>
+<a href="#964" id="964">964</a>
+<a href="#965" id="965">965</a>
+<a href="#966" id="966">966</a>
+<a href="#967" id="967">967</a>
+<a href="#968" id="968">968</a>
+<a href="#969" id="969">969</a>
+<a href="#970" id="970">970</a>
+<a href="#971" id="971">971</a>
+<a href="#972" id="972">972</a>
+<a href="#973" id="973">973</a>
+<a href="#974" id="974">974</a>
+<a href="#975" id="975">975</a>
+<a href="#976" id="976">976</a>
+<a href="#977" id="977">977</a>
+<a href="#978" id="978">978</a>
+<a href="#979" id="979">979</a>
+<a href="#980" id="980">980</a>
+</pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::{Borrow, BorrowMut};
+<span class="kw">use </span>std::iter::FromIterator;
+<span class="kw">use </span>std::ops::{BitOr, Deref, DerefMut, Index, IndexMut};
 <span class="kw">use </span>std::{cmp::Ordering, convert::TryFrom};
 <span class="kw">use </span>std::{
     convert::Infallible,
@@ -1116,10 +1195,10 @@
             }
         }
 
-        <span class="comment">// finally, add the root node and create the expression
-        </span><span class="kw">let </span><span class="kw-2">mut </span>nodes: Vec&lt;<span class="self">Self</span>&gt; = set.into_iter().collect();
-        nodes.push(<span class="self">self</span>.clone().map_children(|id| ids[<span class="kw-2">&amp;</span>id]));
-        <span class="prelude-val">Ok</span>(RecExpr::from(nodes))
+        <span class="comment">// finally, create the expression and add the root node
+        </span><span class="kw">let </span><span class="kw-2">mut </span>expr: RecExpr&lt;<span class="kw">_</span>&gt; = set.into_iter().collect();
+        expr.add(<span class="self">self</span>.clone().map_children(|id| ids[<span class="kw-2">&amp;</span>id]));
+        <span class="prelude-val">Ok</span>(expr)
     }
 }
 
@@ -1301,9 +1380,41 @@
     }
 }
 
+<span class="kw">impl</span>&lt;L&gt; Borrow&lt;[L]&gt; <span class="kw">for </span>RecExpr&lt;L&gt; {
+    <span class="kw">fn </span>borrow(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[L] {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.nodes
+    }
+}
+
+<span class="kw">impl</span>&lt;L&gt; BorrowMut&lt;[L]&gt; <span class="kw">for </span>RecExpr&lt;L&gt; {
+    <span class="kw">fn </span>borrow_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>[L] {
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>.nodes
+    }
+}
+
+<span class="kw">impl</span>&lt;L&gt; Deref <span class="kw">for </span>RecExpr&lt;L&gt; {
+    <span class="kw">type </span>Target = [L];
+
+    <span class="kw">fn </span>deref(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="self">Self</span>::Target {
+        <span class="self">self</span>.borrow()
+    }
+}
+
+<span class="kw">impl</span>&lt;L&gt; DerefMut <span class="kw">for </span>RecExpr&lt;L&gt; {
+    <span class="kw">fn </span>deref_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span><span class="self">Self</span>::Target {
+        <span class="self">self</span>.borrow_mut()
+    }
+}
+
 <span class="kw">impl</span>&lt;L&gt; AsRef&lt;[L]&gt; <span class="kw">for </span>RecExpr&lt;L&gt; {
     <span class="kw">fn </span>as_ref(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[L] {
         <span class="kw-2">&amp;</span><span class="self">self</span>.nodes
+    }
+}
+
+<span class="kw">impl</span>&lt;L&gt; AsMut&lt;[L]&gt; <span class="kw">for </span>RecExpr&lt;L&gt; {
+    <span class="kw">fn </span>as_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>[L] {
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>.nodes
     }
 }
 
@@ -1319,22 +1430,28 @@
     }
 }
 
+<span class="kw">impl</span>&lt;L&gt; FromIterator&lt;L&gt; <span class="kw">for </span>RecExpr&lt;L&gt; {
+    <span class="kw">fn </span>from_iter&lt;T: IntoIterator&lt;Item = L&gt;&gt;(iter: T) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::from(iter.into_iter().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;())
+    }
+}
+
 <span class="kw">impl</span>&lt;L: Language&gt; RecExpr&lt;L&gt; {
     <span class="doccomment">/// Adds a given enode to this `RecExpr`.
-    /// The enode's children `Id`s must refer to elements already in this list.
+    /// The enode's children [`Id`]s must refer to elements already in this list.
     </span><span class="kw">pub fn </span>add(<span class="kw-2">&amp;mut </span><span class="self">self</span>, node: L) -&gt; Id {
         <span class="macro">debug_assert!</span>(
-            node.all(|id| usize::from(id) &lt; <span class="self">self</span>.nodes.len()),
+            node.all(|id| id &lt;= <span class="self">self</span>.root()),
             <span class="string">"node {:?} has children not in this expr: {:?}"</span>,
             node,
             <span class="self">self
         </span>);
         <span class="self">self</span>.nodes.push(node);
-        Id::from(<span class="self">self</span>.nodes.len() - <span class="number">1</span>)
+        <span class="self">self</span>.root()
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>compact(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span><span class="kw-2">mut </span>ids = hashmap_with_capacity::&lt;Id, Id&gt;(<span class="self">self</span>.nodes.len());
+        <span class="kw">let </span><span class="kw-2">mut </span>ids = hashmap_with_capacity::&lt;Id, Id&gt;(<span class="self">self</span>.len());
         <span class="kw">let </span><span class="kw-2">mut </span>set = IndexSet::default();
         <span class="kw">for </span>(i, node) <span class="kw">in </span><span class="self">self</span>.nodes.drain(..).enumerate() {
             <span class="kw">let </span>node = node.map_children(|id| ids[<span class="kw-2">&amp;</span>id]);
@@ -1349,21 +1466,31 @@
         <span class="self">self</span>[new_root].build_recexpr(|id| <span class="self">self</span>[id].clone())
     }
 
+    <span class="doccomment">/// Returns an iterator over the [`Id`]s in this expression.
+    </span><span class="kw">pub fn </span>ids(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>ExactSizeIterator&lt;Item = Id&gt; + DoubleEndedIterator {
+        (<span class="number">0</span>..<span class="self">self</span>.len()).map(Id::from)
+    }
+
+    <span class="doccomment">/// Returns an iterator over the [`Id`]s and enodes of this expression.
+    </span><span class="kw">pub fn </span>items(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>ExactSizeIterator&lt;Item = (Id, <span class="kw-2">&amp;</span>L)&gt; + DoubleEndedIterator {
+        <span class="self">self</span>.ids().zip(<span class="self">self</span>)
+    }
+
+    <span class="doccomment">/// Returns an iterator over the [`Id`]s and enodes of this expression.
+    </span><span class="kw">pub fn </span>items_mut(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+    ) -&gt; <span class="kw">impl </span>ExactSizeIterator&lt;Item = (Id, <span class="kw-2">&amp;mut </span>L)&gt; + DoubleEndedIterator {
+        <span class="self">self</span>.ids().zip(<span class="self">self</span>)
+    }
+
     <span class="doccomment">/// Checks if this expr is a DAG, i.e. doesn't have any back edges
     </span><span class="kw">pub fn </span>is_dag(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="kw">for </span>(i, n) <span class="kw">in </span><span class="self">self</span>.nodes.iter().enumerate() {
-            <span class="kw">for </span><span class="kw-2">&amp;</span>child <span class="kw">in </span>n.children() {
-                <span class="kw">if </span>usize::from(child) &gt;= i {
-                    <span class="kw">return </span><span class="bool-val">false</span>;
-                }
-            }
-        }
-        <span class="bool-val">true
-    </span>}
+        <span class="self">self</span>.items().all(|(id, n)| n.all(|child| child &lt; id))
+    }
 
     <span class="doccomment">/// Get the root node of this expression. When adding a new node via `add`, it becomes the new root.
     </span><span class="kw">pub fn </span>root(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Id {
-        Id::from(<span class="self">self</span>.nodes.len() - <span class="number">1</span>)
+        <span class="self">self</span>.ids().last().unwrap()
     }
 }
 
@@ -1377,6 +1504,33 @@
 <span class="kw">impl</span>&lt;L: Language&gt; IndexMut&lt;Id&gt; <span class="kw">for </span>RecExpr&lt;L&gt; {
     <span class="kw">fn </span>index_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: Id) -&gt; <span class="kw-2">&amp;mut </span>L {
         <span class="kw-2">&amp;mut </span><span class="self">self</span>.nodes[usize::from(id)]
+    }
+}
+
+<span class="kw">impl</span>&lt;L&gt; IntoIterator <span class="kw">for </span>RecExpr&lt;L&gt; {
+    <span class="kw">type </span>Item = L;
+    <span class="kw">type </span>IntoIter = std::vec::IntoIter&lt;L&gt;;
+
+    <span class="kw">fn </span>into_iter(<span class="self">self</span>) -&gt; <span class="self">Self</span>::IntoIter {
+        <span class="self">self</span>.nodes.into_iter()
+    }
+}
+
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, L&gt; IntoIterator <span class="kw">for </span><span class="kw-2">&amp;</span><span class="lifetime">'a </span>RecExpr&lt;L&gt; {
+    <span class="kw">type </span>Item = <span class="kw-2">&amp;</span><span class="lifetime">'a </span>L;
+    <span class="kw">type </span>IntoIter = std::slice::Iter&lt;<span class="lifetime">'a</span>, L&gt;;
+
+    <span class="kw">fn </span>into_iter(<span class="self">self</span>) -&gt; <span class="self">Self</span>::IntoIter {
+        <span class="self">self</span>.iter()
+    }
+}
+
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, L&gt; IntoIterator <span class="kw">for </span><span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>RecExpr&lt;L&gt; {
+    <span class="kw">type </span>Item = <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>L;
+    <span class="kw">type </span>IntoIter = std::slice::IterMut&lt;<span class="lifetime">'a</span>, L&gt;;
+
+    <span class="kw">fn </span>into_iter(<span class="self">self</span>) -&gt; <span class="self">Self</span>::IntoIter {
+        <span class="self">self</span>.iter_mut()
     }
 }
 

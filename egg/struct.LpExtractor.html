@@ -28,7 +28,7 @@ egraph.rebuild();
 <span class="comment">// Using ILP only counts common sub-expressions once,
 // so it can lead to a smaller DAG expression.
 </span><span class="macro">assert_eq!</span>(lp_best.to_string(), <span class="string">"(f x x x)"</span>);
-<span class="macro">assert_eq!</span>(lp_best.as_ref().len(), <span class="number">2</span>);</code></pre></div>
+<span class="macro">assert_eq!</span>(lp_best.len(), <span class="number">2</span>);</code></pre></div>
 </div></details><h2 id="implementations" class="section-header">Implementations<a href="#implementations" class="anchor">§</a></h2><div id="implementations-list"><details class="toggle implementors-toggle" open><summary><section id="impl-LpExtractor%3C'a,+L,+N%3E" class="impl"><a class="src rightside" href="../src/egg/lp_extract.rs.html#70-210">source</a><a href="#impl-LpExtractor%3C'a,+L,+N%3E" class="anchor">§</a><h3 class="code-header">impl&lt;'a, L, N&gt; <a class="struct" href="struct.LpExtractor.html" title="struct egg::LpExtractor">LpExtractor</a>&lt;'a, L, N&gt;<div class="where">where
     L: <a class="trait" href="trait.Language.html" title="trait egg::Language">Language</a>,
     N: <a class="trait" href="trait.Analysis.html" title="trait egg::Analysis">Analysis</a>&lt;L&gt;,</div></h3></section></summary><div class="impl-items"><details class="toggle method-toggle" open><summary><section id="method.new" class="method"><a class="src rightside" href="../src/egg/lp_extract.rs.html#77-147">source</a><h4 class="code-header">pub fn <a href="#method.new" class="fn">new</a>&lt;CF&gt;(egraph: &amp;'a <a class="struct" href="struct.EGraph.html" title="struct egg::EGraph">EGraph</a>&lt;L, N&gt;, cost_function: CF) -&gt; Self<div class="where">where

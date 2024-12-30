@@ -2099,8 +2099,6 @@
 <a href="#2099" id="2099">2099</a>
 <a href="#2100" id="2100">2100</a>
 <a href="#2101" id="2101">2101</a>
-<a href="#2102" id="2102">2102</a>
-<a href="#2103" id="2103">2103</a>
 </pre></div><pre class="rust"><code><span class="attr">#![allow(clippy::only_used_in_recursion)]
 </span><span class="kw">use </span><span class="kw">crate</span>::Symbol;
 <span class="kw">use crate</span>::{
@@ -2895,11 +2893,9 @@ See [`Explanation`] for more details.
     <span class="doccomment">/// Rewrite the FlatTerm by matching the lhs and substituting the rhs.
     /// The lhs must be guaranteed to match.
     </span><span class="kw">pub fn </span>rewrite(<span class="kw-2">&amp;</span><span class="self">self</span>, lhs: <span class="kw-2">&amp;</span>PatternAst&lt;L&gt;, rhs: <span class="kw-2">&amp;</span>PatternAst&lt;L&gt;) -&gt; FlatTerm&lt;L&gt; {
-        <span class="kw">let </span>lhs_nodes = lhs.as_ref();
-        <span class="kw">let </span>rhs_nodes = rhs.as_ref();
         <span class="kw">let </span><span class="kw-2">mut </span>bindings = Default::default();
-        <span class="self">self</span>.make_bindings(lhs_nodes, lhs_nodes.len() - <span class="number">1</span>, <span class="kw-2">&amp;mut </span>bindings);
-        FlatTerm::from_pattern(rhs_nodes, rhs_nodes.len() - <span class="number">1</span>, <span class="kw-2">&amp;</span>bindings)
+        <span class="self">self</span>.make_bindings(lhs, lhs.len() - <span class="number">1</span>, <span class="kw-2">&amp;mut </span>bindings);
+        FlatTerm::from_pattern(rhs, rhs.len() - <span class="number">1</span>, <span class="kw-2">&amp;</span>bindings)
     }
 
     <span class="doccomment">/// Checks if this term or any child has a [`forward_rule`](FlatTerm::forward_rule).
