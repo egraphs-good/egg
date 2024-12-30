@@ -1709,7 +1709,7 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         op: <span class="kw-2">&amp;</span>L::Discriminant,
     ) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw">impl </span>ExactSizeIterator&lt;Item = Id&gt; + <span class="lifetime">'_</span>&gt; {
-        <span class="self">self</span>.classes_by_op.get(<span class="kw-2">&amp;</span>op).map(|s| s.iter().copied())
+        <span class="self">self</span>.classes_by_op.get(op).map(|s| s.iter().copied())
     }
 
     <span class="doccomment">/// Exposes the actual nodes in the egraph.
