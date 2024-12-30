@@ -64,4 +64,51 @@ impl<L: Language, D> EClass<L, D> {
             );
         }
     }
+
+    /// Run some function on each matching e-node in this class.
+    pub fn for_each_matching_node<Err>(
+        &self,
+        node: &L,
+        mut f: impl FnMut(&L) -> Result<(), Err>,
+    ) -> Result<(), Err>
+    where
+        L: Language,
+    {
+        if self.nodes.len() < 50 {
+            self.nodes
+                .iter()
+                .filter(|n| node.matches(n))
+                .try_for_each(f)
+        } else {
+            debug_assert!(node.all(|id| id == Id::from(0)));
+            debug_assert!(self.nodes.windows(2).all(|w| w[0] < w[1]));
+            let mut start = self.nodes.binary_search(node).unwrap_or_else(|i| i);
+            let discrim = node.discriminant();
+            while start > 0 {
+                if self.nodes[start - 1].discriminant() == discrim {
+                    start -= 1;
+                } else {
+                    break;
+                }
+            }
+            let mut matching = self.nodes[start..]
+                .iter()
+                .take_while(|&n| n.discriminant() == discrim)
+                .filter(|n| node.matches(n));
+            debug_assert_eq!(
+                matching.clone().count(),
+                self.nodes.iter().filter(|n| node.matches(n)).count(),
+                "matching node {:?}\nstart={}\n{:?} != {:?}\nnodes: {:?}",
+                node,
+                start,
+                matching.clone().collect::<HashSet<_>>(),
+                self.nodes
+                    .iter()
+                    .filter(|n| node.matches(n))
+                    .collect::<HashSet<_>>(),
+                self.nodes
+            );
+            matching.try_for_each(&mut f)
+        }
+    }
 }

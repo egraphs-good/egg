@@ -1619,8 +1619,8 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
                     for other in others.iter() {
                         congruence_neighbors[usize::from(*enode)].push(*other);
                         congruence_neighbors[usize::from(*other)].push(*enode);
+                        counter += 1;
                     }
-                    counter += 1;
                     others.push(*enode);
                 } else {
                     counter += 1;
