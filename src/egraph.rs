@@ -140,7 +140,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         &self,
         op: &L::Discriminant,
     ) -> Option<impl ExactSizeIterator<Item = Id> + '_> {
-        self.classes_by_op.get(&op).map(|s| s.iter().copied())
+        self.classes_by_op.get(op).map(|s| s.iter().copied())
     }
 
     /// Exposes the actual nodes in the egraph.
