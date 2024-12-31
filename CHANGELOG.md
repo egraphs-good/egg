@@ -1,6 +1,8 @@
 # Changes
 
 ## [Unreleased] - ReleaseDate
+
+## [0.10.0] - 2024-12-31
 - Removed existence explanations from egg (the `explain_existance` function). This feature was buggy and not well supported. Supporting it fully required many changes, and it is incompatible with analysis. See #332 for more details.
 - Change the API of `make` to have mutable access to the e-graph for some [advanced uses cases](https://github.com/egraphs-good/egg/pull/277).
 - Fix an e-matching performance regression introduced in [this commit](https://github.com/egraphs-good/egg/commit/ae8af8815231e4aba1b78962f8c07ce837ee1c0e#diff-1d06da761111802c793c6e5ca704bfa0d6336d0becf87fddff02d81548a838ab).
@@ -243,7 +245,8 @@ But hopefully things will be a little more stable from here on out
 since the API is a lot nicer.
 
 <!-- next-url -->
-[Unreleased]: https://github.com/egraphs-good/egg/compare/v0.9.5...HEAD
+[Unreleased]: https://github.com/egraphs-good/egg/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/egraphs-good/egg/compare/v0.9.5...v0.10.0
 [0.9.5]: https://github.com/egraphs-good/egg/compare/v0.9.4...v0.9.5
 [0.9.4]: https://github.com/egraphs-good/egg/compare/v0.9.3...v0.9.4
 [0.9.3]: https://github.com/egraphs-good/egg/compare/v0.9.2...v0.9.3
