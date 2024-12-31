@@ -1495,75 +1495,6 @@
 <a href="#1495" id="1495">1495</a>
 <a href="#1496" id="1496">1496</a>
 <a href="#1497" id="1497">1497</a>
-<a href="#1498" id="1498">1498</a>
-<a href="#1499" id="1499">1499</a>
-<a href="#1500" id="1500">1500</a>
-<a href="#1501" id="1501">1501</a>
-<a href="#1502" id="1502">1502</a>
-<a href="#1503" id="1503">1503</a>
-<a href="#1504" id="1504">1504</a>
-<a href="#1505" id="1505">1505</a>
-<a href="#1506" id="1506">1506</a>
-<a href="#1507" id="1507">1507</a>
-<a href="#1508" id="1508">1508</a>
-<a href="#1509" id="1509">1509</a>
-<a href="#1510" id="1510">1510</a>
-<a href="#1511" id="1511">1511</a>
-<a href="#1512" id="1512">1512</a>
-<a href="#1513" id="1513">1513</a>
-<a href="#1514" id="1514">1514</a>
-<a href="#1515" id="1515">1515</a>
-<a href="#1516" id="1516">1516</a>
-<a href="#1517" id="1517">1517</a>
-<a href="#1518" id="1518">1518</a>
-<a href="#1519" id="1519">1519</a>
-<a href="#1520" id="1520">1520</a>
-<a href="#1521" id="1521">1521</a>
-<a href="#1522" id="1522">1522</a>
-<a href="#1523" id="1523">1523</a>
-<a href="#1524" id="1524">1524</a>
-<a href="#1525" id="1525">1525</a>
-<a href="#1526" id="1526">1526</a>
-<a href="#1527" id="1527">1527</a>
-<a href="#1528" id="1528">1528</a>
-<a href="#1529" id="1529">1529</a>
-<a href="#1530" id="1530">1530</a>
-<a href="#1531" id="1531">1531</a>
-<a href="#1532" id="1532">1532</a>
-<a href="#1533" id="1533">1533</a>
-<a href="#1534" id="1534">1534</a>
-<a href="#1535" id="1535">1535</a>
-<a href="#1536" id="1536">1536</a>
-<a href="#1537" id="1537">1537</a>
-<a href="#1538" id="1538">1538</a>
-<a href="#1539" id="1539">1539</a>
-<a href="#1540" id="1540">1540</a>
-<a href="#1541" id="1541">1541</a>
-<a href="#1542" id="1542">1542</a>
-<a href="#1543" id="1543">1543</a>
-<a href="#1544" id="1544">1544</a>
-<a href="#1545" id="1545">1545</a>
-<a href="#1546" id="1546">1546</a>
-<a href="#1547" id="1547">1547</a>
-<a href="#1548" id="1548">1548</a>
-<a href="#1549" id="1549">1549</a>
-<a href="#1550" id="1550">1550</a>
-<a href="#1551" id="1551">1551</a>
-<a href="#1552" id="1552">1552</a>
-<a href="#1553" id="1553">1553</a>
-<a href="#1554" id="1554">1554</a>
-<a href="#1555" id="1555">1555</a>
-<a href="#1556" id="1556">1556</a>
-<a href="#1557" id="1557">1557</a>
-<a href="#1558" id="1558">1558</a>
-<a href="#1559" id="1559">1559</a>
-<a href="#1560" id="1560">1560</a>
-<a href="#1561" id="1561">1561</a>
-<a href="#1562" id="1562">1562</a>
-<a href="#1563" id="1563">1563</a>
-<a href="#1564" id="1564">1564</a>
-<a href="#1565" id="1565">1565</a>
-<a href="#1566" id="1566">1566</a>
 </pre></div><pre class="rust"><code><span class="kw">use crate</span>::<span class="kw-2">*</span>;
 <span class="kw">use </span>std::{
     borrow::BorrowMut,
@@ -2075,43 +2006,6 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
         }
     }
 
-    <span class="doccomment">/// When explanations are enabled, this function
-    /// produces an [`Explanation`] describing how the given expression came
-    /// to be in the egraph.
-    ///
-    /// The [`Explanation`] begins with some expression that was added directly
-    /// into the egraph and ends with the given `expr`.
-    /// Note that this function can be called again to explain any intermediate terms
-    /// used in the output [`Explanation`].
-    </span><span class="kw">pub fn </span>explain_existance(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: <span class="kw-2">&amp;</span>RecExpr&lt;L&gt;) -&gt; Explanation&lt;L&gt; {
-        <span class="kw">let </span>id = <span class="self">self</span>.add_expr_uncanonical(expr);
-        <span class="self">self</span>.explain_existance_id(id)
-    }
-
-    <span class="doccomment">/// Equivalent to calling [`explain_existance`](EGraph::explain_existance)`(`[`id_to_expr`](EGraph::id_to_expr)`(id))`
-    /// but more efficient
-    </span><span class="kw">fn </span>explain_existance_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: Id) -&gt; Explanation&lt;L&gt; {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(explain) = <span class="kw-2">&amp;mut </span><span class="self">self</span>.explain {
-            explain.with_nodes(<span class="kw-2">&amp;</span><span class="self">self</span>.nodes).explain_existance(id)
-        } <span class="kw">else </span>{
-            <span class="macro">panic!</span>(<span class="string">"Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations."</span>)
-        }
-    }
-
-    <span class="doccomment">/// Return an [`Explanation`] for why a pattern appears in the egraph.
-    </span><span class="kw">pub fn </span>explain_existance_pattern(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        pattern: <span class="kw-2">&amp;</span>PatternAst&lt;L&gt;,
-        subst: <span class="kw-2">&amp;</span>Subst,
-    ) -&gt; Explanation&lt;L&gt; {
-        <span class="kw">let </span>id = <span class="self">self</span>.add_instantiation_noncanonical(pattern, subst);
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(explain) = <span class="kw-2">&amp;mut </span><span class="self">self</span>.explain {
-            explain.with_nodes(<span class="kw-2">&amp;</span><span class="self">self</span>.nodes).explain_existance(id)
-        } <span class="kw">else </span>{
-            <span class="macro">panic!</span>(<span class="string">"Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations."</span>)
-        }
-    }
-
     <span class="doccomment">/// Get an explanation for why an expression matches a pattern.
     </span><span class="kw">pub fn </span>explain_matches(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -2439,14 +2333,6 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
             } <span class="kw">else </span>{
                 new_node_q.push(<span class="bool-val">false</span>);
             }
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(explain) = <span class="kw-2">&amp;mut </span><span class="self">self</span>.explain {
-                node.for_each(|child| {
-                    <span class="comment">// Set the existance reason for new nodes to their parent node.
-                    </span><span class="kw">if </span>new_node_q[usize::from(child)] {
-                        explain.set_existance_reason(new_ids[usize::from(child)], next_id);
-                    }
-                });
-            }
             new_ids.push(next_id);
         }
         <span class="kw-2">*</span>new_ids.last().unwrap()
@@ -2485,13 +2371,6 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
                         new_node_q.push(<span class="bool-val">false</span>);
                     }
 
-                    <span class="kw">if let </span><span class="prelude-val">Some</span>(explain) = <span class="kw-2">&amp;mut </span><span class="self">self</span>.explain {
-                        node.for_each(|child| {
-                            <span class="kw">if </span>new_node_q[usize::from(child)] {
-                                explain.set_existance_reason(new_ids[usize::from(child)], next_id);
-                            }
-                        });
-                    }
                     new_ids.push(next_id);
                 }
             }
@@ -2625,11 +2504,11 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
                     <span class="kw-2">*</span>existing_explain
                 } <span class="kw">else </span>{
                     <span class="kw">let </span>new_id = <span class="self">self</span>.unionfind.make_set();
-                    explain.add(original.clone(), new_id, new_id);
+                    explain.add(original.clone(), new_id);
                     <span class="macro">debug_assert_eq!</span>(Id::from(<span class="self">self</span>.nodes.len()), new_id);
                     <span class="self">self</span>.nodes.push(original);
                     <span class="self">self</span>.unionfind.union(id, new_id);
-                    explain.union(existing_id, new_id, Justification::Congruence, <span class="bool-val">true</span>);
+                    explain.union(existing_id, new_id, Justification::Congruence);
                     new_id
                 }
             } <span class="kw">else </span>{
@@ -2638,7 +2517,7 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
         } <span class="kw">else </span>{
             <span class="kw">let </span>id = <span class="self">self</span>.make_new_eclass(enode, original.clone());
             <span class="kw">if let </span><span class="prelude-val">Some</span>(explain) = <span class="self">self</span>.explain.as_mut() {
-                explain.add(original, id, id);
+                explain.add(original, id);
             }
 
             <span class="comment">// now that we updated explanations, run the analysis for the new eclass
@@ -2718,16 +2597,9 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
         rule_name: <span class="kw">impl </span>Into&lt;Symbol&gt;,
     ) -&gt; (Id, bool) {
         <span class="kw">let </span>id1 = <span class="self">self</span>.add_instantiation_noncanonical(from_pat, subst);
-        <span class="kw">let </span>size_before = <span class="self">self</span>.unionfind.size();
         <span class="kw">let </span>id2 = <span class="self">self</span>.add_instantiation_noncanonical(to_pat, subst);
-        <span class="kw">let </span>rhs_new = <span class="self">self</span>.unionfind.size() &gt; size_before;
 
-        <span class="kw">let </span>did_union = <span class="self">self</span>.perform_union(
-            id1,
-            id2,
-            <span class="prelude-val">Some</span>(Justification::Rule(rule_name.into())),
-            rhs_new,
-        );
+        <span class="kw">let </span>did_union = <span class="self">self</span>.perform_union(id1, id2, <span class="prelude-val">Some</span>(Justification::Rule(rule_name.into())));
         (<span class="self">self</span>.find(id1), did_union)
     }
 
@@ -2737,7 +2609,7 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
     /// `Id`s returned by functions like [`add_uncanonical`](EGraph::add_uncanonical) is important
     /// to control explanations
     </span><span class="kw">pub fn </span>union_trusted(<span class="kw-2">&amp;mut </span><span class="self">self</span>, from: Id, to: Id, reason: <span class="kw">impl </span>Into&lt;Symbol&gt;) -&gt; bool {
-        <span class="self">self</span>.perform_union(from, to, <span class="prelude-val">Some</span>(Justification::Rule(reason.into())), <span class="bool-val">false</span>)
+        <span class="self">self</span>.perform_union(from, to, <span class="prelude-val">Some</span>(Justification::Rule(reason.into())))
     }
 
     <span class="doccomment">/// Unions two eclasses given their ids.
@@ -2760,17 +2632,11 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
             <span class="kw">let </span>caller = std::panic::Location::caller();
             <span class="self">self</span>.union_trusted(id1, id2, caller.to_string())
         } <span class="kw">else </span>{
-            <span class="self">self</span>.perform_union(id1, id2, <span class="prelude-val">None</span>, <span class="bool-val">false</span>)
+            <span class="self">self</span>.perform_union(id1, id2, <span class="prelude-val">None</span>)
         }
     }
 
-    <span class="kw">fn </span>perform_union(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        enode_id1: Id,
-        enode_id2: Id,
-        rule: <span class="prelude-ty">Option</span>&lt;Justification&gt;,
-        any_new_rhs: bool,
-    ) -&gt; bool {
+    <span class="kw">fn </span>perform_union(<span class="kw-2">&amp;mut </span><span class="self">self</span>, enode_id1: Id, enode_id2: Id, rule: <span class="prelude-ty">Option</span>&lt;Justification&gt;) -&gt; bool {
         N::pre_union(<span class="self">self</span>, enode_id1, enode_id2, <span class="kw-2">&amp;</span>rule);
 
         <span class="self">self</span>.clean = <span class="bool-val">false</span>;
@@ -2792,7 +2658,7 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
         }
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(explain) = <span class="kw-2">&amp;mut </span><span class="self">self</span>.explain {
-            explain.union(enode_id1, enode_id2, rule.unwrap(), any_new_rhs);
+            explain.union(enode_id1, enode_id2, rule.unwrap());
         }
 
         <span class="comment">// make id1 the new root
@@ -2967,12 +2833,8 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
                 <span class="kw">let </span><span class="kw-2">mut </span>node = <span class="self">self</span>.nodes[usize::from(class)].clone();
                 node.update_children(|id| <span class="self">self</span>.find_mut(id));
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(memo_class) = <span class="self">self</span>.memo.insert(node, class) {
-                    <span class="kw">let </span>did_something = <span class="self">self</span>.perform_union(
-                        memo_class,
-                        class,
-                        <span class="prelude-val">Some</span>(Justification::Congruence),
-                        <span class="bool-val">false</span>,
-                    );
+                    <span class="kw">let </span>did_something =
+                        <span class="self">self</span>.perform_union(memo_class, class, <span class="prelude-val">Some</span>(Justification::Congruence));
                     n_unions += did_something <span class="kw">as </span>usize;
                 }
             }
