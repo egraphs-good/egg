@@ -614,7 +614,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     } 
 
     fn get_dtfa_symbols(&self) -> HashSet<L> {
-        let result: HashSet<L> = self.nodes.iter().cloned().collect();
+        let result: HashSet<L> = self.classes().flat_map(|eclass| eclass.iter()).cloned().collect();
 
         assert!(!result.is_empty());
         return result;
