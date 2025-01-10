@@ -19,4 +19,9 @@ pub mod simple {
             rewrite!("mul-1"; "(* ?a 1)" => "?a"),
         ]
     }
+
+    pub const EXAMPLE_INPUTS: &'static [&'static str] = &[
+        "(* 0 42)",
+        "(+ 0 (* 1 foo))"
+    ];
 }
