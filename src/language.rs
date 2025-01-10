@@ -30,11 +30,11 @@ use thiserror::Error;
 ///
 /// See [`SymbolLang`] for quick-and-dirty use cases.
 #[allow(clippy::len_without_is_empty)]
-pub trait Language: Debug + Clone + Eq + Ord + Hash + Send + Sync {
+pub trait Language: Debug + Clone + Eq + Ord + Hash {
     /// Type representing the cases of this language.
     ///
     /// Used for short-circuiting the search for equivalent nodes.
-    type Discriminant: Debug + Clone + Eq + Hash + Sync + Send;
+    type Discriminant: Debug + Clone + Eq + Hash;
 
     /// Return the `Discriminant` of this node.
     #[allow(enum_intrinsics_non_enums)]

@@ -44,7 +44,7 @@ ordered-float = "3.0.0"
 criterion = "0.3"
 
 [[bench]]
-name = "parallel"
+name = "math"
 harness = false
 
 [profile.bench]
