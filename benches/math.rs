@@ -3,7 +3,7 @@ use egg::{rewrite as rw, *};
 mod definitions;
 use definitions::math;
 
-use criterion::{criterion_group, criterion_main, Criterion, BenchmarkId};
+use criterion::{criterion_group, criterion_main, Criterion};
 
 // fn math_() {
 //     egg::test::test_runner(

@@ -6,6 +6,8 @@ These are not considered part of the public api.
 use num_traits::identities::Zero;
 use std::{fmt::Display, fs::File, io::Write, path::PathBuf};
 
+use log::*;
+
 use crate::*;
 
 pub fn env_var<T>(s: &str) -> Option<T>
@@ -80,7 +82,7 @@ pub fn test_runner<L, A>(
 
     if should_check {
         let report = runner.report();
-        // println!("{report}");
+        info!("{report}");
         runner.egraph.check_goals(id, goals);
 
         if let Some(filename) = env_var::<PathBuf>("EGG_BENCH_CSV") {
@@ -153,7 +155,7 @@ where
         patterns.push(p.ast.alpha_rename().into());
     }
 
-    // eprintln!("{} patterns", patterns.len());
+    info!("{} patterns", patterns.len());
 
     patterns.retain(|p| p.ast.len() > 1);
     patterns.sort_by_key(|p| p.to_string());
@@ -164,17 +166,17 @@ where
     let node_limit = env_var("EGG_NODE_LIMIT").unwrap_or(1_000_000);
     let time_limit = env_var("EGG_TIME_LIMIT").unwrap_or(1000);
     let n_samples = env_var("EGG_SAMPLES").unwrap_or(100);
-    // eprintln!("Benching {} samples", n_samples);
-    // eprintln!(
-    //     "Limits: {} iters, {} nodes, {} seconds",
-    //     iter_limit, node_limit, time_limit
-    // );
+    info!("Benching {} samples", n_samples);
+    info!(
+        "Limits: {} iters, {} nodes, {} seconds",
+        iter_limit, node_limit, time_limit
+    );
 
     let mut runner = Runner::default()
         .with_scheduler(SimpleScheduler)
         .with_hook(move |runner| {
             let n_nodes = runner.egraph.total_number_of_nodes();
-            // eprintln!("Iter {}, {} nodes", runner.iterations.len(), n_nodes);
+            info!("Iter {}, {} nodes", runner.iterations.len(), n_nodes);
             if n_nodes > node_limit {
                 Err("Bench stopped".into())
             } else {
@@ -190,7 +192,7 @@ where
     }
 
     let runner = runner.run(&rules);
-    // eprintln!("{}", runner.report());
+    info!("{}", runner.report());
     let egraph = runner.egraph;
 
     let get_len = |pat: &Pattern<L>| pat.to_string().len();
@@ -207,13 +209,13 @@ where
             .collect();
         times.sort_unstable();
 
-        // println!(
-        //     "test {name:<width$} ... bench: {time:>10} ns/iter (+/- {iqr})",
-        //     name = pat.to_string().replace(' ', "_"),
-        //     width = max_width,
-        //     time = percentile(0.05, &times),
-        //     iqr = percentile(0.75, &times) - percentile(0.25, &times),
-        // );
+        info!(
+            "test {name:<width$} ... bench: {time:>10} ns/iter (+/- {iqr})",
+            name = pat.to_string().replace(' ', "_"),
+            width = max_width,
+            time = percentile(0.05, &times),
+            iqr = percentile(0.75, &times) - percentile(0.25, &times),
+        );
     }
 
     egraph

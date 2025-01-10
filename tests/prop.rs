@@ -1,5 +1,7 @@
 use egg::*;
 
+use log::*;
+
 define_language! {
     enum Prop {
         Bool(bool),
@@ -118,7 +120,7 @@ fn prove_something(name: &str, start: &str, rewrites: &[Rewrite], goals: &[&str]
     let egraph = runner.run(rewrites).egraph;
 
     for (i, (goal_expr, goal_str)) in goal_exprs.iter().zip(goals).enumerate() {
-        // println!("Trying to prove goal {}: {}", i, goal_str);
+        info!("Trying to prove goal {}: {}", i, goal_str);
         let equivs = egraph.equivs(&start_expr, goal_expr);
         if equivs.is_empty() {
             panic!("Couldn't prove goal {}: {}", i, goal_str);
