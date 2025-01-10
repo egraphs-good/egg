@@ -35,8 +35,20 @@ vectorize = {version = "0.2.0", optional = true}
 saturating = "0.1.0"
 serde_json = {version = "1.0.81", optional = true}
 
+# for parallelisation support
+# rayon = {version = "1.10.0", optional = true}
+rayon = "1.10.0"
+
 [dev-dependencies]
 ordered-float = "3.0.0"
+criterion = "0.3"
+
+[[bench]]
+name = "parallel"
+harness = false
+
+[profile.bench]
+debug = true
 
 [features]
 # forces the use of indexmaps over hashmaps
@@ -51,6 +63,7 @@ serde-1 = [
   "vectorize",
 ]
 wasm-bindgen = []
+# parallel = ["rayon"]
 
 # private features for testing
 test-explanations = []

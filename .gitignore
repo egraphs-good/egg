@@ -13,6 +13,8 @@ default.nix
 TODO.md
 flamegraph.svg
 perf.data*
+profile.json
 *.bench
 .vscode/settings.json
 out.csv
+tmp*
