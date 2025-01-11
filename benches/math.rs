@@ -415,5 +415,5 @@ pub fn math_tests(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, ematching_benches);
+criterion_group!(benches, math_tests);
 criterion_main!(benches);
