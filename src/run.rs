@@ -445,7 +445,7 @@ where
             let stop_reason = self.iterations.last().unwrap().stop_reason.clone();
             // we need to check_limits after the iteration is complete to check for iter_limit
             if let Some(stop_reason) = stop_reason.or_else(|| self.check_limits().err()) {
-                info!("Stopping: {:?}", stop_reason);
+                // info!("Stopping: {:?}", stop_reason);
                 self.stop_reason = Some(stop_reason);
                 break;
             }
@@ -475,7 +475,7 @@ where
             let stop_reason = self.iterations.last().unwrap().stop_reason.clone();
             // we need to check_limits after the iteration is complete to check for iter_limit
             if let Some(stop_reason) = stop_reason.or_else(|| self.check_limits().err()) {
-                info!("Stopping: {:?}", stop_reason);
+                // info!("Stopping: {:?}", stop_reason);
                 self.stop_reason = Some(stop_reason);
                 break;
             }
@@ -552,7 +552,7 @@ where
     fn run_one(&mut self, rules: &[&Rewrite<L, N>]) -> Iteration<IterData> {
         assert!(self.stop_reason.is_none());
 
-        info!("\nIteration {}", self.iterations.len());
+        // info!("\nIteration {}", self.iterations.len());
 
         self.try_start();
         let mut result = self.check_limits();
@@ -593,7 +593,7 @@ where
         });
 
         let search_time = start_time.elapsed().as_secs_f64();
-        info!("Search time: {}", search_time);
+        // info!("Search time: {}", search_time);
 
         let apply_time = Instant::now();
 
@@ -616,7 +616,7 @@ where
         });
 
         let apply_time = apply_time.elapsed().as_secs_f64();
-        info!("Apply time: {}", apply_time);
+        // info!("Apply time: {}", apply_time);
 
         let rebuild_time = Instant::now();
         let n_rebuilds = self.egraph.rebuild();
@@ -625,12 +625,12 @@ where
         }
 
         let rebuild_time = rebuild_time.elapsed().as_secs_f64();
-        info!("Rebuild time: {}", rebuild_time);
-        info!(
-            "Size: n={}, e={}",
-            self.egraph.total_size(),
-            self.egraph.number_of_classes()
-        );
+        // info!("Rebuild time: {}", rebuild_time);
+        // info!(
+        //     "Size: n={}, e={}",
+        //     self.egraph.total_size(),
+        //     self.egraph.number_of_classes()
+        // );
 
         let can_be_saturated = applied.is_empty()
             && self.scheduler.can_stop(i)
@@ -935,13 +935,13 @@ where
             }
 
             assert!(!unbanned.is_empty());
-            info!(
-                "Banned {}/{}, fast-forwarded by {} to unban {}",
-                banned.len(),
-                n_stats,
-                delta,
-                unbanned.join(", "),
-            );
+            // info!(
+            //     "Banned {}/{}, fast-forwarded by {} to unban {}",
+            //     banned.len(),
+            //     n_stats,
+            //     delta,
+            //     unbanned.join(", "),
+            // );
 
             false
         }
@@ -973,15 +973,15 @@ where
             let ban_length = stats.ban_length << stats.times_banned;
             stats.times_banned += 1;
             stats.banned_until = iteration + ban_length;
-            info!(
-                "Banning {} ({}-{}) for {} iters: {} < {}",
-                rewrite.name,
-                stats.times_applied,
-                stats.times_banned,
-                ban_length,
-                threshold,
-                total_len,
-            );
+            // info!(
+            //     "Banning {} ({}-{}) for {} iters: {} < {}",
+            //     rewrite.name,
+            //     stats.times_applied,
+            //     stats.times_banned,
+            //     ban_length,
+            //     threshold,
+            //     total_len,
+            // );
             vec![]
         } else {
             stats.times_applied += 1;

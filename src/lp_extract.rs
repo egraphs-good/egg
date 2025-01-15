@@ -173,11 +173,13 @@ where
         }
 
         let solution = self.model.solve();
+        /*
         log::info!(
             "CBC status {:?}, {:?}",
             solution.raw().status(),
             solution.raw().secondary_status()
         );
+        */
 
         let mut todo: Vec<Id> = roots.iter().map(|id| self.egraph.find(*id)).collect();
         let mut expr = RecExpr::default();

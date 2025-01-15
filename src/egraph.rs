@@ -1396,6 +1396,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         let trimmed_nodes = self.rebuild_classes();
 
         let elapsed = start.elapsed();
+        /*
         info!(
             concat!(
                 "REBUILT! in {}.{:03}s\n",
@@ -1412,6 +1413,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             n_unions,
             trimmed_nodes,
         );
+        */
 
         debug_assert!(self.check_memo());
         self.clean = true;
