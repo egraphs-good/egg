@@ -374,10 +374,7 @@ impl FinePartition {
         for (id, block) in &result.id_to_block {
             for state in &block.elements {
                 if f.contains(state) {
-                    states_to_cut
-                        .entry(*id)
-                        .or_insert(Vec::new())
-                        .push(*state);
+                    states_to_cut.entry(*id).or_insert(Vec::new()).push(*state);
                 }
             }
         }
