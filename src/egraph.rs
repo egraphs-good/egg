@@ -579,15 +579,15 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         let result: HashSet<Id> = self.classes().map(|eclass| self.find(eclass.id)).collect();
 
         assert!(!result.is_empty());
-        return result;
+        result
     }
 
-    fn get_dtfa_accepting(&self, runner_roots: &Vec<Id>) -> HashSet<Id> {
+    fn get_dtfa_accepting(&self, runner_roots: &[Id]) -> HashSet<Id> {
         assert!(!runner_roots.is_empty());
         let result: HashSet<Id> = runner_roots.iter().cloned().collect();
 
         assert!(!result.is_empty());
-        return result;
+        result
     }
 
     fn get_dtfa_symbols(&self) -> HashSet<L> {
@@ -598,7 +598,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             .collect();
 
         assert!(!result.is_empty());
-        return result;
+        result
     }
 
     fn add_dtfa_rules_to_mapper(&self, dtfa_map: &mut DtfaMapper<Id, L>) {
