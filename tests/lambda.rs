@@ -1,5 +1,5 @@
 use egg::{rewrite as rw, *};
-use fxhash::FxHashSet as HashSet;
+use rustc_hash::FxHashSet as HashSet;
 
 define_language! {
     enum Lambda {

@@ -8,33 +8,33 @@ license = "MIT"
 name = "egg"
 readme = "README.md"
 repository = "https://github.com/egraphs-good/egg"
-version = "0.9.5"
+version = "0.10.0"
 
 [dependencies]
-env_logger = { version = "0.9.0", default-features = false }
-fxhash = "0.2.1"
-hashbrown = "0.12.1"
-indexmap = "1.8.1"
-quanta = "0.12"
+env_logger = {version = "0.9.0", default-features = false}
+hashbrown = "0.15.2"
+indexmap = "2.7.0"
 log = "0.4.17"
-smallvec = { version = "1.8.0", features = ["union", "const_generics"] }
-symbol_table = { version = "0.2.0", features = ["global"] }
-symbolic_expressions = "5.0.3"
-thiserror = "1.0.31"
 num-bigint = "0.4"
 num-traits = "0.2"
+quanta = "0.12"
+rustc-hash = "2.0.0"
+smallvec = {version = "1.8.0", features = ["union", "const_generics"]}
+symbol_table = {version = "0.4.0", features = ["global"]}
+symbolic_expressions = "5.0.3"
+thiserror = "1.0.31"
 
 # for the lp feature
-coin_cbc = { version = "0.1.6", optional = true }
+coin_cbc = {version = "0.1.6", optional = true}
 
 # for the serde-1 feature
-serde = { version = "1.0.137", features = ["derive"], optional = true }
-vectorize = { version = "0.2.0", optional = true }
+serde = {version = "1.0.137", features = ["derive"], optional = true}
+vectorize = {version = "0.2.0", optional = true}
 
 # for the reports feature
-serde_json = { version = "1.0.81", optional = true }
 saturating = "0.1.0"
 derivative = "2.2.0"
+serde_json = {version = "1.0.81", optional = true}
 
 [dev-dependencies]
 ordered-float = "3.0.0"
@@ -46,7 +46,7 @@ lp = ["coin_cbc"]
 reports = ["serde-1", "serde_json"]
 serde-1 = [
   "serde",
-  "indexmap/serde-1",
+  "indexmap/serde",
   "hashbrown/serde",
   "symbol_table/serde",
   "vectorize",

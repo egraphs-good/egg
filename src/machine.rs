@@ -33,55 +33,6 @@ enum ENodeOrReg<L> {
     Reg(Reg),
 }
 
-#[inline(always)]
-fn for_each_matching_node<L, D>(
-    eclass: &EClass<L, D>,
-    node: &L,
-    mut f: impl FnMut(&L) -> Result,
-) -> Result
-where
-    L: Language,
-{
-    if eclass.nodes.len() < 50 {
-        eclass
-            .nodes
-            .iter()
-            .filter(|n| node.matches(n))
-            .try_for_each(f)
-    } else {
-        debug_assert!(node.all(|id| id == Id::from(0)));
-        debug_assert!(eclass.nodes.windows(2).all(|w| w[0] < w[1]));
-        let mut start = eclass.nodes.binary_search(node).unwrap_or_else(|i| i);
-        let discrim = node.discriminant();
-        while start > 0 {
-            if eclass.nodes[start - 1].discriminant() == discrim {
-                start -= 1;
-            } else {
-                break;
-            }
-        }
-        let mut matching = eclass.nodes[start..]
-            .iter()
-            .take_while(|&n| n.discriminant() == discrim)
-            .filter(|n| node.matches(n));
-        debug_assert_eq!(
-            matching.clone().count(),
-            eclass.nodes.iter().filter(|n| node.matches(n)).count(),
-            "matching node {:?}\nstart={}\n{:?} != {:?}\nnodes: {:?}",
-            node,
-            start,
-            matching.clone().collect::<HashSet<_>>(),
-            eclass
-                .nodes
-                .iter()
-                .filter(|n| node.matches(n))
-                .collect::<HashSet<_>>(),
-            eclass.nodes
-        );
-        matching.try_for_each(&mut f)
-    }
-}
-
 impl Machine {
     #[inline(always)]
     fn reg(&self, reg: Reg) -> Id {
@@ -104,7 +55,8 @@ impl Machine {
             match instruction {
                 Instruction::Bind { i, out, node } => {
                     let remaining_instructions = instructions.as_slice();
-                    return for_each_matching_node(&egraph[self.reg(*i)], node, |matched| {
+                    let eclass = &egraph[self.reg(*i)];
+                    return eclass.for_each_matching_node(node, |matched| {
                         self.reg.truncate(out.0 as usize);
                         matched.for_each(|id| self.reg.push(id));
                         self.run(egraph, remaining_instructions, subst, yield_fn)
@@ -190,11 +142,11 @@ impl<L: Language> Compiler<L> {
     }
 
     fn load_pattern(&mut self, pattern: &PatternAst<L>) {
-        let len = pattern.as_ref().len();
+        let len = pattern.len();
         self.free_vars = Vec::with_capacity(len);
         self.subtree_size = Vec::with_capacity(len);
 
-        for node in pattern.as_ref() {
+        for node in pattern {
             let mut free = HashSet::default();
             let mut size = 0;
             match node {
@@ -247,7 +199,7 @@ impl<L: Language> Compiler<L> {
 
     fn compile(&mut self, patternbinder: Option<Var>, pattern: &PatternAst<L>) {
         self.load_pattern(pattern);
-        let last_i = pattern.as_ref().len() - 1;
+        let root = pattern.root();
 
         let mut next_out = self.next_reg;
 
@@ -259,13 +211,13 @@ impl<L: Language> Compiler<L> {
                 comp.instructions
                     .push(Instruction::Scan { out: comp.next_reg });
             }
-            comp.add_todo(pattern, Id::from(last_i), comp.next_reg);
+            comp.add_todo(pattern, root, comp.next_reg);
         };
 
         if let Some(v) = patternbinder {
             if let Some(&i) = self.v2r.get(&v) {
                 // patternbinder already bound
-                self.add_todo(pattern, Id::from(last_i), i);
+                self.add_todo(pattern, root, i);
             } else {
                 // patternbinder is new variable
                 next_out.0 += 1;
@@ -284,7 +236,6 @@ impl<L: Language> Compiler<L> {
                 self.instructions.push(Instruction::Lookup {
                     i: reg,
                     term: extracted
-                        .as_ref()
                         .iter()
                         .map(|n| match n {
                             ENodeOrVar::ENode(n) => ENodeOrReg::ENode(n.clone()),

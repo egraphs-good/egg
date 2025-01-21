@@ -46,12 +46,6 @@ struct ExplainNode {
     // neighbors includes parent connections
     neighbors: Vec<Connection>,
     parent_connection: Connection,
-    // it was inserted because of:
-    // 1) it's parent is inserted (points to parent enode)
-    // 2) a rewrite instantiated it (points to adjacent enode)
-    // 3) it was inserted directly (points to itself)
-    // if 1 is true but it's also adjacent (2) then either works and it picks 2
-    existance_node: Id,
 }
 
 #[derive(Debug, Clone)]
@@ -792,11 +786,9 @@ impl<L: Language> FlatTerm<L> {
     /// Rewrite the FlatTerm by matching the lhs and substituting the rhs.
     /// The lhs must be guaranteed to match.
     pub fn rewrite(&self, lhs: &PatternAst<L>, rhs: &PatternAst<L>) -> FlatTerm<L> {
-        let lhs_nodes = lhs.as_ref();
-        let rhs_nodes = rhs.as_ref();
         let mut bindings = Default::default();
-        self.make_bindings(lhs_nodes, lhs_nodes.len() - 1, &mut bindings);
-        FlatTerm::from_pattern(rhs_nodes, rhs_nodes.len() - 1, &bindings)
+        self.make_bindings(lhs, lhs.len() - 1, &mut bindings);
+        FlatTerm::from_pattern(rhs, rhs.len() - 1, &bindings)
     }
 
     /// Checks if this term or any child has a [`forward_rule`](FlatTerm::forward_rule).
@@ -916,11 +908,7 @@ impl<L: Language> Explain<L> {
         }
     }
 
-    pub(crate) fn set_existance_reason(&mut self, node: Id, existance_node: Id) {
-        self.explainfind[usize::from(node)].existance_node = existance_node;
-    }
-
-    pub(crate) fn add(&mut self, node: L, set: Id, existance_node: Id) -> Id {
+    pub(crate) fn add(&mut self, node: L, set: Id) -> Id {
         assert_eq!(self.explainfind.len(), usize::from(set));
         self.uncanon_memo.insert(node, set);
         self.explainfind.push(ExplainNode {
@@ -931,7 +919,6 @@ impl<L: Language> Explain<L> {
                 next: set,
                 current: set,
             },
-            existance_node,
         });
         set
     }
@@ -988,18 +975,9 @@ impl<L: Language> Explain<L> {
             .insert((node2, node1), (BigUint::one(), node1));
     }
 
-    pub(crate) fn union(
-        &mut self,
-        node1: Id,
-        node2: Id,
-        justification: Justification,
-        new_rhs: bool,
-    ) {
+    pub(crate) fn union(&mut self, node1: Id, node2: Id, justification: Justification) {
         if let Justification::Congruence = justification {
             // assert!(self.node(node1).matches(self.node(node2)));
-        }
-        if new_rhs {
-            self.set_existance_reason(node2, node1)
         }
 
         self.make_leader(node1);
@@ -1105,21 +1083,6 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
         for i in 0..self.explainfind.len() {
             let explain_node = &self.explainfind[i];
 
-            // check that explanation reasons never form a cycle
-            let mut existance = i;
-            let mut seen_existance: HashSet<usize> = Default::default();
-            loop {
-                seen_existance.insert(existance);
-                let next = usize::from(self.explainfind[existance].existance_node);
-                if existance == next {
-                    break;
-                }
-                existance = next;
-                if seen_existance.contains(&existance) {
-                    panic!("Cycle in existance!");
-                }
-            }
-
             if explain_node.parent_connection.next != Id::from(i) {
                 let mut current_explanation = self.node_to_flat_explanation(Id::from(i));
                 let mut next_explanation =
@@ -1159,17 +1122,6 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
         let mut cache = Default::default();
         let mut enode_cache = Default::default();
         Explanation::new(self.explain_enodes(left, right, &mut cache, &mut enode_cache, false))
-    }
-
-    pub(crate) fn explain_existance(&mut self, left: Id) -> Explanation<L> {
-        let mut cache = Default::default();
-        let mut enode_cache = Default::default();
-        Explanation::new(self.explain_enode_existance(
-            left,
-            self.node_to_explanation(left, &mut enode_cache),
-            &mut cache,
-            &mut enode_cache,
-        ))
     }
 
     fn common_ancestor(&self, mut left: Id, mut right: Id) -> Id {
@@ -1255,62 +1207,6 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
         let (restleft, right_connections) = self.get_path_unoptimized(left, right);
         left_connections.extend(restleft);
         (left_connections, right_connections)
-    }
-
-    fn explain_enode_existance(
-        &self,
-        node: Id,
-        rest_of_proof: Rc<TreeTerm<L>>,
-        cache: &mut ExplainCache<L>,
-        enode_cache: &mut NodeExplanationCache<L>,
-    ) -> TreeExplanation<L> {
-        let graphnode = &self.explainfind[usize::from(node)];
-        let existance = graphnode.existance_node;
-        let existance_node = &self.explainfind[usize::from(existance)];
-        // case 1)
-        if existance == node {
-            return vec![self.node_to_explanation(node, enode_cache), rest_of_proof];
-        }
-
-        // case 2)
-        if graphnode.parent_connection.next == existance
-            || existance_node.parent_connection.next == node
-        {
-            let mut connection = if graphnode.parent_connection.next == existance {
-                graphnode.parent_connection.clone()
-            } else {
-                existance_node.parent_connection.clone()
-            };
-
-            if graphnode.parent_connection.next == existance {
-                connection.is_rewrite_forward = !connection.is_rewrite_forward;
-                std::mem::swap(&mut connection.next, &mut connection.current);
-            }
-
-            let adj = self.explain_adjacent(connection, cache, enode_cache, false);
-            let mut exp = self.explain_enode_existance(existance, adj, cache, enode_cache);
-            exp.push(rest_of_proof);
-            return exp;
-        }
-
-        // case 3)
-        let mut new_rest_of_proof = (*self.node_to_explanation(existance, enode_cache)).clone();
-        let mut index_of_child = 0;
-        let mut found = false;
-        self.node(existance).for_each(|child| {
-            if found {
-                return;
-            }
-            if child == node {
-                found = true;
-            } else {
-                index_of_child += 1;
-            }
-        });
-        assert!(found);
-        new_rest_of_proof.child_proofs[index_of_child].push(rest_of_proof);
-
-        self.explain_enode_existance(existance, Rc::new(new_rest_of_proof), cache, enode_cache)
     }
 
     fn explain_enodes(
@@ -1619,8 +1515,8 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
                     for other in others.iter() {
                         congruence_neighbors[usize::from(*enode)].push(*other);
                         congruence_neighbors[usize::from(*other)].push(*enode);
+                        counter += 1;
                     }
-                    counter += 1;
                     others.push(*enode);
                 } else {
                     counter += 1;
@@ -2049,35 +1945,6 @@ mod tests {
         );
 
         egraph.dot().to_dot("target/foo.dot").unwrap();
-    }
-
-    #[test]
-    fn simple_explain_exists() {
-        //! Same as previous test, but now I want to make a rewrite add some term and see it exists in
-        //! more then one step
-        use crate::SymbolLang;
-        init_logger();
-
-        let rws: Vec<Rewrite<SymbolLang, ()>> =
-            [rewrite!("makeb"; "a" => "b"), rewrite!("makec"; "b" => "c")].to_vec();
-        let mut egraph = Runner::default()
-            .with_explanations_enabled()
-            .without_explanation_length_optimization()
-            .with_expr(&"a".parse().unwrap())
-            .run(&rws)
-            .egraph;
-        egraph.rebuild();
-        let _a: Symbol = "a".parse().unwrap();
-        let _b: Symbol = "b".parse().unwrap();
-        let _c: Symbol = "c".parse().unwrap();
-        let mut exp = egraph.explain_existance(&"c".parse().unwrap());
-        println!("{:?}", exp.make_flat_explanation());
-        assert_eq!(
-            exp.make_flat_explanation().len(),
-            3,
-            "Expected 3 steps, got {:?}",
-            exp.make_flat_explanation()
-        );
     }
 }
 

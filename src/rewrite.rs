@@ -524,10 +524,10 @@ where
     N: Analysis<L>,
 {
     fn check(&self, egraph: &mut EGraph<L, N>, _eclass: Id, subst: &Subst) -> bool {
-        let mut id_buf_1 = vec![0.into(); self.p1.ast.as_ref().len()];
-        let mut id_buf_2 = vec![0.into(); self.p2.ast.as_ref().len()];
-        let a1 = apply_pat(&mut id_buf_1, self.p1.ast.as_ref(), egraph, subst);
-        let a2 = apply_pat(&mut id_buf_2, self.p2.ast.as_ref(), egraph, subst);
+        let mut id_buf_1 = vec![0.into(); self.p1.ast.len()];
+        let mut id_buf_2 = vec![0.into(); self.p2.ast.len()];
+        let a1 = apply_pat(&mut id_buf_1, &self.p1.ast, egraph, subst);
+        let a2 = apply_pat(&mut id_buf_2, &self.p2.ast, egraph, subst);
         a1 == a2
     }
 
