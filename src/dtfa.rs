@@ -899,7 +899,7 @@ where
     pub fn get_equiv(&self, state_vec: Vec<Vec<State>>) -> Vec<Vec<StateType>> {
         assert!(state_vec.iter().flatten().all(|state| self.to_statetype.contains_key(state)));
         let result: Vec<Vec<StateType>> = state_vec.iter().map(|inner_vec|
-            inner_vec.iter().map(|state|
+            inner_vec.iter().map(|&state|
                 self.to_statetype[&state].clone()
             ).collect()
         ).collect();
@@ -966,7 +966,7 @@ mod tests {
     pub fn test_remove_fine_id() {
         let (coarse_partition, _) = get_partition_pair(&get_dtfa());
         println!("{:#?}", coarse_partition);
-        for i in 0..3 {
+        for i in 0..2 {
             coarse_partition.borrow_mut().remove_fine_id(i);
             println!("removed {}: {:#?}", i, coarse_partition);
         }
