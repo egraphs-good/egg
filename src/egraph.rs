@@ -6,7 +6,7 @@ use std::{
 };
 
 use dtfa::{Dtfa, DtfaMapper};
-use hashbrown::HashSet;
+
 #[cfg(feature = "serde-1")]
 use serde::{Deserialize, Serialize};
 
@@ -576,9 +576,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     }
 
     fn get_dtfa_states(&self) -> HashSet<Id> {
-        let result: HashSet<Id> = self.classes().map(|eclass|
-            self.find(eclass.id)
-        ).collect();
+        let result: HashSet<Id> = self.classes().map(|eclass| self.find(eclass.id)).collect();
 
         assert!(!result.is_empty());
         return result;
@@ -590,10 +588,14 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
 
         assert!(!result.is_empty());
         return result;
-    } 
+    }
 
     fn get_dtfa_symbols(&self) -> HashSet<L> {
-        let result: HashSet<L> = self.classes().flat_map(|eclass| eclass.iter()).cloned().collect();
+        let result: HashSet<L> = self
+            .classes()
+            .flat_map(|eclass| eclass.iter())
+            .cloned()
+            .collect();
 
         assert!(!result.is_empty());
         return result;
@@ -603,9 +605,12 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         for eclass in self.classes() {
             let output_state = self.find(eclass.id);
             for symbol in eclass.iter() {
-                let input_state: Vec<Id> = symbol.children().iter().cloned().map(|state|
-                    self.find(state)
-                ).collect();
+                let input_state: Vec<Id> = symbol
+                    .children()
+                    .iter()
+                    .cloned()
+                    .map(|state| self.find(state))
+                    .collect();
                 dtfa_map.add_rule(symbol.clone(), input_state, output_state);
             }
         }
@@ -633,14 +638,16 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// Minimizes the Egraph
     pub fn minimize(&mut self, runner_roots: &Vec<Id>) {
         let mut dtfa_map: DtfaMapper<Id, L> = DtfaMapper::new(
-            self.get_dtfa_states(), self.get_dtfa_accepting(runner_roots), self.get_dtfa_symbols()
+            self.get_dtfa_states(),
+            self.get_dtfa_accepting(runner_roots),
+            self.get_dtfa_symbols(),
         );
         self.add_dtfa_rules_to_mapper(&mut dtfa_map);
 
         let dtfa: Dtfa = Dtfa::new(
             dtfa_map.get_states(),
             dtfa_map.get_accepting_states(),
-            dtfa_map.get_rules()
+            dtfa_map.get_rules(),
         );
 
         self.merge_equiv_eclasses(dtfa_map.get_equiv(dtfa.minimize()));
