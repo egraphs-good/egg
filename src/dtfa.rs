@@ -1004,7 +1004,7 @@ mod tests {
                 SymbolicRule::new(symbol_id[&'f'], vec![2, 1], 4),
             ],
         );
-        return automaton;
+        automaton
     }
 
     pub fn get_partition_pair(automaton: &Dtfa) -> (CoarsePartitionPtr, FinePartitionPtr) {
@@ -1018,7 +1018,7 @@ mod tests {
 
         //link p to r
         p.borrow_mut().set_fine_partition(r.clone());
-        return (p, r);
+        (p, r)
     }
 
     #[test]

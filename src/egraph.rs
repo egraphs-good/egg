@@ -636,7 +636,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     }
 
     /// Minimizes the Egraph
-    pub fn minimize(&mut self, runner_roots: &Vec<Id>) {
+    pub fn minimize(&mut self, runner_roots: &[Id]) {
         let mut dtfa_map: DtfaMapper<Id, L> = DtfaMapper::new(
             self.get_dtfa_states(),
             self.get_dtfa_accepting(runner_roots),
