@@ -1034,15 +1034,20 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     fn make_new_eclass(&mut self, enode: L, original: L) -> Id {
         let id = self.unionfind.make_set();
         log::trace!("  ...adding to {}", id);
+
+        // This is a hack to avoid needing a default for L, or to clone `original`
+        debug_assert_eq!(Id::from(self.nodes.len()), id);
+        self.nodes.push(enode.clone());
+
         let class = EClass {
             id,
-            nodes: vec![enode.clone()],
+            nodes: vec![enode],
             data: N::make(self, &original),
             parents: Default::default(),
         };
 
-        debug_assert_eq!(Id::from(self.nodes.len()), id);
-        self.nodes.push(original);
+        let mut enode = original;
+        std::mem::swap(&mut enode, &mut self.nodes[id.0 as usize]);
 
         // add this enode to the parent lists of its children
         enode.for_each(|child| {
