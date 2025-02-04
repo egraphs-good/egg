@@ -1007,7 +1007,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                     *existing_explain
                 } else {
                     let new_id = self.unionfind.make_set();
-                    explain.add(original.clone(), new_id);
+                    explain.initialize_up_to(original.clone(), new_id);
                     debug_assert_eq!(Id::from(self.nodes.len()), new_id);
                     self.nodes.push(original);
                     self.unionfind.union(id, new_id);

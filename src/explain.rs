@@ -908,20 +908,20 @@ impl<L: Language> Explain<L> {
         }
     }
 
-    pub(crate) fn add(&mut self, node: L, set: Id) -> Id {
-        assert_eq!(self.explainfind.len(), usize::from(set));
-        self.uncanon_memo.insert(node, set);
-        self.explainfind.push(ExplainNode {
-            neighbors: vec![],
-            parent_connection: Connection {
-                justification: Justification::Congruence,
-                is_rewrite_forward: false,
-                next: set,
-                current: set,
-            },
-        });
-        set
-    }
+    // pub(crate) fn add(&mut self, node: L, set: Id) -> Id {
+    //     assert_eq!(self.explainfind.len(), usize::from(set));
+    //     self.uncanon_memo.insert(node, set);
+    //     self.explainfind.push(ExplainNode {
+    //         neighbors: vec![],
+    //         parent_connection: Connection {
+    //             justification: Justification::Congruence,
+    //             is_rewrite_forward: false,
+    //             next: set,
+    //             current: set,
+    //         },
+    //     });
+    //     set
+    // }
 
     pub(crate) fn initialize_up_to(&mut self, node: L, set: Id) -> usize {
         let mut ix = self.explainfind.len();
