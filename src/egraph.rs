@@ -1020,7 +1020,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         } else {
             let id = self.make_new_eclass(enode, original.clone());
             if let Some(explain) = self.explain.as_mut() {
-                explain.add(original, id);
+                explain.initialize_up_to(original, id);
             }
 
             // now that we updated explanations, run the analysis for the new eclass
@@ -1035,19 +1035,14 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         let id = self.unionfind.make_set();
         log::trace!("  ...adding to {}", id);
 
-        // This is a hack to avoid needing a default for L, or to clone `original`
-        debug_assert_eq!(Id::from(self.nodes.len()), id);
-        self.nodes.push(enode.clone());
+        self.nodes.push(original.clone());
 
         let class = EClass {
             id,
-            nodes: vec![enode],
+            nodes: vec![enode.clone()],
             data: N::make(self, &original),
             parents: Default::default(),
         };
-
-        let mut enode = original;
-        std::mem::swap(&mut enode, &mut self.nodes[id.0 as usize]);
 
         // add this enode to the parent lists of its children
         enode.for_each(|child| {
