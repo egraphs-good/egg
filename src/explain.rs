@@ -926,7 +926,7 @@ impl<L: Language> Explain<L> {
     pub(crate) fn initialize_up_to(&mut self, node: L, set: Id) -> usize {
         let mut ix = self.explainfind.len();
         let mut added = 0;
-        while ix < usize::from(set) {
+        while ix <= usize::from(set) {
             let set_ix = ix.into();
             self.uncanon_memo.insert(node.clone(), set_ix);
             self.explainfind.push(ExplainNode {
