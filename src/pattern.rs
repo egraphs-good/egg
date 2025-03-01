@@ -62,7 +62,7 @@ use crate::*;
 /// ```
 ///
 /// [`FromStr`]: std::str::FromStr
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Pattern<L> {
     /// The actual pattern as a [`RecExpr`]
     pub ast: PatternAst<L>,
