@@ -1049,7 +1049,7 @@
 ///
 /// [`apply_one`]: Applier::apply_one()
 /// [`check`]: Condition::check()
-</span><span class="attr">#[derive(Clone, Debug)]
+</span><span class="attr">#[derive(Clone, Debug, PartialEq, Eq)]
 </span><span class="kw">pub struct </span>ConditionalApplier&lt;C, A&gt; {
     <span class="doccomment">/// The [`Condition`] to [`check`] before calling [`apply_one`] on
     /// `applier`.
@@ -1144,7 +1144,7 @@
 /// This condition adds its two [`Pattern`] to the egraph and passes
 /// if and only if they are equivalent (in the same eclass).
 ///
-</span><span class="attr">#[derive(Debug)]
+</span><span class="attr">#[derive(Debug, Clone, PartialEq, Eq)]
 </span><span class="kw">pub struct </span>ConditionEqual&lt;L&gt; {
     p1: Pattern&lt;L&gt;,
     p2: Pattern&lt;L&gt;,
