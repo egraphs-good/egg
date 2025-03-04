@@ -38,6 +38,7 @@ pub mod test;
 pub mod tutorials;
 
 mod dot;
+mod dtfa;
 mod eclass;
 mod egraph;
 mod explain;

@@ -33,6 +33,7 @@ vectorize = {version = "0.2.0", optional = true}
 
 # for the reports feature
 saturating = "0.1.0"
+derivative = "2.2.0"
 serde_json = {version = "1.0.81", optional = true}
 
 [dev-dependencies]
