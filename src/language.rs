@@ -795,7 +795,7 @@ pub trait Analysis<L: Language>: Sized {
     /// Doing so will create an infinite loop.
     ///
     /// Note that `enode`'s children may not be canonical
-    fn make(egraph: &mut EGraph<L, Self>, enode: &L) -> Self::Data;
+    fn make(egraph: &mut EGraph<L, Self>, enode: &L, id: &Id) -> Self::Data;
 
     /// An optional hook that allows inspection before a [`union`] occurs.
     /// When explanations are enabled, it gives two ids that represent the two particular terms being unioned, not the canonical ids for the two eclasses.
@@ -862,7 +862,7 @@ pub trait Analysis<L: Language>: Sized {
 
 impl<L: Language> Analysis<L> for () {
     type Data = ();
-    fn make(_egraph: &mut EGraph<L, Self>, _enode: &L) -> Self::Data {}
+    fn make(_egraph: &mut EGraph<L, Self>, _enode: &L, _id: &Id) -> Self::Data {}
     fn merge(&mut self, _: &mut Self::Data, _: Self::Data) -> DidMerge {
         DidMerge(false, false)
     }
