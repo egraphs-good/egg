@@ -494,7 +494,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             panic!(
                 "Tried to explain equivalence between non-equal terms {:?} and {:?}",
                 self.id_to_expr(left),
-                self.id_to_expr(left)
+                self.id_to_expr(right)
             );
         }
         if let Some(explain) = &mut self.explain {
