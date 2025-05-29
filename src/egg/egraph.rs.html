@@ -1991,7 +1991,7 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
             <span class="macro">panic!</span>(
                 <span class="string">"Tried to explain equivalence between non-equal terms {:?} and {:?}"</span>,
                 <span class="self">self</span>.id_to_expr(left),
-                <span class="self">self</span>.id_to_expr(left)
+                <span class="self">self</span>.id_to_expr(right)
             );
         }
         <span class="kw">if let </span><span class="prelude-val">Some</span>(explain) = <span class="kw-2">&amp;mut </span><span class="self">self</span>.explain {
