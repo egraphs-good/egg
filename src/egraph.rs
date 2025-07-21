@@ -1037,7 +1037,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         let class = EClass {
             id,
             nodes: vec![enode.clone()],
-            data: N::make(self, &original),
+            data: N::make(self, &original, id),
             parents: Default::default(),
         };
 
@@ -1345,7 +1345,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
             while let Some(class_id) = self.analysis_pending.pop() {
                 let node = self.nodes[usize::from(class_id)].clone();
                 let class_id = self.find_mut(class_id);
-                let node_data = N::make(self, &node);
+                let node_data = N::remake(self, &node, class_id);
                 let class = self.classes.get_mut(&class_id).unwrap();
 
                 let did_merge = self.analysis.merge(&mut class.data, node_data);

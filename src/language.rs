@@ -745,7 +745,7 @@ impl Analysis<SimpleMath> for ConstantFolding {
         egg::merge_max(to, from)
     }
 
-    fn make(egraph: &mut EGraph<SimpleMath, Self>, enode: &SimpleMath) -> Self::Data {
+    fn make(egraph: &mut EGraph<SimpleMath, Self>, enode: &SimpleMath, _id: Id) -> Self::Data {
         let x = |i: &Id| egraph[*i].data;
         match enode {
             SimpleMath::Num(n) => Some(*n),
@@ -785,7 +785,7 @@ pub trait Analysis<L: Language>: Sized {
     /// The per-[`EClass`] data for this analysis.
     type Data: Debug;
 
-    /// Makes a new [`Analysis`] data for a given e-node.
+    /// Makes a new [`Analysis`] data for a given e-node that will go into the given e-class.
     ///
     /// Note the mutable `egraph` parameter: this is needed for some
     /// advanced use cases, but most use cases will not need to mutate
@@ -795,7 +795,14 @@ pub trait Analysis<L: Language>: Sized {
     /// Doing so will create an infinite loop.
     ///
     /// Note that `enode`'s children may not be canonical
-    fn make(egraph: &mut EGraph<L, Self>, enode: &L) -> Self::Data;
+    fn make(egraph: &mut EGraph<L, Self>, enode: &L, id: Id) -> Self::Data;
+
+    /// Same as [`Analysis::make`], but called during rebuilding.
+    ///
+    /// By default, it just calls `make`.
+    fn remake(egraph: &mut EGraph<L, Self>, enode: &L, id: Id) -> Self::Data {
+        Self::make(egraph, enode, id)
+    }
 
     /// An optional hook that allows inspection before a [`union`] occurs.
     /// When explanations are enabled, it gives two ids that represent the two particular terms being unioned, not the canonical ids for the two eclasses.
@@ -862,7 +869,7 @@ pub trait Analysis<L: Language>: Sized {
 
 impl<L: Language> Analysis<L> for () {
     type Data = ();
-    fn make(_egraph: &mut EGraph<L, Self>, _enode: &L) -> Self::Data {}
+    fn make(_egraph: &mut EGraph<L, Self>, _enode: &L, _id: Id) -> Self::Data {}
     fn merge(&mut self, _: &mut Self::Data, _: Self::Data) -> DidMerge {
         DidMerge(false, false)
     }
