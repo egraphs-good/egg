@@ -978,6 +978,13 @@
 <a href="#978" id="978">978</a>
 <a href="#979" id="979">979</a>
 <a href="#980" id="980">980</a>
+<a href="#981" id="981">981</a>
+<a href="#982" id="982">982</a>
+<a href="#983" id="983">983</a>
+<a href="#984" id="984">984</a>
+<a href="#985" id="985">985</a>
+<a href="#986" id="986">986</a>
+<a href="#987" id="987">987</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::{Borrow, BorrowMut};
 <span class="kw">use </span>std::iter::FromIterator;
 <span class="kw">use </span>std::ops::{BitOr, Deref, DerefMut, Index, IndexMut};
@@ -1725,7 +1732,7 @@ impl Analysis&lt;SimpleMath&gt; for ConstantFolding {
         egg::merge_max(to, from)
     }
 
-    fn make(egraph: &amp;mut EGraph&lt;SimpleMath, Self&gt;, enode: &amp;SimpleMath) -&gt; Self::Data {
+    fn make(egraph: &amp;mut EGraph&lt;SimpleMath, Self&gt;, enode: &amp;SimpleMath, _id: Id) -&gt; Self::Data {
         let x = |i: &amp;Id| egraph[*i].data;
         match enode {
             SimpleMath::Num(n) =&gt; Some(*n),
@@ -1765,7 +1772,7 @@ assert_eq!(runner.egraph.find(runner.roots[0]), runner.egraph.find(just_foo));
     <span class="doccomment">/// The per-[`EClass`] data for this analysis.
     </span><span class="kw">type </span>Data: Debug;
 
-    <span class="doccomment">/// Makes a new [`Analysis`] data for a given e-node.
+    <span class="doccomment">/// Makes a new [`Analysis`] data for a given e-node that will go into the given e-class.
     ///
     /// Note the mutable `egraph` parameter: this is needed for some
     /// advanced use cases, but most use cases will not need to mutate
@@ -1775,7 +1782,14 @@ assert_eq!(runner.egraph.find(runner.roots[0]), runner.egraph.find(just_foo));
     /// Doing so will create an infinite loop.
     ///
     /// Note that `enode`'s children may not be canonical
-    </span><span class="kw">fn </span>make(egraph: <span class="kw-2">&amp;mut </span>EGraph&lt;L, <span class="self">Self</span>&gt;, enode: <span class="kw-2">&amp;</span>L) -&gt; <span class="self">Self</span>::Data;
+    </span><span class="kw">fn </span>make(egraph: <span class="kw-2">&amp;mut </span>EGraph&lt;L, <span class="self">Self</span>&gt;, enode: <span class="kw-2">&amp;</span>L, id: Id) -&gt; <span class="self">Self</span>::Data;
+
+    <span class="doccomment">/// Same as [`Analysis::make`], but called during rebuilding.
+    ///
+    /// By default, it just calls `make`.
+    </span><span class="kw">fn </span>remake(egraph: <span class="kw-2">&amp;mut </span>EGraph&lt;L, <span class="self">Self</span>&gt;, enode: <span class="kw-2">&amp;</span>L, id: Id) -&gt; <span class="self">Self</span>::Data {
+        <span class="self">Self</span>::make(egraph, enode, id)
+    }
 
     <span class="doccomment">/// An optional hook that allows inspection before a [`union`] occurs.
     /// When explanations are enabled, it gives two ids that represent the two particular terms being unioned, not the canonical ids for the two eclasses.
@@ -1842,7 +1856,7 @@ assert_eq!(runner.egraph.find(runner.roots[0]), runner.egraph.find(just_foo));
 
 <span class="kw">impl</span>&lt;L: Language&gt; Analysis&lt;L&gt; <span class="kw">for </span>() {
     <span class="kw">type </span>Data = ();
-    <span class="kw">fn </span>make(_egraph: <span class="kw-2">&amp;mut </span>EGraph&lt;L, <span class="self">Self</span>&gt;, _enode: <span class="kw-2">&amp;</span>L) -&gt; <span class="self">Self</span>::Data {}
+    <span class="kw">fn </span>make(_egraph: <span class="kw-2">&amp;mut </span>EGraph&lt;L, <span class="self">Self</span>&gt;, _enode: <span class="kw-2">&amp;</span>L, _id: Id) -&gt; <span class="self">Self</span>::Data {}
     <span class="kw">fn </span>merge(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="kw-2">&amp;mut </span><span class="self">Self</span>::Data, <span class="kw">_</span>: <span class="self">Self</span>::Data) -&gt; DidMerge {
         DidMerge(<span class="bool-val">false</span>, <span class="bool-val">false</span>)
     }

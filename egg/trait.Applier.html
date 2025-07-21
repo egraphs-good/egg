@@ -54,7 +54,7 @@ you from having to implement your own applier.</p>
     <span class="kw">fn </span>merge(<span class="kw-2">&amp;mut </span><span class="self">self</span>, to: <span class="kw-2">&amp;mut </span><span class="self">Self</span>::Data, from: <span class="self">Self</span>::Data) -&gt; DidMerge {
         merge_min(to, from)
     }
-    <span class="kw">fn </span>make(egraph: <span class="kw-2">&amp;mut </span>EGraph, enode: <span class="kw-2">&amp;</span>Math) -&gt; <span class="self">Self</span>::Data {
+    <span class="kw">fn </span>make(egraph: <span class="kw-2">&amp;mut </span>EGraph, enode: <span class="kw-2">&amp;</span>Math, _id: Id) -&gt; <span class="self">Self</span>::Data {
         <span class="kw">let </span>get_size = |i: Id| egraph[i].data;
         AstSize.cost(enode, get_size)
     }

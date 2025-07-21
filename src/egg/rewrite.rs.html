@@ -901,7 +901,7 @@
 ///     fn merge(&amp;mut self, to: &amp;mut Self::Data, from: Self::Data) -&gt; DidMerge {
 ///         merge_min(to, from)
 ///     }
-///     fn make(egraph: &amp;mut EGraph, enode: &amp;Math) -&gt; Self::Data {
+///     fn make(egraph: &amp;mut EGraph, enode: &amp;Math, _id: Id) -&gt; Self::Data {
 ///         let get_size = |i: Id| egraph[i].data;
 ///         AstSize.cost(enode, get_size)
 ///     }

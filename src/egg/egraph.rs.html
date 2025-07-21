@@ -2534,7 +2534,7 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
         <span class="kw">let </span>class = EClass {
             id,
             nodes: <span class="macro">vec!</span>[enode.clone()],
-            data: N::make(<span class="self">self</span>, <span class="kw-2">&amp;</span>original),
+            data: N::make(<span class="self">self</span>, <span class="kw-2">&amp;</span>original, id),
             parents: Default::default(),
         };
 
@@ -2842,7 +2842,7 @@ You must call [`EGraph::rebuild`] after deserializing an e-graph!
             <span class="kw">while let </span><span class="prelude-val">Some</span>(class_id) = <span class="self">self</span>.analysis_pending.pop() {
                 <span class="kw">let </span>node = <span class="self">self</span>.nodes[usize::from(class_id)].clone();
                 <span class="kw">let </span>class_id = <span class="self">self</span>.find_mut(class_id);
-                <span class="kw">let </span>node_data = N::make(<span class="self">self</span>, <span class="kw-2">&amp;</span>node);
+                <span class="kw">let </span>node_data = N::remake(<span class="self">self</span>, <span class="kw-2">&amp;</span>node, class_id);
                 <span class="kw">let </span>class = <span class="self">self</span>.classes.get_mut(<span class="kw-2">&amp;</span>class_id).unwrap();
 
                 <span class="kw">let </span>did_merge = <span class="self">self</span>.analysis.merge(<span class="kw-2">&amp;mut </span>class.data, node_data);
