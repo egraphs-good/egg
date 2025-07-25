@@ -5,9 +5,9 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Cache cargo bin
-      uses: actions/cache@v2
+      uses: actions/cache@v4
       with:
         path: ~/.cargo/bin
         key: ${{ runner.os }}-cargo-bin
@@ -18,7 +18,7 @@ jobs:
   nits:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Install cargo deadlinks
       run: |
         curl -L -o ~/.cargo/bin/cargo-deadlinks https://github.com/deadlinks/cargo-deadlinks/releases/download/0.4.2/deadlinks-linux
