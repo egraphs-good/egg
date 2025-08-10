@@ -1007,7 +1007,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                     *existing_explain
                 } else {
                     let new_id = self.unionfind.make_set();
-                    explain.add(original.clone(), new_id);
+                    explain.initialize_up_to(original.clone(), new_id);
                     debug_assert_eq!(Id::from(self.nodes.len()), new_id);
                     self.nodes.push(original);
                     self.unionfind.union(id, new_id);
@@ -1020,7 +1020,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         } else {
             let id = self.make_new_eclass(enode, original.clone());
             if let Some(explain) = self.explain.as_mut() {
-                explain.add(original, id);
+                explain.initialize_up_to(original, id);
             }
 
             // now that we updated explanations, run the analysis for the new eclass
@@ -1034,15 +1034,15 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     fn make_new_eclass(&mut self, enode: L, original: L) -> Id {
         let id = self.unionfind.make_set();
         log::trace!("  ...adding to {}", id);
+
+        self.nodes.push(original.clone());
+
         let class = EClass {
             id,
             nodes: vec![enode.clone()],
             data: N::make(self, &original, id),
             parents: Default::default(),
         };
-
-        debug_assert_eq!(Id::from(self.nodes.len()), id);
-        self.nodes.push(original);
 
         // add this enode to the parent lists of its children
         enode.for_each(|child| {
