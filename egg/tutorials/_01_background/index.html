@@ -172,7 +172,7 @@ operators have equivalent arguments, making them equivalent.</p>
 <li>
 <p><strong>Uniqueness of e-nodes</strong></p>
 <p>There do not exist two distinct e-nodes with the same operators and equivalent
-children in the e-class, either in the same e-class or different e-classes.
+children in the e-graph, either in the same e-class or different e-classes.
 This is maintained in part by the hashconsing performed by <a href="../../struct.EGraph.html#method.add" title="method egg::EGraph::add"><code>add</code></a>,
 and by deduplication performed by <a href="../../struct.EGraph.html#method.union" title="method egg::EGraph::union"><code>union</code></a> and <a href="../../struct.EGraph.html#method.rebuild" title="method egg::EGraph::rebuild"><code>rebuild</code></a>.</p>
 </li>
@@ -243,7 +243,7 @@ that is optimal according to some cost function.
 equality saturation explores all possible variants of a
 program that can be derived from a set of rewrites,
 and then it extracts the best one.
-This solves the problem of choice describes above,
+This solves the problem of choice described above,
 as equality saturation essentially applies every rewrite every iteration,
 using the e-graph to avoid exponential explosion.</p>
 <p>It sounds a little too good to be true,
