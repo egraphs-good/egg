@@ -137,7 +137,7 @@ where
             }
         }
 
-        dbg!(max_order);
+        log::debug!("max_order = {max_order}");
 
         Self {
             egraph,
