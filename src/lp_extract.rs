@@ -137,7 +137,7 @@ where
             }
         }
 
-        dbg!(max_order);
+        log::debug!("max_order = {max_order}");
 
         Self {
             egraph,
@@ -202,7 +202,11 @@ where
             }
         }
 
-        let root_idxs = roots.iter().map(|root| ids[root]).collect();
+        let root_idxs = roots
+            .iter()
+            .map(|id| self.egraph.find(*id))
+            .map(|root| ids[&root])
+            .collect();
 
         assert!(expr.is_dag(), "LpExtract found a cyclic term!: {:?}", expr);
         (expr, root_idxs)
@@ -262,5 +266,23 @@ mod tests {
         println!("{}", exp);
         assert_eq!(exp.len(), 4);
         assert_eq!(ids.len(), 2);
+    }
+
+    #[test]
+    fn extract_root_mismatch() {
+        let mut egraph = EGraph::<S, ()>::default();
+        let a = egraph.add(S::leaf("a"));
+        let b = egraph.add(S::leaf("b"));
+        let plus1 = egraph.add(S::new("+", vec![a, b]));
+        let plus2 = egraph.add(S::new("+", vec![b, a]));
+        egraph.union(plus1, plus2);
+
+        let mut ext = LpExtractor::new(&egraph, AstSize);
+        ext.timeout(10.0); // way too much time
+        let (exp, ids) = ext.solve_multiple(&[plus2]);
+        println!("{:?}", exp);
+        println!("{}", exp);
+        assert_eq!(exp.len(), 3);
+        assert_eq!(ids.len(), 1);
     }
 }
