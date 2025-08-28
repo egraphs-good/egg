@@ -264,6 +264,28 @@
 <a href="#264" id="264">264</a>
 <a href="#265" id="265">265</a>
 <a href="#266" id="266">266</a>
+<a href="#267" id="267">267</a>
+<a href="#268" id="268">268</a>
+<a href="#269" id="269">269</a>
+<a href="#270" id="270">270</a>
+<a href="#271" id="271">271</a>
+<a href="#272" id="272">272</a>
+<a href="#273" id="273">273</a>
+<a href="#274" id="274">274</a>
+<a href="#275" id="275">275</a>
+<a href="#276" id="276">276</a>
+<a href="#277" id="277">277</a>
+<a href="#278" id="278">278</a>
+<a href="#279" id="279">279</a>
+<a href="#280" id="280">280</a>
+<a href="#281" id="281">281</a>
+<a href="#282" id="282">282</a>
+<a href="#283" id="283">283</a>
+<a href="#284" id="284">284</a>
+<a href="#285" id="285">285</a>
+<a href="#286" id="286">286</a>
+<a href="#287" id="287">287</a>
+<a href="#288" id="288">288</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>coin_cbc::{Col, Model, Sense};
 
 <span class="kw">use crate</span>::<span class="kw-2">*</span>;
@@ -403,7 +425,7 @@
             }
         }
 
-        <span class="macro">dbg!</span>(max_order);
+        <span class="macro">log::debug!</span>(<span class="string">"max_order = {max_order}"</span>);
 
         <span class="self">Self </span>{
             egraph,
@@ -468,7 +490,11 @@
             }
         }
 
-        <span class="kw">let </span>root_idxs = roots.iter().map(|root| ids[root]).collect();
+        <span class="kw">let </span>root_idxs = roots
+            .iter()
+            .map(|id| <span class="self">self</span>.egraph.find(<span class="kw-2">*</span>id))
+            .map(|root| ids[<span class="kw-2">&amp;</span>root])
+            .collect();
 
         <span class="macro">assert!</span>(expr.is_dag(), <span class="string">"LpExtract found a cyclic term!: {:?}"</span>, expr);
         (expr, root_idxs)
@@ -528,6 +554,24 @@
         <span class="macro">println!</span>(<span class="string">"{}"</span>, exp);
         <span class="macro">assert_eq!</span>(exp.len(), <span class="number">4</span>);
         <span class="macro">assert_eq!</span>(ids.len(), <span class="number">2</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>extract_root_mismatch() {
+        <span class="kw">let </span><span class="kw-2">mut </span>egraph = EGraph::&lt;S, ()&gt;::default();
+        <span class="kw">let </span>a = egraph.add(S::leaf(<span class="string">"a"</span>));
+        <span class="kw">let </span>b = egraph.add(S::leaf(<span class="string">"b"</span>));
+        <span class="kw">let </span>plus1 = egraph.add(S::new(<span class="string">"+"</span>, <span class="macro">vec!</span>[a, b]));
+        <span class="kw">let </span>plus2 = egraph.add(S::new(<span class="string">"+"</span>, <span class="macro">vec!</span>[b, a]));
+        egraph.union(plus1, plus2);
+
+        <span class="kw">let </span><span class="kw-2">mut </span>ext = LpExtractor::new(<span class="kw-2">&amp;</span>egraph, AstSize);
+        ext.timeout(<span class="number">10.0</span>); <span class="comment">// way too much time
+        </span><span class="kw">let </span>(exp, ids) = ext.solve_multiple(<span class="kw-2">&amp;</span>[plus2]);
+        <span class="macro">println!</span>(<span class="string">"{:?}"</span>, exp);
+        <span class="macro">println!</span>(<span class="string">"{}"</span>, exp);
+        <span class="macro">assert_eq!</span>(exp.len(), <span class="number">3</span>);
+        <span class="macro">assert_eq!</span>(ids.len(), <span class="number">1</span>);
     }
 }
 </code></pre></div></section></main></body></html>
