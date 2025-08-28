@@ -1,6 +1,8 @@
 use good_lp::{
-    default_solver, variable, variables, Expression, Solution, Solver, SolverModel, Variable,
+    default_solver, variable, variables, Expression, Solution, SolutionStatus, Solver, SolverModel,
+    Variable,
 };
+use std::time::Instant;
 
 use crate::*;
 
@@ -165,18 +167,22 @@ where
         solver: S,
     ) -> (RecExpr<L>, Vec<Id>) {
         let egraph = self.egraph;
+        let mut num_vars: usize = 0;
+        let mut num_cons: usize = 0;
 
         // Build variables per class
         let mut builder = variables!();
         let vars: HashMap<Id, ClassVars> = egraph
             .classes()
             .map(|class| {
+                num_vars += 1;
                 let active = builder.add(variable().binary());
                 let nodes = class
                     .nodes
                     .iter()
                     .enumerate()
                     .map(|(i, _)| {
+                        num_vars += 1;
                         if self.cyclic_nodes.contains(&(class.id, i)) {
                             // Force to 0 for cyclic nodes
                             builder.add(variable().binary().max(0).min(0))
@@ -198,7 +204,7 @@ where
             }
         }
 
-        // Build model using the provided solver (CBC by default if configured)
+        // Build model using the provided solver
         let mut model = builder.minimise(objective).using(solver);
 
         // Constraints:
@@ -209,6 +215,7 @@ where
                 .iter()
                 .copied()
                 .fold(0.0.into(), |acc, v| acc + v);
+            num_cons += 1;
             model.add_constraint((sum_nodes - class.active).eq(0));
 
             // For each chosen node, all children classes must be active: node_active <= child_active
@@ -220,6 +227,7 @@ where
                 }
                 for child in node.children() {
                     let child_active = vars[child].active;
+                    num_cons += 1;
                     model.add_constraint((node_active - child_active).leq(0));
                 }
             }
@@ -228,12 +236,29 @@ where
         // Ensure specified roots are active
         for root in roots {
             let root = &egraph.find(*root);
+            num_cons += 1;
             model.add_constraint(Expression::from(vars[root].active).geq(1));
         }
 
+        log::info!("Model using {num_vars} variables and {num_cons} constraints");
+        log::info!("Solving using {}", <S as Solver>::name(),);
+        let start = Instant::now();
         let solution = model
             .solve()
             .expect("good_lp failed to solve the ILP problem");
+        let duration = start.elapsed().as_secs_f64();
+        log::info!("Solution found in {:.2}s", duration);
+        match solution.status() {
+            SolutionStatus::Optimal => {
+                log::info!("Solution is optimal");
+            }
+            SolutionStatus::TimeLimit => {
+                log::warn!("Solver timed out, solution may not be optimal.");
+            }
+            SolutionStatus::GapLimit => {
+                log::info!("Solver reached gap limit, solution may not be optimal.");
+            }
+        };
 
         let mut todo: Vec<Id> = roots.iter().map(|id| self.egraph.find(*id)).collect();
         let mut expr = RecExpr::default();
