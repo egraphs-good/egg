@@ -286,7 +286,94 @@
 <a href="#286" id="286">286</a>
 <a href="#287" id="287">287</a>
 <a href="#288" id="288">288</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span>coin_cbc::{Col, Model, Sense};
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a>
+<a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a>
+<a href="#324" id="324">324</a>
+<a href="#325" id="325">325</a>
+<a href="#326" id="326">326</a>
+<a href="#327" id="327">327</a>
+<a href="#328" id="328">328</a>
+<a href="#329" id="329">329</a>
+<a href="#330" id="330">330</a>
+<a href="#331" id="331">331</a>
+<a href="#332" id="332">332</a>
+<a href="#333" id="333">333</a>
+<a href="#334" id="334">334</a>
+<a href="#335" id="335">335</a>
+<a href="#336" id="336">336</a>
+<a href="#337" id="337">337</a>
+<a href="#338" id="338">338</a>
+<a href="#339" id="339">339</a>
+<a href="#340" id="340">340</a>
+<a href="#341" id="341">341</a>
+<a href="#342" id="342">342</a>
+<a href="#343" id="343">343</a>
+<a href="#344" id="344">344</a>
+<a href="#345" id="345">345</a>
+<a href="#346" id="346">346</a>
+<a href="#347" id="347">347</a>
+<a href="#348" id="348">348</a>
+<a href="#349" id="349">349</a>
+<a href="#350" id="350">350</a>
+<a href="#351" id="351">351</a>
+<a href="#352" id="352">352</a>
+<a href="#353" id="353">353</a>
+<a href="#354" id="354">354</a>
+<a href="#355" id="355">355</a>
+<a href="#356" id="356">356</a>
+<a href="#357" id="357">357</a>
+<a href="#358" id="358">358</a>
+<a href="#359" id="359">359</a>
+<a href="#360" id="360">360</a>
+<a href="#361" id="361">361</a>
+<a href="#362" id="362">362</a>
+<a href="#363" id="363">363</a>
+<a href="#364" id="364">364</a>
+<a href="#365" id="365">365</a>
+<a href="#366" id="366">366</a>
+<a href="#367" id="367">367</a>
+<a href="#368" id="368">368</a>
+<a href="#369" id="369">369</a>
+<a href="#370" id="370">370</a>
+<a href="#371" id="371">371</a>
+</pre></div><pre class="rust"><code><span class="kw">use </span>good_lp::{
+    default_solver, variable, variables, Expression, Solution, SolutionStatus, Solver, SolverModel,
+    Variable,
+};
+<span class="kw">use </span>std::time::Instant;
 
 <span class="kw">use crate</span>::<span class="kw-2">*</span>;
 
@@ -308,18 +395,17 @@
 }
 
 <span class="doccomment">/// A structure to perform extraction using integer linear programming.
-/// This uses the [`cbc`](https://projects.coin-or.org/Cbc) solver.
-/// You must have it installed on your machine to use this feature.
-/// You can install it using:
+///
+/// This uses the [`good_lp`](https://docs.rs/good_lp) to support multiple solving
+/// backends. The default backend is [`cbc`](https://projects.coin-or.org/Cbc).
+/// You must have it installed on your machine or choose a different backend (see below).
+/// You can install `cbc` using:
 ///
 /// | OS               | Command                                  |
 /// |------------------|------------------------------------------|
 /// | Fedora / Red Hat | `sudo dnf install coin-or-Cbc-devel`     |
 /// | Ubuntu / Debian  | `sudo apt-get install coinor-libcbc-dev` |
 /// | macOS            | `brew install cbc`                       |
-///
-/// On macOS, you might also need the following in your `.zshrc` file:
-/// `export LIBRARY_PATH=$LIBRARY_PATH:$(brew --prefix)/lib`
 ///
 /// # Example
 /// ```
@@ -342,17 +428,56 @@
 /// assert_eq!(lp_best.to_string(), "(f x x x)");
 /// assert_eq!(lp_best.len(), 2);
 /// ```
+///
+/// # Configuring the LP backend
+///
+/// Enable the corresponding `good_lp` feature in your own crate. For example,
+/// in your `Cargo.toml`:
+///
+/// ```toml
+/// [dependencies]
+/// egg = { version = "0.10", features = ["lp"] }
+/// good_lp = { version = "1", features = ["coin_cbc"] } # or highs, microlp, etc.
+/// ```
+///
+/// See the (`good_lp` documentation)[https://docs.rs/good_lp/1/good_lp/solvers/index.html]
+///
+/// At run time, select the solver by calling [`Self::solve_with`] or [`Self::solve_multiple_with`]
+/// and passing one of the enabled `good_lp` solver implementations.
+///
+///  - Example (CBC):
+///   ```rust,ignore
+///   # use egg::*;
+///   use good_lp::coin_cbc;
+///   # let egraph: &amp;EGraph&lt;SymbolLang, ()&gt; = &amp;EGraph::default();
+///   # let root = Id::from(0usize);
+///   let rec = LpExtractor::new(egraph, AstSize)
+///     .solve_with(root, coin_cbc);
+///   # let _ = rec;
+///   ```
+/// - Example (HiGHS):
+///   ```rust,ignore
+///   # use egg::*;
+///   use good_lp::highs;
+///   # let egraph: &amp;EGraph&lt;SymbolLang, ()&gt; = &amp;EGraph::default();
+///   # let root = Id::from(0usize);
+///   let rec = LpExtractor::new(egraph, AstSize)
+///       .solve_with(root, highs);
+///   # let _ = rec;
+/// ```
+///
 </span><span class="attr">#[cfg_attr(docsrs, doc(cfg(feature = <span class="string">"lp"</span>)))]
 </span><span class="kw">pub struct </span>LpExtractor&lt;<span class="lifetime">'a</span>, L: Language, N: Analysis&lt;L&gt;&gt; {
     egraph: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>EGraph&lt;L, N&gt;,
-    model: Model,
-    vars: HashMap&lt;Id, ClassVars&gt;,
+    <span class="comment">// Precomputed per-node costs to avoid storing the cost function
+    </span>costs: HashMap&lt;Id, Vec&lt;f64&gt;&gt;, <span class="comment">// for each class id, cost per node index
+    // Nodes that would introduce cycles and must be disabled
+    </span>cyclic_nodes: HashSet&lt;(Id, usize)&gt;,
 }
 
 <span class="kw">struct </span>ClassVars {
-    active: Col,
-    order: Col,
-    nodes: Vec&lt;Col&gt;,
+    active: Variable,
+    nodes: Vec&lt;Variable&gt;,
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, L, N&gt; LpExtractor&lt;<span class="lifetime">'a</span>, L, N&gt;
@@ -366,79 +491,27 @@
     </span><span class="kw">where
         </span>CF: LpCostFunction&lt;L, N&gt;,
     {
-        <span class="kw">let </span>max_order = egraph.total_number_of_nodes() <span class="kw">as </span>f64 * <span class="number">10.0</span>;
-
-        <span class="kw">let </span><span class="kw-2">mut </span>model = Model::default();
-
-        <span class="kw">let </span>vars: HashMap&lt;Id, ClassVars&gt; = egraph
-            .classes()
-            .map(|class| {
-                <span class="kw">let </span>cvars = ClassVars {
-                    active: model.add_binary(),
-                    order: model.add_col(),
-                    nodes: class.nodes.iter().map(|<span class="kw">_</span>| model.add_binary()).collect(),
-                };
-                model.set_col_upper(cvars.order, max_order);
-                (class.id, cvars)
-            })
-            .collect();
-
-        <span class="kw">let </span><span class="kw-2">mut </span>cycles: HashSet&lt;(Id, usize)&gt; = Default::default();
+        <span class="comment">// Precompute costs per node and detect cyclic nodes once
+        </span><span class="kw">let </span><span class="kw-2">mut </span>cyclic_nodes: HashSet&lt;(Id, usize)&gt; = Default::default();
         find_cycles(egraph, |id, i| {
-            cycles.insert((id, i));
+            cyclic_nodes.insert((id, i));
         });
 
-        <span class="kw">for </span>(<span class="kw-2">&amp;</span>id, class) <span class="kw">in </span><span class="kw-2">&amp;</span>vars {
-            <span class="comment">// class active == some node active
-            // sum(for node_active in class) == class_active
-            </span><span class="kw">let </span>row = model.add_row();
-            model.set_row_equal(row, <span class="number">0.0</span>);
-            model.set_weight(row, class.active, -<span class="number">1.0</span>);
-            <span class="kw">for </span><span class="kw-2">&amp;</span>node_active <span class="kw">in </span><span class="kw-2">&amp;</span>class.nodes {
-                model.set_weight(row, node_active, <span class="number">1.0</span>);
-            }
-
-            <span class="kw">for </span>(i, (node, <span class="kw-2">&amp;</span>node_active)) <span class="kw">in </span>egraph[id].iter().zip(<span class="kw-2">&amp;</span>class.nodes).enumerate() {
-                <span class="kw">if </span>cycles.contains(<span class="kw-2">&amp;</span>(id, i)) {
-                    model.set_col_upper(node_active, <span class="number">0.0</span>);
-                    model.set_col_lower(node_active, <span class="number">0.0</span>);
-                    <span class="kw">continue</span>;
-                }
-
-                <span class="kw">for </span>child <span class="kw">in </span>node.children() {
-                    <span class="kw">let </span>child_active = vars[child].active;
-                    <span class="comment">// node active implies child active, encoded as:
-                    //   node_active &lt;= child_active
-                    //   node_active - child_active &lt;= 0
-                    </span><span class="kw">let </span>row = model.add_row();
-                    model.set_row_upper(row, <span class="number">0.0</span>);
-                    model.set_weight(row, node_active, <span class="number">1.0</span>);
-                    model.set_weight(row, child_active, -<span class="number">1.0</span>);
-                }
-            }
-        }
-
-        model.set_obj_sense(Sense::Minimize);
+        <span class="kw">let </span><span class="kw-2">mut </span>costs: HashMap&lt;Id, Vec&lt;f64&gt;&gt; = HashMap::default();
         <span class="kw">for </span>class <span class="kw">in </span>egraph.classes() {
-            <span class="kw">for </span>(node, <span class="kw-2">&amp;</span>node_active) <span class="kw">in </span>class.iter().zip(<span class="kw-2">&amp;</span>vars[<span class="kw-2">&amp;</span>class.id].nodes) {
-                model.set_obj_coeff(node_active, cost_function.node_cost(egraph, class.id, node));
+            <span class="kw">let </span><span class="kw-2">mut </span>node_costs = Vec::with_capacity(class.nodes.len());
+            <span class="kw">for </span>node <span class="kw">in </span><span class="kw-2">&amp;</span>class.nodes {
+                node_costs.push(cost_function.node_cost(egraph, class.id, node));
             }
+            costs.insert(class.id, node_costs);
         }
-
-        <span class="macro">log::debug!</span>(<span class="string">"max_order = {max_order}"</span>);
 
         <span class="self">Self </span>{
             egraph,
-            model,
-            vars,
+            costs,
+            cyclic_nodes,
         }
     }
-
-    <span class="doccomment">/// Set the cbc timeout in seconds.
-    </span><span class="kw">pub fn </span>timeout(<span class="kw-2">&amp;mut </span><span class="self">self</span>, seconds: f64) -&gt; <span class="kw-2">&amp;mut </span><span class="self">Self </span>{
-        <span class="self">self</span>.model.set_parameter(<span class="string">"seconds"</span>, <span class="kw-2">&amp;</span>seconds.to_string());
-        <span class="self">self
-    </span>}
 
     <span class="doccomment">/// Extract a single rooted term.
     ///
@@ -447,25 +520,116 @@
         <span class="self">self</span>.solve_multiple(<span class="kw-2">&amp;</span>[root]).<span class="number">0
     </span>}
 
+    <span class="doccomment">/// Extract a single rooted term with an explicit solver backend.
+    </span><span class="kw">pub fn </span>solve_with&lt;S: Solver&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, root: Id, solver: S) -&gt; RecExpr&lt;L&gt; {
+        <span class="self">self</span>.solve_multiple_with(<span class="kw-2">&amp;</span>[root], solver).<span class="number">0
+    </span>}
+
     <span class="doccomment">/// Extract (potentially multiple) roots
     </span><span class="kw">pub fn </span>solve_multiple(<span class="kw-2">&amp;mut </span><span class="self">self</span>, roots: <span class="kw-2">&amp;</span>[Id]) -&gt; (RecExpr&lt;L&gt;, Vec&lt;Id&gt;) {
+        <span class="self">self</span>.solve_multiple_with(roots, default_solver)
+    }
+
+    <span class="doccomment">/// Like [`solve_multiple`], but lets the caller provide a `good_lp` solver backend.
+    /// Example: `solve_multiple_with(roots, good_lp::highs)`.
+    </span><span class="kw">pub fn </span>solve_multiple_with&lt;S: Solver&gt;(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        roots: <span class="kw-2">&amp;</span>[Id],
+        solver: S,
+    ) -&gt; (RecExpr&lt;L&gt;, Vec&lt;Id&gt;) {
         <span class="kw">let </span>egraph = <span class="self">self</span>.egraph;
+        <span class="kw">let </span><span class="kw-2">mut </span>num_vars: usize = <span class="number">0</span>;
+        <span class="kw">let </span><span class="kw-2">mut </span>num_cons: usize = <span class="number">0</span>;
 
-        <span class="kw">for </span>class <span class="kw">in </span><span class="self">self</span>.vars.values() {
-            <span class="self">self</span>.model.set_binary(class.active);
+        <span class="comment">// Build variables per class
+        </span><span class="kw">let </span><span class="kw-2">mut </span>builder = <span class="macro">variables!</span>();
+        <span class="kw">let </span>vars: HashMap&lt;Id, ClassVars&gt; = egraph
+            .classes()
+            .map(|class| {
+                num_vars += <span class="number">1</span>;
+                <span class="kw">let </span>active = builder.add(variable().binary());
+                <span class="kw">let </span>nodes = class
+                    .nodes
+                    .iter()
+                    .enumerate()
+                    .map(|(i, <span class="kw">_</span>)| {
+                        num_vars += <span class="number">1</span>;
+                        <span class="kw">if </span><span class="self">self</span>.cyclic_nodes.contains(<span class="kw-2">&amp;</span>(class.id, i)) {
+                            <span class="comment">// Force to 0 for cyclic nodes
+                            </span>builder.add(variable().binary().max(<span class="number">0</span>).min(<span class="number">0</span>))
+                        } <span class="kw">else </span>{
+                            builder.add(variable().binary())
+                        }
+                    })
+                    .collect();
+                (class.id, ClassVars { active, nodes })
+            })
+            .collect();
+
+        <span class="comment">// Objective: minimize sum(cost[node] * node_active)
+        </span><span class="kw">let </span><span class="kw-2">mut </span>objective: Expression = <span class="number">0.0</span>.into();
+        <span class="kw">for </span>class <span class="kw">in </span>egraph.classes() {
+            <span class="kw">for </span>(i, <span class="kw-2">&amp;</span>node_var) <span class="kw">in </span>vars[<span class="kw-2">&amp;</span>class.id].nodes.iter().enumerate() {
+                <span class="kw">let </span>c = <span class="self">self</span>.costs[<span class="kw-2">&amp;</span>class.id][i];
+                objective = objective + c * node_var;
+            }
         }
 
-        <span class="kw">for </span>root <span class="kw">in </span>roots {
+        <span class="comment">// Build model using the provided solver
+        </span><span class="kw">let </span><span class="kw-2">mut </span>model = builder.minimise(objective).using(solver);
+
+        <span class="comment">// Constraints:
+        // - Exactly one chosen node per active class: sum(nodes) == active
+        </span><span class="kw">for </span>(<span class="kw-2">&amp;</span>id, class) <span class="kw">in </span><span class="kw-2">&amp;</span>vars {
+            <span class="kw">let </span>sum_nodes: Expression = class
+                .nodes
+                .iter()
+                .copied()
+                .fold(<span class="number">0.0</span>.into(), |acc, v| acc + v);
+            num_cons += <span class="number">1</span>;
+            model.add_constraint((sum_nodes - class.active).eq(<span class="number">0</span>));
+
+            <span class="comment">// For each chosen node, all children classes must be active: node_active &lt;= child_active
+            </span><span class="kw">for </span>(i, node) <span class="kw">in </span>egraph[id].iter().enumerate() {
+                <span class="kw">let </span>node_active = class.nodes[i];
+                <span class="kw">if </span><span class="self">self</span>.cyclic_nodes.contains(<span class="kw-2">&amp;</span>(id, i)) {
+                    <span class="comment">// Already fixed to 0 via bounds
+                    </span><span class="kw">continue</span>;
+                }
+                <span class="kw">for </span>child <span class="kw">in </span>node.children() {
+                    <span class="kw">let </span>child_active = vars[child].active;
+                    num_cons += <span class="number">1</span>;
+                    model.add_constraint((node_active - child_active).leq(<span class="number">0</span>));
+                }
+            }
+        }
+
+        <span class="comment">// Ensure specified roots are active
+        </span><span class="kw">for </span>root <span class="kw">in </span>roots {
             <span class="kw">let </span>root = <span class="kw-2">&amp;</span>egraph.find(<span class="kw-2">*</span>root);
-            <span class="self">self</span>.model.set_col_lower(<span class="self">self</span>.vars[root].active, <span class="number">1.0</span>);
+            num_cons += <span class="number">1</span>;
+            model.add_constraint(Expression::from(vars[root].active).geq(<span class="number">1</span>));
         }
 
-        <span class="kw">let </span>solution = <span class="self">self</span>.model.solve();
-        <span class="macro">log::info!</span>(
-            <span class="string">"CBC status {:?}, {:?}"</span>,
-            solution.raw().status(),
-            solution.raw().secondary_status()
-        );
+        <span class="macro">log::info!</span>(<span class="string">"Model using {num_vars} variables and {num_cons} constraints"</span>);
+        <span class="macro">log::info!</span>(<span class="string">"Solving using {}"</span>, &lt;S <span class="kw">as </span>Solver&gt;::name(),);
+        <span class="kw">let </span>start = Instant::now();
+        <span class="kw">let </span>solution = model
+            .solve()
+            .expect(<span class="string">"good_lp failed to solve the ILP problem"</span>);
+        <span class="kw">let </span>duration = start.elapsed().as_secs_f64();
+        <span class="macro">log::info!</span>(<span class="string">"Solution found in {:.2}s"</span>, duration);
+        <span class="kw">match </span>solution.status() {
+            SolutionStatus::Optimal =&gt; {
+                <span class="macro">log::info!</span>(<span class="string">"Solution is optimal"</span>);
+            }
+            SolutionStatus::TimeLimit =&gt; {
+                <span class="macro">log::warn!</span>(<span class="string">"Solver timed out, solution may not be optimal."</span>);
+            }
+            SolutionStatus::GapLimit =&gt; {
+                <span class="macro">log::info!</span>(<span class="string">"Solver reached gap limit, solution may not be optimal."</span>);
+            }
+        };
 
         <span class="kw">let </span><span class="kw-2">mut </span>todo: Vec&lt;Id&gt; = roots.iter().map(|id| <span class="self">self</span>.egraph.find(<span class="kw-2">*</span>id)).collect();
         <span class="kw">let </span><span class="kw-2">mut </span>expr = RecExpr::default();
@@ -477,9 +641,13 @@
                 todo.pop();
                 <span class="kw">continue</span>;
             }
-            <span class="kw">let </span>v = <span class="kw-2">&amp;</span><span class="self">self</span>.vars[<span class="kw-2">&amp;</span>id];
-            <span class="macro">assert!</span>(solution.col(v.active) &gt; <span class="number">0.0</span>);
-            <span class="kw">let </span>node_idx = v.nodes.iter().position(|<span class="kw-2">&amp;</span>n| solution.col(n) &gt; <span class="number">0.0</span>).unwrap();
+            <span class="kw">let </span>v = <span class="kw-2">&amp;</span>vars[<span class="kw-2">&amp;</span>id];
+            <span class="macro">assert!</span>(solution.value(v.active) &gt; <span class="number">0.0</span>);
+            <span class="kw">let </span>node_idx = v
+                .nodes
+                .iter()
+                .position(|<span class="kw-2">&amp;</span>n| solution.value(n) &gt; <span class="number">0.0</span>)
+                .unwrap();
             <span class="kw">let </span>node = <span class="kw-2">&amp;</span><span class="self">self</span>.egraph[id].nodes[node_idx];
             <span class="kw">if </span>node.all(|child| ids.contains_key(<span class="kw-2">&amp;</span>child)) {
                 <span class="kw">let </span>new_id = expr.add(node.clone().map_children(|i| ids[<span class="kw-2">&amp;</span><span class="self">self</span>.egraph.find(i)]));
@@ -548,8 +716,7 @@
         <span class="kw">let </span>g = egraph.add(S::new(<span class="string">"g"</span>, <span class="macro">vec!</span>[plus]));
 
         <span class="kw">let </span><span class="kw-2">mut </span>ext = LpExtractor::new(<span class="kw-2">&amp;</span>egraph, AstSize);
-        ext.timeout(<span class="number">10.0</span>); <span class="comment">// way too much time
-        </span><span class="kw">let </span>(exp, ids) = ext.solve_multiple(<span class="kw-2">&amp;</span>[f, g]);
+        <span class="kw">let </span>(exp, ids) = ext.solve_multiple(<span class="kw-2">&amp;</span>[f, g]);
         <span class="macro">println!</span>(<span class="string">"{:?}"</span>, exp);
         <span class="macro">println!</span>(<span class="string">"{}"</span>, exp);
         <span class="macro">assert_eq!</span>(exp.len(), <span class="number">4</span>);
@@ -566,8 +733,7 @@
         egraph.union(plus1, plus2);
 
         <span class="kw">let </span><span class="kw-2">mut </span>ext = LpExtractor::new(<span class="kw-2">&amp;</span>egraph, AstSize);
-        ext.timeout(<span class="number">10.0</span>); <span class="comment">// way too much time
-        </span><span class="kw">let </span>(exp, ids) = ext.solve_multiple(<span class="kw-2">&amp;</span>[plus2]);
+        <span class="kw">let </span>(exp, ids) = ext.solve_multiple(<span class="kw-2">&amp;</span>[plus2]);
         <span class="macro">println!</span>(<span class="string">"{:?}"</span>, exp);
         <span class="macro">println!</span>(<span class="string">"{}"</span>, exp);
         <span class="macro">assert_eq!</span>(exp.len(), <span class="number">3</span>);
