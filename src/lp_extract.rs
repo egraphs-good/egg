@@ -135,6 +135,8 @@ where
             costs.insert(class.id, node_costs);
         }
 
+        log::debug!("max_order = {max_order}");
+
         Self {
             egraph,
             costs,
@@ -362,6 +364,7 @@ mod tests {
         egraph.union(plus1, plus2);
 
         let mut ext = LpExtractor::new(&egraph, AstSize);
+        ext.timeout(10.0); // way too much time
         let (exp, ids) = ext.solve_multiple(&[plus2]);
         println!("{:?}", exp);
         println!("{}", exp);
