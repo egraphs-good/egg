@@ -42,6 +42,7 @@ mod eclass;
 mod egraph;
 mod explain;
 mod extract;
+mod beam_extract;
 mod language;
 #[cfg(feature = "lp")]
 mod lp_extract;
@@ -96,6 +97,7 @@ pub use {
         UnionEqualities,
     },
     extract::*,
+    beam_extract::*,
     language::*,
     multipattern::*,
     pattern::{ENodeOrVar, Pattern, PatternAst, SearchMatches},

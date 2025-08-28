@@ -470,15 +470,70 @@ impl<L: Language> RecExpr<L> {
         self.root()
     }
 
-    pub(crate) fn compact(mut self) -> Self {
-        let mut ids = hashmap_with_capacity::<Id, Id>(self.len());
-        let mut set = IndexSet::default();
-        for (i, node) in self.nodes.drain(..).enumerate() {
-            let node = node.map_children(|id| ids[&id]);
-            let new_id = set.insert_full(node).0;
-            ids.insert(Id::from(i), Id::from(new_id));
+    /// Append `other` into this `RecExpr`, returning the new root [`Id`].
+    pub(crate) fn append(&mut self, other: &RecExpr<L>) -> Id {
+        let offset = self.len();
+        for node in other.iter() {
+            let new_node = node
+                .clone()
+                .map_children(|id| Id::from(usize::from(id) + offset));
+            self.add(new_node);
         }
-        self.nodes.extend(set);
+        Id::from(offset + usize::from(other.root()))
+    }
+
+    /// Append `other` into this `RecExpr`, reusing any existing nodes.
+    ///
+    /// Returns the new root [`Id`].
+    pub(crate) fn append_dedup(&mut self, other: &RecExpr<L>) -> Id {
+        let mut ids = hashmap_with_capacity::<Id, Id>(other.len());
+        let mut existing = hashmap_with_capacity::<L, Id>(self.len());
+
+        for (i, node) in self.nodes.iter().enumerate() {
+            existing.insert(node.clone(), Id::from(i));
+        }
+
+        for (i, node) in other.iter().enumerate() {
+            let node = node.clone().map_children(|id| ids[&id]);
+            if let Some(&id) = existing.get(&node) {
+                ids.insert(Id::from(i), id);
+            } else {
+                let id = self.add(node.clone());
+                existing.insert(node, id);
+                ids.insert(Id::from(i), id);
+            }
+        }
+
+        ids[&other.root()]
+    }
+
+    /// Deduplicate nodes in this expression while preserving the root.
+    ///
+    /// Returns the compacted expression.
+    pub(crate) fn compact(mut self) -> Self {
+        let mut root = self.root();
+        self = self.compact_with_roots(std::slice::from_mut(&mut root));
+        self
+    }
+
+    /// Deduplicate nodes in this expression and remap the given `roots` to the
+    /// compacted DAG.
+    ///
+    /// Returns the compacted expression.
+    pub(crate) fn compact_with_roots(mut self, roots: &mut [Id]) -> Self {
+        let len = self.len();
+        let mut ids = hashmap_with_capacity::<Id, Id>(len);
+        let mut set: IndexSet<L> = IndexSet::default();
+        for (i, node) in self.nodes.into_iter().enumerate() {
+            let node = node.map_children(|id| ids[&id]);
+            let (idx, _) = set.insert_full(node);
+            let new_id = Id::from(idx);
+            ids.insert(Id::from(i), new_id);
+        }
+        self.nodes = set.into_iter().collect();
+        for r in roots.iter_mut() {
+            *r = ids[r];
+        }
         self
     }
 
