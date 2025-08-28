@@ -908,19 +908,40 @@ impl<L: Language> Explain<L> {
         }
     }
 
-    pub(crate) fn add(&mut self, node: L, set: Id) -> Id {
-        assert_eq!(self.explainfind.len(), usize::from(set));
-        self.uncanon_memo.insert(node, set);
-        self.explainfind.push(ExplainNode {
-            neighbors: vec![],
-            parent_connection: Connection {
-                justification: Justification::Congruence,
-                is_rewrite_forward: false,
-                next: set,
-                current: set,
-            },
-        });
-        set
+    // pub(crate) fn add(&mut self, node: L, set: Id) -> Id {
+    //     assert_eq!(self.explainfind.len(), usize::from(set));
+    //     self.uncanon_memo.insert(node, set);
+    //     self.explainfind.push(ExplainNode {
+    //         neighbors: vec![],
+    //         parent_connection: Connection {
+    //             justification: Justification::Congruence,
+    //             is_rewrite_forward: false,
+    //             next: set,
+    //             current: set,
+    //         },
+    //     });
+    //     set
+    // }
+
+    pub(crate) fn initialize_up_to(&mut self, node: L, set: Id) -> usize {
+        let mut ix = self.explainfind.len();
+        let mut added = 0;
+        while ix <= usize::from(set) {
+            let set_ix = ix.into();
+            self.uncanon_memo.insert(node.clone(), set_ix);
+            self.explainfind.push(ExplainNode {
+                neighbors: vec![],
+                parent_connection: Connection {
+                    justification: Justification::Congruence,
+                    is_rewrite_forward: false,
+                    next: set_ix,
+                    current: set_ix,
+                },
+            });
+            ix += 1;
+            added += 1;
+        }
+        added
     }
 
     // reverse edges recursively to make this node the leader
