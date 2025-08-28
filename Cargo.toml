@@ -25,7 +25,7 @@ symbolic_expressions = "5.0.3"
 thiserror = "1.0.31"
 
 # for the lp feature
-coin_cbc = {version = "0.1.6", optional = true}
+good_lp = { version = "1", optional = true }
 
 # for the serde-1 feature
 serde = {version = "1.0.137", features = ["derive"], optional = true}
@@ -41,7 +41,7 @@ ordered-float = "3.0.0"
 [features]
 # forces the use of indexmaps over hashmaps
 deterministic = []
-lp = ["coin_cbc"]
+lp = ["good_lp"]
 reports = ["serde-1", "serde_json"]
 serde-1 = [
   "serde",

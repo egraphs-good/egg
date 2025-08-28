@@ -1,4 +1,6 @@
-use coin_cbc::{Col, Model, Sense};
+use good_lp::{
+    default_solver, variable, variables, Expression, Solution, Solver, SolverModel, Variable,
+};
 
 use crate::*;
 
@@ -20,18 +22,17 @@ impl<L: Language, N: Analysis<L>> LpCostFunction<L, N> for AstSize {
 }
 
 /// A structure to perform extraction using integer linear programming.
-/// This uses the [`cbc`](https://projects.coin-or.org/Cbc) solver.
-/// You must have it installed on your machine to use this feature.
-/// You can install it using:
+///
+/// This uses the [`good_lp`](https://docs.rs/good_lp) to support multiple solving
+/// backends. The default backend is [`cbc`](https://projects.coin-or.org/Cbc).
+/// You must have it installed on your machine or choose a different backend (see below).
+/// You can install `cbc` using:
 ///
 /// | OS               | Command                                  |
 /// |------------------|------------------------------------------|
 /// | Fedora / Red Hat | `sudo dnf install coin-or-Cbc-devel`     |
 /// | Ubuntu / Debian  | `sudo apt-get install coinor-libcbc-dev` |
 /// | macOS            | `brew install cbc`                       |
-///
-/// On macOS, you might also need the following in your `.zshrc` file:
-/// `export LIBRARY_PATH=$LIBRARY_PATH:$(brew --prefix)/lib`
 ///
 /// # Example
 /// ```
@@ -54,17 +55,56 @@ impl<L: Language, N: Analysis<L>> LpCostFunction<L, N> for AstSize {
 /// assert_eq!(lp_best.to_string(), "(f x x x)");
 /// assert_eq!(lp_best.len(), 2);
 /// ```
+///
+/// # Configuring the LP backend
+///
+/// Enable the corresponding `good_lp` feature in your own crate. For example,
+/// in your `Cargo.toml`:
+///
+/// ```toml
+/// [dependencies]
+/// egg = { version = "0.10", features = ["lp"] }
+/// good_lp = { version = "1", features = ["coin_cbc"] } # or highs, microlp, etc.
+/// ```
+///
+/// See the (`good_lp` documentation)[https://docs.rs/good_lp/1/good_lp/solvers/index.html]
+///
+/// At run time, select the solver by calling [`Self::solve_with`] or [`Self::solve_multiple_with`]
+/// and passing one of the enabled `good_lp` solver implementations.
+///
+///  - Example (CBC):
+///   ```rust,ignore
+///   # use egg::*;
+///   use good_lp::coin_cbc;
+///   # let egraph: &EGraph<SymbolLang, ()> = &EGraph::default();
+///   # let root = Id::from(0usize);
+///   let rec = LpExtractor::new(egraph, AstSize)
+///     .solve_with(root, coin_cbc);
+///   # let _ = rec;
+///   ```
+/// - Example (HiGHS):
+///   ```rust,ignore
+///   # use egg::*;
+///   use good_lp::highs;
+///   # let egraph: &EGraph<SymbolLang, ()> = &EGraph::default();
+///   # let root = Id::from(0usize);
+///   let rec = LpExtractor::new(egraph, AstSize)
+///       .solve_with(root, highs);
+///   # let _ = rec;
+/// ```
+///
 #[cfg_attr(docsrs, doc(cfg(feature = "lp")))]
 pub struct LpExtractor<'a, L: Language, N: Analysis<L>> {
     egraph: &'a EGraph<L, N>,
-    model: Model,
-    vars: HashMap<Id, ClassVars>,
+    // Precomputed per-node costs to avoid storing the cost function
+    costs: HashMap<Id, Vec<f64>>, // for each class id, cost per node index
+    // Nodes that would introduce cycles and must be disabled
+    cyclic_nodes: HashSet<(Id, usize)>,
 }
 
 struct ClassVars {
-    active: Col,
-    order: Col,
-    nodes: Vec<Col>,
+    active: Variable,
+    nodes: Vec<Variable>,
 }
 
 impl<'a, L, N> LpExtractor<'a, L, N>
@@ -78,78 +118,26 @@ where
     where
         CF: LpCostFunction<L, N>,
     {
-        let max_order = egraph.total_number_of_nodes() as f64 * 10.0;
-
-        let mut model = Model::default();
-
-        let vars: HashMap<Id, ClassVars> = egraph
-            .classes()
-            .map(|class| {
-                let cvars = ClassVars {
-                    active: model.add_binary(),
-                    order: model.add_col(),
-                    nodes: class.nodes.iter().map(|_| model.add_binary()).collect(),
-                };
-                model.set_col_upper(cvars.order, max_order);
-                (class.id, cvars)
-            })
-            .collect();
-
-        let mut cycles: HashSet<(Id, usize)> = Default::default();
+        // Precompute costs per node and detect cyclic nodes once
+        let mut cyclic_nodes: HashSet<(Id, usize)> = Default::default();
         find_cycles(egraph, |id, i| {
-            cycles.insert((id, i));
+            cyclic_nodes.insert((id, i));
         });
 
-        for (&id, class) in &vars {
-            // class active == some node active
-            // sum(for node_active in class) == class_active
-            let row = model.add_row();
-            model.set_row_equal(row, 0.0);
-            model.set_weight(row, class.active, -1.0);
-            for &node_active in &class.nodes {
-                model.set_weight(row, node_active, 1.0);
-            }
-
-            for (i, (node, &node_active)) in egraph[id].iter().zip(&class.nodes).enumerate() {
-                if cycles.contains(&(id, i)) {
-                    model.set_col_upper(node_active, 0.0);
-                    model.set_col_lower(node_active, 0.0);
-                    continue;
-                }
-
-                for child in node.children() {
-                    let child_active = vars[child].active;
-                    // node active implies child active, encoded as:
-                    //   node_active <= child_active
-                    //   node_active - child_active <= 0
-                    let row = model.add_row();
-                    model.set_row_upper(row, 0.0);
-                    model.set_weight(row, node_active, 1.0);
-                    model.set_weight(row, child_active, -1.0);
-                }
-            }
-        }
-
-        model.set_obj_sense(Sense::Minimize);
+        let mut costs: HashMap<Id, Vec<f64>> = HashMap::default();
         for class in egraph.classes() {
-            for (node, &node_active) in class.iter().zip(&vars[&class.id].nodes) {
-                model.set_obj_coeff(node_active, cost_function.node_cost(egraph, class.id, node));
+            let mut node_costs = Vec::with_capacity(class.nodes.len());
+            for node in &class.nodes {
+                node_costs.push(cost_function.node_cost(egraph, class.id, node));
             }
+            costs.insert(class.id, node_costs);
         }
-
-        log::debug!("max_order = {max_order}");
 
         Self {
             egraph,
-            model,
-            vars,
+            costs,
+            cyclic_nodes,
         }
-    }
-
-    /// Set the cbc timeout in seconds.
-    pub fn timeout(&mut self, seconds: f64) -> &mut Self {
-        self.model.set_parameter("seconds", &seconds.to_string());
-        self
     }
 
     /// Extract a single rooted term.
@@ -159,25 +147,93 @@ where
         self.solve_multiple(&[root]).0
     }
 
+    /// Extract a single rooted term with an explicit solver backend.
+    pub fn solve_with<S: Solver>(&mut self, root: Id, solver: S) -> RecExpr<L> {
+        self.solve_multiple_with(&[root], solver).0
+    }
+
     /// Extract (potentially multiple) roots
     pub fn solve_multiple(&mut self, roots: &[Id]) -> (RecExpr<L>, Vec<Id>) {
+        self.solve_multiple_with(roots, default_solver)
+    }
+
+    /// Like [`solve_multiple`], but lets the caller provide a `good_lp` solver backend.
+    /// Example: `solve_multiple_with(roots, good_lp::highs)`.
+    pub fn solve_multiple_with<S: Solver>(
+        &mut self,
+        roots: &[Id],
+        solver: S,
+    ) -> (RecExpr<L>, Vec<Id>) {
         let egraph = self.egraph;
 
-        for class in self.vars.values() {
-            self.model.set_binary(class.active);
+        // Build variables per class
+        let mut builder = variables!();
+        let vars: HashMap<Id, ClassVars> = egraph
+            .classes()
+            .map(|class| {
+                let active = builder.add(variable().binary());
+                let nodes = class
+                    .nodes
+                    .iter()
+                    .enumerate()
+                    .map(|(i, _)| {
+                        if self.cyclic_nodes.contains(&(class.id, i)) {
+                            // Force to 0 for cyclic nodes
+                            builder.add(variable().binary().max(0).min(0))
+                        } else {
+                            builder.add(variable().binary())
+                        }
+                    })
+                    .collect();
+                (class.id, ClassVars { active, nodes })
+            })
+            .collect();
+
+        // Objective: minimize sum(cost[node] * node_active)
+        let mut objective: Expression = 0.0.into();
+        for class in egraph.classes() {
+            for (i, &node_var) in vars[&class.id].nodes.iter().enumerate() {
+                let c = self.costs[&class.id][i];
+                objective = objective + c * node_var;
+            }
         }
 
+        // Build model using the provided solver (CBC by default if configured)
+        let mut model = builder.minimise(objective).using(solver);
+
+        // Constraints:
+        // - Exactly one chosen node per active class: sum(nodes) == active
+        for (&id, class) in &vars {
+            let sum_nodes: Expression = class
+                .nodes
+                .iter()
+                .copied()
+                .fold(0.0.into(), |acc, v| acc + v);
+            model.add_constraint((sum_nodes - class.active).eq(0));
+
+            // For each chosen node, all children classes must be active: node_active <= child_active
+            for (i, node) in egraph[id].iter().enumerate() {
+                let node_active = class.nodes[i];
+                if self.cyclic_nodes.contains(&(id, i)) {
+                    // Already fixed to 0 via bounds
+                    continue;
+                }
+                for child in node.children() {
+                    let child_active = vars[child].active;
+                    model.add_constraint((node_active - child_active).leq(0));
+                }
+            }
+        }
+
+        // Ensure specified roots are active
         for root in roots {
             let root = &egraph.find(*root);
-            self.model.set_col_lower(self.vars[root].active, 1.0);
+            model.add_constraint(Expression::from(vars[root].active).geq(1));
         }
 
-        let solution = self.model.solve();
-        log::info!(
-            "CBC status {:?}, {:?}",
-            solution.raw().status(),
-            solution.raw().secondary_status()
-        );
+        let solution = model
+            .solve()
+            .expect("good_lp failed to solve the ILP problem");
 
         let mut todo: Vec<Id> = roots.iter().map(|id| self.egraph.find(*id)).collect();
         let mut expr = RecExpr::default();
@@ -189,9 +245,13 @@ where
                 todo.pop();
                 continue;
             }
-            let v = &self.vars[&id];
-            assert!(solution.col(v.active) > 0.0);
-            let node_idx = v.nodes.iter().position(|&n| solution.col(n) > 0.0).unwrap();
+            let v = &vars[&id];
+            assert!(solution.value(v.active) > 0.0);
+            let node_idx = v
+                .nodes
+                .iter()
+                .position(|&n| solution.value(n) > 0.0)
+                .unwrap();
             let node = &self.egraph[id].nodes[node_idx];
             if node.all(|child| ids.contains_key(&child)) {
                 let new_id = expr.add(node.clone().map_children(|i| ids[&self.egraph.find(i)]));
@@ -260,7 +320,6 @@ mod tests {
         let g = egraph.add(S::new("g", vec![plus]));
 
         let mut ext = LpExtractor::new(&egraph, AstSize);
-        ext.timeout(10.0); // way too much time
         let (exp, ids) = ext.solve_multiple(&[f, g]);
         println!("{:?}", exp);
         println!("{}", exp);
@@ -278,7 +337,6 @@ mod tests {
         egraph.union(plus1, plus2);
 
         let mut ext = LpExtractor::new(&egraph, AstSize);
-        ext.timeout(10.0); // way too much time
         let (exp, ids) = ext.solve_multiple(&[plus2]);
         println!("{:?}", exp);
         println!("{}", exp);
