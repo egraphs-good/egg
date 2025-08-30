@@ -470,8 +470,26 @@ impl<L: Language> RecExpr<L> {
         self.root()
     }
 
+    /// Adds a given enode to this `RecExpr`.
+    /// The enode's children [`Id`]s must refer to elements already in this list.
+    pub fn find_or_add(&mut self, node: L) -> Id {
+        debug_assert!(
+            node.all(|id| id <= self.root()),
+            "node {:?} has children not in this expr: {:?}",
+            node,
+            self
+        );
+        self.nodes.iter().position(|n| n == &node).map_or_else(
+            || {
+                self.nodes.push(node);
+                self.root()
+            },
+            Id::from,
+        )
+    }
+
     /// Append `other` into this `RecExpr`, returning the new root [`Id`].
-    pub(crate) fn append(&mut self, other: &RecExpr<L>) -> Id {
+    pub fn append(&mut self, other: &RecExpr<L>) -> Id {
         let offset = self.len();
         for node in other.iter() {
             let new_node = node
@@ -484,26 +502,23 @@ impl<L: Language> RecExpr<L> {
 
     /// Append `other` into this `RecExpr`, reusing any existing nodes.
     ///
+    /// If the `RecExpr` was compact before, it will remain compact after.
+    ///
     /// Returns the new root [`Id`].
-    pub(crate) fn append_dedup(&mut self, other: &RecExpr<L>) -> Id {
+    pub fn append_compact(&mut self, other: &RecExpr<L>) -> Id {
         let mut ids = hashmap_with_capacity::<Id, Id>(other.len());
-        let mut existing = hashmap_with_capacity::<L, Id>(self.len());
-
+        let mut existing = hashmap_with_capacity::<L, Id>(self.len() + other.len());
         for (i, node) in self.nodes.iter().enumerate() {
             existing.insert(node.clone(), Id::from(i));
         }
-
         for (i, node) in other.iter().enumerate() {
             let node = node.clone().map_children(|id| ids[&id]);
-            if let Some(&id) = existing.get(&node) {
-                ids.insert(Id::from(i), id);
-            } else {
-                let id = self.add(node.clone());
-                existing.insert(node, id);
-                ids.insert(Id::from(i), id);
-            }
+            let id = existing.entry(node.clone()).or_insert_with(|| {
+                self.nodes.push(node);
+                self.root()
+            });
+            ids.insert(Id::from(i), *id);
         }
-
         ids[&other.root()]
     }
 
@@ -516,25 +531,101 @@ impl<L: Language> RecExpr<L> {
         self
     }
 
-    /// Deduplicate nodes in this expression and remap the given `roots` to the
-    /// compacted DAG.
+    /// Extracts the canonical minimal DAG for the given roots.
     ///
-    /// Returns the compacted expression.
-    pub(crate) fn compact_with_roots(mut self, roots: &mut [Id]) -> Self {
-        let len = self.len();
-        let mut ids = hashmap_with_capacity::<Id, Id>(len);
-        let mut set: IndexSet<L> = IndexSet::default();
-        for (i, node) in self.nodes.into_iter().enumerate() {
-            let node = node.map_children(|id| ids[&id]);
-            let (idx, _) = set.insert_full(node);
-            let new_id = Id::from(idx);
-            ids.insert(Id::from(i), new_id);
+    /// Deduplicate nodes in this expression, remove nodes unreachable from the
+    /// provided `roots`, canonicalize node order, and remap the given `roots`
+    /// to the final DAG.
+    ///
+    /// At least one of the new roots will be the final node.
+    ///
+    /// Returns the compacted, canonical expression and updates the root ids in place.
+    pub(crate) fn compact_with_roots(self, roots: &mut [Id]) -> Self {
+        let n = self.len();
+        if n == 0 {
+            return self;
         }
-        self.nodes = set.into_iter().collect();
+
+        // 1) Reachability from the given roots
+        let mut used = vec![false; n];
+        let mut stack: Vec<usize> = roots.iter().map(|&r| usize::from(r)).collect();
+        while let Some(i) = stack.pop() {
+            if used[i] {
+                continue;
+            }
+            used[i] = true;
+            for &child in self.nodes[i].children() {
+                let c = usize::from(child);
+                if !used[c] {
+                    stack.push(c);
+                }
+            }
+        }
+
+        // 2) Compute heights bottom-up (children-before-parents invariant holds in RecExpr)
+        let mut heights: Vec<usize> = vec![0; n];
+        for (i, node) in self.nodes.iter().enumerate() {
+            let max_child = node
+                .children()
+                .iter()
+                .map(|&id| heights[usize::from(id)])
+                .max();
+            heights[i] = max_child.map(|h| h + 1).unwrap_or(0);
+        }
+        let max_h = *heights.iter().max().unwrap();
+
+        // 3) Bucket indices by height, keeping only reachable nodes
+        let mut buckets: Vec<Vec<usize>> = vec![Vec::new(); max_h + 1];
+        heights
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| used[*i])
+            .for_each(|(i, &h)| buckets[h].push(i));
+
+        // 4) Bottom-up canonicalization with dedup
+        // id_map: old index -> canonical id
+        let mut id_map: Vec<Option<Id>> = vec![None; n];
+
+        // Intern canonical nodes in deterministic order and build final node list
+        let mut canonical_nodes: Vec<L> = Vec::new();
+        let mut intern: IndexMap<L, Id> = IndexMap::default();
+
+        // Process all height buckets uniformly
+        for bucket in buckets.iter() {
+            // Build canonical keys (nodes with children remapped to canonical ids)
+            let mut items: Vec<(L, usize)> = bucket
+                .iter()
+                .map(|&i| {
+                    let node = self.nodes[i]
+                        .clone()
+                        .map_children(|cid| id_map[usize::from(cid)].unwrap());
+                    (node, i)
+                })
+                .collect();
+
+            // Sort by Language's Ord to canonicalize within the bucket
+            items.sort_by(|(na, _), (nb, _)| na.cmp(nb));
+
+            // Deduplicate by structural equality and assign canonical ids
+            for (node, orig_i) in items {
+                let canonical_id = match intern.get(&node) {
+                    Some(&id) => id,
+                    None => {
+                        let id = Id::from(canonical_nodes.len());
+                        intern.insert(node.clone(), id);
+                        canonical_nodes.push(node);
+                        id
+                    }
+                };
+                id_map[orig_i] = Some(canonical_id);
+            }
+        }
+
+        // 5) Remap roots to canonical ids and return canonical RecExpr
         for r in roots.iter_mut() {
-            *r = ids[r];
+            *r = id_map[usize::from(*r)].unwrap();
         }
-        self
+        RecExpr::from(canonical_nodes)
     }
 
     pub(crate) fn extract(&self, new_root: Id) -> Self {
@@ -561,6 +652,12 @@ impl<L: Language> RecExpr<L> {
     /// Checks if this expr is a DAG, i.e. doesn't have any back edges
     pub fn is_dag(&self) -> bool {
         self.items().all(|(id, n)| n.all(|child| child < id))
+    }
+
+    /// Checks if this expr is compact, i.e. doesn't have any duplicate nodes.
+    pub fn is_compact(&self) -> bool {
+        let mut set: IndexSet<&L> = IndexSet::default();
+        self.iter().all(|n| set.insert(n))
     }
 
     /// Get the root node of this expression. When adding a new node via `add`, it becomes the new root.
