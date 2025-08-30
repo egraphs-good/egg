@@ -635,23 +635,14 @@ impl<L: Language> RecExpr<L> {
         // Process ready nodes in order until all reachable nodes are assigned.
         let mut id_map: Vec<Option<Id>> = vec![None; n];
         let mut new_nodes: Vec<L> = Vec::new();
-        let mut intern: IndexMap<L, Id> = IndexMap::default();
         while let Some(Reverse((node, i))) = heap.pop() {
-            if id_map[i].is_some() {
-                continue; // already assigned via an equivalent node
+            // All duplicate nodes will be popped consecutively, so dedup against last.
+            if new_nodes.last() != Some(&node) {
+                new_nodes.push(node);
             }
 
-            // Intern and assign new id
-            let new_id = match intern.get(&node) {
-                Some(&id) => id,
-                None => {
-                    let id = Id::from(new_nodes.len());
-                    intern.insert(node.clone(), id);
-                    new_nodes.push(node);
-                    id
-                }
-            };
-            id_map[i] = Some(new_id);
+            // Update the id_map with the new id.
+            id_map[i] = Some(Id::from(new_nodes.len() - 1));
 
             // Decrement parents; when a parent becomes ready, push its remapped node.
             for &p in &parents_index[parents_start[i]..parents_start[i + 1]] {
@@ -665,7 +656,7 @@ impl<L: Language> RecExpr<L> {
             }
         }
 
-        // 3) Remap roots to new ids and return new RecExpr
+        // Remap roots to new ids and return new RecExpr
         for r in roots.iter_mut() {
             *r = id_map[usize::from(*r)].unwrap();
         }
