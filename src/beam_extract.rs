@@ -1,10 +1,49 @@
 use crate::util::{HashMap, HashSet};
 use crate::*;
+use std::fmt::Debug;
+
+/// A cost function to be used for DAG-based extraction.
+pub trait DagCostFunction<L: Language> {
+    /// The `Cost` type for DAG extraction. Must be comparable.
+    type Cost: Ord + Debug + Clone;
+
+    /// The total cost of a `RecExpr`.
+    ///
+    /// Typically, this is computed by summing the cost of each node.
+    ///
+    /// The `expr` is guaranteed to be a DAG and compact.
+    ///
+    /// There is no specific order to the nodes. If the cost depends on
+    /// ordering, the cost function is responsible for handling this by
+    /// returning the minimum cost over all orderings.
+    fn cost(&mut self, expr: &RecExpr<L>) -> Self::Cost;
+}
+
+/// A cost function that computes the total cost of a `RecExpr` by counting the number of nodes.
+pub struct DagSize;
+
+impl<L> DagCostFunction<L> for DagSize
+where
+    L: Language,
+{
+    type Cost = usize;
+
+    fn cost(&mut self, expr: &RecExpr<L>) -> Self::Cost {
+        expr.len()
+    }
+}
 
 /// Candidate expression paired with its cost.
 #[derive(Clone)]
 struct Candidate<L: Language, C> {
     expr: RecExpr<L>,
+    cost: C,
+}
+
+/// Internal builder state used during beam merging.
+struct Partial<L: Language, C> {
+    expr: RecExpr<L>,
+    roots: Vec<Id>,
     cost: C,
 }
 
@@ -28,10 +67,12 @@ struct Candidate<L: Language, C> {
 /// responsible for handling it.
 pub struct BeamExtract<'a, CF, L: Language + Clone, N: Analysis<L>>
 where
-    CF: CostFunction<L>,
+    CF: DagCostFunction<L>,
 {
     egraph: &'a EGraph<L, N>,
     beam: usize,
+
+    /// Memoized candidate expressions for each e-class.
     memo: HashMap<Id, Vec<Candidate<L, CF::Cost>>>,
     visiting: HashSet<Id>,
     cost_fn: CF,
@@ -39,7 +80,7 @@ where
 
 impl<'a, CF, L, N> BeamExtract<'a, CF, L, N>
 where
-    CF: CostFunction<L>,
+    CF: DagCostFunction<L>,
     L: Language + Clone,
     N: Analysis<L>,
 {
@@ -65,18 +106,61 @@ where
     /// Returns a [`RecExpr`] containing all extracted terms and the
     /// corresponding root ids within that [`RecExpr`].
     pub fn solve_multiple(&mut self, roots: &[Id]) -> (RecExpr<L>, Vec<Id>) {
-        let mut expr = RecExpr::default();
-        let mut root_ids = Vec::with_capacity(roots.len());
+        let candidates = self.extract_multiple(roots);
+        let best = candidates.into_iter().next().expect("No solution found.");
+        (best.expr, best.roots)
+    }
+
+    /// Returns a list of `RecExpr`s computing `roots`.
+    ///
+    /// Each `RecExpr` is a candidate expression for the corresponding root.
+    /// The list is sorted by increasing cost. At most `beam` candidates are returned.
+    fn extract_multiple(&mut self, roots: &[Id]) -> Vec<Partial<L, CF::Cost>> {
+        let mut partials: Vec<Partial<L, CF::Cost>> = vec![Partial {
+            expr: RecExpr::default(),
+            roots: vec![],
+            cost: self.cost_fn.cost(&RecExpr::default()),
+        }];
         for &root in roots {
             let cands = self.extract_class(root);
-            if let Some(c) = cands.into_iter().next() {
-                let id = expr.append_dedup(&c.expr);
-                root_ids.push(id);
-            } else {
-                return (RecExpr::default(), vec![]);
+            if cands.is_empty() {
+                return vec![];
             }
+            let mut new_partials: Vec<Partial<L, CF::Cost>> = Vec::new();
+            for part in &partials {
+                for cand in &cands {
+                    let mut expr = part.expr.clone();
+                    let mut roots = part.roots.clone();
+                    let root = expr.append_compact(&cand.expr);
+                    roots.push(root);
+                    // Compact (prune + dedup) and canonicalize while remapping all roots
+                    let mut roots_ref = roots.clone();
+                    let canon = expr.clone().minimize_with_roots(&mut roots_ref);
+                    let cost = self.cost_fn.cost(&canon);
+                    new_partials.push(Partial {
+                        expr: canon,
+                        roots: roots_ref,
+                        cost,
+                    });
+                }
+            }
+            // Deduplicate by structural equality (expr + roots), keeping the lowest-cost candidate.
+            let mut map: HashMap<(Vec<L>, Vec<Id>), Partial<L, CF::Cost>> = HashMap::default();
+            for p in new_partials.into_iter() {
+                let key = (p.expr.as_ref().to_vec(), p.roots.clone());
+                match map.get(&key) {
+                    Some(existing) if existing.cost <= p.cost => {}
+                    _ => {
+                        map.insert(key, p);
+                    }
+                }
+            }
+            let mut new_partials: Vec<Partial<L, CF::Cost>> = map.into_values().collect();
+            new_partials.sort_by(|a, b| a.cost.cmp(&b.cost));
+            new_partials.truncate(self.beam);
+            partials = new_partials;
         }
-        (expr, root_ids)
+        partials
     }
 
     /// Recursively collect candidate expressions for an e-class.
@@ -90,97 +174,48 @@ where
         }
         let mut all: Vec<Candidate<L, CF::Cost>> = Vec::new();
         for node in &self.egraph[id].nodes {
-            let mut child_cands: Vec<Vec<Candidate<L, CF::Cost>>> = Vec::new();
-            let mut skip = false;
-            for &child in node.children() {
-                let cands = self.extract_class(child);
-                if cands.is_empty() {
-                    skip = true;
-                    break;
+            let candidates = self.extract_multiple(node.children());
+            for candidate in candidates {
+                let mut expr = candidate.expr;
+                let mut node = node.clone();
+                node.children_mut().copy_from_slice(&candidate.roots);
+                let root = expr.find_or_add(node);
+                if root != expr.root() {
+                    // Ensure the root is at the end.
+                    expr = expr.extract(root);
+                    // Q: Can this ever happen? If it does, can we discard this candidate?
                 }
-                child_cands.push(cands);
+                // Compact (prune + dedup) and canonicalize expression so structurally identical DAGs compare equal
+                let expr = expr.minimize();
+                let cost = self.cost_fn.cost(&expr);
+                all.push(Candidate { expr, cost });
             }
-            if skip {
-                continue;
-            }
-            let mut c = self.combine_enode(node, &child_cands);
-            all.append(&mut c);
         }
         self.visiting.remove(&id);
-        all.sort_by(|a, b| a.cost.partial_cmp(&b.cost).unwrap());
-        all.truncate(self.beam);
-        self.memo.insert(id, all.clone());
-        all
-    }
 
-    /// Merge child candidates under `enode`, keeping at most the configured
-    /// beam width.
-    fn combine_enode(
-        &mut self,
-        enode: &L,
-        child_cands: &[Vec<Candidate<L, CF::Cost>>],
-    ) -> Vec<Candidate<L, CF::Cost>> {
-        struct Partial<L: Language> {
-            expr: RecExpr<L>,
-            roots: Vec<Id>,
-        }
-        let mut partials = vec![Partial {
-            expr: RecExpr::default(),
-            roots: vec![],
-        }];
-        for child_list in child_cands {
-            let mut new_partials: Vec<Partial<L>> = Vec::new();
-            for part in &partials {
-                for cand in child_list {
-                    let mut expr = part.expr.clone();
-                    let root = expr.append_dedup(&cand.expr);
-                    let mut roots = part.roots.clone();
-                    roots.push(root);
-                    new_partials.push(Partial { expr, roots });
+        // Deduplicate by canonical structural equality (expr), keeping the lowest-cost candidate.
+        let mut map: HashMap<Vec<L>, Candidate<L, CF::Cost>> = HashMap::default();
+        for cand in all.into_iter() {
+            let key = cand.expr.as_ref().to_vec();
+            match map.get(&key) {
+                Some(existing) if existing.cost <= cand.cost => {}
+                _ => {
+                    map.insert(key, cand);
                 }
             }
-            new_partials.sort_by_key(|p| p.expr.len());
-            new_partials.truncate(self.beam);
-            partials = new_partials;
         }
-        let mut results: Vec<Candidate<L, CF::Cost>> = Vec::new();
-        for part in partials {
-            let mut expr = part.expr;
-            let mut node = enode.clone();
-            let mut roots_iter = part.roots.into_iter();
-            node.update_children(|_| roots_iter.next().unwrap());
-            expr.add(node);
-            // `append_dedup` maintains compactness, so no additional
-            // compaction is required here.
-            let cost = self.cost_fn.cost_rec(&expr);
-            results.push(Candidate { expr, cost });
-        }
-        results.sort_by(|a, b| a.cost.partial_cmp(&b.cost).unwrap());
-        results.truncate(self.beam);
-        results
+        let mut all: Vec<Candidate<L, CF::Cost>> = map.into_values().collect();
+        all.sort_by(|a, b| a.cost.cmp(&b.cost));
+        all.truncate(self.beam);
+
+        self.memo.insert(id, all.clone());
+        all
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::*;
-
-    /// Simple cost function that measures DAG size by counting nodes.
-    #[derive(Debug)]
-    struct DagSize;
-
-    impl CostFunction<SymbolLang> for DagSize {
-        type Cost = usize;
-        fn cost<C>(&mut self, _enode: &SymbolLang, _costs: C) -> Self::Cost
-        where
-            C: FnMut(Id) -> Self::Cost,
-        {
-            1
-        }
-        fn cost_rec(&mut self, expr: &RecExpr<SymbolLang>) -> Self::Cost {
-            expr.len()
-        }
-    }
+    use super::*;
 
     #[test]
     fn beam_extract_finds_small_dag() {

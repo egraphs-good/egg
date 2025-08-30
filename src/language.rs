@@ -1,4 +1,6 @@
 use std::borrow::{Borrow, BorrowMut};
+use std::cmp::Reverse;
+use std::collections::BinaryHeap;
 use std::iter::FromIterator;
 use std::ops::{BitOr, Deref, DerefMut, Index, IndexMut};
 use std::{cmp::Ordering, convert::TryFrom};
@@ -522,110 +524,152 @@ impl<L: Language> RecExpr<L> {
         ids[&other.root()]
     }
 
-    /// Deduplicate nodes in this expression while preserving the root.
+    /// Minimize this expression in the shortlex sense with respect to the current root.
     ///
-    /// Returns the compacted expression.
-    pub(crate) fn compact(mut self) -> Self {
+    /// Returns the minimized expression.
+    pub fn minimize(mut self) -> Self {
         let mut root = self.root();
-        self = self.compact_with_roots(std::slice::from_mut(&mut root));
+        self = self.minimize_with_roots(std::slice::from_mut(&mut root));
         self
     }
 
     /// Extracts the canonical minimal DAG for the given roots.
     ///
-    /// Deduplicate nodes in this expression, remove nodes unreachable from the
-    /// provided `roots`, canonicalize node order, and remap the given `roots`
+    /// Minimize this expression (shortlex): remove nodes unreachable from the
+    /// provided `roots`, deduplicate structurally equal nodes, and canonicalize to a lexicographically minimal topological order, then remap the given `roots`
     /// to the final DAG.
     ///
     /// At least one of the new roots will be the final node.
     ///
-    /// Returns the compacted, canonical expression and updates the root ids in place.
-    pub(crate) fn compact_with_roots(self, roots: &mut [Id]) -> Self {
+    /// Returns the minimized expression and updates the root ids in place.
+    pub fn minimize_with_roots(self, roots: &mut [Id]) -> Self {
         let n = self.len();
         if n == 0 {
             return self;
         }
 
-        // 1) Reachability from the given roots
-        let mut used = vec![false; n];
-        let mut stack: Vec<usize> = roots.iter().map(|&r| usize::from(r)).collect();
-        while let Some(i) = stack.pop() {
-            if used[i] {
-                continue;
+        // Compute reachability from the given roots
+        let used = {
+            let mut used = vec![false; n];
+            let mut stack: Vec<usize> = roots.iter().map(|&r| usize::from(r)).collect();
+            while let Some(i) = stack.pop() {
+                if used[i] {
+                    continue;
+                }
+                used[i] = true;
+                for &child in self.nodes[i].children() {
+                    let c = usize::from(child);
+                    if !used[c] {
+                        stack.push(c);
+                    }
+                }
             }
-            used[i] = true;
-            for &child in self.nodes[i].children() {
-                let c = usize::from(child);
-                if !used[c] {
-                    stack.push(c);
+            used
+        };
+
+        // Build reverse edges (parents) in a compressed adjacency form.
+        // We only include reachable nodes.
+        // The parents of node i are parent_index[parents_start[i]..parents_start[i+1]]
+        let (parents_start, parents_index) = {
+            let mut parents_start: Vec<usize> = vec![0; n + 1];
+            for i in 0..n {
+                if !used[i] {
+                    continue;
+                }
+                for &c in self.nodes[i].children() {
+                    let ci = usize::from(c);
+                    if used[ci] {
+                        parents_start[ci + 1] += 1;
+                    }
+                }
+            }
+            // Convert from counts to offsets.
+            for i in 0..n {
+                parents_start[i + 1] += parents_start[i];
+            }
+
+            let mut parents_index: Vec<usize> = vec![0; *parents_start.last().unwrap()];
+            let mut cursor = parents_start.clone();
+            for i in 0..n {
+                if !used[i] {
+                    continue;
+                }
+                for &c in self.nodes[i].children() {
+                    let ci = usize::from(c);
+                    if used[ci] {
+                        let pos = &mut cursor[ci];
+                        parents_index[*pos] = i;
+                        *pos += 1;
+                    }
+                }
+            }
+            (parents_start, parents_index)
+        };
+
+        // Use a remaining count to track when parents become ready.
+        // Unused nodes have remaining == usize::MAX so they are never ready.
+        let mut remaining: Vec<usize> = self
+            .nodes
+            .iter()
+            .enumerate()
+            .map(|(i, n)| {
+                if used[i] {
+                    n.children().len()
+                } else {
+                    usize::MAX
+                }
+            })
+            .collect();
+
+        // Min-heap of ready nodes keyed by remapped node (Reverse to get min-heap behavior).
+        // Initially, all reachable leaves (remaining == 0) are ready.
+        let mut heap: BinaryHeap<Reverse<(L, usize)>> = BinaryHeap::new();
+        heap.extend(
+            remaining
+                .iter()
+                .enumerate()
+                .filter(|(_i, &c)| c == 0)
+                .map(|(i, _c)| (Reverse((self.nodes[i].clone(), i)))),
+        );
+
+        // Process ready nodes in order until all reachable nodes are assigned.
+        let mut id_map: Vec<Option<Id>> = vec![None; n];
+        let mut new_nodes: Vec<L> = Vec::new();
+        let mut intern: IndexMap<L, Id> = IndexMap::default();
+        while let Some(Reverse((node, i))) = heap.pop() {
+            if id_map[i].is_some() {
+                continue; // already assigned via an equivalent node
+            }
+
+            // Intern and assign new id
+            let new_id = match intern.get(&node) {
+                Some(&id) => id,
+                None => {
+                    let id = Id::from(new_nodes.len());
+                    intern.insert(node.clone(), id);
+                    new_nodes.push(node);
+                    id
+                }
+            };
+            id_map[i] = Some(new_id);
+
+            // Decrement parents; when a parent becomes ready, push its remapped node.
+            for &p in &parents_index[parents_start[i]..parents_start[i + 1]] {
+                remaining[p] -= 1;
+                if remaining[p] == 0 {
+                    let mapped = self.nodes[p]
+                        .clone()
+                        .map_children(|cid| id_map[usize::from(cid)].unwrap());
+                    heap.push(Reverse((mapped, p)));
                 }
             }
         }
 
-        // 2) Compute heights bottom-up (children-before-parents invariant holds in RecExpr)
-        let mut heights: Vec<usize> = vec![0; n];
-        for (i, node) in self.nodes.iter().enumerate() {
-            let max_child = node
-                .children()
-                .iter()
-                .map(|&id| heights[usize::from(id)])
-                .max();
-            heights[i] = max_child.map(|h| h + 1).unwrap_or(0);
-        }
-        let max_h = *heights.iter().max().unwrap();
-
-        // 3) Bucket indices by height, keeping only reachable nodes
-        let mut buckets: Vec<Vec<usize>> = vec![Vec::new(); max_h + 1];
-        heights
-            .iter()
-            .enumerate()
-            .filter(|(i, _)| used[*i])
-            .for_each(|(i, &h)| buckets[h].push(i));
-
-        // 4) Bottom-up canonicalization with dedup
-        // id_map: old index -> canonical id
-        let mut id_map: Vec<Option<Id>> = vec![None; n];
-
-        // Intern canonical nodes in deterministic order and build final node list
-        let mut canonical_nodes: Vec<L> = Vec::new();
-        let mut intern: IndexMap<L, Id> = IndexMap::default();
-
-        // Process all height buckets uniformly
-        for bucket in buckets.iter() {
-            // Build canonical keys (nodes with children remapped to canonical ids)
-            let mut items: Vec<(L, usize)> = bucket
-                .iter()
-                .map(|&i| {
-                    let node = self.nodes[i]
-                        .clone()
-                        .map_children(|cid| id_map[usize::from(cid)].unwrap());
-                    (node, i)
-                })
-                .collect();
-
-            // Sort by Language's Ord to canonicalize within the bucket
-            items.sort_by(|(na, _), (nb, _)| na.cmp(nb));
-
-            // Deduplicate by structural equality and assign canonical ids
-            for (node, orig_i) in items {
-                let canonical_id = match intern.get(&node) {
-                    Some(&id) => id,
-                    None => {
-                        let id = Id::from(canonical_nodes.len());
-                        intern.insert(node.clone(), id);
-                        canonical_nodes.push(node);
-                        id
-                    }
-                };
-                id_map[orig_i] = Some(canonical_id);
-            }
-        }
-
-        // 5) Remap roots to canonical ids and return canonical RecExpr
+        // 3) Remap roots to new ids and return new RecExpr
         for r in roots.iter_mut() {
             *r = id_map[usize::from(*r)].unwrap();
         }
-        RecExpr::from(canonical_nodes)
+        RecExpr::from(new_nodes)
     }
 
     pub(crate) fn extract(&self, new_root: Id) -> Self {
