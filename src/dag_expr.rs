@@ -69,6 +69,21 @@ impl<L: Language> DagExpr<L> {
         Ok(dag.minimize())
     }
 
+    /// Construct a canonical single-node DAG from a leaf node (no children).
+    pub fn from_leaf(node: L) -> Self {
+        assert!(node.children().is_empty());
+        DagExpr::new(vec![node], vec![Id::from(0usize)])
+    }
+
+    /// Given a Node with children matching the current roots,
+    /// adds it as a the root node, consuming the current roots as its children.
+    pub fn add_root_node(&mut self, mut node: L) {
+        assert_eq!(node.children().len(), self.roots.len());
+        node.children_mut().copy_from_slice(&self.roots);
+        self.nodes.push(node);
+        self.roots = vec![Id::from(self.nodes.len() - 1)];
+    }
+
     /// Returns the number of nodes in the underlying expression.
     pub fn len(&self) -> usize {
         self.nodes.len()

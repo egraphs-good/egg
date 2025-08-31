@@ -1,5 +1,6 @@
 use crate::util::{HashMap, HashSet};
 use crate::*;
+use std::cmp::Ordering;
 use std::fmt::Debug;
 
 /// A cost function to be used for DAG-based extraction.
@@ -34,29 +35,56 @@ where
 }
 
 /// Candidate expression paired with its cost.
-#[derive(Clone)]
-struct Candidate<L: Language, C> {
+#[derive(Clone, PartialEq, Eq, Debug)]
+struct Candidate<L: Language, C: Ord> {
     expr: DagExpr<L>,
     cost: C,
 }
 
-impl<L: Language, C: Ord> PartialEq for Candidate<L, C> {
-    fn eq(&self, other: &Self) -> bool {
-        self.cost == other.cost
-    }
-}
-
-impl<L: Language, C: Ord> Eq for Candidate<L, C> {}
-
 impl<L: Language, C: Ord> PartialOrd for Candidate<L, C> {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
 impl<L: Language, C: Ord> Ord for Candidate<L, C> {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.cost.cmp(&other.cost)
+    fn cmp(&self, other: &Self) -> Ordering {
+        match self.cost.cmp(&other.cost) {
+            Ordering::Equal => self.expr.cmp(&other.expr),
+            ord => ord,
+        }
+    }
+}
+
+/// A simple data structure to keep the top-k unique elements seen so far.
+struct TopK<T: Ord> {
+    k: usize,
+    data: Vec<T>,
+}
+
+impl<T: Ord> TopK<T> {
+    fn new(k: usize) -> Self {
+        Self {
+            k,
+            data: Vec::with_capacity(k),
+        }
+    }
+
+    fn push(&mut self, item: T) {
+        match self.data.binary_search(&item) {
+            Ok(_) => {} // Duplicate
+            Err(index) => {
+                if self.data.len() == self.k {
+                    self.data.pop();
+                }
+                self.data.insert(index, item);
+            }
+        }
+    }
+
+    /// Consume and return the top-k elements as a sorted boxed slice.
+    fn into_inner(self) -> Vec<T> {
+        self.data
     }
 }
 
@@ -120,7 +148,7 @@ where
     pub fn solve_multiple(&mut self, roots: &[Id]) -> DagExpr<L> {
         self.extract_multiple(roots)
             .into_iter()
-            .min()
+            .next()
             .expect("No solution found.")
             .expr
     }
@@ -130,50 +158,32 @@ where
     /// Each `DagExpr` is a candidate expression for the corresponding root set.
     /// At most `beam` candidates are returned. The list is not globally sorted;
     /// we use an unstable selection to keep an arbitrary top-`beam` by cost.
+    ///
+    /// Returns an empty list if no candidates could be constructed (e.g., due to cycles).
     fn extract_multiple(&mut self, roots: &[Id]) -> Vec<Candidate<L, CF::Cost>> {
-        let empty = DagExpr::new(Vec::new(), Vec::new());
-        let mut partials: Vec<Candidate<L, CF::Cost>> = vec![Candidate {
+        let empty = DagExpr::default();
+        let mut partials = vec![Candidate {
             expr: empty.clone(),
             cost: self.cost_fn.cost(&empty),
         }];
         for &root in roots {
-            // Compute/ensure memoized candidates first
-            self.ensure_class(root);
-            // Clone slice to a Vec to end the immutable borrow before costing
-            let cands_vec: Vec<Candidate<L, CF::Cost>> = self.candidates_for(root).to_vec();
-            if cands_vec.is_empty() {
-                return vec![];
-            }
-            let mut new_partials: Vec<Candidate<L, CF::Cost>> = Vec::new();
-            for part in &partials {
-                // First compute merged expressions while only reading cands_vec
-                let merged_exprs: Vec<DagExpr<L>> = cands_vec
-                    .iter()
-                    .map(|cand| part.expr.merge(&cand.expr))
-                    .collect();
-                // Then cost them after the borrow has ended
-                for merged in merged_exprs {
-                    let cost = self.cost_fn.cost(&merged);
-                    new_partials.push(Candidate { expr: merged, cost });
+            // Grab candidates for the roots class
+            // If we hit a cycle, the candidates list will be empty.
+            let class = self.egraph.find(root);
+            self.ensure_class(class);
+            let candidates = self.memo.get(&class).map(Vec::as_slice).unwrap_or_default();
+
+            // Generate permutation of all partials with all candidates.
+            // (At most beam^2 new partials.)
+            let mut new_partials = TopK::new(self.beam);
+            for partial in partials.iter() {
+                for candidate in candidates {
+                    let expr = partial.expr.merge(&candidate.expr);
+                    let cost = self.cost_fn.cost(&expr);
+                    new_partials.push(Candidate { expr, cost });
                 }
             }
-            // Deduplicate by structural equality (nodes + roots), keeping the lowest-cost candidate.
-            let mut map: HashMap<(Vec<L>, Vec<Id>), Candidate<L, CF::Cost>> = HashMap::default();
-            for p in new_partials.into_iter() {
-                let key = (p.expr.nodes.clone(), p.expr.roots.clone());
-                match map.get(&key) {
-                    Some(existing) if existing.cost <= p.cost => {}
-                    _ => {
-                        map.insert(key, p);
-                    }
-                }
-            }
-            let mut new_partials: Vec<Candidate<L, CF::Cost>> = map.into_values().collect();
-            if new_partials.len() > self.beam {
-                new_partials.select_nth_unstable(self.beam - 1);
-                new_partials.truncate(self.beam);
-            }
-            partials = new_partials;
+            partials = new_partials.into_inner();
         }
         partials
     }
@@ -185,91 +195,23 @@ where
             return;
         }
         if !self.visiting.insert(id) {
-            // Cycle: memoize empty and return
-            self.memo.entry(id).or_insert_with(Vec::new);
+            // Cycle: skip memoization; allow other non-cyclic candidates to be found
             return;
         }
 
-        let mut all: Vec<Candidate<L, CF::Cost>> = Vec::new();
+        // Combine all e-nodes with all candidates for their children.
+        let mut all = TopK::new(self.beam);
         for node in &self.egraph[id].nodes {
-            let child_ids = node.children().to_vec();
-
-            // Handle leaf node quickly
-            if child_ids.is_empty() {
-                let mut new_nodes = Vec::new();
-                // leaf: just this node with no children; pushed alone
-                new_nodes.push(node.clone());
-                let new_root = Id::from(0usize);
-                let dag = DagExpr::new(new_nodes, vec![new_root]);
-                let cost = self.cost_fn.cost(&dag);
-                all.push(Candidate { expr: dag, cost });
-                continue;
-            }
-
-            // Ensure children candidates before borrowing them, then clone slices to end borrows
-            let mut acc: Vec<Candidate<L, CF::Cost>> = {
-                self.ensure_class(child_ids[0]);
-                self.candidates_for(child_ids[0]).to_vec()
-            };
-            for &cid in &child_ids[1..] {
-                self.ensure_class(cid);
-                let next_vec: Vec<Candidate<L, CF::Cost>> = self.candidates_for(cid).to_vec();
-                let mut merged_step: Vec<Candidate<L, CF::Cost>> = Vec::new();
-                for a in &acc {
-                    for b in &next_vec {
-                        let merged = a.expr.merge(&b.expr);
-                        // Defer costing to after all borrows are dropped
-                        merged_step.push(Candidate {
-                            expr: merged,
-                            cost: self.cost_fn.cost(&DagExpr::default()), // placeholder, will be recomputed
-                        });
-                    }
-                }
-                acc = merged_step;
-            }
-
-            // Now append this node on top of each combined child DAG
-            for child_cand in acc.into_iter().map(|mut c| {
-                // Recompute cost correctly by rebuilding DAGs with this node
-                let mut new_nodes = c.expr.nodes.clone();
-                let mut new_node = node.clone();
-                new_node.children_mut().copy_from_slice(&c.expr.roots);
-                new_nodes.push(new_node);
-                let new_root = Id::from(new_nodes.len() - 1);
-                let dag = DagExpr::new(new_nodes, vec![new_root]);
-                let cost = self.cost_fn.cost(&dag);
-                Candidate { expr: dag, cost }
-            }) {
-                all.push(child_cand);
+            let candidates = self.extract_multiple(node.children());
+            for candidate in candidates {
+                let mut expr = candidate.expr;
+                expr.add_root_node(node.clone());
+                let cost = self.cost_fn.cost(&expr);
+                all.push(Candidate { expr, cost });
             }
         }
         self.visiting.remove(&id);
-
-        // Deduplicate by canonical structural equality (nodes), keeping the lowest-cost candidate.
-        // Note: After selection, ordering is not guaranteed to be sorted.
-        let mut map: HashMap<Vec<L>, Candidate<L, CF::Cost>> = HashMap::default();
-        for cand in all.into_iter() {
-            let key = cand.expr.nodes.clone();
-            match map.get(&key) {
-                Some(existing) if existing.cost <= cand.cost => {}
-                _ => {
-                    map.insert(key, cand);
-                }
-            }
-        }
-        let mut all: Vec<Candidate<L, CF::Cost>> = map.into_values().collect();
-        if all.len() > self.beam {
-            all.select_nth_unstable(self.beam - 1);
-            all.truncate(self.beam);
-        }
-
-        self.memo.insert(id, all);
-    }
-
-    /// Borrow the memoized candidates for an e-class as a slice.
-    fn candidates_for(&self, id: Id) -> &[Candidate<L, CF::Cost>] {
-        let id = self.egraph.find(id);
-        self.memo.get(&id).map(|v| v.as_slice()).unwrap_or(&[])
+        self.memo.insert(id, all.into_inner());
     }
 }
 
