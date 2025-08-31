@@ -104,7 +104,7 @@ impl<L: Language> PatternAst<L> {
 impl<L: Language> Pattern<L> {
     /// Creates a new pattern from the given pattern ast.
     pub fn new(ast: PatternAst<L>) -> Self {
-        let ast = ast.minimize();
+        let ast = ast.compact();
         let program = machine::Program::compile_from_pat(&ast);
         Pattern { ast, program }
     }

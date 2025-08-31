@@ -1,6 +1,4 @@
 use std::borrow::{Borrow, BorrowMut};
-use std::cmp::Reverse;
-use std::collections::BinaryHeap;
 use std::iter::FromIterator;
 use std::ops::{BitOr, Deref, DerefMut, Index, IndexMut};
 use std::{cmp::Ordering, convert::TryFrom};
@@ -472,195 +470,16 @@ impl<L: Language> RecExpr<L> {
         self.root()
     }
 
-    /// Adds a given enode to this `RecExpr`.
-    /// The enode's children [`Id`]s must refer to elements already in this list.
-    pub fn find_or_add(&mut self, node: L) -> Id {
-        debug_assert!(
-            node.all(|id| id <= self.root()),
-            "node {:?} has children not in this expr: {:?}",
-            node,
-            self
-        );
-        self.nodes.iter().position(|n| n == &node).map_or_else(
-            || {
-                self.nodes.push(node);
-                self.root()
-            },
-            Id::from,
-        )
-    }
-
-    /// Append `other` into this `RecExpr`, returning the new root [`Id`].
-    pub fn append(&mut self, other: &RecExpr<L>) -> Id {
-        let offset = self.len();
-        for node in other.iter() {
-            let new_node = node
-                .clone()
-                .map_children(|id| Id::from(usize::from(id) + offset));
-            self.add(new_node);
+    pub(crate) fn compact(mut self) -> Self {
+        let mut ids = hashmap_with_capacity::<Id, Id>(self.len());
+        let mut set = IndexSet::default();
+        for (i, node) in self.nodes.drain(..).enumerate() {
+            let node = node.map_children(|id| ids[&id]);
+            let new_id = set.insert_full(node).0;
+            ids.insert(Id::from(i), Id::from(new_id));
         }
-        Id::from(offset + usize::from(other.root()))
-    }
-
-    /// Append `other` into this `RecExpr`, reusing any existing nodes.
-    ///
-    /// If the `RecExpr` was compact before, it will remain compact after.
-    ///
-    /// Returns the new root [`Id`].
-    pub fn append_compact(&mut self, other: &RecExpr<L>) -> Id {
-        let mut ids = hashmap_with_capacity::<Id, Id>(other.len());
-        let mut existing = hashmap_with_capacity::<L, Id>(self.len() + other.len());
-        for (i, node) in self.nodes.iter().enumerate() {
-            existing.insert(node.clone(), Id::from(i));
-        }
-        for (i, node) in other.iter().enumerate() {
-            let node = node.clone().map_children(|id| ids[&id]);
-            let id = existing.entry(node.clone()).or_insert_with(|| {
-                self.nodes.push(node);
-                self.root()
-            });
-            ids.insert(Id::from(i), *id);
-        }
-        ids[&other.root()]
-    }
-
-    /// Minimize this expression in the shortlex sense with respect to the current root.
-    ///
-    /// Returns the minimized expression.
-    pub fn minimize(mut self) -> Self {
-        let mut root = self.root();
-        self = self.minimize_with_roots(std::slice::from_mut(&mut root));
+        self.nodes.extend(set);
         self
-    }
-
-    /// Extracts the canonical minimal DAG for the given roots.
-    ///
-    /// Minimize this expression (shortlex): remove nodes unreachable from the
-    /// provided `roots`, deduplicate structurally equal nodes, and canonicalize to a lexicographically minimal topological order, then remap the given `roots`
-    /// to the final DAG.
-    ///
-    /// At least one of the new roots will be the final node.
-    ///
-    /// Returns the minimized expression and updates the root ids in place.
-    pub fn minimize_with_roots(self, roots: &mut [Id]) -> Self {
-        let n = self.len();
-        if n == 0 {
-            return self;
-        }
-
-        // Compute reachability from the given roots
-        let used = {
-            let mut used = vec![false; n];
-            let mut stack: Vec<usize> = roots.iter().map(|&r| usize::from(r)).collect();
-            while let Some(i) = stack.pop() {
-                if used[i] {
-                    continue;
-                }
-                used[i] = true;
-                for &child in self.nodes[i].children() {
-                    let c = usize::from(child);
-                    if !used[c] {
-                        stack.push(c);
-                    }
-                }
-            }
-            used
-        };
-
-        // Build reverse edges (parents) in a compressed adjacency form.
-        // We only include reachable nodes.
-        // The parents of node i are parent_index[parents_start[i]..parents_start[i+1]]
-        let (parents_start, parents_index) = {
-            let mut parents_start: Vec<usize> = vec![0; n + 1];
-            for i in 0..n {
-                if !used[i] {
-                    continue;
-                }
-                for &c in self.nodes[i].children() {
-                    let ci = usize::from(c);
-                    if used[ci] {
-                        parents_start[ci + 1] += 1;
-                    }
-                }
-            }
-            // Convert from counts to offsets.
-            for i in 0..n {
-                parents_start[i + 1] += parents_start[i];
-            }
-
-            let mut parents_index: Vec<usize> = vec![0; *parents_start.last().unwrap()];
-            let mut cursor = parents_start.clone();
-            for i in 0..n {
-                if !used[i] {
-                    continue;
-                }
-                for &c in self.nodes[i].children() {
-                    let ci = usize::from(c);
-                    if used[ci] {
-                        let pos = &mut cursor[ci];
-                        parents_index[*pos] = i;
-                        *pos += 1;
-                    }
-                }
-            }
-            (parents_start, parents_index)
-        };
-
-        // Use a remaining count to track when parents become ready.
-        // Unused nodes have remaining == usize::MAX so they are never ready.
-        let mut remaining: Vec<usize> = self
-            .nodes
-            .iter()
-            .enumerate()
-            .map(|(i, n)| {
-                if used[i] {
-                    n.children().len()
-                } else {
-                    usize::MAX
-                }
-            })
-            .collect();
-
-        // Min-heap of ready nodes keyed by remapped node (Reverse to get min-heap behavior).
-        // Initially, all reachable leaves (remaining == 0) are ready.
-        let mut heap: BinaryHeap<Reverse<(L, usize)>> = BinaryHeap::new();
-        heap.extend(
-            remaining
-                .iter()
-                .enumerate()
-                .filter(|(_i, &c)| c == 0)
-                .map(|(i, _c)| (Reverse((self.nodes[i].clone(), i)))),
-        );
-
-        // Process ready nodes in order until all reachable nodes are assigned.
-        let mut id_map: Vec<Option<Id>> = vec![None; n];
-        let mut new_nodes: Vec<L> = Vec::new();
-        while let Some(Reverse((node, i))) = heap.pop() {
-            // All duplicate nodes will be popped consecutively, so dedup against last.
-            if new_nodes.last() != Some(&node) {
-                new_nodes.push(node);
-            }
-
-            // Update the id_map with the new id.
-            id_map[i] = Some(Id::from(new_nodes.len() - 1));
-
-            // Decrement parents; when a parent becomes ready, push its remapped node.
-            for &p in &parents_index[parents_start[i]..parents_start[i + 1]] {
-                remaining[p] -= 1;
-                if remaining[p] == 0 {
-                    let mapped = self.nodes[p]
-                        .clone()
-                        .map_children(|cid| id_map[usize::from(cid)].unwrap());
-                    heap.push(Reverse((mapped, p)));
-                }
-            }
-        }
-
-        // Remap roots to new ids and return new RecExpr
-        for r in roots.iter_mut() {
-            *r = id_map[usize::from(*r)].unwrap();
-        }
-        RecExpr::from(new_nodes)
     }
 
     pub(crate) fn extract(&self, new_root: Id) -> Self {
@@ -687,12 +506,6 @@ impl<L: Language> RecExpr<L> {
     /// Checks if this expr is a DAG, i.e. doesn't have any back edges
     pub fn is_dag(&self) -> bool {
         self.items().all(|(id, n)| n.all(|child| child < id))
-    }
-
-    /// Checks if this expr is compact, i.e. doesn't have any duplicate nodes.
-    pub fn is_compact(&self) -> bool {
-        let mut set: IndexSet<&L> = IndexSet::default();
-        self.iter().all(|n| set.insert(n))
     }
 
     /// Get the root node of this expression. When adding a new node via `add`, it becomes the new root.

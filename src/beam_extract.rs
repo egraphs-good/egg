@@ -7,19 +7,19 @@ pub trait DagCostFunction<L: Language> {
     /// The `Cost` type for DAG extraction. Must be comparable.
     type Cost: Ord + Debug + Clone;
 
-    /// The total cost of a `RecExpr`.
+    /// The total cost of a `DagExpr`.
     ///
     /// Typically, this is computed by summing the cost of each node.
     ///
-    /// The `expr` is guaranteed to be a DAG and compact.
+    /// The `expr` is guaranteed to be a DAG and compact (shortlex-minimal).
     ///
     /// There is no specific order to the nodes. If the cost depends on
     /// ordering, the cost function is responsible for handling this by
     /// returning the minimum cost over all orderings.
-    fn cost(&mut self, expr: &RecExpr<L>) -> Self::Cost;
+    fn cost(&mut self, expr: &DagExpr<L>) -> Self::Cost;
 }
 
-/// A cost function that computes the total cost of a `RecExpr` by counting the number of nodes.
+/// A cost function that computes the total cost of a `DagExpr` by counting the number of nodes.
 pub struct DagSize;
 
 impl<L> DagCostFunction<L> for DagSize
@@ -28,7 +28,7 @@ where
 {
     type Cost = usize;
 
-    fn cost(&mut self, expr: &RecExpr<L>) -> Self::Cost {
+    fn cost(&mut self, expr: &DagExpr<L>) -> Self::Cost {
         expr.len()
     }
 }
@@ -36,15 +36,28 @@ where
 /// Candidate expression paired with its cost.
 #[derive(Clone)]
 struct Candidate<L: Language, C> {
-    expr: RecExpr<L>,
+    expr: DagExpr<L>,
     cost: C,
 }
 
-/// Internal builder state used during beam merging.
-struct Partial<L: Language, C> {
-    expr: RecExpr<L>,
-    roots: Vec<Id>,
-    cost: C,
+impl<L: Language, C: Ord> PartialEq for Candidate<L, C> {
+    fn eq(&self, other: &Self) -> bool {
+        self.cost == other.cost
+    }
+}
+
+impl<L: Language, C: Ord> Eq for Candidate<L, C> {}
+
+impl<L: Language, C: Ord> PartialOrd for Candidate<L, C> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<L: Language, C: Ord> Ord for Candidate<L, C> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.cost.cmp(&other.cost)
+    }
 }
 
 /// Beam search extractor that approximately minimizes a [`CostFunction`] on the
@@ -97,57 +110,57 @@ where
     }
 
     /// Extract a DAG rooted at `root`, approximately minimizing size.
-    pub fn solve(&mut self, root: Id) -> RecExpr<L> {
-        self.solve_multiple(&[root]).0
+    pub fn solve(&mut self, root: Id) -> DagExpr<L> {
+        self.solve_multiple(&[root])
     }
 
     /// Extract (potentially) multiple roots.
     ///
-    /// Returns a [`RecExpr`] containing all extracted terms and the
-    /// corresponding root ids within that [`RecExpr`].
-    pub fn solve_multiple(&mut self, roots: &[Id]) -> (RecExpr<L>, Vec<Id>) {
-        let candidates = self.extract_multiple(roots);
-        let best = candidates.into_iter().next().expect("No solution found.");
-        (best.expr, best.roots)
+    /// Returns a canonical [`DagExpr`] containing all extracted terms and their roots.
+    pub fn solve_multiple(&mut self, roots: &[Id]) -> DagExpr<L> {
+        self.extract_multiple(roots)
+            .into_iter()
+            .min()
+            .expect("No solution found.")
+            .expr
     }
 
-    /// Returns a list of `RecExpr`s computing `roots`.
+    /// Returns a list of `DagExpr`s computing `roots`.
     ///
-    /// Each `RecExpr` is a candidate expression for the corresponding root.
-    /// The list is sorted by increasing cost. At most `beam` candidates are returned.
-    fn extract_multiple(&mut self, roots: &[Id]) -> Vec<Partial<L, CF::Cost>> {
-        let mut partials: Vec<Partial<L, CF::Cost>> = vec![Partial {
-            expr: RecExpr::default(),
-            roots: vec![],
-            cost: self.cost_fn.cost(&RecExpr::default()),
+    /// Each `DagExpr` is a candidate expression for the corresponding root set.
+    /// At most `beam` candidates are returned. The list is not globally sorted;
+    /// we use an unstable selection to keep an arbitrary top-`beam` by cost.
+    fn extract_multiple(&mut self, roots: &[Id]) -> Vec<Candidate<L, CF::Cost>> {
+        let empty = DagExpr::new(Vec::new(), Vec::new());
+        let mut partials: Vec<Candidate<L, CF::Cost>> = vec![Candidate {
+            expr: empty.clone(),
+            cost: self.cost_fn.cost(&empty),
         }];
         for &root in roots {
-            let cands = self.extract_class(root);
-            if cands.is_empty() {
+            // Compute/ensure memoized candidates first
+            self.ensure_class(root);
+            // Clone slice to a Vec to end the immutable borrow before costing
+            let cands_vec: Vec<Candidate<L, CF::Cost>> = self.candidates_for(root).to_vec();
+            if cands_vec.is_empty() {
                 return vec![];
             }
-            let mut new_partials: Vec<Partial<L, CF::Cost>> = Vec::new();
+            let mut new_partials: Vec<Candidate<L, CF::Cost>> = Vec::new();
             for part in &partials {
-                for cand in &cands {
-                    let mut expr = part.expr.clone();
-                    let mut roots = part.roots.clone();
-                    let root = expr.append_compact(&cand.expr);
-                    roots.push(root);
-                    // Compact (prune + dedup) and canonicalize while remapping all roots
-                    let mut roots_ref = roots.clone();
-                    let canon = expr.clone().minimize_with_roots(&mut roots_ref);
-                    let cost = self.cost_fn.cost(&canon);
-                    new_partials.push(Partial {
-                        expr: canon,
-                        roots: roots_ref,
-                        cost,
-                    });
+                // First compute merged expressions while only reading cands_vec
+                let merged_exprs: Vec<DagExpr<L>> = cands_vec
+                    .iter()
+                    .map(|cand| part.expr.merge(&cand.expr))
+                    .collect();
+                // Then cost them after the borrow has ended
+                for merged in merged_exprs {
+                    let cost = self.cost_fn.cost(&merged);
+                    new_partials.push(Candidate { expr: merged, cost });
                 }
             }
-            // Deduplicate by structural equality (expr + roots), keeping the lowest-cost candidate.
-            let mut map: HashMap<(Vec<L>, Vec<Id>), Partial<L, CF::Cost>> = HashMap::default();
+            // Deduplicate by structural equality (nodes + roots), keeping the lowest-cost candidate.
+            let mut map: HashMap<(Vec<L>, Vec<Id>), Candidate<L, CF::Cost>> = HashMap::default();
             for p in new_partials.into_iter() {
-                let key = (p.expr.as_ref().to_vec(), p.roots.clone());
+                let key = (p.expr.nodes.clone(), p.expr.roots.clone());
                 match map.get(&key) {
                     Some(existing) if existing.cost <= p.cost => {}
                     _ => {
@@ -155,48 +168,88 @@ where
                     }
                 }
             }
-            let mut new_partials: Vec<Partial<L, CF::Cost>> = map.into_values().collect();
-            new_partials.sort_by(|a, b| a.cost.cmp(&b.cost));
-            new_partials.truncate(self.beam);
+            let mut new_partials: Vec<Candidate<L, CF::Cost>> = map.into_values().collect();
+            if new_partials.len() > self.beam {
+                new_partials.select_nth_unstable(self.beam - 1);
+                new_partials.truncate(self.beam);
+            }
             partials = new_partials;
         }
         partials
     }
 
-    /// Recursively collect candidate expressions for an e-class.
-    fn extract_class(&mut self, id: Id) -> Vec<Candidate<L, CF::Cost>> {
+    /// Ensure candidates are computed and memoized for an e-class.
+    fn ensure_class(&mut self, id: Id) {
         let id = self.egraph.find(id);
-        if let Some(v) = self.memo.get(&id) {
-            return v.clone();
+        if self.memo.contains_key(&id) {
+            return;
         }
         if !self.visiting.insert(id) {
-            return vec![]; // cycle
+            // Cycle: memoize empty and return
+            self.memo.entry(id).or_insert_with(Vec::new);
+            return;
         }
+
         let mut all: Vec<Candidate<L, CF::Cost>> = Vec::new();
         for node in &self.egraph[id].nodes {
-            let candidates = self.extract_multiple(node.children());
-            for candidate in candidates {
-                let mut expr = candidate.expr;
-                let mut node = node.clone();
-                node.children_mut().copy_from_slice(&candidate.roots);
-                let root = expr.find_or_add(node);
-                if root != expr.root() {
-                    // Ensure the root is at the end.
-                    expr = expr.extract(root);
-                    // Q: Can this ever happen? If it does, can we discard this candidate?
+            let child_ids = node.children().to_vec();
+
+            // Handle leaf node quickly
+            if child_ids.is_empty() {
+                let mut new_nodes = Vec::new();
+                // leaf: just this node with no children; pushed alone
+                new_nodes.push(node.clone());
+                let new_root = Id::from(0usize);
+                let dag = DagExpr::new(new_nodes, vec![new_root]);
+                let cost = self.cost_fn.cost(&dag);
+                all.push(Candidate { expr: dag, cost });
+                continue;
+            }
+
+            // Ensure children candidates before borrowing them, then clone slices to end borrows
+            let mut acc: Vec<Candidate<L, CF::Cost>> = {
+                self.ensure_class(child_ids[0]);
+                self.candidates_for(child_ids[0]).to_vec()
+            };
+            for &cid in &child_ids[1..] {
+                self.ensure_class(cid);
+                let next_vec: Vec<Candidate<L, CF::Cost>> = self.candidates_for(cid).to_vec();
+                let mut merged_step: Vec<Candidate<L, CF::Cost>> = Vec::new();
+                for a in &acc {
+                    for b in &next_vec {
+                        let merged = a.expr.merge(&b.expr);
+                        // Defer costing to after all borrows are dropped
+                        merged_step.push(Candidate {
+                            expr: merged,
+                            cost: self.cost_fn.cost(&DagExpr::default()), // placeholder, will be recomputed
+                        });
+                    }
                 }
-                // Compact (prune + dedup) and canonicalize expression so structurally identical DAGs compare equal
-                let expr = expr.minimize();
-                let cost = self.cost_fn.cost(&expr);
-                all.push(Candidate { expr, cost });
+                acc = merged_step;
+            }
+
+            // Now append this node on top of each combined child DAG
+            for child_cand in acc.into_iter().map(|mut c| {
+                // Recompute cost correctly by rebuilding DAGs with this node
+                let mut new_nodes = c.expr.nodes.clone();
+                let mut new_node = node.clone();
+                new_node.children_mut().copy_from_slice(&c.expr.roots);
+                new_nodes.push(new_node);
+                let new_root = Id::from(new_nodes.len() - 1);
+                let dag = DagExpr::new(new_nodes, vec![new_root]);
+                let cost = self.cost_fn.cost(&dag);
+                Candidate { expr: dag, cost }
+            }) {
+                all.push(child_cand);
             }
         }
         self.visiting.remove(&id);
 
-        // Deduplicate by canonical structural equality (expr), keeping the lowest-cost candidate.
+        // Deduplicate by canonical structural equality (nodes), keeping the lowest-cost candidate.
+        // Note: After selection, ordering is not guaranteed to be sorted.
         let mut map: HashMap<Vec<L>, Candidate<L, CF::Cost>> = HashMap::default();
         for cand in all.into_iter() {
-            let key = cand.expr.as_ref().to_vec();
+            let key = cand.expr.nodes.clone();
             match map.get(&key) {
                 Some(existing) if existing.cost <= cand.cost => {}
                 _ => {
@@ -205,11 +258,18 @@ where
             }
         }
         let mut all: Vec<Candidate<L, CF::Cost>> = map.into_values().collect();
-        all.sort_by(|a, b| a.cost.cmp(&b.cost));
-        all.truncate(self.beam);
+        if all.len() > self.beam {
+            all.select_nth_unstable(self.beam - 1);
+            all.truncate(self.beam);
+        }
 
-        self.memo.insert(id, all.clone());
-        all
+        self.memo.insert(id, all);
+    }
+
+    /// Borrow the memoized candidates for an e-class as a slice.
+    fn candidates_for(&self, id: Id) -> &[Candidate<L, CF::Cost>] {
+        let id = self.egraph.find(id);
+        self.memo.get(&id).map(|v| v.as_slice()).unwrap_or(&[])
     }
 }
 
@@ -232,7 +292,8 @@ mod tests {
 
         let mut beamer = BeamExtract::new(&egraph, 5, DagSize);
         let dag = beamer.solve(f);
-        assert_eq!(dag.to_string(), "(f x x x)");
+        let rec = dag.extract_root(dag.roots[0]);
+        assert_eq!(rec.to_string(), "(f x x x)");
         assert_eq!(dag.len(), 2);
     }
 
@@ -246,11 +307,11 @@ mod tests {
         egraph.rebuild();
 
         let mut beamer = BeamExtract::new(&egraph, 5, DagSize);
-        let (dag, roots) = beamer.solve_multiple(&[f, h]);
-        assert_eq!(roots.len(), 2);
+        let dag = beamer.solve_multiple(&[f, h]);
+        assert_eq!(dag.roots.len(), 2);
 
-        let f_expr = dag[roots[0]].build_recexpr(|id| dag[id].clone());
-        let h_expr = dag[roots[1]].build_recexpr(|id| dag[id].clone());
+        let f_expr = dag.extract_root(dag.roots[0]);
+        let h_expr = dag.extract_root(dag.roots[1]);
         assert_eq!(f_expr.to_string(), "(f x x)");
         assert_eq!(h_expr.to_string(), "(h (g x) (g x))");
         assert_eq!(dag.len(), 4);

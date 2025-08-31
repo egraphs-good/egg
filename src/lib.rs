@@ -37,12 +37,13 @@ pub mod test;
 
 pub mod tutorials;
 
+mod beam_extract;
+mod dag_expr;
 mod dot;
 mod eclass;
 mod egraph;
 mod explain;
 mod extract;
-mod beam_extract;
 mod language;
 #[cfg(feature = "lp")]
 mod lp_extract;
@@ -89,6 +90,8 @@ impl std::fmt::Display for Id {
 pub(crate) use {explain::Explain, unionfind::UnionFind};
 
 pub use {
+    beam_extract::*,
+    dag_expr::DagExpr,
     dot::Dot,
     eclass::EClass,
     egraph::{EGraph, LanguageMapper, SimpleLanguageMapper},
@@ -97,7 +100,6 @@ pub use {
         UnionEqualities,
     },
     extract::*,
-    beam_extract::*,
     language::*,
     multipattern::*,
     pattern::{ENodeOrVar, Pattern, PatternAst, SearchMatches},
