@@ -8,15 +8,16 @@ pub trait DagCostFunction<L: Language> {
     /// The `Cost` type for DAG extraction. Must be comparable.
     type Cost: Ord + Debug + Clone;
 
-    /// The total cost of a `DagExpr`.
+    /// Compute the total cost of a [`DagExpr`].
     ///
-    /// Typically, this is computed by summing the cost of each node.
+    /// Typically this is computed by summing the cost of each node.
     ///
-    /// The `expr` is guaranteed to be a DAG and compact (shortlex-minimal).
+    /// The [`DagExpr`] is in the unique lexicographic minimal ordering
+    /// for the DAG.
     ///
-    /// There is no specific order to the nodes. If the cost depends on
-    /// ordering, the cost function is responsible for handling this by
-    /// returning the minimum cost over all orderings.
+    /// If the cost depends on the specific topological ordering, the cost
+    /// function is responsible for handling this by returning the minimum
+    /// cost over all topological orderings.
     fn cost(&mut self, expr: &DagExpr<L>) -> Self::Cost;
 }
 
@@ -73,12 +74,13 @@ impl<T: Ord> TopK<T> {
     fn push(&mut self, item: T) {
         match self.data.binary_search(&item) {
             Ok(_) => {} // Duplicate
-            Err(index) => {
+            Err(index) if index < self.k => {
                 if self.data.len() == self.k {
                     self.data.pop();
                 }
                 self.data.insert(index, item);
             }
+            Err(_) => {} // Too large
         }
     }
 
@@ -234,7 +236,7 @@ mod tests {
 
         let mut beamer = BeamExtract::new(&egraph, 5, DagSize);
         let dag = beamer.solve(f);
-        let rec = dag.extract_root(dag.roots[0]);
+        let rec = dag.extract_root(dag.roots()[0]);
         assert_eq!(rec.to_string(), "(f x x x)");
         assert_eq!(dag.len(), 2);
     }
@@ -250,10 +252,10 @@ mod tests {
 
         let mut beamer = BeamExtract::new(&egraph, 5, DagSize);
         let dag = beamer.solve_multiple(&[f, h]);
-        assert_eq!(dag.roots.len(), 2);
+        assert_eq!(dag.roots().len(), 2);
 
-        let f_expr = dag.extract_root(dag.roots[0]);
-        let h_expr = dag.extract_root(dag.roots[1]);
+        let f_expr = dag.extract_root(dag.roots()[0]);
+        let h_expr = dag.extract_root(dag.roots()[1]);
         assert_eq!(f_expr.to_string(), "(f x x)");
         assert_eq!(h_expr.to_string(), "(h (g x) (g x))");
         assert_eq!(dag.len(), 4);

@@ -1,7 +1,11 @@
+use std::cmp::Ordering::*;
 use std::cmp::Reverse;
 use std::collections::BinaryHeap;
 
-use crate::{util::IndexMap, Id, Language, RecExpr};
+use crate::{
+    util::{HashSet, IndexMap},
+    Id, Language, RecExpr,
+};
 
 /// A DAG expression with multiple roots.
 ///
@@ -13,6 +17,7 @@ use crate::{util::IndexMap, Id, Language, RecExpr};
 /// 1) DAG: no back-edges (each node only points to lower indices)
 /// 2) No duplicates: structurally equal nodes occur at most once
 /// 3) Canonical: nodes are in shortlex-minimal topological order
+/// 4) All nodes are reachable from the roots
 ///
 /// This type provides focused conveniences around working with multiple roots:
 /// - Construction and validation helpers
@@ -20,8 +25,8 @@ use crate::{util::IndexMap, Id, Language, RecExpr};
 /// - Efficient merging of canonical DAGs while remapping/concatenating roots
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DagExpr<L> {
-    pub nodes: Vec<L>,
-    pub roots: Vec<Id>,
+    nodes: Vec<L>,
+    roots: Vec<Id>,
 }
 
 impl<L> Default for DagExpr<L> {
@@ -71,17 +76,16 @@ impl<L: Language> DagExpr<L> {
 
     /// Construct a canonical single-node DAG from a leaf node (no children).
     pub fn from_leaf(node: L) -> Self {
-        assert!(node.children().is_empty());
-        DagExpr::new(vec![node], vec![Id::from(0usize)])
-    }
-
-    /// Given a Node with children matching the current roots,
-    /// adds it as a the root node, consuming the current roots as its children.
-    pub fn add_root_node(&mut self, mut node: L) {
-        assert_eq!(node.children().len(), self.roots.len());
-        node.children_mut().copy_from_slice(&self.roots);
-        self.nodes.push(node);
-        self.roots = vec![Id::from(self.nodes.len() - 1)];
+        assert!(
+            node.children().is_empty(),
+            "from_leaf: node must have no children"
+        );
+        let result = DagExpr {
+            nodes: vec![node],
+            roots: vec![Id::from(0usize)],
+        };
+        debug_assert!(result.is_valid());
+        result
     }
 
     /// Returns the number of nodes in the underlying expression.
@@ -94,18 +98,55 @@ impl<L: Language> DagExpr<L> {
         self.nodes.is_empty()
     }
 
+    /// Returns a shared reference to the nodes.
+    pub fn nodes(&self) -> &[L] {
+        &self.nodes
+    }
+
     /// Returns a shared reference to the roots.
     pub fn roots(&self) -> &[Id] {
         &self.roots
     }
 
-    /// Adds a new root id (must already be a valid id in `nodes`).
-    pub fn push_root(&mut self, root: Id) {
-        debug_assert!(
-            usize::from(root) < self.nodes.len(),
-            "DagExpr::push_root: root out of bounds"
-        );
-        self.roots.push(root);
+    /// Given a Node with children matching the current roots,
+    /// adds it as a the root node, consuming the current roots as its children.
+    pub(crate) fn add_root_node(&mut self, mut node: L) {
+        assert_eq!(node.children().len(), self.roots.len());
+        node.children_mut().copy_from_slice(&self.roots);
+        self.nodes.push(node);
+        self.roots = vec![Id::from(self.nodes.len() - 1)];
+        debug_assert!(self.is_valid());
+    }
+
+    /// Extract a RecExpr containing only the subgraph reachable from the given root id.
+    pub fn extract_root(&self, root: Id) -> RecExpr<L> {
+        let root_idx = usize::from(root);
+        assert!(root_idx < self.nodes.len(), "root out of bounds");
+
+        // Build a RecExpr by recursively constructing nodes reachable from root
+        let n = self.nodes.len();
+        let mut id_map: Vec<Option<Id>> = vec![None; n];
+        let mut out: RecExpr<L> = RecExpr::default();
+
+        fn build<L: Language>(
+            i: usize,
+            nodes: &[L],
+            id_map: &mut [Option<Id>],
+            out: &mut RecExpr<L>,
+        ) -> Id {
+            if let Some(id) = id_map[i] {
+                return id;
+            }
+            let node = nodes[i]
+                .clone()
+                .map_children(|c| build(usize::from(c), nodes, id_map, out));
+            let new_id = out.add(node);
+            id_map[i] = Some(new_id);
+            new_id
+        }
+
+        let _ = build(root_idx, &self.nodes, &mut id_map, &mut out);
+        out
     }
 
     /// Merge `other` (assumed canonical) into this canonical `DagExpr`, preserving shortlex order.
@@ -130,7 +171,6 @@ impl<L: Language> DagExpr<L> {
         let mut it_self = self.nodes.iter().cloned().enumerate().peekable();
         let mut it_other = other.nodes.iter().cloned().enumerate().peekable();
 
-        use std::cmp::Ordering::*;
         loop {
             match (it_self.peek(), it_other.peek()) {
                 (Some((is, ns)), Some((io, no))) => {
@@ -247,59 +287,21 @@ impl<L: Language> DagExpr<L> {
         debug_assert!(other_map.iter().all(|m| m.is_some()));
 
         // Remap roots for both inputs and return merged DAG with concatenated roots
-        let mut roots: Vec<Id> = Vec::with_capacity(self.roots.len() + other.roots.len());
-        for &r in &self.roots {
-            roots.push(self_map[usize::from(r)].unwrap());
-        }
-        for &r in &other.roots {
-            roots.push(other_map[usize::from(r)].unwrap());
-        }
+        let self_roots = self
+            .roots
+            .iter()
+            .map(|&r| self_map[usize::from(r)].unwrap());
+        let other_roots = other
+            .roots
+            .iter()
+            .map(|&r| other_map[usize::from(r)].unwrap());
 
-        DagExpr {
+        let result = DagExpr {
             nodes: new_nodes,
-            roots,
-        }
-    }
-
-    /// Extract a RecExpr containing only the subgraph reachable from the given root id.
-    pub fn extract_root(&self, root: Id) -> RecExpr<L>
-    where
-        L: Clone,
-    {
-        let root_idx = usize::from(root);
-        assert!(root_idx < self.nodes.len(), "root out of bounds");
-
-        // Build a RecExpr by recursively constructing nodes reachable from root
-        let n = self.nodes.len();
-        let mut id_map: Vec<Option<Id>> = vec![None; n];
-        let mut out: RecExpr<L> = RecExpr::default();
-
-        fn build<L: Language + Clone>(
-            i: usize,
-            nodes: &[L],
-            id_map: &mut [Option<Id>],
-            out: &mut RecExpr<L>,
-        ) -> Id {
-            if let Some(id) = id_map[i] {
-                return id;
-            }
-            let mapped_children: Vec<Id> = nodes[i]
-                .children()
-                .iter()
-                .map(|&c| build(usize::from(c), nodes, id_map, out))
-                .collect();
-
-            let mut node = nodes[i].clone();
-            for (slot, &mid) in node.children_mut().iter_mut().zip(mapped_children.iter()) {
-                *slot = mid;
-            }
-            let new_id = out.add(node);
-            id_map[i] = Some(new_id);
-            new_id
-        }
-
-        let _ = build(root_idx, &self.nodes, &mut id_map, &mut out);
-        out
+            roots: self_roots.chain(other_roots).collect(),
+        };
+        debug_assert!(result.is_valid());
+        result
     }
 
     /// Minimize/canonicalize this `DagExpr` while remapping all roots.
@@ -401,14 +403,21 @@ impl<L: Language> DagExpr<L> {
         // Process ready nodes in order until all reachable nodes are assigned.
         let mut id_map: Vec<Option<Id>> = vec![None; n];
         let mut new_nodes: Vec<L> = Vec::new();
+        let mut intern: IndexMap<L, Id> = IndexMap::default();
         while let Some(Reverse((node, i))) = heap.pop() {
-            // All duplicate nodes will be popped consecutively, so dedup against last.
-            if new_nodes.last() != Some(&node) {
-                new_nodes.push(node);
-            }
+            // Deduplicate using an interner to handle non-consecutive duplicates.
+            let id = match intern.get(&node) {
+                Some(&id) => id,
+                None => {
+                    let id = Id::from(new_nodes.len());
+                    intern.insert(node.clone(), id);
+                    new_nodes.push(node);
+                    id
+                }
+            };
 
-            // Update the id_map with the new id.
-            id_map[i] = Some(Id::from(new_nodes.len() - 1));
+            // Update the id_map with the interned id.
+            id_map[i] = Some(id);
 
             // Decrement parents; when a parent becomes ready, push its remapped node.
             for &p in &parents_index[parents_start[i]..parents_start[i + 1]] {
@@ -427,7 +436,47 @@ impl<L: Language> DagExpr<L> {
             *r = id_map[usize::from(*r)].unwrap();
         }
         self.nodes = new_nodes;
+        debug_assert!(self.is_valid());
         self
+    }
+
+    /// Check if this `DagExpr` has all invariants.
+    fn is_valid(&self) -> bool {
+        let mut used = vec![false; self.nodes.len()];
+        for r in &self.roots {
+            let ri = usize::from(*r);
+            if ri >= self.nodes.len() {
+                // Root out of bounds
+                return false;
+            }
+            used[ri] = true;
+        }
+        let mut seen = HashSet::with_capacity_and_hasher(self.nodes.len(), Default::default());
+        for (i, node) in self.nodes.iter().enumerate() {
+            if !seen.insert(node) {
+                // Duplicate node
+                return false;
+            }
+            let mut topo_order = false;
+            for &c in node.children() {
+                let ci = usize::from(c);
+                if ci >= i {
+                    // Not a DAG or child out of bounds
+                    return false;
+                }
+                used[ci] = true;
+                topo_order |= ci + 1 == i; // Has immediate predecessor as child
+            }
+            if !topo_order && i > 0 && node <= &self.nodes[i - 1] {
+                // Not in lexicographical order
+                return false;
+            }
+        }
+        if !used.iter().all(|&u| u) {
+            // Some nodes are unreachable
+            return false;
+        }
+        true
     }
 }
 
@@ -453,6 +502,33 @@ mod tests {
     use crate::SymbolLang;
 
     #[test]
+    fn is_minimal_rejects_non_adjacent_duplicate() {
+        // Non-adjacent duplicate should now be rejected by is_minimal.
+        // nodes: [x, f(x), x], roots: [f(x), x]
+        let dag = DagExpr {
+            nodes: vec![
+                SymbolLang::leaf("x"),
+                SymbolLang::new("f", vec![Id::from(0usize)]),
+                SymbolLang::leaf("x"), // duplicate of node 0, non-adjacent
+            ],
+            roots: vec![Id::from(1usize), Id::from(2usize)],
+        };
+
+        // With duplicate checking, this should be rejected.
+        assert!(
+            !dag.is_valid(),
+            "is_minimal must reject non-adjacent duplicates"
+        );
+
+        // Canonicalization deduplicates, so nodes must change (length drops from 3 to 2).
+        let canon = dag.clone().minimize();
+        assert!(
+            canon.nodes().len() < dag.nodes().len(),
+            "minimize should deduplicate duplicate nodes"
+        );
+    }
+
+    #[test]
     fn minimize_produces_canonical_dag() {
         // Build a non-canonical nodes list: duplicate g(f x), root at h
         let mut nodes: Vec<SymbolLang> = Vec::new();
@@ -469,6 +545,8 @@ mod tests {
         // Check pretty-print by rebuilding from root
         let rec = dag.extract_root(dag.roots[0]);
         assert_eq!(rec.to_string(), "(h (g (f x)) (g (f x)))");
+        // Positive canonical case: result of DagExpr::new should be minimal
+        assert!(dag.is_valid());
     }
 
     #[test]
