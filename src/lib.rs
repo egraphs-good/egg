@@ -90,7 +90,7 @@ impl std::fmt::Display for Id {
 pub(crate) use {explain::Explain, unionfind::UnionFind};
 
 pub use {
-    beam_extract::*,
+    beam_extract::{BeamExtract, DagCostFunction, DagSize},
     dag_expr::DagExpr,
     dot::Dot,
     eclass::EClass,

@@ -84,14 +84,14 @@ impl<T: Ord> TopK<T> {
         }
     }
 
-    /// Consume and return the top-k elements as a sorted boxed slice.
+    /// Consume and return the top-k elements as a sorted `Vec`.
     fn into_inner(self) -> Vec<T> {
         self.data
     }
 }
 
-/// Beam search extractor that approximately minimizes a [`CostFunction`] on the
-/// resulting [`RecExpr`].
+/// Beam search extractor that approximately minimizes a [`DagCostFunction`] on the
+/// resulting [`DagExpr`].
 ///
 /// A [`BeamExtract`] keeps up to `beam` candidate DAGs for each e-class while it
 /// explores combinations of child results. Larger beams consider more
@@ -99,15 +99,20 @@ impl<T: Ord> TopK<T> {
 /// time and memory. In practice a small beam (around 5–10) is often sufficient,
 /// and `beam = 1` degenerates to a greedy search.
 ///
-/// The extractor is parameterized by a user-provided [`CostFunction`]. The
+/// The extractor is parameterized by a user-provided [`DagCostFunction`]. The
 /// function assigns a cost to each candidate expression; candidates with lower
-/// cost are preferred. Common choices include [`AstSize`] or other heuristics
+/// cost are preferred. Common choices include [`DagSize`] or other heuristics
 /// tailored to the problem domain.
 ///
 /// `BeamExtract` builds each candidate by appending nodes in a deterministic
 /// order. It does **not** explore all possible node orderings in the resulting
-/// [`RecExpr`]; if the cost depends on ordering, the provided cost function is
-/// responsible for handling it.
+/// [`DagExpr`]; if the cost depends on ordering, the provided cost function is
+/// responsible for handling it by retuning the minimum over all orderings.
+///
+/// **Note**: `BeamExtract` requires that the language `L` has an ordering that
+/// is preserved under a map that transforms each nodes child [`Id`]s by a
+/// monotonicaly increasing function. This is true for `SymbolLang`, languages
+/// defined using [`define_language!`] and most other languages.
 pub struct BeamExtract<'a, CF, L: Language + Clone, N: Analysis<L>>
 where
     CF: DagCostFunction<L>,
@@ -155,18 +160,16 @@ where
             .expr
     }
 
-    /// Returns a list of `DagExpr`s computing `roots`.
+    /// Returns a list of [`DagExpr`]s computing `roots`.
     ///
-    /// Each `DagExpr` is a candidate expression for the corresponding root set.
-    /// At most `beam` candidates are returned. The list is not globally sorted;
-    /// we use an unstable selection to keep an arbitrary top-`beam` by cost.
+    /// Each [`DagExpr`] is a candidate expression for the corresponding root set.
+    /// At most `beam` candidates are returned. The list is sorted by increasing cost.
     ///
     /// Returns an empty list if no candidates could be constructed (e.g., due to cycles).
     fn extract_multiple(&mut self, roots: &[Id]) -> Vec<Candidate<L, CF::Cost>> {
-        let empty = DagExpr::default();
         let mut partials = vec![Candidate {
-            expr: empty.clone(),
-            cost: self.cost_fn.cost(&empty),
+            expr: DagExpr::default(),
+            cost: self.cost_fn.cost(&DagExpr::default()),
         }];
         for &root in roots {
             // Grab candidates for the roots class
@@ -259,5 +262,85 @@ mod tests {
         assert_eq!(f_expr.to_string(), "(f x x)");
         assert_eq!(h_expr.to_string(), "(h (g x) (g x))");
         assert_eq!(dag.len(), 4);
+    }
+
+    #[test]
+    fn beam_extract_tie_breaks_by_expr_order() {
+        // Make an e-class with two equal-cost leaves: x and y
+        let mut egraph = EGraph::<SymbolLang, ()>::default();
+        let x = egraph.add(SymbolLang::leaf("x"));
+        let y = egraph.add(SymbolLang::leaf("y"));
+        egraph.union(x, y);
+        egraph.rebuild();
+
+        // With equal costs, tie-break should be by expr order; "x" < "y"
+        let mut beamer = BeamExtract::new(&egraph, 2, DagSize);
+        let dag = beamer.solve(x);
+        let rec = dag.extract_root(dag.roots()[0]);
+        assert_eq!(rec.to_string(), "x");
+        assert_eq!(dag.len(), 1);
+    }
+
+    #[test]
+    fn beam_width_keeps_best_answer_same() {
+        // Build an e-class with two alternatives:
+        //   f(x x)  -> size 2 DAG (x, f)
+        //   h(g(x) g(x)) -> size 3 DAG (x, g, h)
+        let mut egraph = EGraph::<SymbolLang, ()>::default();
+        let x = egraph.add(SymbolLang::leaf("x"));
+        let fxx = egraph.add(SymbolLang::new("f", vec![x, x]));
+        let gx = egraph.add(SymbolLang::new("g", vec![x]));
+        let hgg = egraph.add(SymbolLang::new("h", vec![gx, gx]));
+        egraph.union(fxx, hgg);
+        egraph.rebuild();
+
+        // Beam=1 and Beam=5 should both pick (f x x) as the best
+        let mut b1 = BeamExtract::new(&egraph, 1, DagSize);
+        let d1 = b1.solve(fxx);
+        let r1 = d1.extract_root(d1.roots()[0]);
+        assert_eq!(r1.to_string(), "(f x x)");
+        assert_eq!(d1.len(), 2);
+
+        let mut b5 = BeamExtract::new(&egraph, 5, DagSize);
+        let d5 = b5.solve(fxx);
+        let r5 = d5.extract_root(d5.roots()[0]);
+        assert_eq!(r5.to_string(), "(f x x)");
+        assert_eq!(d5.len(), 2);
+    }
+
+    #[test]
+    fn beam_width_two_finds_better_solution() {
+        // Minimal setup where beam=2 can choose a globally better pair by sharing.
+        // Let s = g(g x) and t = g(g y).
+        let mut egraph = EGraph::<SymbolLang, ()>::default();
+        let x = egraph.add(SymbolLang::leaf("x"));
+        let y = egraph.add(SymbolLang::leaf("y"));
+        let gx = egraph.add(SymbolLang::new("g", vec![x]));
+        let ggx = egraph.add(SymbolLang::new("g", vec![gx])); // s
+        let gy = egraph.add(SymbolLang::new("g", vec![y]));
+        let ggy = egraph.add(SymbolLang::new("g", vec![gy])); // t
+
+        // Class A: a1 = f(t) (cheaper individually), a2 = f(g(s)) (more expensive individually)
+        let a1 = egraph.add(SymbolLang::new("f", vec![ggy]));
+        let gs = egraph.add(SymbolLang::new("g", vec![ggx]));
+        let a2 = egraph.add(SymbolLang::new("f", vec![gs]));
+        egraph.union(a1, a2);
+
+        // Class B: b1 = h(t), b2 = h(s) (tie; b2 favored lexicographically due to x < y)
+        let b1 = egraph.add(SymbolLang::new("h", vec![ggy]));
+        let b2 = egraph.add(SymbolLang::new("h", vec![ggx]));
+        egraph.union(b1, b2);
+
+        egraph.rebuild();
+
+        // With beam=1, A picks a1 (uses t) while B picks b2 (uses s) -> no sharing across roots.
+        let mut ex1 = BeamExtract::new(&egraph, 1, DagSize);
+        let dag1 = ex1.solve_multiple(&[a1, b1]);
+        assert_eq!(dag1.len(), 8, "beam=1 should not share and be larger");
+
+        // With beam=2, A can pick a2 (uses s) and B picks b2 (uses s) -> share s, smaller overall.
+        let mut ex2 = BeamExtract::new(&egraph, 2, DagSize);
+        let dag2 = ex2.solve_multiple(&[a1, b1]);
+        assert_eq!(dag2.len(), 5, "beam=2 should share s and be smaller");
     }
 }
