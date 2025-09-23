@@ -94,6 +94,12 @@ impl From<u32> for Var {
     }
 }
 
+impl From<Symbol> for Var {
+    fn from(sym: Symbol) -> Self {
+        Var(VarInner::Sym(sym))
+    }
+}
+
 /// A substitution mapping [`Var`]s to eclass [`Id`]s.
 ///
 #[derive(Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
