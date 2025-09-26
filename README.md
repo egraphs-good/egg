@@ -5,6 +5,15 @@
 [![Main branch docs](https://img.shields.io/badge/docs-main-blue)](https://egraphs-good.github.io/egg/egg/)
 [![Zulip](https://img.shields.io/badge/zulip-join%20chat-blue)](https://egraphs.zulipchat.com)
 
+egg is a library for e-graphs and equality saturation.
+It can be used to build program optimizers, synthesizers, verifiers, and more.
+For more information, see these resources:
+
+- [website](https://egraphs-good.github.io/)
+- [tutorial](https://docs.rs/egg/latest/egg/tutorials/)
+- [API docs](https://docs.rs/egg/)
+- [POPL 2021 paper](https://doi.org/10.1145/3434304)
+
 > Also check out the [egglog](https://github.com/egraphs-good/egglog) 
  system that provides an alternative approach to 
  equality saturation based on Datalog.
@@ -13,8 +22,8 @@
 
 Are you using egg?
 Please cite using the BibTeX below and
- add your project to the `egg`
- [website](https://github.com/egraphs-good/egraphs-good.github.io)!
+ add your project to the 
+ ["Awesome E-graphs" page](https://github.com/philzook58/awesome-egraphs)!
 
 <details class="bibtex">
     <summary>BibTeX</summary>
@@ -39,7 +48,7 @@ Please cite using the BibTeX below and
 </pre></code>
 </details>
 
-Check out the [egg web demo](https://egraphs-good.github.io/egg-web-demo) for some quick e-graph action!
+<!-- Check out the [egg web demo](https://egraphs-good.github.io/egg-web-demo) for some quick e-graph action! -->
 
 ## Using egg
 
