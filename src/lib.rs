@@ -37,6 +37,8 @@ pub mod test;
 
 pub mod tutorials;
 
+mod beam_extract;
+mod dag_expr;
 mod dot;
 mod eclass;
 mod egraph;
@@ -88,6 +90,8 @@ impl std::fmt::Display for Id {
 pub(crate) use {explain::Explain, unionfind::UnionFind};
 
 pub use {
+    beam_extract::{BeamExtract, DagCostFunction, DagSize},
+    dag_expr::DagExpr,
     dot::Dot,
     eclass::EClass,
     egraph::{EGraph, LanguageMapper, SimpleLanguageMapper},

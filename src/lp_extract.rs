@@ -69,7 +69,7 @@ impl<L: Language, N: Analysis<L>> LpCostFunction<L, N> for AstSize {
 /// good_lp = { version = "1", features = ["coin_cbc"] } # or highs, microlp, etc.
 /// ```
 ///
-/// See the (`good_lp` documentation)[https://docs.rs/good_lp/1/good_lp/solvers/index.html]
+/// See the [`good_lp` documentation](https://docs.rs/good_lp/1/good_lp/solvers/index.html)
 ///
 /// At run time, select the solver by calling [`Self::solve_with`] or [`Self::solve_multiple_with`]
 /// and passing one of the enabled `good_lp` solver implementations.
@@ -93,7 +93,7 @@ impl<L: Language, N: Analysis<L>> LpCostFunction<L, N> for AstSize {
 ///   let rec = LpExtractor::new(egraph, AstSize)
 ///       .solve_with(root, highs);
 ///   # let _ = rec;
-/// ```
+///   ```
 ///
 #[cfg_attr(docsrs, doc(cfg(feature = "lp")))]
 pub struct LpExtractor<'a, L: Language, N: Analysis<L>> {
@@ -159,7 +159,7 @@ where
         self.solve_multiple_with(roots, default_solver)
     }
 
-    /// Like [`solve_multiple`], but lets the caller provide a `good_lp` solver backend.
+    /// Like [`Self::solve_multiple`], but lets the caller provide a `good_lp` solver backend.
     /// Example: `solve_multiple_with(roots, good_lp::highs)`.
     pub fn solve_multiple_with<S: Solver>(
         &mut self,
