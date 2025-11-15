@@ -1,6 +1,6 @@
 use good_lp::{
-    default_solver, variable, variables, Expression, Solution, SolutionStatus, Solver, SolverModel,
-    Variable, solvers::WithTimeLimit
+    default_solver, solvers::WithTimeLimit, variable, variables, Expression, Solution,
+    SolutionStatus, Solver, SolverModel, Variable,
 };
 use std::time::Instant;
 
@@ -155,8 +155,9 @@ where
     }
 
     /// Extract a single rooted term with an explicit solver backend and time limit.
-    pub fn solve_with_timeout<S: Solver>(&mut self, root: Id, solver: S, timeout: f64) -> RecExpr<L> 
-    where <S as Solver>::Model: WithTimeLimit
+    pub fn solve_with_timeout<S: Solver>(&mut self, root: Id, solver: S, timeout: f64) -> RecExpr<L>
+    where
+        <S as Solver>::Model: WithTimeLimit,
     {
         self.solve_multiple_with_timeout(&[root], solver, timeout).0
     }
@@ -311,8 +312,9 @@ where
         roots: &[Id],
         solver: S,
         timeout: f64,
-    ) -> (RecExpr<L>, Vec<Id>) 
-    where <S as Solver>::Model: WithTimeLimit
+    ) -> (RecExpr<L>, Vec<Id>)
+    where
+        <S as Solver>::Model: WithTimeLimit,
     {
         let egraph = self.egraph;
         let mut num_vars: usize = 0;
@@ -447,8 +449,6 @@ where
         assert!(expr.is_dag(), "LpExtract found a cyclic term!: {:?}", expr);
         (expr, root_idxs)
     }
-    
-
 }
 
 fn find_cycles<L, N>(egraph: &EGraph<L, N>, mut f: impl FnMut(Id, usize))
@@ -520,7 +520,6 @@ mod tests {
         assert_eq!(exp.len(), 4);
         assert_eq!(ids.len(), 2);
     }
-
 
     #[test]
     fn extract_root_mismatch() {
