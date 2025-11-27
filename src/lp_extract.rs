@@ -167,16 +167,14 @@ where
         self.solve_multiple_with(roots, default_solver)
     }
 
-    /// Like [`solve_multiple`], but lets the caller provide a `good_lp` solver backend.
-    /// Example: `solve_multiple_with(roots, good_lp::highs)`.
-    pub fn solve_multiple_with<S: Solver>(
+    /// Builds the ILP model with variables and objective function.
+    /// Returns the model builder (before timeout) and the variables map.
+    fn build_ilp_model<S: Solver>(
         &mut self,
-        roots: &[Id],
         solver: S,
-    ) -> (RecExpr<L>, Vec<Id>) {
+    ) -> (S::Model, HashMap<Id, ClassVars>) {
         let egraph = self.egraph;
         let mut num_vars: usize = 0;
-        let mut num_cons: usize = 0;
 
         // Build variables per class
         let mut builder = variables!();
@@ -213,11 +211,25 @@ where
         }
 
         // Build model using the provided solver
-        let mut model = builder.minimise(objective).using(solver);
+        let model = builder.minimise(objective).using(solver);
+
+        log::info!("Model using {num_vars} variables");
+        (model, vars)
+    }
+
+    /// Adds all constraints to the model.
+    fn add_constraints<S: Solver>(
+        &self,
+        model: &mut S::Model,
+        vars: &HashMap<Id, ClassVars>,
+        roots: &[Id],
+    ) {
+        let egraph = self.egraph;
+        let mut num_cons: usize = 0;
 
         // Constraints:
         // - Exactly one chosen node per active class: sum(nodes) == active
-        for (&id, class) in &vars {
+        for (&id, class) in vars {
             let sum_nodes: Expression = class
                 .nodes
                 .iter()
@@ -248,26 +260,16 @@ where
             model.add_constraint(Expression::from(vars[root].active).geq(1));
         }
 
-        log::info!("Model using {num_vars} variables and {num_cons} constraints");
-        log::info!("Solving using {}", <S as Solver>::name(),);
-        let start = Instant::now();
-        let solution = model
-            .solve()
-            .expect("good_lp failed to solve the ILP problem");
-        let duration = start.elapsed().as_secs_f64();
-        log::info!("Solution found in {:.2}s", duration);
-        match solution.status() {
-            SolutionStatus::Optimal => {
-                log::info!("Solution is optimal");
-            }
-            SolutionStatus::TimeLimit => {
-                log::warn!("Solver timed out, solution may not be optimal.");
-            }
-            SolutionStatus::GapLimit => {
-                log::info!("Solver reached gap limit, solution may not be optimal.");
-            }
-        };
+        log::info!("Model using {num_cons} constraints");
+    }
 
+    /// Extracts the solution from the solved model.
+    fn extract_solution<S: Solver>(
+        &self,
+        solution: <S::Model as SolverModel>::Solution,
+        vars: &HashMap<Id, ClassVars>,
+        roots: &[Id],
+    ) -> (RecExpr<L>, Vec<Id>) {
         let mut todo: Vec<Id> = roots.iter().map(|id| self.egraph.find(*id)).collect();
         let mut expr = RecExpr::default();
         // converts e-class ids to e-node ids
@@ -305,96 +307,17 @@ where
         (expr, root_idxs)
     }
 
-    /// Like [`solve_multiple_with`], but lets the caller provide a time limit for the 'good_lp' solver in seconds.
-    /// Example: `solve_multiple_with_timeout(roots, good_lp::highs, 600.0)`.
-    pub fn solve_multiple_with_timeout<S: Solver>(
+    /// Like [`solve_multiple`], but lets the caller provide a `good_lp` solver backend.
+    /// Example: `solve_multiple_with(roots, good_lp::highs)`.
+    pub fn solve_multiple_with<S: Solver>(
         &mut self,
         roots: &[Id],
         solver: S,
-        timeout: f64,
-    ) -> (RecExpr<L>, Vec<Id>)
-    where
-        <S as Solver>::Model: WithTimeLimit,
-    {
-        let egraph = self.egraph;
-        let mut num_vars: usize = 0;
-        let mut num_cons: usize = 0;
+    ) -> (RecExpr<L>, Vec<Id>) {
+        let (mut model, vars) = self.build_ilp_model(solver);
+        self.add_constraints::<S>(&mut model, &vars, roots);
 
-        // Build variables per class
-        let mut builder = variables!();
-        let vars: HashMap<Id, ClassVars> = egraph
-            .classes()
-            .map(|class| {
-                num_vars += 1;
-                let active = builder.add(variable().binary());
-                let nodes = class
-                    .nodes
-                    .iter()
-                    .enumerate()
-                    .map(|(i, _)| {
-                        num_vars += 1;
-                        if self.cyclic_nodes.contains(&(class.id, i)) {
-                            // Force to 0 for cyclic nodes
-                            builder.add(variable().binary().max(0).min(0))
-                        } else {
-                            builder.add(variable().binary())
-                        }
-                    })
-                    .collect();
-                (class.id, ClassVars { active, nodes })
-            })
-            .collect();
-
-        // Objective: minimize sum(cost[node] * node_active)
-        let mut objective: Expression = 0.0.into();
-        for class in egraph.classes() {
-            for (i, &node_var) in vars[&class.id].nodes.iter().enumerate() {
-                let c = self.costs[&class.id][i];
-                objective = objective + c * node_var;
-            }
-        }
-
-        // Build model using the provided solver
-        let mut model_build = builder.minimise(objective).using(solver);
-
-        // Set timeout
-        let mut model = model_build.with_time_limit(timeout);
-
-        // Constraints:
-        // - Exactly one chosen node per active class: sum(nodes) == active
-        for (&id, class) in &vars {
-            let sum_nodes: Expression = class
-                .nodes
-                .iter()
-                .copied()
-                .fold(0.0.into(), |acc, v| acc + v);
-            num_cons += 1;
-            model.add_constraint((sum_nodes - class.active).eq(0));
-
-            // For each chosen node, all children classes must be active: node_active <= child_active
-            for (i, node) in egraph[id].iter().enumerate() {
-                let node_active = class.nodes[i];
-                if self.cyclic_nodes.contains(&(id, i)) {
-                    // Already fixed to 0 via bounds
-                    continue;
-                }
-                for child in node.children() {
-                    let child_active = vars[child].active;
-                    num_cons += 1;
-                    model.add_constraint((node_active - child_active).leq(0));
-                }
-            }
-        }
-
-        // Ensure specified roots are active
-        for root in roots {
-            let root = &egraph.find(*root);
-            num_cons += 1;
-            model.add_constraint(Expression::from(vars[root].active).geq(1));
-        }
-
-        log::info!("Model using {num_vars} variables and {num_cons} constraints");
-        log::info!("Solving using {}", <S as Solver>::name(),);
+        log::info!("Solving using {}", <S as Solver>::name());
         let start = Instant::now();
         let solution = model
             .solve()
@@ -413,41 +336,47 @@ where
             }
         };
 
-        let mut todo: Vec<Id> = roots.iter().map(|id| self.egraph.find(*id)).collect();
-        let mut expr = RecExpr::default();
-        // converts e-class ids to e-node ids
-        let mut ids: HashMap<Id, Id> = HashMap::default();
+        self.extract_solution::<S>(solution, &vars, roots)
+    }
 
-        while let Some(&id) = todo.last() {
-            if ids.contains_key(&id) {
-                todo.pop();
-                continue;
+    /// Like [`solve_multiple_with`], but lets the caller provide a time limit for the 'good_lp' solver in seconds.
+    /// Example: `solve_multiple_with_timeout(roots, good_lp::highs, 600.0)`.
+    pub fn solve_multiple_with_timeout<S: Solver>(
+        &mut self,
+        roots: &[Id],
+        solver: S,
+        timeout: f64,
+    ) -> (RecExpr<L>, Vec<Id>)
+    where
+        <S as Solver>::Model: WithTimeLimit,
+    {
+        let (model_build, vars) = self.build_ilp_model(solver);
+        
+        // Set timeout
+        let mut model = model_build.with_time_limit(timeout);
+        
+        self.add_constraints::<S>(&mut model, &vars, roots);
+
+        log::info!("Solving using {}", <S as Solver>::name());
+        let start = Instant::now();
+        let solution = model
+            .solve()
+            .expect("good_lp failed to solve the ILP problem");
+        let duration = start.elapsed().as_secs_f64();
+        log::info!("Solution found in {:.2}s", duration);
+        match solution.status() {
+            SolutionStatus::Optimal => {
+                log::info!("Solution is optimal");
             }
-            let v = &vars[&id];
-            assert!(solution.value(v.active) > 0.0);
-            let node_idx = v
-                .nodes
-                .iter()
-                .position(|&n| solution.value(n) > 0.0)
-                .unwrap();
-            let node = &self.egraph[id].nodes[node_idx];
-            if node.all(|child| ids.contains_key(&child)) {
-                let new_id = expr.add(node.clone().map_children(|i| ids[&self.egraph.find(i)]));
-                ids.insert(id, new_id);
-                todo.pop();
-            } else {
-                todo.extend_from_slice(node.children())
+            SolutionStatus::TimeLimit => {
+                log::warn!("Solver timed out, solution may not be optimal.");
             }
-        }
+            SolutionStatus::GapLimit => {
+                log::info!("Solver reached gap limit, solution may not be optimal.");
+            }
+        };
 
-        let root_idxs = roots
-            .iter()
-            .map(|id| self.egraph.find(*id))
-            .map(|root| ids[&root])
-            .collect();
-
-        assert!(expr.is_dag(), "LpExtract found a cyclic term!: {:?}", expr);
-        (expr, root_idxs)
+        self.extract_solution::<S>(solution, &vars, roots)
     }
 }
 
