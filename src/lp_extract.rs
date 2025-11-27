@@ -169,10 +169,7 @@ where
 
     /// Builds the ILP model with variables and objective function.
     /// Returns the model builder (before timeout) and the variables map.
-    fn build_ilp_model<S: Solver>(
-        &mut self,
-        solver: S,
-    ) -> (S::Model, HashMap<Id, ClassVars>) {
+    fn build_ilp_model<S: Solver>(&mut self, solver: S) -> (S::Model, HashMap<Id, ClassVars>) {
         let egraph = self.egraph;
         let mut num_vars: usize = 0;
 
@@ -351,10 +348,10 @@ where
         <S as Solver>::Model: WithTimeLimit,
     {
         let (model_build, vars) = self.build_ilp_model(solver);
-        
+
         // Set timeout
         let mut model = model_build.with_time_limit(timeout);
-        
+
         self.add_constraints::<S>(&mut model, &vars, roots);
 
         log::info!("Solving using {}", <S as Solver>::name());
