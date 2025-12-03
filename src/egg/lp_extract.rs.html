@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/lp_extract.rs`."><title>lp_extract.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-081576b923113409.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="egg" data-themes="" data-resource-suffix="" data-rustdoc-version="1.79.0 (129f3b996 2024-06-10)" data-channel="1.79.0" data-search-js="search-bf21c90c8c1d92b1.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-e32f0c247825364d.js"></script><script defer src="../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-20a3ad099b048cf2.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-09095024cf37855e.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><nav class="sub"><form class="search-form"><span></span><div id="sidebar-button" tabindex="-1"><a href="../../egg/all.html" title="show sidebar"></a></div><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Type ‘S’ or ‘/’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings">Settings</a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/lp_extract.rs`."><title>lp_extract.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-492a78a4a87dcc01.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="egg" data-themes="" data-resource-suffix="" data-rustdoc-version="1.82.0 (f6e511eec 2024-10-15)" data-channel="1.82.0" data-search-js="search-a99f1315e7cc5121.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-118b08c4c78b968e.js"></script><script defer src="../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-921df33f47b8780c.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-3b12f09e550e0385.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -369,9 +369,104 @@
 <a href="#369" id="369">369</a>
 <a href="#370" id="370">370</a>
 <a href="#371" id="371">371</a>
+<a href="#372" id="372">372</a>
+<a href="#373" id="373">373</a>
+<a href="#374" id="374">374</a>
+<a href="#375" id="375">375</a>
+<a href="#376" id="376">376</a>
+<a href="#377" id="377">377</a>
+<a href="#378" id="378">378</a>
+<a href="#379" id="379">379</a>
+<a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
+<a href="#388" id="388">388</a>
+<a href="#389" id="389">389</a>
+<a href="#390" id="390">390</a>
+<a href="#391" id="391">391</a>
+<a href="#392" id="392">392</a>
+<a href="#393" id="393">393</a>
+<a href="#394" id="394">394</a>
+<a href="#395" id="395">395</a>
+<a href="#396" id="396">396</a>
+<a href="#397" id="397">397</a>
+<a href="#398" id="398">398</a>
+<a href="#399" id="399">399</a>
+<a href="#400" id="400">400</a>
+<a href="#401" id="401">401</a>
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a>
+<a href="#408" id="408">408</a>
+<a href="#409" id="409">409</a>
+<a href="#410" id="410">410</a>
+<a href="#411" id="411">411</a>
+<a href="#412" id="412">412</a>
+<a href="#413" id="413">413</a>
+<a href="#414" id="414">414</a>
+<a href="#415" id="415">415</a>
+<a href="#416" id="416">416</a>
+<a href="#417" id="417">417</a>
+<a href="#418" id="418">418</a>
+<a href="#419" id="419">419</a>
+<a href="#420" id="420">420</a>
+<a href="#421" id="421">421</a>
+<a href="#422" id="422">422</a>
+<a href="#423" id="423">423</a>
+<a href="#424" id="424">424</a>
+<a href="#425" id="425">425</a>
+<a href="#426" id="426">426</a>
+<a href="#427" id="427">427</a>
+<a href="#428" id="428">428</a>
+<a href="#429" id="429">429</a>
+<a href="#430" id="430">430</a>
+<a href="#431" id="431">431</a>
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a>
+<a href="#447" id="447">447</a>
+<a href="#448" id="448">448</a>
+<a href="#449" id="449">449</a>
+<a href="#450" id="450">450</a>
+<a href="#451" id="451">451</a>
+<a href="#452" id="452">452</a>
+<a href="#453" id="453">453</a>
+<a href="#454" id="454">454</a>
+<a href="#455" id="455">455</a>
+<a href="#456" id="456">456</a>
+<a href="#457" id="457">457</a>
+<a href="#458" id="458">458</a>
+<a href="#459" id="459">459</a>
+<a href="#460" id="460">460</a>
+<a href="#461" id="461">461</a>
+<a href="#462" id="462">462</a>
+<a href="#463" id="463">463</a>
+<a href="#464" id="464">464</a>
+<a href="#465" id="465">465</a>
+<a href="#466" id="466">466</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>good_lp::{
-    default_solver, variable, variables, Expression, Solution, SolutionStatus, Solver, SolverModel,
-    Variable,
+    default_solver, solvers::WithTimeLimit, variable, variables, Expression, Solution,
+    SolutionStatus, Solver, SolverModel, Variable,
 };
 <span class="kw">use </span>std::time::Instant;
 
@@ -442,7 +537,7 @@
 ///
 /// See the (`good_lp` documentation)[https://docs.rs/good_lp/1/good_lp/solvers/index.html]
 ///
-/// At run time, select the solver by calling [`Self::solve_with`] or [`Self::solve_multiple_with`]
+/// At run time, select the solver by calling [`Self::solve_with`], [`Self::solve_multiple_with`], [`Self::solve_with_timeout`], or [`Self::solve_multiple_with_timeout`]
 /// and passing one of the enabled `good_lp` solver implementations.
 ///
 ///  - Example (CBC):
@@ -525,21 +620,24 @@
         <span class="self">self</span>.solve_multiple_with(<span class="kw-2">&amp;</span>[root], solver).<span class="number">0
     </span>}
 
+    <span class="doccomment">/// Extract a single rooted term with an explicit solver backend and time limit.
+    </span><span class="kw">pub fn </span>solve_with_timeout&lt;S: Solver&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, root: Id, solver: S, timeout: f64) -&gt; RecExpr&lt;L&gt;
+    <span class="kw">where
+        </span>&lt;S <span class="kw">as </span>Solver&gt;::Model: WithTimeLimit,
+    {
+        <span class="self">self</span>.solve_multiple_with_timeout(<span class="kw-2">&amp;</span>[root], solver, timeout).<span class="number">0
+    </span>}
+
     <span class="doccomment">/// Extract (potentially multiple) roots
     </span><span class="kw">pub fn </span>solve_multiple(<span class="kw-2">&amp;mut </span><span class="self">self</span>, roots: <span class="kw-2">&amp;</span>[Id]) -&gt; (RecExpr&lt;L&gt;, Vec&lt;Id&gt;) {
         <span class="self">self</span>.solve_multiple_with(roots, default_solver)
     }
 
-    <span class="doccomment">/// Like [`solve_multiple`], but lets the caller provide a `good_lp` solver backend.
-    /// Example: `solve_multiple_with(roots, good_lp::highs)`.
-    </span><span class="kw">pub fn </span>solve_multiple_with&lt;S: Solver&gt;(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        roots: <span class="kw-2">&amp;</span>[Id],
-        solver: S,
-    ) -&gt; (RecExpr&lt;L&gt;, Vec&lt;Id&gt;) {
+    <span class="doccomment">/// Builds the ILP model with variables and objective function.
+    /// Returns the model builder (before timeout) and the variables map.
+    </span><span class="kw">fn </span>build_ilp_model&lt;S: Solver&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, solver: S) -&gt; (S::Model, HashMap&lt;Id, ClassVars&gt;) {
         <span class="kw">let </span>egraph = <span class="self">self</span>.egraph;
         <span class="kw">let </span><span class="kw-2">mut </span>num_vars: usize = <span class="number">0</span>;
-        <span class="kw">let </span><span class="kw-2">mut </span>num_cons: usize = <span class="number">0</span>;
 
         <span class="comment">// Build variables per class
         </span><span class="kw">let </span><span class="kw-2">mut </span>builder = <span class="macro">variables!</span>();
@@ -576,11 +674,25 @@
         }
 
         <span class="comment">// Build model using the provided solver
-        </span><span class="kw">let </span><span class="kw-2">mut </span>model = builder.minimise(objective).using(solver);
+        </span><span class="kw">let </span>model = builder.minimise(objective).using(solver);
+
+        <span class="macro">log::info!</span>(<span class="string">"Model using {num_vars} variables"</span>);
+        (model, vars)
+    }
+
+    <span class="doccomment">/// Adds all constraints to the model.
+    </span><span class="kw">fn </span>add_constraints&lt;S: Solver&gt;(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        model: <span class="kw-2">&amp;mut </span>S::Model,
+        vars: <span class="kw-2">&amp;</span>HashMap&lt;Id, ClassVars&gt;,
+        roots: <span class="kw-2">&amp;</span>[Id],
+    ) {
+        <span class="kw">let </span>egraph = <span class="self">self</span>.egraph;
+        <span class="kw">let </span><span class="kw-2">mut </span>num_cons: usize = <span class="number">0</span>;
 
         <span class="comment">// Constraints:
         // - Exactly one chosen node per active class: sum(nodes) == active
-        </span><span class="kw">for </span>(<span class="kw-2">&amp;</span>id, class) <span class="kw">in </span><span class="kw-2">&amp;</span>vars {
+        </span><span class="kw">for </span>(<span class="kw-2">&amp;</span>id, class) <span class="kw">in </span>vars {
             <span class="kw">let </span>sum_nodes: Expression = class
                 .nodes
                 .iter()
@@ -611,26 +723,16 @@
             model.add_constraint(Expression::from(vars[root].active).geq(<span class="number">1</span>));
         }
 
-        <span class="macro">log::info!</span>(<span class="string">"Model using {num_vars} variables and {num_cons} constraints"</span>);
-        <span class="macro">log::info!</span>(<span class="string">"Solving using {}"</span>, &lt;S <span class="kw">as </span>Solver&gt;::name(),);
-        <span class="kw">let </span>start = Instant::now();
-        <span class="kw">let </span>solution = model
-            .solve()
-            .expect(<span class="string">"good_lp failed to solve the ILP problem"</span>);
-        <span class="kw">let </span>duration = start.elapsed().as_secs_f64();
-        <span class="macro">log::info!</span>(<span class="string">"Solution found in {:.2}s"</span>, duration);
-        <span class="kw">match </span>solution.status() {
-            SolutionStatus::Optimal =&gt; {
-                <span class="macro">log::info!</span>(<span class="string">"Solution is optimal"</span>);
-            }
-            SolutionStatus::TimeLimit =&gt; {
-                <span class="macro">log::warn!</span>(<span class="string">"Solver timed out, solution may not be optimal."</span>);
-            }
-            SolutionStatus::GapLimit =&gt; {
-                <span class="macro">log::info!</span>(<span class="string">"Solver reached gap limit, solution may not be optimal."</span>);
-            }
-        };
+        <span class="macro">log::info!</span>(<span class="string">"Model using {num_cons} constraints"</span>);
+    }
 
+    <span class="doccomment">/// Extracts the solution from the solved model.
+    </span><span class="kw">fn </span>extract_solution&lt;S: Solver&gt;(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        solution: &lt;S::Model <span class="kw">as </span>SolverModel&gt;::Solution,
+        vars: <span class="kw-2">&amp;</span>HashMap&lt;Id, ClassVars&gt;,
+        roots: <span class="kw-2">&amp;</span>[Id],
+    ) -&gt; (RecExpr&lt;L&gt;, Vec&lt;Id&gt;) {
         <span class="kw">let </span><span class="kw-2">mut </span>todo: Vec&lt;Id&gt; = roots.iter().map(|id| <span class="self">self</span>.egraph.find(<span class="kw-2">*</span>id)).collect();
         <span class="kw">let </span><span class="kw-2">mut </span>expr = RecExpr::default();
         <span class="comment">// converts e-class ids to e-node ids
@@ -666,6 +768,78 @@
 
         <span class="macro">assert!</span>(expr.is_dag(), <span class="string">"LpExtract found a cyclic term!: {:?}"</span>, expr);
         (expr, root_idxs)
+    }
+
+    <span class="doccomment">/// Like [`solve_multiple`], but lets the caller provide a `good_lp` solver backend.
+    /// Example: `solve_multiple_with(roots, good_lp::highs)`.
+    </span><span class="kw">pub fn </span>solve_multiple_with&lt;S: Solver&gt;(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        roots: <span class="kw-2">&amp;</span>[Id],
+        solver: S,
+    ) -&gt; (RecExpr&lt;L&gt;, Vec&lt;Id&gt;) {
+        <span class="kw">let </span>(<span class="kw-2">mut </span>model, vars) = <span class="self">self</span>.build_ilp_model(solver);
+        <span class="self">self</span>.add_constraints::&lt;S&gt;(<span class="kw-2">&amp;mut </span>model, <span class="kw-2">&amp;</span>vars, roots);
+
+        <span class="macro">log::info!</span>(<span class="string">"Solving using {}"</span>, &lt;S <span class="kw">as </span>Solver&gt;::name());
+        <span class="kw">let </span>start = Instant::now();
+        <span class="kw">let </span>solution = model
+            .solve()
+            .expect(<span class="string">"good_lp failed to solve the ILP problem"</span>);
+        <span class="kw">let </span>duration = start.elapsed().as_secs_f64();
+        <span class="macro">log::info!</span>(<span class="string">"Solution found in {:.2}s"</span>, duration);
+        <span class="kw">match </span>solution.status() {
+            SolutionStatus::Optimal =&gt; {
+                <span class="macro">log::info!</span>(<span class="string">"Solution is optimal"</span>);
+            }
+            SolutionStatus::TimeLimit =&gt; {
+                <span class="macro">log::warn!</span>(<span class="string">"Solver timed out, solution may not be optimal."</span>);
+            }
+            SolutionStatus::GapLimit =&gt; {
+                <span class="macro">log::info!</span>(<span class="string">"Solver reached gap limit, solution may not be optimal."</span>);
+            }
+        };
+
+        <span class="self">self</span>.extract_solution::&lt;S&gt;(solution, <span class="kw-2">&amp;</span>vars, roots)
+    }
+
+    <span class="doccomment">/// Like [`solve_multiple_with`], but lets the caller provide a time limit for the 'good_lp' solver in seconds.
+    /// Example: `solve_multiple_with_timeout(roots, good_lp::highs, 600.0)`.
+    </span><span class="kw">pub fn </span>solve_multiple_with_timeout&lt;S: Solver&gt;(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        roots: <span class="kw-2">&amp;</span>[Id],
+        solver: S,
+        timeout: f64,
+    ) -&gt; (RecExpr&lt;L&gt;, Vec&lt;Id&gt;)
+    <span class="kw">where
+        </span>&lt;S <span class="kw">as </span>Solver&gt;::Model: WithTimeLimit,
+    {
+        <span class="kw">let </span>(model_build, vars) = <span class="self">self</span>.build_ilp_model(solver);
+
+        <span class="comment">// Set timeout
+        </span><span class="kw">let </span><span class="kw-2">mut </span>model = model_build.with_time_limit(timeout);
+
+        <span class="self">self</span>.add_constraints::&lt;S&gt;(<span class="kw-2">&amp;mut </span>model, <span class="kw-2">&amp;</span>vars, roots);
+
+        <span class="macro">log::info!</span>(<span class="string">"Solving using {}"</span>, &lt;S <span class="kw">as </span>Solver&gt;::name());
+        <span class="kw">let </span>start = Instant::now();
+        <span class="kw">let </span>solution = model
+            .solve()
+            .expect(<span class="string">"good_lp failed to solve the ILP problem"</span>);
+        <span class="kw">let </span>duration = start.elapsed().as_secs_f64();
+        <span class="macro">log::info!</span>(<span class="string">"Solution found in {:.2}s"</span>, duration);
+        <span class="kw">match </span>solution.status() {
+            SolutionStatus::Optimal =&gt; {
+                <span class="macro">log::info!</span>(<span class="string">"Solution is optimal"</span>);
+            }
+            SolutionStatus::TimeLimit =&gt; {
+                <span class="macro">log::warn!</span>(<span class="string">"Solver timed out, solution may not be optimal."</span>);
+            }
+            SolutionStatus::GapLimit =&gt; {
+                <span class="macro">log::info!</span>(<span class="string">"Solver reached gap limit, solution may not be optimal."</span>);
+            }
+        };
+
+        <span class="self">self</span>.extract_solution::&lt;S&gt;(solution, <span class="kw-2">&amp;</span>vars, roots)
     }
 }
 
@@ -717,6 +891,22 @@
 
         <span class="kw">let </span><span class="kw-2">mut </span>ext = LpExtractor::new(<span class="kw-2">&amp;</span>egraph, AstSize);
         <span class="kw">let </span>(exp, ids) = ext.solve_multiple(<span class="kw-2">&amp;</span>[f, g]);
+        <span class="macro">println!</span>(<span class="string">"{:?}"</span>, exp);
+        <span class="macro">println!</span>(<span class="string">"{}"</span>, exp);
+        <span class="macro">assert_eq!</span>(exp.len(), <span class="number">4</span>);
+        <span class="macro">assert_eq!</span>(ids.len(), <span class="number">2</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>simple_lp_extract_two_timeout() {
+        <span class="kw">let </span><span class="kw-2">mut </span>egraph = EGraph::&lt;S, ()&gt;::default();
+        <span class="kw">let </span>a = egraph.add(S::leaf(<span class="string">"a"</span>));
+        <span class="kw">let </span>plus = egraph.add(S::new(<span class="string">"+"</span>, <span class="macro">vec!</span>[a, a]));
+        <span class="kw">let </span>f = egraph.add(S::new(<span class="string">"f"</span>, <span class="macro">vec!</span>[plus]));
+        <span class="kw">let </span>g = egraph.add(S::new(<span class="string">"g"</span>, <span class="macro">vec!</span>[plus]));
+
+        <span class="kw">let </span><span class="kw-2">mut </span>ext = LpExtractor::new(<span class="kw-2">&amp;</span>egraph, AstSize);
+        <span class="kw">let </span>(exp, ids) = ext.solve_multiple_with_timeout(<span class="kw-2">&amp;</span>[f, g], good_lp::coin_cbc, <span class="number">10.0</span>);
         <span class="macro">println!</span>(<span class="string">"{:?}"</span>, exp);
         <span class="macro">println!</span>(<span class="string">"{}"</span>, exp);
         <span class="macro">assert_eq!</span>(exp.len(), <span class="number">4</span>);
