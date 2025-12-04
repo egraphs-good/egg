@@ -55,7 +55,7 @@ Please cite using the BibTeX below and
 Add `egg` to your `Cargo.toml` like this:
 ```toml
 [dependencies]
-egg = "0.10.0"
+egg = "0.11.0"
 ```
 
 Make sure to compile with `--release` if you are measuring performance!

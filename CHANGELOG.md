@@ -2,6 +2,11 @@
 
 ## [Unreleased] - ReleaseDate
 
+## [0.11.0] - 2025-11-03
+
+- The LPExtractor now uses `good_lp`, which includes support for timeouts
+- The API for `make` now takes in the id of the new e-node's e-class.
+
 ## [0.10.0] - 2024-12-31
 - Removed existence explanations from egg (the `explain_existance` function). This feature was buggy and not well supported. Supporting it fully required many changes, and it is incompatible with analysis. See #332 for more details.
 - Change the API of `make` to have mutable access to the e-graph for some [advanced uses cases](https://github.com/egraphs-good/egg/pull/277).
@@ -245,7 +250,8 @@ But hopefully things will be a little more stable from here on out
 since the API is a lot nicer.
 
 <!-- next-url -->
-[Unreleased]: https://github.com/egraphs-good/egg/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/egraphs-good/egg/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/egraphs-good/egg/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/egraphs-good/egg/compare/v0.9.5...v0.10.0
 [0.9.5]: https://github.com/egraphs-good/egg/compare/v0.9.4...v0.9.5
 [0.9.4]: https://github.com/egraphs-good/egg/compare/v0.9.3...v0.9.4
