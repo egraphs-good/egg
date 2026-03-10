@@ -233,7 +233,9 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// Make a copy of the egraph with the same nodes, but no unions between them.
     pub fn copy_without_unions(&self, analysis: N) -> Self {
         if self.explain.is_none() {
-            panic!("Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get a copied egraph without unions");
+            panic!(
+                "Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get a copied egraph without unions"
+            );
         }
         let mut egraph = Self::new(analysis);
         for node in &self.nodes {
@@ -430,7 +432,9 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         if let Some(explain) = &self.explain {
             explain.get_union_equalities()
         } else {
-            panic!("Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get union equalities");
+            panic!(
+                "Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get union equalities"
+            );
         }
     }
 
@@ -453,7 +457,9 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                 .with_nodes(&self.nodes)
                 .get_num_congr::<N>(&self.classes, &self.unionfind)
         } else {
-            panic!("Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations.")
+            panic!(
+                "Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations."
+            )
         }
     }
 
@@ -462,7 +468,9 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         if let Some(explain) = &mut self.explain {
             explain.with_nodes(&self.nodes).get_num_nodes()
         } else {
-            panic!("Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations.")
+            panic!(
+                "Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations."
+            )
         }
     }
 
@@ -505,7 +513,9 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                 &self.classes,
             )
         } else {
-            panic!("Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations.")
+            panic!(
+                "Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations."
+            )
         }
     }
 
@@ -533,7 +543,9 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
                 &self.classes,
             )
         } else {
-            panic!("Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations.");
+            panic!(
+                "Use runner.with_explanations_enabled() or egraph.with_explanations_enabled() before running to get explanations."
+            );
         }
     }
 
@@ -565,7 +577,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     }
 
     /// Creates a [`Dot`] to visualize this egraph. See [`Dot`].
-    pub fn dot(&self) -> Dot<L, N> {
+    pub fn dot(&self) -> Dot<'_, L, N> {
         Dot {
             egraph: self,
             config: vec![],

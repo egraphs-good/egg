@@ -1,6 +1,6 @@
 use good_lp::{
-    default_solver, solvers::WithTimeLimit, variable, variables, Expression, Solution,
-    SolutionStatus, Solver, SolverModel, Variable,
+    Expression, Solution, SolutionStatus, Solver, SolverModel, Variable, default_solver,
+    solvers::WithTimeLimit, variable, variables,
 };
 use std::time::Instant;
 
@@ -69,7 +69,7 @@ impl<L: Language, N: Analysis<L>> LpCostFunction<L, N> for AstSize {
 /// good_lp = { version = "1", features = ["coin_cbc"] } # or highs, microlp, etc.
 /// ```
 ///
-/// See the (`good_lp` documentation)[https://docs.rs/good_lp/1/good_lp/solvers/index.html]
+/// See the [`good_lp` documentation](https://docs.rs/good_lp/1/good_lp/solvers/index.html)
 ///
 /// At run time, select the solver by calling [`Self::solve_with`], [`Self::solve_multiple_with`], [`Self::solve_with_timeout`], or [`Self::solve_multiple_with_timeout`]
 /// and passing one of the enabled `good_lp` solver implementations.
@@ -93,7 +93,7 @@ impl<L: Language, N: Analysis<L>> LpCostFunction<L, N> for AstSize {
 ///   let rec = LpExtractor::new(egraph, AstSize)
 ///       .solve_with(root, highs);
 ///   # let _ = rec;
-/// ```
+///   ```
 ///
 #[cfg_attr(docsrs, doc(cfg(feature = "lp")))]
 pub struct LpExtractor<'a, L: Language, N: Analysis<L>> {
@@ -304,7 +304,7 @@ where
         (expr, root_idxs)
     }
 
-    /// Like [`solve_multiple`], but lets the caller provide a `good_lp` solver backend.
+    /// Like [`LpExtractor::solve_multiple`], but lets the caller provide a `good_lp` solver backend.
     /// Example: `solve_multiple_with(roots, good_lp::highs)`.
     pub fn solve_multiple_with<S: Solver>(
         &mut self,
@@ -336,7 +336,7 @@ where
         self.extract_solution::<S>(solution, &vars, roots)
     }
 
-    /// Like [`solve_multiple_with`], but lets the caller provide a time limit for the 'good_lp' solver in seconds.
+    /// Like [`LpExtractor::solve_multiple_with`], but lets the caller provide a time limit for the 'good_lp' solver in seconds.
     /// Example: `solve_multiple_with_timeout(roots, good_lp::highs, 600.0)`.
     pub fn solve_multiple_with_timeout<S: Solver>(
         &mut self,

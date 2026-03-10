@@ -1,8 +1,8 @@
 #![allow(clippy::only_used_in_recursion)]
 use crate::Symbol;
 use crate::{
-    util::pretty_print, Analysis, EClass, ENodeOrVar, FromOp, HashMap, HashSet, Id, Language,
-    PatternAst, RecExpr, Rewrite, UnionFind, Var,
+    Analysis, EClass, ENodeOrVar, FromOp, HashMap, HashSet, Id, Language, PatternAst, RecExpr,
+    Rewrite, UnionFind, Var, util::pretty_print,
 };
 
 use std::cmp::Ordering;
@@ -842,7 +842,8 @@ impl<L: Language> FlatTerm<L> {
                     if existing != &self {
                         panic!(
                             "Invalid proof: binding for variable {:?} does not match between {:?} \n and \n {:?}",
-                            var, existing, self);
+                            var, existing, self
+                        );
                     }
                 } else {
                     bindings.insert(*var, self);

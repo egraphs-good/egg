@@ -106,7 +106,7 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for MultiPattern<L> {
         egraph: &EGraph<L, A>,
         eclass: Id,
         limit: usize,
-    ) -> Option<SearchMatches<L>> {
+    ) -> Option<SearchMatches<'_, L>> {
         match self.asts.as_slice() {
             [] => panic!("empty multipattern"),
             [(_var, pat), ..] => {

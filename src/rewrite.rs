@@ -80,14 +80,18 @@ impl<L: Language, N: Analysis<L>> Rewrite<L, N> {
     /// Call [`search`] on the [`Searcher`].
     ///
     /// [`search`]: Searcher::search()
-    pub fn search(&self, egraph: &EGraph<L, N>) -> Vec<SearchMatches<L>> {
+    pub fn search(&self, egraph: &EGraph<L, N>) -> Vec<SearchMatches<'_, L>> {
         self.searcher.search(egraph)
     }
 
     /// Call [`search_with_limit`] on the [`Searcher`].
     ///
     /// [`search_with_limit`]: Searcher::search_with_limit()
-    pub fn search_with_limit(&self, egraph: &EGraph<L, N>, limit: usize) -> Vec<SearchMatches<L>> {
+    pub fn search_with_limit(
+        &self,
+        egraph: &EGraph<L, N>,
+        limit: usize,
+    ) -> Vec<SearchMatches<'_, L>> {
         self.searcher.search_with_limit(egraph, limit)
     }
 
@@ -166,7 +170,7 @@ where
 {
     /// Search one eclass, returning None if no matches can be found.
     /// This should not return a SearchMatches with no substs.
-    fn search_eclass(&self, egraph: &EGraph<L, N>, eclass: Id) -> Option<SearchMatches<L>> {
+    fn search_eclass(&self, egraph: &EGraph<L, N>, eclass: Id) -> Option<SearchMatches<'_, L>> {
         self.search_eclass_with_limit(egraph, eclass, usize::MAX)
     }
 
@@ -182,19 +186,19 @@ where
         egraph: &EGraph<L, N>,
         eclass: Id,
         limit: usize,
-    ) -> Option<SearchMatches<L>>;
+    ) -> Option<SearchMatches<'_, L>>;
 
     /// Search the whole [`EGraph`], returning a list of all the
     /// [`SearchMatches`] where something was found.
     /// This just calls [`Searcher::search_with_limit`] with a big limit.
-    fn search(&self, egraph: &EGraph<L, N>) -> Vec<SearchMatches<L>> {
+    fn search(&self, egraph: &EGraph<L, N>) -> Vec<SearchMatches<'_, L>> {
         self.search_with_limit(egraph, usize::MAX)
     }
 
     /// Similar to [`search`], but return at most `limit` many matches.
     ///
     /// [`search`]: Searcher::search
-    fn search_with_limit(&self, egraph: &EGraph<L, N>, limit: usize) -> Vec<SearchMatches<L>> {
+    fn search_with_limit(&self, egraph: &EGraph<L, N>, limit: usize) -> Vec<SearchMatches<'_, L>> {
         search_eclasses_with_limit(self, egraph, egraph.classes().map(|e| e.id), limit)
     }
 
@@ -624,11 +628,7 @@ mod tests {
                         subst,
                         rule_name,
                     );
-                    if did_something {
-                        vec![id]
-                    } else {
-                        vec![]
-                    }
+                    if did_something { vec![id] } else { vec![] }
                 } else {
                     let added = egraph.add(S::leaf(&s));
                     if egraph.union(added, eclass) {

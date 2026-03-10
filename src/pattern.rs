@@ -297,7 +297,7 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
         Some(&self.ast)
     }
 
-    fn search_with_limit(&self, egraph: &EGraph<L, A>, limit: usize) -> Vec<SearchMatches<L>> {
+    fn search_with_limit(&self, egraph: &EGraph<L, A>, limit: usize) -> Vec<SearchMatches<'_, L>> {
         match self.ast.last().unwrap() {
             ENodeOrVar::ENode(e) => {
                 let key = e.discriminant();
@@ -320,7 +320,7 @@ impl<L: Language, A: Analysis<L>> Searcher<L, A> for Pattern<L> {
         egraph: &EGraph<L, A>,
         eclass: Id,
         limit: usize,
-    ) -> Option<SearchMatches<L>> {
+    ) -> Option<SearchMatches<'_, L>> {
         let substs = self.program.run_with_limit(egraph, eclass, limit);
         if substs.is_empty() {
             None
@@ -393,11 +393,7 @@ where
         if let Some(ast) = searcher_ast {
             let (from, did_something) =
                 egraph.union_instantiations(ast, &self.ast, subst, rule_name);
-            if did_something {
-                vec![from]
-            } else {
-                vec![]
-            }
+            if did_something { vec![from] } else { vec![] }
         } else if egraph.union(eclass, id) {
             vec![eclass]
         } else {

@@ -500,7 +500,8 @@ impl<L: Language> RecExpr<L> {
     pub fn items_mut(
         &mut self,
     ) -> impl ExactSizeIterator<Item = (Id, &mut L)> + DoubleEndedIterator {
-        self.ids().zip(self)
+        let ids = (0..self.len()).map(Id::from);
+        ids.zip(self.iter_mut())
     }
 
     /// Checks if this expr is a DAG, i.e. doesn't have any back edges

@@ -11,7 +11,7 @@ use std::fmt::{self, Debug, Display, Formatter};
 use std::io::{Error, ErrorKind, Result, Write};
 use std::path::Path;
 
-use crate::{egraph::EGraph, Analysis, Language};
+use crate::{Analysis, Language, egraph::EGraph};
 
 /**
 A wrapper for an [`EGraph`] that can output [GraphViz] for
