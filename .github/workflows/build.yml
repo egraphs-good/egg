@@ -5,24 +5,23 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - name: Cache cargo bin
-      uses: actions/cache@v4
-      with:
-        path: ~/.cargo/bin
-        key: ${{ runner.os }}-cargo-bin
-    - name: Install cbc
-      run: sudo apt-get install coinor-libcbc-dev 
-    - name: Test
-      run: make test
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - name: Install cbc
+        run: sudo apt-get install coinor-libcbc-dev
+      - name: Test
+        run: make test
   nits:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - name: Install cargo deadlinks
-      run: |
-        curl -L -o ~/.cargo/bin/cargo-deadlinks https://github.com/deadlinks/cargo-deadlinks/releases/download/0.8.1/cargo-deadlinks-linux
-        chmod +x ~/.cargo/bin/cargo-deadlinks
-        cargo deadlinks --version
-    - name: Nits
-      run: make nits
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          components: clippy, rustfmt
+      - name: Install cargo deadlinks
+        run: |
+          curl -L -o ~/.cargo/bin/cargo-deadlinks https://github.com/deadlinks/cargo-deadlinks/releases/download/0.8.1/cargo-deadlinks-linux
+          chmod +x ~/.cargo/bin/cargo-deadlinks
+          cargo deadlinks --version
+      - name: Nits
+        run: make nits

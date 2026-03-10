@@ -7,17 +7,18 @@ jobs:
   docs:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-      with:
-        persist-credentials: false
-    - name: Build Docs
-      run: | 
-        cargo doc --no-deps --all-features
-        touch target/doc/.nojekyll # prevent jekyll from running
-    - name: Deploy 🚀
-      uses: JamesIves/github-pages-deploy-action@v4.7.3
-      with:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        BRANCH: gh-pages # The branch the action should deploy to.
-        FOLDER: target/doc # The folder the action should deploy.
-        CLEAN: true # Automatically remove deleted files from the deploy branch
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - name: Build Docs
+        run: |
+          cargo doc --no-deps --all-features
+          touch target/doc/.nojekyll # prevent jekyll from running
+      - name: Deploy 🚀
+        uses: JamesIves/github-pages-deploy-action@v4.7.3
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: gh-pages # The branch the action should deploy to.
+          FOLDER: target/doc # The folder the action should deploy.
+          CLEAN: true # Automatically remove deleted files from the deploy branch
