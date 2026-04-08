@@ -16,11 +16,11 @@ use crate::*;
 /// A rewrite with trait objects that may borrow data with lifetime `'a`.
 ///
 /// Most users should use the [`Rewrite`] type alias, which fixes `'a = 'static`.
-/// Use `RewriteBase<'a, L, N>` directly when your [`Searcher`] or [`Applier`]
+/// Use `RewriteBorrow<'a, L, N>` directly when your [`Searcher`] or [`Applier`]
 /// holds references to non-`'static` data.
 #[derive(Clone)]
 #[non_exhaustive]
-pub struct RewriteBase<'a, L, N> {
+pub struct RewriteBorrow<'a, L, N> {
     /// The name of the rewrite.
     pub name: Symbol,
     /// The searcher (left-hand side) of the rewrite.
@@ -29,12 +29,12 @@ pub struct RewriteBase<'a, L, N> {
     pub applier: Arc<dyn Applier<L, N> + Sync + Send + 'a>,
 }
 
-/// A [`RewriteBase`] whose trait objects are `'static`.
+/// A [`RewriteBorrow`] whose trait objects are `'static`.
 ///
 /// This is the common case and preserves backward compatibility.
-pub type Rewrite<L, N> = RewriteBase<'static, L, N>;
+pub type Rewrite<L, N> = RewriteBorrow<'static, L, N>;
 
-impl<L, N> Debug for RewriteBase<'_, L, N>
+impl<L, N> Debug for RewriteBorrow<'_, L, N>
 where
     L: Language + Display,
     N: Analysis<L>,
@@ -60,8 +60,8 @@ where
     }
 }
 
-impl<'a, L: Language, N: Analysis<L>> RewriteBase<'a, L, N> {
-    /// Create a new [`RewriteBase`]. You typically want to use the
+impl<'a, L: Language, N: Analysis<L>> RewriteBorrow<'a, L, N> {
+    /// Create a new [`RewriteBorrow`]. You typically want to use the
     /// [`rewrite!`] macro instead.
     ///
     pub fn new(
@@ -686,8 +686,8 @@ mod tests {
         let rhs: Pattern<S> = "(+ ?b ?a)".parse().unwrap();
         let searcher = BorrowedSearcher { pat: &pat };
 
-        // RewriteBase allows non-'static trait objects
-        let rw: RewriteBase<'_, S, ()> = RewriteBase::new("commute", searcher, rhs).unwrap();
+        // RewriteBorrow allows non-'static trait objects
+        let rw: RewriteBorrow<'_, S, ()> = RewriteBorrow::new("commute", searcher, rhs).unwrap();
 
         let mut egraph = EGraph::default();
         egraph.add_expr(&"(+ x y)".parse().unwrap());

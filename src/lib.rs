@@ -100,7 +100,7 @@ pub use {
     multipattern::*,
     pattern::{ENodeOrVar, Pattern, PatternAst, SearchMatches},
     rewrite::{
-        Applier, Condition, ConditionEqual, ConditionalApplier, Rewrite, RewriteBase, Searcher,
+        Applier, Condition, ConditionEqual, ConditionalApplier, Rewrite, RewriteBorrow, Searcher,
     },
     run::*,
     subst::{Subst, Var},
