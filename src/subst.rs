@@ -166,7 +166,6 @@ impl Debug for Subst {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::no_std_prelude::*;
 
     #[test]
     fn var_parse() {
