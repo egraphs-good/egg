@@ -1,12 +1,5 @@
+use crate::no_std_prelude::*;
 use crate::*;
-#[allow(unused_imports)]
-use alloc::{
-    boxed::Box,
-    format,
-    string::{String, ToString},
-    vec,
-    vec::Vec,
-};
 use core::{
     borrow::BorrowMut,
     fmt::{self, Debug, Display},
@@ -1167,10 +1160,10 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         let mut id1 = self.find_mut(enode_id1);
         let mut id2 = self.find_mut(enode_id2);
         if id1 == id2 {
-            if let Some(Justification::Rule(_)) = rule {
-                if let Some(explain) = &mut self.explain {
-                    explain.alternate_rewrite(enode_id1, enode_id2, rule.unwrap());
-                }
+            if let Some(Justification::Rule(_)) = rule
+                && let Some(explain) = &mut self.explain
+            {
+                explain.alternate_rewrite(enode_id1, enode_id2, rule.unwrap());
             }
             return false;
         }
@@ -1189,6 +1182,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         self.unionfind.union(id1, id2);
 
         assert_ne!(id1, id2);
+        #[allow(deprecated)]
         let class2 = self.classes.remove(&id2).unwrap();
         let class1 = self.classes.get_mut(&id1).unwrap();
         assert_eq!(id1, class1.id);
@@ -1407,7 +1401,6 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     /// let y = egraph.add(S::leaf("y"));
     /// let ax = egraph.add_expr(&"(+ a x)".parse().unwrap());
     /// let ay = egraph.add_expr(&"(+ a y)".parse().unwrap());
-
     /// // Union x and y
     /// egraph.union(x, y);
     /// // Classes: [x y] [ax] [ay] [a]
@@ -1476,7 +1469,7 @@ impl<'a, L: Language, N: Analysis<L>> Debug for EGraphDump<'a, L, N> {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests {
 
     use super::*;

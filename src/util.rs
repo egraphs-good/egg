@@ -1,15 +1,12 @@
+use crate::no_std_prelude::*;
 use core::fmt::{self, Debug, Display, Formatter};
 use core::iter::FromIterator;
-
-use alloc::string::String;
-use alloc::vec::Vec;
 
 use crate::sexp::Sexp;
 
 #[cfg(feature = "serde-1")]
 use serde::{Deserialize, Serialize};
 
-#[allow(unused_imports)]
 use crate::*;
 
 // --- Symbol ---
@@ -93,6 +90,12 @@ mod no_std_symbol {
 
     impl From<String> for Symbol {
         fn from(s: String) -> Self {
+            Symbol::from(s.as_str())
+        }
+    }
+
+    impl From<&String> for Symbol {
+        fn from(s: &String) -> Self {
             Symbol::from(s.as_str())
         }
     }

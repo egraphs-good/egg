@@ -1,4 +1,4 @@
-use alloc::vec::Vec;
+use crate::no_std_prelude::*;
 use core::fmt::Debug;
 use core::iter::ExactSizeIterator;
 

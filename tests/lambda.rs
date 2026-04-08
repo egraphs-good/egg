@@ -1,7 +1,9 @@
+#![cfg(feature = "std")]
 use egg::{rewrite as rw, *};
 use rustc_hash::FxHashSet as HashSet;
 
 define_language! {
+    #[allow(clippy::enum_variant_names)]
     enum Lambda {
         Bool(bool),
         Num(i32),

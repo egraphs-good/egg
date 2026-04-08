@@ -145,26 +145,26 @@ Let's put it all together with an example referring to the four e-graphs in the
 
 1. The initial e-graph represents the term _(a × 2) / 2_.
    Since each e-class only has one e-node,
-     the e-graph is basically an abstract syntax tree
-    with sharing (the 2 is not duplicated).
+   the e-graph is basically an abstract syntax tree
+   with sharing (the 2 is not duplicated).
 2. Applying the rewrite _x × 2 → x << 1_
    has recorded the fact that _a × 2 = a << 1_
-     without forgetting about _a × 2_.
+   without forgetting about _a × 2_.
    Note how the newly added _a << 1_ refers to the existing "_a_" e-node,
    and the "<<" e-node has been unioned into the same e-class
    as the equivalent "×" e-node where the pattern _x × 2_ matched.
 3. Applying rewrite _(x × y) / z → x × (y / z)_ realizes that division
-    associates with multiplication.
+   associates with multiplication.
    This rewrite is critical to discovering the cancellation of 2s that we are looking for,
-     and it still works despite the fact that we applied the "wrong" rewrite previously.
+   and it still works despite the fact that we applied the "wrong" rewrite previously.
 4. Applying rewrites _x / x → 1_ and _x × 1 → x_ doesn't add any new e-nodes,
-     since all the e-nodes were already present in the e-graph.
+   since all the e-nodes were already present in the e-graph.
    The result only unions e-classes,
-     meaning that e-graph actually got _smaller_ from applying these rewrites,
-     even though it now represents more terms.
+   meaning that e-graph actually got _smaller_ from applying these rewrites,
+   even though it now represents more terms.
    In fact, observe that the top-right "×" e-node's left child is _itself_;
-     this cycle means the e-class represents the _infinite_ (!) set of terms
-     _a_, _a × 1_, _a × 1 × 1_, and so on.
+   this cycle means the e-class represents the _infinite_ (!) set of terms
+   _a_, _a × 1_, _a × 1 × 1_, and so on.
 
 ## Invariants and Rebuilding
 
@@ -178,7 +178,7 @@ These operations maintains two key (related) invariants:
    An e-graph maintains not just an [equivalence relation] over
    expressions, but a [congruence relation].
    Congruence basically states that if _x_ is equivalent to _y_,
-     _f(x)_ must be equivalent to _f(y)_.
+   _f(x)_ must be equivalent to _f(y)_.
    So as the user calls [`union`], many e-classes other than the given
    two may need to merge to maintain congruence.
 
@@ -258,10 +258,10 @@ Most of this was covered above, but we need to define two new terms:
 - _Saturation_ occurs when an e-graph detects that rewrites no longer add new information.
   Consider the commutative rewrite _x + y → y + x_.
   After applying it once, the second time adds no new information
-    since the e-graph didn't forget about the initial _x + y_ terms.
+  since the e-graph didn't forget about the initial _x + y_ terms.
   If all the rewrites are in this state, we say the e-graph is _saturated_,
-    meaning that the e-graph encodes all possible equivalences derivable from
-    the given rewrites.
+  meaning that the e-graph encodes all possible equivalences derivable from
+  the given rewrites.
 - _Extraction_ is a procedure for picking a single represented term from an e-class
   that is optimal according to some cost function.
   `egg`'s [`Extractor`]s provide this functionality.

@@ -1,12 +1,4 @@
-#[allow(unused_imports)]
-use alloc::{
-    borrow::{Cow, ToOwned},
-    boxed::Box,
-    format,
-    string::{String, ToString},
-    vec,
-    vec::Vec,
-};
+use crate::no_std_prelude::*;
 use core::convert::TryInto;
 use core::fmt::{self, Display};
 use core::{convert::TryFrom, str::FromStr};
@@ -121,10 +113,10 @@ impl<L: Language> Pattern<L> {
     pub fn vars(&self) -> Vec<Var> {
         let mut vars = vec![];
         for n in &self.ast {
-            if let ENodeOrVar::Var(v) = n {
-                if !vars.contains(v) {
-                    vars.push(*v)
-                }
+            if let ENodeOrVar::Var(v) = n
+                && !vars.contains(v)
+            {
+                vars.push(*v)
             }
         }
         vars
@@ -438,7 +430,7 @@ pub(crate) fn apply_pat<L: Language, A: Analysis<L>>(
     *ids.last().unwrap()
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests {
 
     use crate::{SymbolLang as S, *};

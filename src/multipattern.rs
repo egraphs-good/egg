@@ -1,5 +1,4 @@
-#[allow(unused_imports)]
-use alloc::{format, string::String, vec, vec::Vec};
+use crate::no_std_prelude::*;
 use core::str::FromStr;
 use thiserror::Error;
 
@@ -208,7 +207,7 @@ impl<L: Language, A: Analysis<L>> Applier<L, A> for MultiPattern<L> {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests {
     use crate::{SymbolLang as S, *};
 

@@ -1,8 +1,7 @@
 use core::fmt;
 use core::str::FromStr;
 
-#[allow(unused_imports)]
-use alloc::{borrow::ToOwned, format, string::String, vec::Vec};
+use crate::no_std_prelude::*;
 
 use crate::*;
 use fmt::{Debug, Display, Formatter};
@@ -167,6 +166,7 @@ impl Debug for Subst {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::no_std_prelude::*;
 
     #[test]
     fn var_parse() {

@@ -353,6 +353,7 @@ macro_rules! rewrite {
         $lhs:tt => $rhs:tt
         $(if $cond:expr)*
     )  => {{
+        use $crate::__private::ToString as _;
         let searcher = $crate::__rewrite!(@parse Pattern $lhs);
         let core_applier = $crate::__rewrite!(@parse Pattern $rhs);
         let applier = $crate::__rewrite!(@applier core_applier; $($cond,)*);
@@ -363,8 +364,9 @@ macro_rules! rewrite {
         $lhs:tt <=> $rhs:tt
         $(if $cond:expr)*
     )  => {{
+        use $crate::__private::{ToString as _, vec};
         let name = $name;
-        let name2 = String::from(name.clone()) + "-rev";
+        let name2 = name.clone().to_string() + "-rev";
         vec![
             $crate::rewrite!(name;  $lhs => $rhs $(if $cond)*),
             $crate::rewrite!(name2; $rhs => $lhs $(if $cond)*)
@@ -386,6 +388,7 @@ macro_rules! multi_rewrite {
         $name:expr;
         $lhs:tt => $rhs:tt
     )  => {{
+        use $crate::__private::ToString as _;
         let searcher = $crate::__rewrite!(@parse MultiPattern $lhs);
         let applier = $crate::__rewrite!(@parse MultiPattern $rhs);
         $crate::Rewrite::new($name.to_string(), searcher, applier).unwrap()
@@ -411,6 +414,7 @@ macro_rules! __rewrite {
 #[cfg(test)]
 mod tests {
 
+    use crate::no_std_prelude::*;
     use crate::*;
 
     define_language! {

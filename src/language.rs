@@ -8,15 +8,7 @@ use core::{
 };
 use core::{hash::Hash, str::FromStr};
 
-#[allow(unused_imports)]
-use alloc::{
-    borrow::ToOwned,
-    boxed::Box,
-    format,
-    string::{String, ToString},
-    vec,
-    vec::Vec,
-};
+use crate::no_std_prelude::*;
 
 use crate::*;
 

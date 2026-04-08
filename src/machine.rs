@@ -1,5 +1,5 @@
+use crate::no_std_prelude::*;
 use crate::*;
-use alloc::vec::Vec;
 use core::result;
 
 type Result = result::Result<(), ()>;
@@ -183,11 +183,11 @@ impl<L: Language> Compiler<L> {
             (n_free == 0, n_free, -size)
         };
 
-        self.todo_nodes
-            .keys()
-            .max_by_key(key)
-            .copied()
-            .map(|k| (k, self.todo_nodes.remove(&k).unwrap()))
+        self.todo_nodes.keys().max_by_key(key).copied().map(|k| {
+            #[allow(deprecated)]
+            let v = self.todo_nodes.remove(&k).unwrap();
+            (k, v)
+        })
     }
 
     /// check to see if this e-node corresponds to a term that is grounded by
@@ -319,12 +319,11 @@ impl<L: Language> Program<L> {
                 &self.instructions,
                 &self.subst,
                 &mut |machine, subst| {
-                    if !egraph.analysis.allow_ematching_cycles() {
-                        if let Some((first, rest)) = machine.reg.split_first() {
-                            if rest.contains(first) {
-                                return Ok(());
-                            }
-                        }
+                    if !egraph.analysis.allow_ematching_cycles()
+                        && let Some((first, rest)) = machine.reg.split_first()
+                        && rest.contains(first)
+                    {
+                        return Ok(());
                     }
 
                     let subst_vec = subst

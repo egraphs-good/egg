@@ -1,5 +1,5 @@
 use crate::Id;
-use alloc::vec::Vec;
+use crate::no_std_prelude::*;
 use core::fmt::Debug;
 
 #[derive(Debug, Clone, Default)]

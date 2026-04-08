@@ -1,5 +1,3 @@
-#[allow(unused_imports)]
-use alloc::vec::Vec;
 use core::cmp::Ordering;
 use core::fmt::Debug;
 

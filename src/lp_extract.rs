@@ -203,7 +203,7 @@ where
         for class in egraph.classes() {
             for (i, &node_var) in vars[&class.id].nodes.iter().enumerate() {
                 let c = self.costs[&class.id][i];
-                objective = objective + c * node_var;
+                objective += c * node_var;
             }
         }
 
@@ -411,7 +411,7 @@ where
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests {
     use crate::{SymbolLang as S, *};
 

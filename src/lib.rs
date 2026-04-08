@@ -1,6 +1,7 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg_attr(not(feature = "std"), no_std)]
 #![warn(missing_docs)]
+#![allow(clippy::test_attr_in_doctest)]
 /*!
 
 `egg` (**e**-**g**raphs **g**ood) is a e-graph library optimized for equality saturation.
@@ -33,22 +34,28 @@ for less or more logging.
 
 extern crate alloc;
 
-// Re-import alloc items that are normally in the std prelude.
-// These are needed in no_std mode but harmless with std.
-#[allow(unused_imports)]
-use alloc::{
-    boxed::Box,
-    format,
-    string::{String, ToString},
-    vec,
-    vec::Vec,
-};
+/// Crate-internal prelude that re-exports `alloc` / `core` items normally
+/// provided by `std`.  Every module imports `use crate::no_std_prelude::*;`
+/// instead of scattering `#[allow(unused_imports)] use alloc::{…}` blocks.
+pub(crate) mod no_std_prelude {
+    pub use alloc::{
+        borrow::{Cow, ToOwned},
+        boxed::Box,
+        collections::{BinaryHeap, VecDeque},
+        format,
+        rc::Rc,
+        string::{String, ToString},
+        sync::Arc,
+        vec,
+        vec::Vec,
+    };
+}
 
 // Hidden re-exports used by the `define_language!` macro so downstream crates
 // don't need `extern crate alloc`.
 #[doc(hidden)]
 pub mod __private {
-    pub use alloc::{format, vec::Vec};
+    pub use alloc::{format, string::ToString, vec, vec::Vec};
     pub use core::result::Result;
 }
 
