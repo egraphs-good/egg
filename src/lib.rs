@@ -99,7 +99,9 @@ pub use {
     language::*,
     multipattern::*,
     pattern::{ENodeOrVar, Pattern, PatternAst, SearchMatches},
-    rewrite::{Applier, Condition, ConditionEqual, ConditionalApplier, Rewrite, Searcher},
+    rewrite::{
+        Applier, Condition, ConditionEqual, ConditionalApplier, Rewrite, RewriteBase, Searcher,
+    },
     run::*,
     subst::{Subst, Var},
     util::*,
