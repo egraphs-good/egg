@@ -1,9 +1,10 @@
 use fmt::Formatter;
 use log::*;
-use std::borrow::Cow;
-use std::convert::TryInto;
-use std::fmt::{self, Display};
-use std::{convert::TryFrom, str::FromStr};
+#[allow(unused_imports)]
+use alloc::{borrow::{Cow, ToOwned}, boxed::Box, format, string::{String, ToString}, vec, vec::Vec};
+use core::convert::TryInto;
+use core::fmt::{self, Display};
+use core::{convert::TryFrom, str::FromStr};
 
 use thiserror::Error;
 
@@ -216,7 +217,7 @@ impl<L: FromOp> FromOp for ENodeOrVar<L> {
     }
 }
 
-impl<L: FromOp> std::str::FromStr for Pattern<L> {
+impl<L: FromOp> core::str::FromStr for Pattern<L> {
     type Err = RecExprParseError<ENodeOrVarParseError<L::Error>>;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {

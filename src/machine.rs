@@ -1,5 +1,6 @@
+use alloc::vec::Vec;
 use crate::*;
-use std::result;
+use core::result;
 
 type Result = result::Result<(), ()>;
 

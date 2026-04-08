@@ -1,6 +1,7 @@
 use pattern::apply_pat;
-use std::fmt::{self, Debug, Display};
-use std::sync::Arc;
+use core::fmt::{self, Debug, Display};
+#[allow(unused_imports)]
+use alloc::{format, string::{String, ToString}, sync::Arc, vec, vec::Vec};
 
 use crate::*;
 
@@ -546,7 +547,7 @@ where
 mod tests {
 
     use crate::{SymbolLang as S, *};
-    use std::str::FromStr;
+    use core::str::FromStr;
 
     type EGraph = crate::EGraph<S, ()>;
 

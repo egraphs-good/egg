@@ -1,5 +1,7 @@
-use std::fmt::{self, Debug, Formatter};
+use core::fmt::{self, Debug, Formatter};
 
+#[allow(unused_imports)]
+use alloc::{borrow::ToOwned, boxed::Box, format, string::String, vec, vec::Vec};
 use log::*;
 
 use crate::*;
@@ -270,7 +272,7 @@ pub struct Report {
     pub rebuild_time: f64,
 }
 
-impl std::fmt::Display for Report {
+impl core::fmt::Display for Report {
     #[rustfmt::skip]
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         writeln!(f, "Runner report")?;
@@ -327,7 +329,7 @@ pub struct Iteration<IterData> {
 }
 
 /// Type alias for the result of a [`Runner`].
-pub type RunnerResult<T> = std::result::Result<T, StopReason>;
+pub type RunnerResult<T> = core::result::Result<T, StopReason>;
 
 impl<L, N, IterData> Runner<L, N, IterData>
 where
@@ -500,6 +502,7 @@ where
     }
 
     /// Prints some information about a runners run.
+    #[cfg(feature = "std")]
     pub fn print_report(&self) {
         println!("{}", self.report())
     }
@@ -532,7 +535,7 @@ where
         let egraph_classes = self.egraph.number_of_classes();
 
         let hook_time = Instant::now();
-        let mut hooks = std::mem::take(&mut self.hooks);
+        let mut hooks = core::mem::take(&mut self.hooks);
         result = result.and_then(|_| {
             hooks
                 .iter_mut()
@@ -650,10 +653,12 @@ fn check_rules<L, N>(rules: &[&Rewrite<L, N>]) {
 
     name_counts.retain(|_, count: &mut usize| *count > 1);
     if !name_counts.is_empty() {
+        #[cfg(feature = "std")]
         eprintln!("WARNING: Duplicated rule names may affect rule reporting and scheduling.");
         log::warn!("Duplicated rule names may affect rule reporting and scheduling.");
         for (name, &count) in name_counts.iter() {
             assert!(count > 1);
+            #[cfg(feature = "std")]
             eprintln!("Rule '{}' appears {} times", name, count);
             log::warn!("Rule '{}' appears {} times", name, count);
         }

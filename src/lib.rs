@@ -1,4 +1,5 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![cfg_attr(not(feature = "std"), no_std)]
 #![warn(missing_docs)]
 /*!
 
@@ -30,13 +31,36 @@ for less or more logging.
 #![doc = include_str!("../tests/simple.rs")]
 #![doc = "\n```"]
 
+extern crate alloc;
+
+// Re-import alloc items that are normally in the std prelude.
+// These are needed in no_std mode but harmless with std.
+#[allow(unused_imports)]
+use alloc::{
+    boxed::Box,
+    format,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
+
+// Hidden re-exports used by the `define_language!` macro so downstream crates
+// don't need `extern crate alloc`.
+#[doc(hidden)]
+pub mod __private {
+    pub use alloc::{vec::Vec, format};
+    pub use core::result::Result;
+}
+
 mod macros;
 
+#[cfg(feature = "std")]
 #[doc(hidden)]
 pub mod test;
 
 pub mod tutorials;
 
+#[cfg(feature = "std")]
 mod dot;
 mod eclass;
 mod egraph;
@@ -50,6 +74,7 @@ mod multipattern;
 mod pattern;
 mod rewrite;
 mod run;
+mod sexp;
 mod subst;
 mod unionfind;
 mod util;
@@ -73,14 +98,14 @@ impl From<Id> for usize {
     }
 }
 
-impl std::fmt::Debug for Id {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for Id {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", self.0)
     }
 }
 
-impl std::fmt::Display for Id {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for Id {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", self.0)
     }
 }
@@ -88,7 +113,6 @@ impl std::fmt::Display for Id {
 pub(crate) use {explain::Explain, unionfind::UnionFind};
 
 pub use {
-    dot::Dot,
     eclass::EClass,
     egraph::{EGraph, LanguageMapper, SimpleLanguageMapper},
     explain::{
@@ -105,10 +129,13 @@ pub use {
     util::*,
 };
 
+#[cfg(feature = "std")]
+pub use dot::Dot;
+
 #[cfg(feature = "lp")]
 pub use lp_extract::*;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 fn init_logger() {
     let _ = env_logger::builder().is_test(true).try_init();
 }

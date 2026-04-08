@@ -1,5 +1,6 @@
+use alloc::vec::Vec;
 use crate::Id;
-use std::fmt::Debug;
+use core::fmt::Debug;
 
 #[derive(Debug, Clone, Default)]
 #[cfg_attr(feature = "serde-1", derive(serde::Serialize, serde::Deserialize))]

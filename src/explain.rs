@@ -1,19 +1,21 @@
 #![allow(clippy::only_used_in_recursion)]
+#[allow(unused_imports)]
+use alloc::{boxed::Box, format, string::{String, ToString}, vec, vec::Vec};
 use crate::Symbol;
 use crate::{
     Analysis, EClass, ENodeOrVar, FromOp, HashMap, HashSet, Id, Language, PatternAst, RecExpr,
     Rewrite, UnionFind, Var, util::pretty_print,
 };
 
-use std::cmp::Ordering;
-use std::collections::{BinaryHeap, VecDeque};
-use std::fmt::{self, Debug, Display, Formatter};
-use std::ops::{Deref, DerefMut};
-use std::rc::Rc;
+use core::cmp::Ordering;
+use alloc::collections::{BinaryHeap, VecDeque};
+use core::fmt::{self, Debug, Display, Formatter};
+use core::ops::{Deref, DerefMut};
+use alloc::rc::Rc;
 
 use num_bigint::BigUint;
 use num_traits::identities::{One, Zero};
-use symbolic_expressions::Sexp;
+use crate::sexp::Sexp;
 
 type ProofCost = BigUint;
 
@@ -1093,7 +1095,7 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
                 {
                     if let Some(rule) = rule_table.get(rule_name) {
                         if !explain_node.parent_connection.is_rewrite_forward {
-                            std::mem::swap(&mut current_explanation, &mut next_explanation);
+                            core::mem::swap(&mut current_explanation, &mut next_explanation);
                         }
                         if !Explanation::check_rewrite(
                             &current_explanation,
@@ -1233,7 +1235,7 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
             let mut connection = connection.clone();
             if i >= left_connections.len() {
                 connection.is_rewrite_forward = !connection.is_rewrite_forward;
-                std::mem::swap(&mut connection.next, &mut connection.current);
+                core::mem::swap(&mut connection.next, &mut connection.current);
             }
 
             proof.push(self.explain_adjacent(
@@ -1689,7 +1691,7 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
                 let mut next = connection.next;
                 let mut current = connection.current;
                 if i >= left_connections.len() {
-                    std::mem::swap(&mut next, &mut current);
+                    core::mem::swap(&mut next, &mut current);
                 }
                 if let Justification::Congruence = connection.justification {
                     let current_node = self.node(current).clone();

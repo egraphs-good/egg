@@ -121,16 +121,16 @@ macro_rules! __define_language {
         $vis enum $name <$($gen),*> $decl
 
         impl<$($gen),*> $crate::Language for $name <$($gen),*> where $($where)* {
-            type Discriminant = std::mem::Discriminant<Self>;
+            type Discriminant = ::core::mem::Discriminant<Self>;
 
             #[inline(always)]
             fn discriminant(&self) -> Self::Discriminant {
-                std::mem::discriminant(self)
+                ::core::mem::discriminant(self)
             }
 
             #[inline(always)]
             fn matches(&self, other: &Self) -> bool {
-                ::std::mem::discriminant(self) == ::std::mem::discriminant(other) &&
+                ::core::mem::discriminant(self) == ::core::mem::discriminant(other) &&
                 match (self, other) { $($matches)* _ => false }
             }
 
@@ -138,8 +138,8 @@ macro_rules! __define_language {
             fn children_mut(&mut self) -> &mut [$crate::Id] { match self $children_mut }
         }
 
-        impl<$($gen),*> ::std::fmt::Display for $name <$($gen),*> where $($where)* {
-            fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        impl<$($gen),*> ::core::fmt::Display for $name <$($gen),*> where $($where)* {
+            fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
                 // We need to pass `f` to the match expression for hygiene
                 // reasons.
                 match (self, f) $display
@@ -149,7 +149,7 @@ macro_rules! __define_language {
         impl<$($gen),*> $crate::FromOp for $name <$($gen),*> where $($where)* {
             type Error = $crate::FromOpError;
 
-            fn from_op(op: &str, children: ::std::vec::Vec<$crate::Id>) -> ::std::result::Result<Self, Self::Error> {
+            fn from_op(op: &str, children: $crate::__private::Vec<$crate::Id>) -> $crate::__private::Result<Self, Self::Error> {
                 match (op, children) {
                     $($from_op)*
                     (op, children) => Err($crate::FromOpError::new(op, children)),
@@ -229,7 +229,7 @@ macro_rules! __define_language {
             { $($matches)*       ($name::$variant(data1), $name::$variant(data2)) => data1 == data2, }
             { $($children)*      $name::$variant(_data) => &[], }
             { $($children_mut)*  $name::$variant(_data) => &mut [], }
-            { $($display)*       ($name::$variant(data), f) => ::std::fmt::Display::fmt(data, f), }
+            { $($display)*       ($name::$variant(data), f) => ::core::fmt::Display::fmt(data, f), }
             { $($from_op)*       (op, children) if op.parse::<$data>().is_ok() && children.is_empty() => Ok($name::$variant(op.parse().unwrap())), }
         );
     };
@@ -253,7 +253,7 @@ macro_rules! __define_language {
             { $($matches)*       ($name::$variant(d1, l), $name::$variant(d2, r)) => d1 == d2 && $crate::LanguageChildren::len(l) == $crate::LanguageChildren::len(r), }
             { $($children)*      $name::$variant(_, ids) => $crate::LanguageChildren::as_slice(ids), }
             { $($children_mut)*  $name::$variant(_, ids) => $crate::LanguageChildren::as_mut_slice(ids), }
-            { $($display)*       ($name::$variant(data, _), f) => ::std::fmt::Display::fmt(data, f), }
+            { $($display)*       ($name::$variant(data, _), f) => ::core::fmt::Display::fmt(data, f), }
             { $($from_op)*       (op, children) if op.parse::<$data>().is_ok() && <$ids as $crate::LanguageChildren>::can_be_length(children.len()) => {
                   let data = op.parse::<$data>().unwrap();
                   let children = <$ids as $crate::LanguageChildren>::from_vec(children);

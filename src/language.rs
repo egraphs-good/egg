@@ -1,17 +1,20 @@
-use std::borrow::{Borrow, BorrowMut};
-use std::iter::FromIterator;
-use std::ops::{BitOr, Deref, DerefMut, Index, IndexMut};
-use std::{cmp::Ordering, convert::TryFrom};
-use std::{
+use core::borrow::{Borrow, BorrowMut};
+use core::iter::FromIterator;
+use core::ops::{BitOr, Deref, DerefMut, Index, IndexMut};
+use core::{cmp::Ordering, convert::TryFrom};
+use core::{
     convert::Infallible,
     fmt::{self, Debug, Display},
 };
-use std::{hash::Hash, str::FromStr};
+use core::{hash::Hash, str::FromStr};
+
+#[allow(unused_imports)]
+use alloc::{borrow::ToOwned, boxed::Box, format, string::{String, ToString}, vec, vec::Vec};
 
 use crate::*;
 
 use fmt::Formatter;
-use symbolic_expressions::{Sexp, SexpError};
+use crate::sexp::{Sexp, SexpError};
 use thiserror::Error;
 
 /// Trait that defines a Language whose terms will be in the [`EGraph`].
@@ -176,7 +179,7 @@ pub trait Language: Debug + Clone + Eq + Ord + Hash {
     where
         F: FnMut(Id) -> Self,
     {
-        self.try_build_recexpr::<_, std::convert::Infallible>(|id| Ok(get_node(id)))
+        self.try_build_recexpr::<_, core::convert::Infallible>(|id| Ok(get_node(id)))
             .unwrap()
     }
 
@@ -362,8 +365,8 @@ impl LanguageChildren for Id {
     fn len(&self) -> usize                   { 1 }
     fn can_be_length(n: usize) -> bool       { n == 1 }
     fn from_vec(v: Vec<Id>) -> Self          { v[0] }
-    fn as_slice(&self) -> &[Id]              { std::slice::from_ref(self) }
-    fn as_mut_slice(&mut self) -> &mut [Id]  { std::slice::from_mut(self) }
+    fn as_slice(&self) -> &[Id]              { core::slice::from_ref(self) }
+    fn as_mut_slice(&mut self) -> &mut [Id]  { core::slice::from_mut(self) }
 }
 
 /// A recursive expression from a user-defined [`Language`].
@@ -530,7 +533,7 @@ impl<L: Language> IndexMut<Id> for RecExpr<L> {
 
 impl<L> IntoIterator for RecExpr<L> {
     type Item = L;
-    type IntoIter = std::vec::IntoIter<L>;
+    type IntoIter = alloc::vec::IntoIter<L>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.nodes.into_iter()
@@ -539,7 +542,7 @@ impl<L> IntoIterator for RecExpr<L> {
 
 impl<'a, L> IntoIterator for &'a RecExpr<L> {
     type Item = &'a L;
-    type IntoIter = std::slice::Iter<'a, L>;
+    type IntoIter = core::slice::Iter<'a, L>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
@@ -548,7 +551,7 @@ impl<'a, L> IntoIterator for &'a RecExpr<L> {
 
 impl<'a, L> IntoIterator for &'a mut RecExpr<L> {
     type Item = &'a mut L;
-    type IntoIter = std::slice::IterMut<'a, L>;
+    type IntoIter = core::slice::IterMut<'a, L>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter_mut()
@@ -619,6 +622,16 @@ impl<L: Language + Display> RecExpr<L> {
     }
 }
 
+#[cfg(feature = "std")]
+fn parse_sexp(s: &str) -> Result<Sexp, SexpError> {
+    symbolic_expressions::parser::parse_str(s)
+}
+
+#[cfg(not(feature = "std"))]
+fn parse_sexp(s: &str) -> Result<Sexp, SexpError> {
+    s.parse()
+}
+
 /// An error type for failures when attempting to parse an s-expression as a
 /// [`RecExpr<L>`].
 #[derive(Debug, Error)]
@@ -676,7 +689,7 @@ impl<L: FromOp> FromStr for RecExpr<L> {
         }
 
         let mut expr = RecExpr::default();
-        let sexp = symbolic_expressions::parser::parse_str(s.trim()).map_err(BadSexp)?;
+        let sexp = parse_sexp(s.trim()).map_err(BadSexp)?;
         parse_sexp_into(&sexp, &mut expr)?;
         Ok(expr)
     }

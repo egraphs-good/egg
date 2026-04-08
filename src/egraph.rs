@@ -1,5 +1,7 @@
 use crate::*;
-use std::{
+#[allow(unused_imports)]
+use alloc::{boxed::Box, format, string::{String, ToString}, vec, vec::Vec};
+use core::{
     borrow::BorrowMut,
     fmt::{self, Debug, Display},
     marker::PhantomData,
@@ -577,6 +579,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     }
 
     /// Creates a [`Dot`] to visualize this egraph. See [`Dot`].
+    #[cfg(feature = "std")]
     pub fn dot(&self) -> Dot<'_, L, N> {
         Dot {
             egraph: self,
@@ -792,7 +795,7 @@ where
 }
 
 /// Given an `Id` using the `egraph[id]` syntax, retrieve the e-class.
-impl<L: Language, N: Analysis<L>> std::ops::Index<Id> for EGraph<L, N> {
+impl<L: Language, N: Analysis<L>> core::ops::Index<Id> for EGraph<L, N> {
     type Output = EClass<L, N::Data>;
     fn index(&self, id: Id) -> &Self::Output {
         let id = self.find(id);
@@ -804,7 +807,7 @@ impl<L: Language, N: Analysis<L>> std::ops::Index<Id> for EGraph<L, N> {
 
 /// Given an `Id` using the `&mut egraph[id]` syntax, retrieve a mutable
 /// reference to the e-class.
-impl<L: Language, N: Analysis<L>> std::ops::IndexMut<Id> for EGraph<L, N> {
+impl<L: Language, N: Analysis<L>> core::ops::IndexMut<Id> for EGraph<L, N> {
     fn index_mut(&mut self, id: Id) -> &mut Self::Output {
         let id = self.find_mut(id);
         self.classes
@@ -1144,7 +1147,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     #[track_caller]
     pub fn union(&mut self, id1: Id, id2: Id) -> bool {
         if self.explain.is_some() {
-            let caller = std::panic::Location::caller();
+            let caller = core::panic::Location::caller();
             self.union_trusted(id1, id2, caller.to_string())
         } else {
             self.perform_union(id1, id2, None)
@@ -1169,7 +1172,7 @@ impl<L: Language, N: Analysis<L>> EGraph<L, N> {
         let class1_parents = self.classes[&id1].parents.len();
         let class2_parents = self.classes[&id2].parents.len();
         if class1_parents < class2_parents {
-            std::mem::swap(&mut id1, &mut id2);
+            core::mem::swap(&mut id1, &mut id2);
         }
 
         if let Some(explain) = &mut self.explain {
@@ -1232,10 +1235,10 @@ impl<L: Language + Display, N: Analysis<L>> EGraph<L, N> {
     /// Useful for testing.
     pub fn check_goals(&self, id: Id, goals: &[Pattern<L>]) {
         let (cost, best) = Extractor::new(self, AstSize).find_best(id);
-        println!("End ({}): {}", cost, best.pretty(80));
+        log::info!("End ({}): {}", cost, best.pretty(80));
 
         for (i, goal) in goals.iter().enumerate() {
-            println!("Trying to prove goal {}: {}", i, goal.pretty(40));
+            log::info!("Trying to prove goal {}: {}", i, goal.pretty(40));
             let matches = goal.search_eclass(self, id);
             if matches.is_none() {
                 let best = Extractor::new(self, AstSize).find_best(id).1;
@@ -1257,7 +1260,7 @@ impl<L: Language + Display, N: Analysis<L>> EGraph<L, N> {
 impl<L: Language, N: Analysis<L>> EGraph<L, N> {
     #[inline(never)]
     fn rebuild_classes(&mut self) -> usize {
-        let mut classes_by_op = std::mem::take(&mut self.classes_by_op);
+        let mut classes_by_op = core::mem::take(&mut self.classes_by_op);
         classes_by_op.values_mut().for_each(|ids| ids.clear());
 
         let mut trimmed = 0;

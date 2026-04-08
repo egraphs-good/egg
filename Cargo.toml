@@ -11,18 +11,19 @@ repository = "https://github.com/egraphs-good/egg"
 version = "0.11.0"
 
 [dependencies]
-env_logger = {version = "0.9.0", default-features = false}
-hashbrown = "0.15.2"
-indexmap = "2.7.0"
-log = "0.4.17"
-num-bigint = "0.4"
-num-traits = "0.2"
-quanta = "0.12"
-rustc-hash = "2.0.0"
+env_logger = {version = "0.9.0", default-features = false, optional = true}
+hashbrown = {version = "0.15.2", default-features = false}
+indexmap = {version = "2.7.0", default-features = false}
+log = {version = "0.4.17", default-features = false}
+num-bigint = {version = "0.4", default-features = false}
+num-traits = {version = "0.2", default-features = false}
+quanta = {version = "0.12", optional = true}
+rustc-hash = {version = "2.0.0", default-features = false}
 smallvec = {version = "1.8.0", features = ["union", "const_generics"]}
-symbol_table = {version = "0.4.0", features = ["global"]}
-symbolic_expressions = "5.0.3"
-thiserror = "1.0.31"
+spin = {version = "0.9", default-features = false, features = ["spin_mutex", "lazy"]}
+symbol_table = {version = "0.4.0", features = ["global"], optional = true}
+symbolic_expressions = {version = "5.0.3", optional = true}
+thiserror = "2"
 
 # for the lp feature
 good_lp = { version = "1", optional = true }
@@ -38,18 +39,31 @@ serde_json = {version = "1.0.81", optional = true}
 ordered-float = "3.0.0"
 
 [features]
+default = ["std"]
+std = [
+  "dep:env_logger",
+  "dep:quanta",
+  "dep:symbol_table",
+  "dep:symbolic_expressions",
+  "hashbrown/default",
+  "indexmap/std",
+  "num-bigint/std",
+  "num-traits/std",
+  "log/std",
+  "rustc-hash/std",
+]
 # forces the use of indexmaps over hashmaps
 deterministic = []
-lp = ["good_lp"]
+lp = ["std", "good_lp"]
 reports = ["serde-1", "serde_json"]
 serde-1 = [
   "serde",
   "indexmap/serde",
   "hashbrown/serde",
-  "symbol_table/serde",
+  "symbol_table?/serde",
   "vectorize",
 ]
-wasm-bindgen = []
+wasm-bindgen = ["std"]
 
 # private features for testing
 test-explanations = []
