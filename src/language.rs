@@ -9,12 +9,19 @@ use core::{
 use core::{hash::Hash, str::FromStr};
 
 #[allow(unused_imports)]
-use alloc::{borrow::ToOwned, boxed::Box, format, string::{String, ToString}, vec, vec::Vec};
+use alloc::{
+    borrow::ToOwned,
+    boxed::Box,
+    format,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
 
 use crate::*;
 
-use fmt::Formatter;
 use crate::sexp::{Sexp, SexpError};
+use fmt::Formatter;
 use thiserror::Error;
 
 /// Trait that defines a Language whose terms will be in the [`EGraph`].

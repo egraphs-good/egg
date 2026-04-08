@@ -1,6 +1,6 @@
+use alloc::vec::Vec;
 use core::fmt::Debug;
 use core::iter::ExactSizeIterator;
-use alloc::vec::Vec;
 
 use crate::*;
 

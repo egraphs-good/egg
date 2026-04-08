@@ -125,12 +125,9 @@ mod minimal {
                 Ok((Sexp::List(items), rest))
             }
         } else if input.starts_with('"') {
-            let end = input[1..]
-                .find('"')
-                .ok_or_else(|| SexpError {
-                    message: String::from("unclosed string"),
-                })?
-                + 1;
+            let end = input[1..].find('"').ok_or_else(|| SexpError {
+                message: String::from("unclosed string"),
+            })? + 1;
             let s = &input[1..end];
             Ok((Sexp::String(String::from(s)), &input[end + 1..]))
         } else {

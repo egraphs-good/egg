@@ -1,21 +1,27 @@
 #![allow(clippy::only_used_in_recursion)]
-#[allow(unused_imports)]
-use alloc::{boxed::Box, format, string::{String, ToString}, vec, vec::Vec};
 use crate::Symbol;
 use crate::{
     Analysis, EClass, ENodeOrVar, FromOp, HashMap, HashSet, Id, Language, PatternAst, RecExpr,
     Rewrite, UnionFind, Var, util::pretty_print,
 };
+#[allow(unused_imports)]
+use alloc::{
+    boxed::Box,
+    format,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
 
-use core::cmp::Ordering;
 use alloc::collections::{BinaryHeap, VecDeque};
+use alloc::rc::Rc;
+use core::cmp::Ordering;
 use core::fmt::{self, Debug, Display, Formatter};
 use core::ops::{Deref, DerefMut};
-use alloc::rc::Rc;
 
+use crate::sexp::Sexp;
 use num_bigint::BigUint;
 use num_traits::identities::{One, Zero};
-use crate::sexp::Sexp;
 
 type ProofCost = BigUint;
 

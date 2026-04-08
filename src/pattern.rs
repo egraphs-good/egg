@@ -1,10 +1,17 @@
-use fmt::Formatter;
-use log::*;
 #[allow(unused_imports)]
-use alloc::{borrow::{Cow, ToOwned}, boxed::Box, format, string::{String, ToString}, vec, vec::Vec};
+use alloc::{
+    borrow::{Cow, ToOwned},
+    boxed::Box,
+    format,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
 use core::convert::TryInto;
 use core::fmt::{self, Display};
 use core::{convert::TryFrom, str::FromStr};
+use fmt::Formatter;
+use log::*;
 
 use thiserror::Error;
 

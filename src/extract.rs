@@ -1,7 +1,7 @@
-use core::cmp::Ordering;
-use core::fmt::Debug;
 #[allow(unused_imports)]
 use alloc::vec::Vec;
+use core::cmp::Ordering;
+use core::fmt::Debug;
 
 use crate::util::{HashMap, hashmap_with_capacity};
 use crate::{Analysis, EClass, EGraph, Id, Language, RecExpr};

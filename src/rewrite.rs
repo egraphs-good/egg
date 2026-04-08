@@ -1,7 +1,13 @@
-use pattern::apply_pat;
-use core::fmt::{self, Debug, Display};
 #[allow(unused_imports)]
-use alloc::{format, string::{String, ToString}, sync::Arc, vec, vec::Vec};
+use alloc::{
+    format,
+    string::{String, ToString},
+    sync::Arc,
+    vec,
+    vec::Vec,
+};
+use core::fmt::{self, Debug, Display};
+use pattern::apply_pat;
 
 use crate::*;
 

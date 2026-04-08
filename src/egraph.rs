@@ -1,6 +1,12 @@
 use crate::*;
 #[allow(unused_imports)]
-use alloc::{boxed::Box, format, string::{String, ToString}, vec, vec::Vec};
+use alloc::{
+    boxed::Box,
+    format,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
 use core::{
     borrow::BorrowMut,
     fmt::{self, Debug, Display},

@@ -48,7 +48,7 @@ use alloc::{
 // don't need `extern crate alloc`.
 #[doc(hidden)]
 pub mod __private {
-    pub use alloc::{vec::Vec, format};
+    pub use alloc::{format, vec::Vec};
     pub use core::result::Result;
 }
 
