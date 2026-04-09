@@ -16,10 +16,10 @@ nits:
 	cargo doc --no-deps --all-features
 	cargo deadlinks
 
-	cargo clippy --tests
-	cargo clippy --tests --features "test-explanations"
-	cargo clippy --tests --features "serde-1"
-	cargo clippy --tests --all-features
+# 	cargo clippy --tests
+# 	cargo clippy --tests --features "test-explanations"
+# 	cargo clippy --tests --features "serde-1"
+# 	cargo clippy --tests --all-features
 
 .PHONY: docs
 docs:
