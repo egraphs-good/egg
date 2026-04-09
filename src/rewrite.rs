@@ -13,21 +13,31 @@ use crate::*;
 /// It additionally stores a name used to refer to the rewrite and a
 /// long name used for debugging.
 ///
+/// A rewrite with trait objects that may borrow data with lifetime `'a`.
+///
+/// Most users should use the [`Rewrite`] type alias, which fixes `'a = 'static`.
+/// Use `RewriteBorrow<'a, L, N>` directly when your [`Searcher`] or [`Applier`]
+/// holds references to non-`'static` data.
 #[derive(Clone)]
 #[non_exhaustive]
-pub struct Rewrite<L, N> {
+pub struct RewriteBorrow<'a, L, N> {
     /// The name of the rewrite.
     pub name: Symbol,
     /// The searcher (left-hand side) of the rewrite.
-    pub searcher: Arc<dyn Searcher<L, N> + Sync + Send>,
+    pub searcher: Arc<dyn Searcher<L, N> + Sync + Send + 'a>,
     /// The applier (right-hand side) of the rewrite.
-    pub applier: Arc<dyn Applier<L, N> + Sync + Send>,
+    pub applier: Arc<dyn Applier<L, N> + Sync + Send + 'a>,
 }
 
-impl<L, N> Debug for Rewrite<L, N>
+/// A [`RewriteBorrow`] whose trait objects are `'static`.
+///
+/// This is the common case and preserves backward compatibility.
+pub type Rewrite<L, N> = RewriteBorrow<'static, L, N>;
+
+impl<L, N> Debug for RewriteBorrow<'_, L, N>
 where
-    L: Language + Display + 'static,
-    N: Analysis<L> + 'static,
+    L: Language + Display,
+    N: Analysis<L>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut d = f.debug_struct("Rewrite");
@@ -50,14 +60,14 @@ where
     }
 }
 
-impl<L: Language, N: Analysis<L>> Rewrite<L, N> {
-    /// Create a new [`Rewrite`]. You typically want to use the
+impl<'a, L: Language, N: Analysis<L>> RewriteBorrow<'a, L, N> {
+    /// Create a new [`RewriteBorrow`]. You typically want to use the
     /// [`rewrite!`] macro instead.
     ///
     pub fn new(
         name: impl Into<Symbol>,
-        searcher: impl Searcher<L, N> + Send + Sync + 'static,
-        applier: impl Applier<L, N> + Send + Sync + 'static,
+        searcher: impl Searcher<L, N> + Send + Sync + 'a,
+        applier: impl Applier<L, N> + Send + Sync + 'a,
     ) -> Result<Self, String> {
         let name = name.into();
         let searcher = Arc::new(searcher);
@@ -647,5 +657,46 @@ mod tests {
         egraph.rebuild();
         fold_add.run(&mut egraph);
         assert_eq!(egraph.equivs(&start, &goal), vec![egraph.find(root)]);
+    }
+
+    #[test]
+    fn non_static_rewrite() {
+        crate::init_logger();
+
+        // A searcher that borrows a Pattern rather than owning it
+        struct BorrowedSearcher<'a> {
+            pat: &'a Pattern<S>,
+        }
+
+        impl<'a> Searcher<S, ()> for BorrowedSearcher<'a> {
+            fn search_eclass_with_limit(
+                &self,
+                egraph: &crate::EGraph<S, ()>,
+                eclass: Id,
+                limit: usize,
+            ) -> Option<SearchMatches<'_, S>> {
+                self.pat.search_eclass_with_limit(egraph, eclass, limit)
+            }
+            fn vars(&self) -> Vec<Var> {
+                self.pat.vars()
+            }
+        }
+
+        let pat: Pattern<S> = "(+ ?a ?b)".parse().unwrap();
+        let rhs: Pattern<S> = "(+ ?b ?a)".parse().unwrap();
+        let searcher = BorrowedSearcher { pat: &pat };
+
+        // RewriteBorrow allows non-'static trait objects
+        let rw: RewriteBorrow<'_, S, ()> = RewriteBorrow::new("commute", searcher, rhs).unwrap();
+
+        let mut egraph = EGraph::default();
+        egraph.add_expr(&"(+ x y)".parse().unwrap());
+        egraph.rebuild();
+
+        let matches = rw.search(&egraph);
+        assert!(!matches.is_empty());
+
+        let ids = rw.apply(&mut egraph, &matches);
+        assert!(!ids.is_empty());
     }
 }
