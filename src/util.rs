@@ -13,8 +13,7 @@ use crate::*;
 
 /// An interned string.
 ///
-/// This is provided by the [`symbol_table`](https://crates.io/crates/symbol_table) crate
-/// when the `std` feature is enabled.
+/// This is provided by the [`symbol_table`](https://crates.io/crates/symbol_table) crate.
 ///
 /// Internally, `egg` frequently compares [`Var`]s and elements of
 /// [`Language`]s. To keep comparisons fast, `egg` provides [`Symbol`] a simple
@@ -43,97 +42,7 @@ use crate::*;
 /// assert_ne!(Symbol::from("foo"), Symbol::from("bar"));
 /// ```
 ///
-#[cfg(feature = "std")]
 pub use symbol_table::GlobalSymbol as Symbol;
-
-#[cfg(not(feature = "std"))]
-pub use self::no_std_symbol::Symbol;
-
-#[cfg(not(feature = "std"))]
-mod no_std_symbol {
-    use alloc::boxed::Box;
-    use alloc::string::String;
-    use alloc::vec::Vec;
-    use core::num::NonZeroU32;
-    use spin::Mutex;
-
-    static SYMBOLS: Mutex<Vec<&'static str>> = Mutex::new(Vec::new());
-
-    /// An interned string backed by a global table (no_std version).
-    ///
-    /// Semantically identical to `symbol_table::GlobalSymbol`:
-    /// 4 bytes, `Copy`, `Eq`, `Hash`, `Ord`.
-    #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-    pub struct Symbol(NonZeroU32);
-
-    impl Symbol {
-        /// Returns the string this symbol represents.
-        pub fn as_str(&self) -> &'static str {
-            let table = SYMBOLS.lock();
-            table[(self.0.get() - 1) as usize]
-        }
-    }
-
-    impl From<&str> for Symbol {
-        fn from(s: &str) -> Self {
-            let mut table = SYMBOLS.lock();
-            for (i, &existing) in table.iter().enumerate() {
-                if existing == s {
-                    return Symbol(NonZeroU32::new((i + 1) as u32).expect("symbol index overflow"));
-                }
-            }
-            let leaked: &'static str = Box::leak(String::from(s).into_boxed_str());
-            table.push(leaked);
-            Symbol(NonZeroU32::new(table.len() as u32).expect("symbol index overflow"))
-        }
-    }
-
-    impl From<String> for Symbol {
-        fn from(s: String) -> Self {
-            Symbol::from(s.as_str())
-        }
-    }
-
-    impl From<&String> for Symbol {
-        fn from(s: &String) -> Self {
-            Symbol::from(s.as_str())
-        }
-    }
-
-    impl core::str::FromStr for Symbol {
-        type Err = core::convert::Infallible;
-        fn from_str(s: &str) -> Result<Self, Self::Err> {
-            Ok(Symbol::from(s))
-        }
-    }
-
-    impl core::fmt::Display for Symbol {
-        fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-            write!(f, "{}", self.as_str())
-        }
-    }
-
-    impl core::fmt::Debug for Symbol {
-        fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-            write!(f, "{}", self.as_str())
-        }
-    }
-
-    #[cfg(feature = "serde-1")]
-    impl serde::Serialize for Symbol {
-        fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-            serializer.serialize_str(self.as_str())
-        }
-    }
-
-    #[cfg(feature = "serde-1")]
-    impl<'de> serde::Deserialize<'de> for Symbol {
-        fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-            let s = <&str>::deserialize(deserializer)?;
-            Ok(Symbol::from(s))
-        }
-    }
-}
 
 // --- Hashing ---
 
