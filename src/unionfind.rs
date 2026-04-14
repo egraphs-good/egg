@@ -1,5 +1,6 @@
 use crate::Id;
-use std::fmt::Debug;
+use crate::no_std_prelude::*;
+use core::fmt::Debug;
 
 #[derive(Debug, Clone, Default)]
 #[cfg_attr(feature = "serde-1", derive(serde::Serialize, serde::Deserialize))]

@@ -1,3 +1,4 @@
+#![cfg(feature = "std")]
 use egg::{rewrite as rw, *};
 use ordered_float::NotNan;
 

@@ -1,3 +1,4 @@
+#![cfg(feature = "std")]
 use egg::*;
 
 define_language! {

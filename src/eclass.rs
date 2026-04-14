@@ -1,5 +1,6 @@
-use std::fmt::Debug;
-use std::iter::ExactSizeIterator;
+use crate::no_std_prelude::*;
+use core::fmt::Debug;
+use core::iter::ExactSizeIterator;
 
 use crate::*;
 

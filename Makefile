@@ -6,7 +6,9 @@ test:
 	cargo test --release --features=lp
 	# don't run examples in proof-production mode
 	cargo test --release --features "test-explanations"
-	
+	# verify no_std build
+	cargo test --no-default-features
+
 
 .PHONY: nits
 nits:

@@ -1,19 +1,17 @@
 #![allow(clippy::only_used_in_recursion)]
 use crate::Symbol;
+use crate::no_std_prelude::*;
 use crate::{
     Analysis, EClass, ENodeOrVar, FromOp, HashMap, HashSet, Id, Language, PatternAst, RecExpr,
     Rewrite, UnionFind, Var, util::pretty_print,
 };
+use core::cmp::Ordering;
+use core::fmt::{self, Debug, Display, Formatter};
+use core::ops::{Deref, DerefMut};
 
-use std::cmp::Ordering;
-use std::collections::{BinaryHeap, VecDeque};
-use std::fmt::{self, Debug, Display, Formatter};
-use std::ops::{Deref, DerefMut};
-use std::rc::Rc;
-
+use crate::sexp::Sexp;
 use num_bigint::BigUint;
 use num_traits::identities::{One, Zero};
-use symbolic_expressions::Sexp;
 
 type ProofCost = BigUint;
 
@@ -359,12 +357,10 @@ impl<L: Language> Explanation<L> {
 
     /// Construct the flat representation of the explanation and return it.
     pub fn make_flat_explanation(&mut self) -> &FlatExplanation<L> {
-        if self.flat_explanation.is_some() {
-            return self.flat_explanation.as_ref().unwrap();
-        } else {
+        if self.flat_explanation.is_none() {
             self.flat_explanation = Some(TreeTerm::flatten_proof(&self.explanation_trees));
-            self.flat_explanation.as_ref().unwrap()
         }
+        self.flat_explanation.as_ref().expect("just set")
     }
 
     /// Check the validity of the explanation with respect to the given rules.
@@ -404,16 +400,14 @@ impl<L: Language> Explanation<L> {
         table: &HashMap<Symbol, &Rewrite<L, N>>,
         is_forward: bool,
     ) -> bool {
-        if is_forward && next.forward_rule.is_some() {
-            let rule_name = next.forward_rule.as_ref().unwrap();
+        if is_forward && let Some(rule_name) = next.forward_rule.as_ref() {
             if let Some(rule) = table.get(rule_name) {
                 Explanation::check_rewrite(current, next, rule)
             } else {
                 // give up when the rule is not provided
                 true
             }
-        } else if !is_forward && next.backward_rule.is_some() {
-            let rule_name = next.backward_rule.as_ref().unwrap();
+        } else if !is_forward && let Some(rule_name) = next.backward_rule.as_ref() {
             if let Some(rule) = table.get(rule_name) {
                 Explanation::check_rewrite(next, current, rule)
             } else {
@@ -435,12 +429,12 @@ impl<L: Language> Explanation<L> {
         next: &'a FlatTerm<L>,
         rewrite: &Rewrite<L, N>,
     ) -> bool {
-        if let Some(lhs) = rewrite.searcher.get_pattern_ast() {
-            if let Some(rhs) = rewrite.applier.get_pattern_ast() {
-                let rewritten = current.rewrite(lhs, rhs);
-                if &rewritten != next {
-                    return false;
-                }
+        if let Some(lhs) = rewrite.searcher.get_pattern_ast()
+            && let Some(rhs) = rewrite.applier.get_pattern_ast()
+        {
+            let rewritten = current.rewrite(lhs, rhs);
+            if &rewritten != next {
+                return false;
             }
         }
         true
@@ -944,10 +938,10 @@ impl<L: Language> Explain<L> {
         if node1 == node2 {
             return;
         }
-        if let Some((cost, _)) = self.shortest_explanation_memo.get(&(node1, node2)) {
-            if cost.is_zero() || cost.is_one() {
-                return;
-            }
+        if let Some((cost, _)) = self.shortest_explanation_memo.get(&(node1, node2))
+            && (cost.is_zero() || cost.is_one())
+        {
+            return;
         }
 
         let lconnection = Connection {
@@ -1015,10 +1009,10 @@ impl<L: Language> Explain<L> {
         let mut equalities = vec![];
         for node in &self.explainfind {
             for neighbor in &node.neighbors {
-                if neighbor.is_rewrite_forward {
-                    if let Justification::Rule(r) = neighbor.justification {
-                        equalities.push((neighbor.current, neighbor.next, r));
-                    }
+                if neighbor.is_rewrite_forward
+                    && let Justification::Rule(r) = neighbor.justification
+                {
+                    equalities.push((neighbor.current, neighbor.next, r));
                 }
             }
         }
@@ -1090,18 +1084,13 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
                     self.node_to_flat_explanation(explain_node.parent_connection.next);
                 if let Justification::Rule(rule_name) =
                     &explain_node.parent_connection.justification
+                    && let Some(rule) = rule_table.get(rule_name)
                 {
-                    if let Some(rule) = rule_table.get(rule_name) {
-                        if !explain_node.parent_connection.is_rewrite_forward {
-                            std::mem::swap(&mut current_explanation, &mut next_explanation);
-                        }
-                        if !Explanation::check_rewrite(
-                            &current_explanation,
-                            &next_explanation,
-                            rule,
-                        ) {
-                            return false;
-                        }
+                    if !explain_node.parent_connection.is_rewrite_forward {
+                        core::mem::swap(&mut current_explanation, &mut next_explanation);
+                    }
+                    if !Explanation::check_rewrite(&current_explanation, &next_explanation, rule) {
+                        return false;
                     }
                 }
             }
@@ -1177,10 +1166,10 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
 
     fn get_neighbor(&self, current: Id, next: Id) -> Connection {
         for neighbor in &self.explainfind[usize::from(current)].neighbors {
-            if neighbor.next == next {
-                if let Justification::Rule(_) = neighbor.justification {
-                    return neighbor.clone();
-                }
+            if neighbor.next == next
+                && let Justification::Rule(_) = neighbor.justification
+            {
+                return neighbor.clone();
             }
         }
         Connection {
@@ -1233,7 +1222,7 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
             let mut connection = connection.clone();
             if i >= left_connections.len() {
                 connection.is_rewrite_forward = !connection.is_rewrite_forward;
-                std::mem::swap(&mut connection.next, &mut connection.current);
+                core::mem::swap(&mut connection.next, &mut connection.current);
             }
 
             proof.push(self.explain_adjacent(
@@ -1689,7 +1678,7 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
                 let mut next = connection.next;
                 let mut current = connection.current;
                 if i >= left_connections.len() {
-                    std::mem::swap(&mut next, &mut current);
+                    core::mem::swap(&mut next, &mut current);
                 }
                 if let Justification::Congruence = connection.justification {
                     let current_node = self.node(current).clone();
@@ -1841,7 +1830,7 @@ impl<'x, L: Language> ExplainNodes<'x, L> {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests {
     use super::super::*;
 
@@ -1949,6 +1938,7 @@ mod tests {
     }
 }
 
+#[cfg(feature = "std")]
 #[test]
 fn simple_explain_union_trusted() {
     use crate::{EGraph, SymbolLang};

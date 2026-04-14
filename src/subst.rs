@@ -1,5 +1,7 @@
-use std::fmt;
-use std::str::FromStr;
+use core::fmt;
+use core::str::FromStr;
+
+use crate::no_std_prelude::*;
 
 use crate::*;
 use fmt::{Debug, Display, Formatter};
@@ -119,7 +121,7 @@ impl Subst {
     pub fn insert(&mut self, var: Var, id: Id) -> Option<Id> {
         for pair in &mut self.vec {
             if pair.0 == var {
-                return Some(std::mem::replace(&mut pair.1, id));
+                return Some(core::mem::replace(&mut pair.1, id));
             }
         }
         self.vec.push((var, id));
@@ -135,7 +137,7 @@ impl Subst {
     }
 }
 
-impl std::ops::Index<Var> for Subst {
+impl core::ops::Index<Var> for Subst {
     type Output = Id;
 
     fn index(&self, var: Var) -> &Self::Output {

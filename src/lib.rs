@@ -1,5 +1,7 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![cfg_attr(not(feature = "std"), no_std)]
 #![warn(missing_docs)]
+#![allow(clippy::test_attr_in_doctest)]
 /*!
 
 `egg` (**e**-**g**raphs **g**ood) is a e-graph library optimized for equality saturation.
@@ -30,13 +32,42 @@ for less or more logging.
 #![doc = include_str!("../tests/simple.rs")]
 #![doc = "\n```"]
 
+extern crate alloc;
+
+/// Crate-internal prelude that re-exports `alloc` / `core` items normally
+/// provided by `std`.  Every module imports `use crate::no_std_prelude::*;`
+/// instead of scattering `#[allow(unused_imports)] use alloc::{…}` blocks.
+pub(crate) mod no_std_prelude {
+    pub use alloc::{
+        borrow::{Cow, ToOwned},
+        boxed::Box,
+        collections::{BinaryHeap, VecDeque},
+        format,
+        rc::Rc,
+        string::{String, ToString},
+        sync::Arc,
+        vec,
+        vec::Vec,
+    };
+}
+
+// Hidden re-exports used by the `define_language!` macro so downstream crates
+// don't need `extern crate alloc`.
+#[doc(hidden)]
+pub mod __private {
+    pub use alloc::{format, string::ToString, vec, vec::Vec};
+    pub use core::result::Result;
+}
+
 mod macros;
 
+#[cfg(feature = "std")]
 #[doc(hidden)]
 pub mod test;
 
 pub mod tutorials;
 
+#[cfg(feature = "std")]
 mod dot;
 mod eclass;
 mod egraph;
@@ -50,6 +81,7 @@ mod multipattern;
 mod pattern;
 mod rewrite;
 mod run;
+mod sexp;
 mod subst;
 mod unionfind;
 mod util;
@@ -73,14 +105,14 @@ impl From<Id> for usize {
     }
 }
 
-impl std::fmt::Debug for Id {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for Id {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", self.0)
     }
 }
 
-impl std::fmt::Display for Id {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for Id {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", self.0)
     }
 }
@@ -88,7 +120,6 @@ impl std::fmt::Display for Id {
 pub(crate) use {explain::Explain, unionfind::UnionFind};
 
 pub use {
-    dot::Dot,
     eclass::EClass,
     egraph::{EGraph, LanguageMapper, SimpleLanguageMapper},
     explain::{
@@ -107,10 +138,13 @@ pub use {
     util::*,
 };
 
+#[cfg(feature = "std")]
+pub use dot::Dot;
+
 #[cfg(feature = "lp")]
 pub use lp_extract::*;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 fn init_logger() {
     let _ = env_logger::builder().is_test(true).try_init();
 }

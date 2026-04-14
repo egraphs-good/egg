@@ -1,13 +1,15 @@
-use std::{fmt, iter::FromIterator};
-use symbolic_expressions::Sexp;
+use crate::no_std_prelude::*;
+use core::fmt::{self, Debug, Display, Formatter};
+use core::iter::FromIterator;
 
-use fmt::{Debug, Display, Formatter};
+use crate::sexp::Sexp;
 
 #[cfg(feature = "serde-1")]
 use serde::{Deserialize, Serialize};
 
-#[allow(unused_imports)]
 use crate::*;
+
+// --- Symbol ---
 
 /// An interned string.
 ///
@@ -42,10 +44,9 @@ use crate::*;
 ///
 pub use symbol_table::GlobalSymbol as Symbol;
 
-pub(crate) type BuildHasher = rustc_hash::FxBuildHasher;
+// --- Hashing ---
 
-// pub(crate) type HashMap<K, V> = hashbrown::HashMap<K, V, BuildHasher>;
-// pub(crate) type HashSet<K> = hashbrown::HashSet<K, BuildHasher>;
+pub(crate) type BuildHasher = rustc_hash::FxBuildHasher;
 
 pub(crate) use hashmap::*;
 
@@ -68,12 +69,42 @@ pub(crate) fn hashmap_with_capacity<K, V>(cap: usize) -> hashmap::HashMap<K, V> 
 pub(crate) type IndexMap<K, V> = indexmap::IndexMap<K, V, BuildHasher>;
 pub(crate) type IndexSet<K> = indexmap::IndexSet<K, BuildHasher>;
 
+// --- Timing ---
+
+#[cfg(feature = "std")]
 pub(crate) type Instant = quanta::Instant;
-pub(crate) type Duration = std::time::Duration;
+
+#[cfg(not(feature = "std"))]
+pub(crate) type Instant = no_std_instant::Instant;
+
+pub(crate) type Duration = core::time::Duration;
+
+#[cfg(not(feature = "std"))]
+mod no_std_instant {
+    /// A no-op instant for `no_std` environments.
+    ///
+    /// Time limits are effectively disabled; iteration and node limits still work.
+    #[derive(Clone, Copy, Debug)]
+    pub struct Instant;
+
+    impl Instant {
+        /// Returns a no-op instant.
+        pub fn now() -> Self {
+            Instant
+        }
+
+        /// Always returns `Duration::ZERO`.
+        pub fn elapsed(&self) -> core::time::Duration {
+            core::time::Duration::ZERO
+        }
+    }
+}
+
+// --- Utilities ---
 
 pub(crate) fn concat_vecs<T>(to: &mut Vec<T>, mut from: Vec<T>) {
     if to.len() < from.len() {
-        std::mem::swap(to, &mut from)
+        core::mem::swap(to, &mut from)
     }
     to.extend(from);
 }
@@ -83,8 +114,8 @@ pub(crate) fn pretty_print(
     sexp: &Sexp,
     width: usize,
     level: usize,
-) -> std::fmt::Result {
-    use std::fmt::Write;
+) -> fmt::Result {
+    use fmt::Write;
     if let Sexp::List(list) = sexp {
         let indent = sexp.to_string().len() > width;
         write!(buf, "(")?;
@@ -127,27 +158,27 @@ Notably, insert/pop operations have O(1) expected amortized runtime complexity.
 #[cfg_attr(feature = "serde-1", derive(Serialize, Deserialize))]
 pub(crate) struct UniqueQueue<T>
 where
-    T: Eq + std::hash::Hash + Clone,
+    T: Eq + core::hash::Hash + Clone,
 {
-    set: hashbrown::HashSet<T>,
-    queue: std::collections::VecDeque<T>,
+    set: hashbrown::HashSet<T, BuildHasher>,
+    queue: alloc::collections::VecDeque<T>,
 }
 
 impl<T> Default for UniqueQueue<T>
 where
-    T: Eq + std::hash::Hash + Clone,
+    T: Eq + core::hash::Hash + Clone,
 {
     fn default() -> Self {
         UniqueQueue {
-            set: hashbrown::HashSet::default(),
-            queue: std::collections::VecDeque::new(),
+            set: hashbrown::HashSet::with_hasher(BuildHasher::default()),
+            queue: alloc::collections::VecDeque::new(),
         }
     }
 }
 
 impl<T> UniqueQueue<T>
 where
-    T: Eq + std::hash::Hash + Clone,
+    T: Eq + core::hash::Hash + Clone,
 {
     pub fn insert(&mut self, t: T) {
         if self.set.insert(t.clone()) {
@@ -179,11 +210,11 @@ where
 
 impl<T> IntoIterator for UniqueQueue<T>
 where
-    T: Eq + std::hash::Hash + Clone,
+    T: Eq + core::hash::Hash + Clone,
 {
     type Item = T;
 
-    type IntoIter = <std::collections::VecDeque<T> as IntoIterator>::IntoIter;
+    type IntoIter = <alloc::collections::VecDeque<T> as IntoIterator>::IntoIter;
 
     fn into_iter(self) -> Self::IntoIter {
         self.queue.into_iter()
@@ -192,7 +223,7 @@ where
 
 impl<A> FromIterator<A> for UniqueQueue<A>
 where
-    A: Eq + std::hash::Hash + Clone,
+    A: Eq + core::hash::Hash + Clone,
 {
     fn from_iter<T: IntoIterator<Item = A>>(iter: T) -> Self {
         let mut queue = UniqueQueue::default();

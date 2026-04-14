@@ -1,6 +1,6 @@
+use crate::no_std_prelude::*;
+use core::fmt::{self, Debug, Display};
 use pattern::apply_pat;
-use std::fmt::{self, Debug, Display};
-use std::sync::Arc;
 
 use crate::*;
 
@@ -114,7 +114,7 @@ impl<'a, L: Language, N: Analysis<L>> RewriteBorrow<'a, L, N> {
 
     /// This `run` is for testing use only. You should use things
     /// from the `egg::run` module
-    #[cfg(test)]
+    #[cfg(all(test, feature = "std"))]
     pub(crate) fn run(&self, egraph: &mut EGraph<L, N>) -> Vec<Id> {
         let start = crate::util::Instant::now();
 
@@ -552,11 +552,11 @@ where
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests {
 
     use crate::{SymbolLang as S, *};
-    use std::str::FromStr;
+    use core::str::FromStr;
 
     type EGraph = crate::EGraph<S, ()>;
 
