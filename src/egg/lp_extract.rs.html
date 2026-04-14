@@ -203,7 +203,7 @@
 <a href=#203 id=203 data-nosnippet>203</a>        <span class="kw">for </span>class <span class="kw">in </span>egraph.classes() {
 <a href=#204 id=204 data-nosnippet>204</a>            <span class="kw">for </span>(i, <span class="kw-2">&amp;</span>node_var) <span class="kw">in </span>vars[<span class="kw-2">&amp;</span>class.id].nodes.iter().enumerate() {
 <a href=#205 id=205 data-nosnippet>205</a>                <span class="kw">let </span>c = <span class="self">self</span>.costs[<span class="kw-2">&amp;</span>class.id][i];
-<a href=#206 id=206 data-nosnippet>206</a>                objective = objective + c * node_var;
+<a href=#206 id=206 data-nosnippet>206</a>                objective += c * node_var;
 <a href=#207 id=207 data-nosnippet>207</a>            }
 <a href=#208 id=208 data-nosnippet>208</a>        }
 <a href=#209 id=209 data-nosnippet>209</a>
@@ -411,7 +411,7 @@
 <a href=#411 id=411 data-nosnippet>411</a>    }
 <a href=#412 id=412 data-nosnippet>412</a>}
 <a href=#413 id=413 data-nosnippet>413</a>
-<a href=#414 id=414 data-nosnippet>414</a><span class="attr">#[cfg(test)]
+<a href=#414 id=414 data-nosnippet>414</a><span class="attr">#[cfg(all(test, feature = <span class="string">"std"</span>))]
 <a href=#415 id=415 data-nosnippet>415</a></span><span class="kw">mod </span>tests {
 <a href=#416 id=416 data-nosnippet>416</a>    <span class="kw">use </span>crate::{SymbolLang <span class="kw">as </span>S, <span class="kw-2">*</span>};
 <a href=#417 id=417 data-nosnippet>417</a>

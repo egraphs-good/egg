@@ -145,26 +145,26 @@
 <a href=#145 id=145 data-nosnippet>145</a>
 <a href=#146 id=146 data-nosnippet>146</a>1. The initial e-graph represents the term _(a × 2) / 2_.
 <a href=#147 id=147 data-nosnippet>147</a>   Since each e-class only has one e-node,
-<a href=#148 id=148 data-nosnippet>148</a>     the e-graph is basically an abstract syntax tree
-<a href=#149 id=149 data-nosnippet>149</a>    with sharing (the 2 is not duplicated).
+<a href=#148 id=148 data-nosnippet>148</a>   the e-graph is basically an abstract syntax tree
+<a href=#149 id=149 data-nosnippet>149</a>   with sharing (the 2 is not duplicated).
 <a href=#150 id=150 data-nosnippet>150</a>2. Applying the rewrite _x × 2 → x &lt;&lt; 1_
 <a href=#151 id=151 data-nosnippet>151</a>   has recorded the fact that _a × 2 = a &lt;&lt; 1_
-<a href=#152 id=152 data-nosnippet>152</a>     without forgetting about _a × 2_.
+<a href=#152 id=152 data-nosnippet>152</a>   without forgetting about _a × 2_.
 <a href=#153 id=153 data-nosnippet>153</a>   Note how the newly added _a &lt;&lt; 1_ refers to the existing "_a_" e-node,
 <a href=#154 id=154 data-nosnippet>154</a>   and the "&lt;&lt;" e-node has been unioned into the same e-class
 <a href=#155 id=155 data-nosnippet>155</a>   as the equivalent "×" e-node where the pattern _x × 2_ matched.
 <a href=#156 id=156 data-nosnippet>156</a>3. Applying rewrite _(x × y) / z → x × (y / z)_ realizes that division
-<a href=#157 id=157 data-nosnippet>157</a>    associates with multiplication.
+<a href=#157 id=157 data-nosnippet>157</a>   associates with multiplication.
 <a href=#158 id=158 data-nosnippet>158</a>   This rewrite is critical to discovering the cancellation of 2s that we are looking for,
-<a href=#159 id=159 data-nosnippet>159</a>     and it still works despite the fact that we applied the "wrong" rewrite previously.
+<a href=#159 id=159 data-nosnippet>159</a>   and it still works despite the fact that we applied the "wrong" rewrite previously.
 <a href=#160 id=160 data-nosnippet>160</a>4. Applying rewrites _x / x → 1_ and _x × 1 → x_ doesn't add any new e-nodes,
-<a href=#161 id=161 data-nosnippet>161</a>     since all the e-nodes were already present in the e-graph.
+<a href=#161 id=161 data-nosnippet>161</a>   since all the e-nodes were already present in the e-graph.
 <a href=#162 id=162 data-nosnippet>162</a>   The result only unions e-classes,
-<a href=#163 id=163 data-nosnippet>163</a>     meaning that e-graph actually got _smaller_ from applying these rewrites,
-<a href=#164 id=164 data-nosnippet>164</a>     even though it now represents more terms.
+<a href=#163 id=163 data-nosnippet>163</a>   meaning that e-graph actually got _smaller_ from applying these rewrites,
+<a href=#164 id=164 data-nosnippet>164</a>   even though it now represents more terms.
 <a href=#165 id=165 data-nosnippet>165</a>   In fact, observe that the top-right "×" e-node's left child is _itself_;
-<a href=#166 id=166 data-nosnippet>166</a>     this cycle means the e-class represents the _infinite_ (!) set of terms
-<a href=#167 id=167 data-nosnippet>167</a>     _a_, _a × 1_, _a × 1 × 1_, and so on.
+<a href=#166 id=166 data-nosnippet>166</a>   this cycle means the e-class represents the _infinite_ (!) set of terms
+<a href=#167 id=167 data-nosnippet>167</a>   _a_, _a × 1_, _a × 1 × 1_, and so on.
 <a href=#168 id=168 data-nosnippet>168</a>
 <a href=#169 id=169 data-nosnippet>169</a>## Invariants and Rebuilding
 <a href=#170 id=170 data-nosnippet>170</a>
@@ -178,7 +178,7 @@
 <a href=#178 id=178 data-nosnippet>178</a>   An e-graph maintains not just an [equivalence relation] over
 <a href=#179 id=179 data-nosnippet>179</a>   expressions, but a [congruence relation].
 <a href=#180 id=180 data-nosnippet>180</a>   Congruence basically states that if _x_ is equivalent to _y_,
-<a href=#181 id=181 data-nosnippet>181</a>     _f(x)_ must be equivalent to _f(y)_.
+<a href=#181 id=181 data-nosnippet>181</a>   _f(x)_ must be equivalent to _f(y)_.
 <a href=#182 id=182 data-nosnippet>182</a>   So as the user calls [`union`], many e-classes other than the given
 <a href=#183 id=183 data-nosnippet>183</a>   two may need to merge to maintain congruence.
 <a href=#184 id=184 data-nosnippet>184</a>
@@ -258,10 +258,10 @@
 <a href=#258 id=258 data-nosnippet>258</a>- _Saturation_ occurs when an e-graph detects that rewrites no longer add new information.
 <a href=#259 id=259 data-nosnippet>259</a>  Consider the commutative rewrite _x + y → y + x_.
 <a href=#260 id=260 data-nosnippet>260</a>  After applying it once, the second time adds no new information
-<a href=#261 id=261 data-nosnippet>261</a>    since the e-graph didn't forget about the initial _x + y_ terms.
+<a href=#261 id=261 data-nosnippet>261</a>  since the e-graph didn't forget about the initial _x + y_ terms.
 <a href=#262 id=262 data-nosnippet>262</a>  If all the rewrites are in this state, we say the e-graph is _saturated_,
-<a href=#263 id=263 data-nosnippet>263</a>    meaning that the e-graph encodes all possible equivalences derivable from
-<a href=#264 id=264 data-nosnippet>264</a>    the given rewrites.
+<a href=#263 id=263 data-nosnippet>263</a>  meaning that the e-graph encodes all possible equivalences derivable from
+<a href=#264 id=264 data-nosnippet>264</a>  the given rewrites.
 <a href=#265 id=265 data-nosnippet>265</a>- _Extraction_ is a procedure for picking a single represented term from an e-class
 <a href=#266 id=266 data-nosnippet>266</a>  that is optimal according to some cost function.
 <a href=#267 id=267 data-nosnippet>267</a>  `egg`'s [`Extractor`]s provide this functionality.

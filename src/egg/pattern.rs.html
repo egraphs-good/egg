@@ -1,9 +1,9 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/pattern.rs`."><title>pattern.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-77263533.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="egg" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.1 (e408947bf 2026-03-25)" data-channel="1.94.1" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-b897f86f.js" data-settings-js="settings-c38705f0.js" ><script src="../../static.files/storage-e2aeef58.js"></script><script defer src="../../static.files/src-script-813739b1.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-7bab91a1.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-ffcac47a.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">egg/</div>pattern.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="kw">use </span>fmt::Formatter;
-<a href=#2 id=2 data-nosnippet>2</a><span class="kw">use </span>log::<span class="kw-2">*</span>;
-<a href=#3 id=3 data-nosnippet>3</a><span class="kw">use </span>std::borrow::Cow;
-<a href=#4 id=4 data-nosnippet>4</a><span class="kw">use </span>std::convert::TryInto;
-<a href=#5 id=5 data-nosnippet>5</a><span class="kw">use </span>std::fmt::{<span class="self">self</span>, Display};
-<a href=#6 id=6 data-nosnippet>6</a><span class="kw">use </span>std::{convert::TryFrom, str::FromStr};
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/pattern.rs`."><title>pattern.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-77263533.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="egg" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.1 (e408947bf 2026-03-25)" data-channel="1.94.1" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-b897f86f.js" data-settings-js="settings-c38705f0.js" ><script src="../../static.files/storage-e2aeef58.js"></script><script defer src="../../static.files/src-script-813739b1.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-7bab91a1.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-ffcac47a.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">egg/</div>pattern.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="kw">use </span><span class="kw">crate</span>::no_std_prelude::<span class="kw-2">*</span>;
+<a href=#2 id=2 data-nosnippet>2</a><span class="kw">use </span>core::convert::TryInto;
+<a href=#3 id=3 data-nosnippet>3</a><span class="kw">use </span>core::fmt::{<span class="self">self</span>, Display};
+<a href=#4 id=4 data-nosnippet>4</a><span class="kw">use </span>core::{convert::TryFrom, str::FromStr};
+<a href=#5 id=5 data-nosnippet>5</a><span class="kw">use </span>fmt::Formatter;
+<a href=#6 id=6 data-nosnippet>6</a><span class="kw">use </span>log::<span class="kw-2">*</span>;
 <a href=#7 id=7 data-nosnippet>7</a>
 <a href=#8 id=8 data-nosnippet>8</a><span class="kw">use </span>thiserror::Error;
 <a href=#9 id=9 data-nosnippet>9</a>
@@ -113,10 +113,10 @@
 <a href=#113 id=113 data-nosnippet>113</a>    </span><span class="kw">pub fn </span>vars(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;Var&gt; {
 <a href=#114 id=114 data-nosnippet>114</a>        <span class="kw">let </span><span class="kw-2">mut </span>vars = <span class="macro">vec!</span>[];
 <a href=#115 id=115 data-nosnippet>115</a>        <span class="kw">for </span>n <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.ast {
-<a href=#116 id=116 data-nosnippet>116</a>            <span class="kw">if let </span>ENodeOrVar::Var(v) = n {
-<a href=#117 id=117 data-nosnippet>117</a>                <span class="kw">if </span>!vars.contains(v) {
-<a href=#118 id=118 data-nosnippet>118</a>                    vars.push(<span class="kw-2">*</span>v)
-<a href=#119 id=119 data-nosnippet>119</a>                }
+<a href=#116 id=116 data-nosnippet>116</a>            <span class="kw">if let </span>ENodeOrVar::Var(v) = n
+<a href=#117 id=117 data-nosnippet>117</a>                &amp;&amp; !vars.contains(v)
+<a href=#118 id=118 data-nosnippet>118</a>            {
+<a href=#119 id=119 data-nosnippet>119</a>                vars.push(<span class="kw-2">*</span>v)
 <a href=#120 id=120 data-nosnippet>120</a>            }
 <a href=#121 id=121 data-nosnippet>121</a>        }
 <a href=#122 id=122 data-nosnippet>122</a>        vars
@@ -216,7 +216,7 @@
 <a href=#216 id=216 data-nosnippet>216</a>    }
 <a href=#217 id=217 data-nosnippet>217</a>}
 <a href=#218 id=218 data-nosnippet>218</a>
-<a href=#219 id=219 data-nosnippet>219</a><span class="kw">impl</span>&lt;L: FromOp&gt; std::str::FromStr <span class="kw">for </span>Pattern&lt;L&gt; {
+<a href=#219 id=219 data-nosnippet>219</a><span class="kw">impl</span>&lt;L: FromOp&gt; core::str::FromStr <span class="kw">for </span>Pattern&lt;L&gt; {
 <a href=#220 id=220 data-nosnippet>220</a>    <span class="kw">type </span><span class="prelude-val">Err </span>= RecExprParseError&lt;ENodeOrVarParseError&lt;L::Error&gt;&gt;;
 <a href=#221 id=221 data-nosnippet>221</a>
 <a href=#222 id=222 data-nosnippet>222</a>    <span class="kw">fn </span>from_str(s: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="self">Self</span>::Err&gt; {
@@ -430,7 +430,7 @@
 <a href=#430 id=430 data-nosnippet>430</a>    <span class="kw-2">*</span>ids.last().unwrap()
 <a href=#431 id=431 data-nosnippet>431</a>}
 <a href=#432 id=432 data-nosnippet>432</a>
-<a href=#433 id=433 data-nosnippet>433</a><span class="attr">#[cfg(test)]
+<a href=#433 id=433 data-nosnippet>433</a><span class="attr">#[cfg(all(test, feature = <span class="string">"std"</span>))]
 <a href=#434 id=434 data-nosnippet>434</a></span><span class="kw">mod </span>tests {
 <a href=#435 id=435 data-nosnippet>435</a>
 <a href=#436 id=436 data-nosnippet>436</a>    <span class="kw">use </span>crate::{SymbolLang <span class="kw">as </span>S, <span class="kw-2">*</span>};

@@ -121,16 +121,16 @@
 <a href=#121 id=121 data-nosnippet>121</a>        </span><span class="macro-nonterminal">$vis </span><span class="kw">enum </span><span class="macro-nonterminal">$name </span>&lt;$(<span class="macro-nonterminal">$gen</span>),<span class="kw-2">*</span>&gt; <span class="macro-nonterminal">$decl
 <a href=#122 id=122 data-nosnippet>122</a>
 <a href=#123 id=123 data-nosnippet>123</a>        </span><span class="kw">impl</span>&lt;$(<span class="macro-nonterminal">$gen</span>),<span class="kw-2">*</span>&gt; <span class="macro-nonterminal">$crate::Language </span><span class="kw">for </span><span class="macro-nonterminal">$name </span>&lt;$(<span class="macro-nonterminal">$gen</span>),<span class="kw-2">*</span>&gt; <span class="kw">where </span>$(<span class="macro-nonterminal">$where</span>)* {
-<a href=#124 id=124 data-nosnippet>124</a>            <span class="kw">type </span>Discriminant = std::mem::Discriminant&lt;<span class="self">Self</span>&gt;;
+<a href=#124 id=124 data-nosnippet>124</a>            <span class="kw">type </span>Discriminant = ::core::mem::Discriminant&lt;<span class="self">Self</span>&gt;;
 <a href=#125 id=125 data-nosnippet>125</a>
 <a href=#126 id=126 data-nosnippet>126</a>            <span class="attr">#[inline(always)]
 <a href=#127 id=127 data-nosnippet>127</a>            </span><span class="kw">fn </span>discriminant(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="self">Self</span>::Discriminant {
-<a href=#128 id=128 data-nosnippet>128</a>                std::mem::discriminant(<span class="self">self</span>)
+<a href=#128 id=128 data-nosnippet>128</a>                ::core::mem::discriminant(<span class="self">self</span>)
 <a href=#129 id=129 data-nosnippet>129</a>            }
 <a href=#130 id=130 data-nosnippet>130</a>
 <a href=#131 id=131 data-nosnippet>131</a>            <span class="attr">#[inline(always)]
 <a href=#132 id=132 data-nosnippet>132</a>            </span><span class="kw">fn </span>matches(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; bool {
-<a href=#133 id=133 data-nosnippet>133</a>                ::std::mem::discriminant(<span class="self">self</span>) == ::std::mem::discriminant(other) &amp;&amp;
+<a href=#133 id=133 data-nosnippet>133</a>                ::core::mem::discriminant(<span class="self">self</span>) == ::core::mem::discriminant(other) &amp;&amp;
 <a href=#134 id=134 data-nosnippet>134</a>                <span class="kw">match </span>(<span class="self">self</span>, other) { $(<span class="macro-nonterminal">$matches</span>)* <span class="kw">_ </span>=&gt; <span class="bool-val">false </span>}
 <a href=#135 id=135 data-nosnippet>135</a>            }
 <a href=#136 id=136 data-nosnippet>136</a>
@@ -138,8 +138,8 @@
 <a href=#138 id=138 data-nosnippet>138</a>            <span class="kw">fn </span>children_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>[<span class="macro-nonterminal">$crate::Id</span>] { <span class="kw">match </span><span class="self">self </span><span class="macro-nonterminal">$children_mut </span>}
 <a href=#139 id=139 data-nosnippet>139</a>        }
 <a href=#140 id=140 data-nosnippet>140</a>
-<a href=#141 id=141 data-nosnippet>141</a>        <span class="kw">impl</span>&lt;$(<span class="macro-nonterminal">$gen</span>),<span class="kw-2">*</span>&gt; ::std::fmt::Display <span class="kw">for </span><span class="macro-nonterminal">$name </span>&lt;$(<span class="macro-nonterminal">$gen</span>),<span class="kw-2">*</span>&gt; <span class="kw">where </span>$(<span class="macro-nonterminal">$where</span>)* {
-<a href=#142 id=142 data-nosnippet>142</a>            <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>::std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; ::std::fmt::Result {
+<a href=#141 id=141 data-nosnippet>141</a>        <span class="kw">impl</span>&lt;$(<span class="macro-nonterminal">$gen</span>),<span class="kw-2">*</span>&gt; ::core::fmt::Display <span class="kw">for </span><span class="macro-nonterminal">$name </span>&lt;$(<span class="macro-nonterminal">$gen</span>),<span class="kw-2">*</span>&gt; <span class="kw">where </span>$(<span class="macro-nonterminal">$where</span>)* {
+<a href=#142 id=142 data-nosnippet>142</a>            <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>::core::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; ::core::fmt::Result {
 <a href=#143 id=143 data-nosnippet>143</a>                <span class="comment">// We need to pass `f` to the match expression for hygiene
 <a href=#144 id=144 data-nosnippet>144</a>                // reasons.
 <a href=#145 id=145 data-nosnippet>145</a>                </span><span class="kw">match </span>(<span class="self">self</span>, f) <span class="macro-nonterminal">$display
@@ -149,7 +149,7 @@
 <a href=#149 id=149 data-nosnippet>149</a>        <span class="kw">impl</span>&lt;$(<span class="macro-nonterminal">$gen</span>),<span class="kw-2">*</span>&gt; <span class="macro-nonterminal">$crate::FromOp </span><span class="kw">for </span><span class="macro-nonterminal">$name </span>&lt;$(<span class="macro-nonterminal">$gen</span>),<span class="kw-2">*</span>&gt; <span class="kw">where </span>$(<span class="macro-nonterminal">$where</span>)* {
 <a href=#150 id=150 data-nosnippet>150</a>            <span class="kw">type </span>Error = <span class="macro-nonterminal">$crate::FromOpError</span>;
 <a href=#151 id=151 data-nosnippet>151</a>
-<a href=#152 id=152 data-nosnippet>152</a>            <span class="kw">fn </span>from_op(op: <span class="kw-2">&amp;</span>str, children: ::std::vec::Vec&lt;<span class="macro-nonterminal">$crate::Id</span>&gt;) -&gt; ::std::result::Result&lt;<span class="self">Self</span>, <span class="self">Self</span>::Error&gt; {
+<a href=#152 id=152 data-nosnippet>152</a>            <span class="kw">fn </span>from_op(op: <span class="kw-2">&amp;</span>str, children: <span class="macro-nonterminal">$crate::__private::Vec</span>&lt;<span class="macro-nonterminal">$crate::Id</span>&gt;) -&gt; <span class="macro-nonterminal">$crate::__private::Result</span>&lt;<span class="self">Self</span>, <span class="self">Self</span>::Error&gt; {
 <a href=#153 id=153 data-nosnippet>153</a>                <span class="kw">match </span>(op, children) {
 <a href=#154 id=154 data-nosnippet>154</a>                    $(<span class="macro-nonterminal">$from_op</span>)*
 <a href=#155 id=155 data-nosnippet>155</a>                    (op, children) =&gt; <span class="prelude-val">Err</span>(<span class="macro-nonterminal">$crate::FromOpError::new</span>(op, children)),
@@ -229,7 +229,7 @@
 <a href=#229 id=229 data-nosnippet>229</a>            { $(<span class="macro-nonterminal">$matches</span>)*       (<span class="macro-nonterminal">$name:</span>:<span class="macro-nonterminal">$variant</span>(data1), <span class="macro-nonterminal">$name:</span>:<span class="macro-nonterminal">$variant</span>(data2)) =&gt; data1 == data2, }
 <a href=#230 id=230 data-nosnippet>230</a>            { $(<span class="macro-nonterminal">$children</span>)*      <span class="macro-nonterminal">$name:</span>:<span class="macro-nonterminal">$variant</span>(_data) =&gt; <span class="kw-2">&amp;</span>[], }
 <a href=#231 id=231 data-nosnippet>231</a>            { $(<span class="macro-nonterminal">$children_mut</span>)*  <span class="macro-nonterminal">$name:</span>:<span class="macro-nonterminal">$variant</span>(_data) =&gt; <span class="kw-2">&amp;mut </span>[], }
-<a href=#232 id=232 data-nosnippet>232</a>            { $(<span class="macro-nonterminal">$display</span>)*       (<span class="macro-nonterminal">$name:</span>:<span class="macro-nonterminal">$variant</span>(data), f) =&gt; ::std::fmt::Display::fmt(data, f), }
+<a href=#232 id=232 data-nosnippet>232</a>            { $(<span class="macro-nonterminal">$display</span>)*       (<span class="macro-nonterminal">$name:</span>:<span class="macro-nonterminal">$variant</span>(data), f) =&gt; ::core::fmt::Display::fmt(data, f), }
 <a href=#233 id=233 data-nosnippet>233</a>            { $(<span class="macro-nonterminal">$from_op</span>)*       (op, children) <span class="kw">if </span>op.parse::&lt;<span class="macro-nonterminal">$data</span>&gt;().is_ok() &amp;&amp; children.is_empty() =&gt; <span class="prelude-val">Ok</span>(<span class="macro-nonterminal">$name:</span>:<span class="macro-nonterminal">$variant</span>(op.parse().unwrap())), }
 <a href=#234 id=234 data-nosnippet>234</a>        );
 <a href=#235 id=235 data-nosnippet>235</a>    };
@@ -253,7 +253,7 @@
 <a href=#253 id=253 data-nosnippet>253</a>            { $(<span class="macro-nonterminal">$matches</span>)*       (<span class="macro-nonterminal">$name:</span>:<span class="macro-nonterminal">$variant</span>(d1, l), <span class="macro-nonterminal">$name:</span>:<span class="macro-nonterminal">$variant</span>(d2, r)) =&gt; d1 == d2 &amp;&amp; <span class="macro-nonterminal">$crate::LanguageChildren::len</span>(l) == <span class="macro-nonterminal">$crate::LanguageChildren::len</span>(r), }
 <a href=#254 id=254 data-nosnippet>254</a>            { $(<span class="macro-nonterminal">$children</span>)*      <span class="macro-nonterminal">$name:</span>:<span class="macro-nonterminal">$variant</span>(<span class="kw">_</span>, ids) =&gt; <span class="macro-nonterminal">$crate::LanguageChildren::as_slice</span>(ids), }
 <a href=#255 id=255 data-nosnippet>255</a>            { $(<span class="macro-nonterminal">$children_mut</span>)*  <span class="macro-nonterminal">$name:</span>:<span class="macro-nonterminal">$variant</span>(<span class="kw">_</span>, ids) =&gt; <span class="macro-nonterminal">$crate::LanguageChildren::as_mut_slice</span>(ids), }
-<a href=#256 id=256 data-nosnippet>256</a>            { $(<span class="macro-nonterminal">$display</span>)*       (<span class="macro-nonterminal">$name:</span>:<span class="macro-nonterminal">$variant</span>(data, <span class="kw">_</span>), f) =&gt; ::std::fmt::Display::fmt(data, f), }
+<a href=#256 id=256 data-nosnippet>256</a>            { $(<span class="macro-nonterminal">$display</span>)*       (<span class="macro-nonterminal">$name:</span>:<span class="macro-nonterminal">$variant</span>(data, <span class="kw">_</span>), f) =&gt; ::core::fmt::Display::fmt(data, f), }
 <a href=#257 id=257 data-nosnippet>257</a>            { $(<span class="macro-nonterminal">$from_op</span>)*       (op, children) <span class="kw">if </span>op.parse::&lt;<span class="macro-nonterminal">$data</span>&gt;().is_ok() &amp;&amp; &lt;<span class="macro-nonterminal">$ids </span><span class="kw">as </span><span class="macro-nonterminal">$crate::LanguageChildren</span>&gt;::can_be_length(children.len()) =&gt; {
 <a href=#258 id=258 data-nosnippet>258</a>                  <span class="kw">let </span>data = op.parse::&lt;<span class="macro-nonterminal">$data</span>&gt;().unwrap();
 <a href=#259 id=259 data-nosnippet>259</a>                  <span class="kw">let </span>children = &lt;<span class="macro-nonterminal">$ids </span><span class="kw">as </span><span class="macro-nonterminal">$crate::LanguageChildren</span>&gt;::from_vec(children);
@@ -353,110 +353,114 @@
 <a href=#353 id=353 data-nosnippet>353</a>        <span class="macro-nonterminal">$lhs</span>:tt =&gt; <span class="macro-nonterminal">$rhs</span>:tt
 <a href=#354 id=354 data-nosnippet>354</a>        $(<span class="kw">if </span><span class="macro-nonterminal">$cond</span>:expr)*
 <a href=#355 id=355 data-nosnippet>355</a>    )  =&gt; {{
-<a href=#356 id=356 data-nosnippet>356</a>        <span class="kw">let </span>searcher = <span class="macro-nonterminal">$crate::__rewrite</span>!(@parse Pattern <span class="macro-nonterminal">$lhs</span>);
-<a href=#357 id=357 data-nosnippet>357</a>        <span class="kw">let </span>core_applier = <span class="macro-nonterminal">$crate::__rewrite</span>!(@parse Pattern <span class="macro-nonterminal">$rhs</span>);
-<a href=#358 id=358 data-nosnippet>358</a>        <span class="kw">let </span>applier = <span class="macro-nonterminal">$crate::__rewrite</span>!(@applier core_applier; $(<span class="macro-nonterminal">$cond</span>,)<span class="kw-2">*</span>);
-<a href=#359 id=359 data-nosnippet>359</a>        <span class="macro-nonterminal">$crate::Rewrite::new</span>(<span class="macro-nonterminal">$name</span>.to_string(), searcher, applier).unwrap()
-<a href=#360 id=360 data-nosnippet>360</a>    }};
-<a href=#361 id=361 data-nosnippet>361</a>    (
-<a href=#362 id=362 data-nosnippet>362</a>        <span class="macro-nonterminal">$name</span>:expr;
-<a href=#363 id=363 data-nosnippet>363</a>        <span class="macro-nonterminal">$lhs</span>:tt &lt;=&gt; <span class="macro-nonterminal">$rhs</span>:tt
-<a href=#364 id=364 data-nosnippet>364</a>        $(<span class="kw">if </span><span class="macro-nonterminal">$cond</span>:expr)*
-<a href=#365 id=365 data-nosnippet>365</a>    )  =&gt; {{
-<a href=#366 id=366 data-nosnippet>366</a>        <span class="kw">let </span>name = <span class="macro-nonterminal">$name</span>;
-<a href=#367 id=367 data-nosnippet>367</a>        <span class="kw">let </span>name2 = String::from(name.clone()) + <span class="string">"-rev"</span>;
-<a href=#368 id=368 data-nosnippet>368</a>        <span class="macro">vec!</span>[
-<a href=#369 id=369 data-nosnippet>369</a>            <span class="macro-nonterminal">$crate::rewrite</span>!(name;  <span class="macro-nonterminal">$lhs </span>=&gt; <span class="macro-nonterminal">$rhs </span>$(<span class="kw">if </span><span class="macro-nonterminal">$cond</span>)<span class="kw-2">*</span>),
-<a href=#370 id=370 data-nosnippet>370</a>            <span class="macro-nonterminal">$crate::rewrite</span>!(name2; <span class="macro-nonterminal">$rhs </span>=&gt; <span class="macro-nonterminal">$lhs </span>$(<span class="kw">if </span><span class="macro-nonterminal">$cond</span>)<span class="kw-2">*</span>)
-<a href=#371 id=371 data-nosnippet>371</a>        ]
-<a href=#372 id=372 data-nosnippet>372</a>    }};
-<a href=#373 id=373 data-nosnippet>373</a>}
-<a href=#374 id=374 data-nosnippet>374</a>
-<a href=#375 id=375 data-nosnippet>375</a><span class="doccomment">/** A macro to easily make [`Rewrite`]s using [`MultiPattern`]s.
+<a href=#356 id=356 data-nosnippet>356</a>        <span class="kw">use </span><span class="macro-nonterminal">$crate::__private::ToString </span><span class="kw">as _</span>;
+<a href=#357 id=357 data-nosnippet>357</a>        <span class="kw">let </span>searcher = <span class="macro-nonterminal">$crate::__rewrite</span>!(@parse Pattern <span class="macro-nonterminal">$lhs</span>);
+<a href=#358 id=358 data-nosnippet>358</a>        <span class="kw">let </span>core_applier = <span class="macro-nonterminal">$crate::__rewrite</span>!(@parse Pattern <span class="macro-nonterminal">$rhs</span>);
+<a href=#359 id=359 data-nosnippet>359</a>        <span class="kw">let </span>applier = <span class="macro-nonterminal">$crate::__rewrite</span>!(@applier core_applier; $(<span class="macro-nonterminal">$cond</span>,)<span class="kw-2">*</span>);
+<a href=#360 id=360 data-nosnippet>360</a>        <span class="macro-nonterminal">$crate::Rewrite::new</span>(<span class="macro-nonterminal">$name</span>.to_string(), searcher, applier).unwrap()
+<a href=#361 id=361 data-nosnippet>361</a>    }};
+<a href=#362 id=362 data-nosnippet>362</a>    (
+<a href=#363 id=363 data-nosnippet>363</a>        <span class="macro-nonterminal">$name</span>:expr;
+<a href=#364 id=364 data-nosnippet>364</a>        <span class="macro-nonterminal">$lhs</span>:tt &lt;=&gt; <span class="macro-nonterminal">$rhs</span>:tt
+<a href=#365 id=365 data-nosnippet>365</a>        $(<span class="kw">if </span><span class="macro-nonterminal">$cond</span>:expr)*
+<a href=#366 id=366 data-nosnippet>366</a>    )  =&gt; {{
+<a href=#367 id=367 data-nosnippet>367</a>        <span class="kw">use </span><span class="macro-nonterminal">$crate::__private:</span>:{ToString <span class="kw">as _</span>, vec};
+<a href=#368 id=368 data-nosnippet>368</a>        <span class="kw">let </span>name = <span class="macro-nonterminal">$name</span>;
+<a href=#369 id=369 data-nosnippet>369</a>        <span class="kw">let </span>name2 = name.clone().to_string() + <span class="string">"-rev"</span>;
+<a href=#370 id=370 data-nosnippet>370</a>        <span class="macro">vec!</span>[
+<a href=#371 id=371 data-nosnippet>371</a>            <span class="macro-nonterminal">$crate::rewrite</span>!(name;  <span class="macro-nonterminal">$lhs </span>=&gt; <span class="macro-nonterminal">$rhs </span>$(<span class="kw">if </span><span class="macro-nonterminal">$cond</span>)<span class="kw-2">*</span>),
+<a href=#372 id=372 data-nosnippet>372</a>            <span class="macro-nonterminal">$crate::rewrite</span>!(name2; <span class="macro-nonterminal">$rhs </span>=&gt; <span class="macro-nonterminal">$lhs </span>$(<span class="kw">if </span><span class="macro-nonterminal">$cond</span>)<span class="kw-2">*</span>)
+<a href=#373 id=373 data-nosnippet>373</a>        ]
+<a href=#374 id=374 data-nosnippet>374</a>    }};
+<a href=#375 id=375 data-nosnippet>375</a>}
 <a href=#376 id=376 data-nosnippet>376</a>
-<a href=#377 id=377 data-nosnippet>377</a>Similar to the [`rewrite!`] macro,
-<a href=#378 id=378 data-nosnippet>378</a>this macro uses the form `multi_rewrite!(name; multipattern =&gt; multipattern)`.
-<a href=#379 id=379 data-nosnippet>379</a>String literals will be parsed a [`MultiPattern`]s.
-<a href=#380 id=380 data-nosnippet>380</a>
-<a href=#381 id=381 data-nosnippet>381</a>**/
-<a href=#382 id=382 data-nosnippet>382</a></span><span class="attr">#[macro_export]
-<a href=#383 id=383 data-nosnippet>383</a></span><span class="macro">macro_rules!</span> multi_rewrite {
-<a href=#384 id=384 data-nosnippet>384</a>    <span class="comment">// limited multipattern support
-<a href=#385 id=385 data-nosnippet>385</a>    </span>(
-<a href=#386 id=386 data-nosnippet>386</a>        <span class="macro-nonterminal">$name</span>:expr;
-<a href=#387 id=387 data-nosnippet>387</a>        <span class="macro-nonterminal">$lhs</span>:tt =&gt; <span class="macro-nonterminal">$rhs</span>:tt
-<a href=#388 id=388 data-nosnippet>388</a>    )  =&gt; {{
-<a href=#389 id=389 data-nosnippet>389</a>        <span class="kw">let </span>searcher = <span class="macro-nonterminal">$crate::__rewrite</span>!(@parse MultiPattern <span class="macro-nonterminal">$lhs</span>);
-<a href=#390 id=390 data-nosnippet>390</a>        <span class="kw">let </span>applier = <span class="macro-nonterminal">$crate::__rewrite</span>!(@parse MultiPattern <span class="macro-nonterminal">$rhs</span>);
-<a href=#391 id=391 data-nosnippet>391</a>        <span class="macro-nonterminal">$crate::Rewrite::new</span>(<span class="macro-nonterminal">$name</span>.to_string(), searcher, applier).unwrap()
-<a href=#392 id=392 data-nosnippet>392</a>    }};
-<a href=#393 id=393 data-nosnippet>393</a>}
-<a href=#394 id=394 data-nosnippet>394</a>
-<a href=#395 id=395 data-nosnippet>395</a><span class="attr">#[doc(hidden)]
-<a href=#396 id=396 data-nosnippet>396</a>#[macro_export]
-<a href=#397 id=397 data-nosnippet>397</a></span><span class="macro">macro_rules!</span> __rewrite {
-<a href=#398 id=398 data-nosnippet>398</a>    (@parse <span class="macro-nonterminal">$t</span>:ident <span class="macro-nonterminal">$rhs</span>:literal) =&gt; {
-<a href=#399 id=399 data-nosnippet>399</a>        <span class="macro-nonterminal">$rhs</span>.parse::&lt;<span class="macro-nonterminal">$crate:</span>:<span class="macro-nonterminal">$t</span>&lt;<span class="kw">_</span>&gt;&gt;().unwrap()
-<a href=#400 id=400 data-nosnippet>400</a>    };
-<a href=#401 id=401 data-nosnippet>401</a>    (@parse <span class="macro-nonterminal">$t</span>:ident <span class="macro-nonterminal">$rhs</span>:expr) =&gt; { <span class="macro-nonterminal">$rhs </span>};
-<a href=#402 id=402 data-nosnippet>402</a>    (@applier <span class="macro-nonterminal">$applier</span>:expr;) =&gt; { <span class="macro-nonterminal">$applier </span>};
-<a href=#403 id=403 data-nosnippet>403</a>    (@applier <span class="macro-nonterminal">$applier</span>:expr; <span class="macro-nonterminal">$cond</span>:expr, $(<span class="macro-nonterminal">$conds</span>:expr,)<span class="kw-2">*</span>) =&gt; {
-<a href=#404 id=404 data-nosnippet>404</a>        <span class="macro-nonterminal">$crate::ConditionalApplier </span>{
-<a href=#405 id=405 data-nosnippet>405</a>            condition: <span class="macro-nonterminal">$cond</span>,
-<a href=#406 id=406 data-nosnippet>406</a>            applier: <span class="macro-nonterminal">$crate::__rewrite</span>!(@applier <span class="macro-nonterminal">$applier</span>; $(<span class="macro-nonterminal">$conds</span>,)<span class="kw-2">*</span>)
-<a href=#407 id=407 data-nosnippet>407</a>        }
-<a href=#408 id=408 data-nosnippet>408</a>    };
-<a href=#409 id=409 data-nosnippet>409</a>}
-<a href=#410 id=410 data-nosnippet>410</a>
-<a href=#411 id=411 data-nosnippet>411</a><span class="attr">#[cfg(test)]
-<a href=#412 id=412 data-nosnippet>412</a></span><span class="kw">mod </span>tests {
+<a href=#377 id=377 data-nosnippet>377</a><span class="doccomment">/** A macro to easily make [`Rewrite`]s using [`MultiPattern`]s.
+<a href=#378 id=378 data-nosnippet>378</a>
+<a href=#379 id=379 data-nosnippet>379</a>Similar to the [`rewrite!`] macro,
+<a href=#380 id=380 data-nosnippet>380</a>this macro uses the form `multi_rewrite!(name; multipattern =&gt; multipattern)`.
+<a href=#381 id=381 data-nosnippet>381</a>String literals will be parsed a [`MultiPattern`]s.
+<a href=#382 id=382 data-nosnippet>382</a>
+<a href=#383 id=383 data-nosnippet>383</a>**/
+<a href=#384 id=384 data-nosnippet>384</a></span><span class="attr">#[macro_export]
+<a href=#385 id=385 data-nosnippet>385</a></span><span class="macro">macro_rules!</span> multi_rewrite {
+<a href=#386 id=386 data-nosnippet>386</a>    <span class="comment">// limited multipattern support
+<a href=#387 id=387 data-nosnippet>387</a>    </span>(
+<a href=#388 id=388 data-nosnippet>388</a>        <span class="macro-nonterminal">$name</span>:expr;
+<a href=#389 id=389 data-nosnippet>389</a>        <span class="macro-nonterminal">$lhs</span>:tt =&gt; <span class="macro-nonterminal">$rhs</span>:tt
+<a href=#390 id=390 data-nosnippet>390</a>    )  =&gt; {{
+<a href=#391 id=391 data-nosnippet>391</a>        <span class="kw">use </span><span class="macro-nonterminal">$crate::__private::ToString </span><span class="kw">as _</span>;
+<a href=#392 id=392 data-nosnippet>392</a>        <span class="kw">let </span>searcher = <span class="macro-nonterminal">$crate::__rewrite</span>!(@parse MultiPattern <span class="macro-nonterminal">$lhs</span>);
+<a href=#393 id=393 data-nosnippet>393</a>        <span class="kw">let </span>applier = <span class="macro-nonterminal">$crate::__rewrite</span>!(@parse MultiPattern <span class="macro-nonterminal">$rhs</span>);
+<a href=#394 id=394 data-nosnippet>394</a>        <span class="macro-nonterminal">$crate::Rewrite::new</span>(<span class="macro-nonterminal">$name</span>.to_string(), searcher, applier).unwrap()
+<a href=#395 id=395 data-nosnippet>395</a>    }};
+<a href=#396 id=396 data-nosnippet>396</a>}
+<a href=#397 id=397 data-nosnippet>397</a>
+<a href=#398 id=398 data-nosnippet>398</a><span class="attr">#[doc(hidden)]
+<a href=#399 id=399 data-nosnippet>399</a>#[macro_export]
+<a href=#400 id=400 data-nosnippet>400</a></span><span class="macro">macro_rules!</span> __rewrite {
+<a href=#401 id=401 data-nosnippet>401</a>    (@parse <span class="macro-nonterminal">$t</span>:ident <span class="macro-nonterminal">$rhs</span>:literal) =&gt; {
+<a href=#402 id=402 data-nosnippet>402</a>        <span class="macro-nonterminal">$rhs</span>.parse::&lt;<span class="macro-nonterminal">$crate:</span>:<span class="macro-nonterminal">$t</span>&lt;<span class="kw">_</span>&gt;&gt;().unwrap()
+<a href=#403 id=403 data-nosnippet>403</a>    };
+<a href=#404 id=404 data-nosnippet>404</a>    (@parse <span class="macro-nonterminal">$t</span>:ident <span class="macro-nonterminal">$rhs</span>:expr) =&gt; { <span class="macro-nonterminal">$rhs </span>};
+<a href=#405 id=405 data-nosnippet>405</a>    (@applier <span class="macro-nonterminal">$applier</span>:expr;) =&gt; { <span class="macro-nonterminal">$applier </span>};
+<a href=#406 id=406 data-nosnippet>406</a>    (@applier <span class="macro-nonterminal">$applier</span>:expr; <span class="macro-nonterminal">$cond</span>:expr, $(<span class="macro-nonterminal">$conds</span>:expr,)<span class="kw-2">*</span>) =&gt; {
+<a href=#407 id=407 data-nosnippet>407</a>        <span class="macro-nonterminal">$crate::ConditionalApplier </span>{
+<a href=#408 id=408 data-nosnippet>408</a>            condition: <span class="macro-nonterminal">$cond</span>,
+<a href=#409 id=409 data-nosnippet>409</a>            applier: <span class="macro-nonterminal">$crate::__rewrite</span>!(@applier <span class="macro-nonterminal">$applier</span>; $(<span class="macro-nonterminal">$conds</span>,)<span class="kw-2">*</span>)
+<a href=#410 id=410 data-nosnippet>410</a>        }
+<a href=#411 id=411 data-nosnippet>411</a>    };
+<a href=#412 id=412 data-nosnippet>412</a>}
 <a href=#413 id=413 data-nosnippet>413</a>
-<a href=#414 id=414 data-nosnippet>414</a>    <span class="kw">use </span>crate::<span class="kw-2">*</span>;
-<a href=#415 id=415 data-nosnippet>415</a>
-<a href=#416 id=416 data-nosnippet>416</a>    <span class="macro">define_language!</span> {
-<a href=#417 id=417 data-nosnippet>417</a>        <span class="kw">enum </span>Simple {
-<a href=#418 id=418 data-nosnippet>418</a>            <span class="string">"+" </span>= Add([Id; <span class="number">2</span>]),
-<a href=#419 id=419 data-nosnippet>419</a>            <span class="string">"-" </span>= Sub([Id; <span class="number">2</span>]),
-<a href=#420 id=420 data-nosnippet>420</a>            <span class="string">"*" </span>= Mul([Id; <span class="number">2</span>]),
-<a href=#421 id=421 data-nosnippet>421</a>            <span class="string">"-" </span>= Neg(Id),
-<a href=#422 id=422 data-nosnippet>422</a>            <span class="string">"list" </span>= List(Box&lt;[Id]&gt;),
-<a href=#423 id=423 data-nosnippet>423</a>            <span class="string">"pi" </span>= Pi,
-<a href=#424 id=424 data-nosnippet>424</a>            Int(i32),
-<a href=#425 id=425 data-nosnippet>425</a>            Var(Symbol),
-<a href=#426 id=426 data-nosnippet>426</a>        }
-<a href=#427 id=427 data-nosnippet>427</a>    }
-<a href=#428 id=428 data-nosnippet>428</a>
-<a href=#429 id=429 data-nosnippet>429</a>    <span class="attr">#[test]
-<a href=#430 id=430 data-nosnippet>430</a>    </span><span class="kw">fn </span>modify_children() {
-<a href=#431 id=431 data-nosnippet>431</a>        <span class="kw">let </span><span class="kw-2">mut </span>add = Simple::Add([<span class="number">0</span>.into(), <span class="number">0</span>.into()]);
-<a href=#432 id=432 data-nosnippet>432</a>        add.for_each_mut(|id| <span class="kw-2">*</span>id = <span class="number">1</span>.into());
-<a href=#433 id=433 data-nosnippet>433</a>        <span class="macro">assert_eq!</span>(add, Simple::Add([<span class="number">1</span>.into(), <span class="number">1</span>.into()]));
-<a href=#434 id=434 data-nosnippet>434</a>    }
-<a href=#435 id=435 data-nosnippet>435</a>
-<a href=#436 id=436 data-nosnippet>436</a>    <span class="attr">#[test]
-<a href=#437 id=437 data-nosnippet>437</a>    </span><span class="kw">fn </span>some_rewrites() {
-<a href=#438 id=438 data-nosnippet>438</a>        <span class="kw">let </span><span class="kw-2">mut </span>rws: Vec&lt;Rewrite&lt;Simple, ()&gt;&gt; = <span class="macro">vec!</span>[
-<a href=#439 id=439 data-nosnippet>439</a>            <span class="comment">// here it should parse the rhs
-<a href=#440 id=440 data-nosnippet>440</a>            </span><span class="macro">rewrite!</span>(<span class="string">"rule"</span>; <span class="string">"cons" </span>=&gt; <span class="string">"f"</span>),
-<a href=#441 id=441 data-nosnippet>441</a>            <span class="comment">// here it should just accept the rhs without trying to parse
-<a href=#442 id=442 data-nosnippet>442</a>            </span><span class="macro">rewrite!</span>(<span class="string">"rule"</span>; <span class="string">"f" </span>=&gt; { <span class="string">"pat"</span>.parse::&lt;Pattern&lt;<span class="kw">_</span>&gt;&gt;().unwrap() }),
-<a href=#443 id=443 data-nosnippet>443</a>        ];
-<a href=#444 id=444 data-nosnippet>444</a>        rws.extend(<span class="macro">rewrite!</span>(<span class="string">"two-way"</span>; <span class="string">"foo" </span>&lt;=&gt; <span class="string">"bar"</span>));
-<a href=#445 id=445 data-nosnippet>445</a>    }
-<a href=#446 id=446 data-nosnippet>446</a>
-<a href=#447 id=447 data-nosnippet>447</a>    <span class="attr">#[test]
-<a href=#448 id=448 data-nosnippet>448</a>    #[should_panic(expected = <span class="string">"refers to unbound var ?x"</span>)]
-<a href=#449 id=449 data-nosnippet>449</a>    </span><span class="kw">fn </span>rewrite_simple_panic() {
-<a href=#450 id=450 data-nosnippet>450</a>        <span class="kw">let _</span>: Rewrite&lt;Simple, ()&gt; = <span class="macro">rewrite!</span>(<span class="string">"bad"</span>; <span class="string">"?a" </span>=&gt; <span class="string">"?x"</span>);
-<a href=#451 id=451 data-nosnippet>451</a>    }
-<a href=#452 id=452 data-nosnippet>452</a>
-<a href=#453 id=453 data-nosnippet>453</a>    <span class="attr">#[test]
-<a href=#454 id=454 data-nosnippet>454</a>    #[should_panic(expected = <span class="string">"refers to unbound var ?x"</span>)]
-<a href=#455 id=455 data-nosnippet>455</a>    </span><span class="kw">fn </span>rewrite_conditional_panic() {
-<a href=#456 id=456 data-nosnippet>456</a>        <span class="kw">let </span>x: Pattern&lt;Simple&gt; = <span class="string">"?x"</span>.parse().unwrap();
-<a href=#457 id=457 data-nosnippet>457</a>        <span class="kw">let _</span>: Rewrite&lt;Simple, ()&gt; = <span class="macro">rewrite!</span>(
-<a href=#458 id=458 data-nosnippet>458</a>            <span class="string">"bad"</span>; <span class="string">"?a" </span>=&gt; <span class="string">"?a" </span><span class="kw">if </span>ConditionEqual::new(x.clone(), x)
-<a href=#459 id=459 data-nosnippet>459</a>        );
-<a href=#460 id=460 data-nosnippet>460</a>    }
-<a href=#461 id=461 data-nosnippet>461</a>}
+<a href=#414 id=414 data-nosnippet>414</a><span class="attr">#[cfg(test)]
+<a href=#415 id=415 data-nosnippet>415</a></span><span class="kw">mod </span>tests {
+<a href=#416 id=416 data-nosnippet>416</a>
+<a href=#417 id=417 data-nosnippet>417</a>    <span class="kw">use </span><span class="kw">crate</span>::no_std_prelude::<span class="kw-2">*</span>;
+<a href=#418 id=418 data-nosnippet>418</a>    <span class="kw">use </span>crate::<span class="kw-2">*</span>;
+<a href=#419 id=419 data-nosnippet>419</a>
+<a href=#420 id=420 data-nosnippet>420</a>    <span class="macro">define_language!</span> {
+<a href=#421 id=421 data-nosnippet>421</a>        <span class="kw">enum </span>Simple {
+<a href=#422 id=422 data-nosnippet>422</a>            <span class="string">"+" </span>= Add([Id; <span class="number">2</span>]),
+<a href=#423 id=423 data-nosnippet>423</a>            <span class="string">"-" </span>= Sub([Id; <span class="number">2</span>]),
+<a href=#424 id=424 data-nosnippet>424</a>            <span class="string">"*" </span>= Mul([Id; <span class="number">2</span>]),
+<a href=#425 id=425 data-nosnippet>425</a>            <span class="string">"-" </span>= Neg(Id),
+<a href=#426 id=426 data-nosnippet>426</a>            <span class="string">"list" </span>= List(Box&lt;[Id]&gt;),
+<a href=#427 id=427 data-nosnippet>427</a>            <span class="string">"pi" </span>= Pi,
+<a href=#428 id=428 data-nosnippet>428</a>            Int(i32),
+<a href=#429 id=429 data-nosnippet>429</a>            Var(Symbol),
+<a href=#430 id=430 data-nosnippet>430</a>        }
+<a href=#431 id=431 data-nosnippet>431</a>    }
+<a href=#432 id=432 data-nosnippet>432</a>
+<a href=#433 id=433 data-nosnippet>433</a>    <span class="attr">#[test]
+<a href=#434 id=434 data-nosnippet>434</a>    </span><span class="kw">fn </span>modify_children() {
+<a href=#435 id=435 data-nosnippet>435</a>        <span class="kw">let </span><span class="kw-2">mut </span>add = Simple::Add([<span class="number">0</span>.into(), <span class="number">0</span>.into()]);
+<a href=#436 id=436 data-nosnippet>436</a>        add.for_each_mut(|id| <span class="kw-2">*</span>id = <span class="number">1</span>.into());
+<a href=#437 id=437 data-nosnippet>437</a>        <span class="macro">assert_eq!</span>(add, Simple::Add([<span class="number">1</span>.into(), <span class="number">1</span>.into()]));
+<a href=#438 id=438 data-nosnippet>438</a>    }
+<a href=#439 id=439 data-nosnippet>439</a>
+<a href=#440 id=440 data-nosnippet>440</a>    <span class="attr">#[test]
+<a href=#441 id=441 data-nosnippet>441</a>    </span><span class="kw">fn </span>some_rewrites() {
+<a href=#442 id=442 data-nosnippet>442</a>        <span class="kw">let </span><span class="kw-2">mut </span>rws: Vec&lt;Rewrite&lt;Simple, ()&gt;&gt; = <span class="macro">vec!</span>[
+<a href=#443 id=443 data-nosnippet>443</a>            <span class="comment">// here it should parse the rhs
+<a href=#444 id=444 data-nosnippet>444</a>            </span><span class="macro">rewrite!</span>(<span class="string">"rule"</span>; <span class="string">"cons" </span>=&gt; <span class="string">"f"</span>),
+<a href=#445 id=445 data-nosnippet>445</a>            <span class="comment">// here it should just accept the rhs without trying to parse
+<a href=#446 id=446 data-nosnippet>446</a>            </span><span class="macro">rewrite!</span>(<span class="string">"rule"</span>; <span class="string">"f" </span>=&gt; { <span class="string">"pat"</span>.parse::&lt;Pattern&lt;<span class="kw">_</span>&gt;&gt;().unwrap() }),
+<a href=#447 id=447 data-nosnippet>447</a>        ];
+<a href=#448 id=448 data-nosnippet>448</a>        rws.extend(<span class="macro">rewrite!</span>(<span class="string">"two-way"</span>; <span class="string">"foo" </span>&lt;=&gt; <span class="string">"bar"</span>));
+<a href=#449 id=449 data-nosnippet>449</a>    }
+<a href=#450 id=450 data-nosnippet>450</a>
+<a href=#451 id=451 data-nosnippet>451</a>    <span class="attr">#[test]
+<a href=#452 id=452 data-nosnippet>452</a>    #[should_panic(expected = <span class="string">"refers to unbound var ?x"</span>)]
+<a href=#453 id=453 data-nosnippet>453</a>    </span><span class="kw">fn </span>rewrite_simple_panic() {
+<a href=#454 id=454 data-nosnippet>454</a>        <span class="kw">let _</span>: Rewrite&lt;Simple, ()&gt; = <span class="macro">rewrite!</span>(<span class="string">"bad"</span>; <span class="string">"?a" </span>=&gt; <span class="string">"?x"</span>);
+<a href=#455 id=455 data-nosnippet>455</a>    }
+<a href=#456 id=456 data-nosnippet>456</a>
+<a href=#457 id=457 data-nosnippet>457</a>    <span class="attr">#[test]
+<a href=#458 id=458 data-nosnippet>458</a>    #[should_panic(expected = <span class="string">"refers to unbound var ?x"</span>)]
+<a href=#459 id=459 data-nosnippet>459</a>    </span><span class="kw">fn </span>rewrite_conditional_panic() {
+<a href=#460 id=460 data-nosnippet>460</a>        <span class="kw">let </span>x: Pattern&lt;Simple&gt; = <span class="string">"?x"</span>.parse().unwrap();
+<a href=#461 id=461 data-nosnippet>461</a>        <span class="kw">let _</span>: Rewrite&lt;Simple, ()&gt; = <span class="macro">rewrite!</span>(
+<a href=#462 id=462 data-nosnippet>462</a>            <span class="string">"bad"</span>; <span class="string">"?a" </span>=&gt; <span class="string">"?a" </span><span class="kw">if </span>ConditionEqual::new(x.clone(), x)
+<a href=#463 id=463 data-nosnippet>463</a>        );
+<a href=#464 id=464 data-nosnippet>464</a>    }
+<a href=#465 id=465 data-nosnippet>465</a>}
 </code></pre></div></section></main></body></html>
