@@ -59,6 +59,33 @@ for less or more logging.</p>
 </span><span class="kw">fn </span>simple_tests() {
     <span class="macro">assert_eq!</span>(simplify(<span class="string">"(* 0 42)"</span>), <span class="string">"0"</span>);
     <span class="macro">assert_eq!</span>(simplify(<span class="string">"(+ 0 (* 1 foo))"</span>), <span class="string">"foo"</span>);
+}
+
+<span class="attr">#[cfg(feature = <span class="string">"std"</span>)]
+#[test]
+</span><span class="kw">fn </span>runner_time_limit() {
+    <span class="kw">use </span>std::time::Duration;
+
+    <span class="kw">let </span>runner = Runner::&lt;SimpleLanguage, ()&gt;::default()
+        .with_expr(<span class="kw-2">&amp;</span><span class="string">"(+ 0 x)"</span>.parse().unwrap())
+        .with_time_limit(Duration::from_millis(<span class="number">1</span>))
+        .with_hook(|<span class="kw">_</span>| {
+            std::thread::sleep(Duration::from_millis(<span class="number">5</span>));
+            <span class="prelude-val">Ok</span>(())
+        })
+        .run(<span class="kw-2">&amp;</span>make_rules());
+
+    <span class="macro">assert!</span>(<span class="macro">matches!</span>(runner.stop_reason, <span class="prelude-val">Some</span>(StopReason::TimeLimit(<span class="kw">_</span>))));
+}
+
+<span class="attr">#[cfg(feature = <span class="string">"std"</span>)]
+#[test]
+</span><span class="kw">fn </span>runner_reports_elapsed_time() {
+    <span class="kw">let </span>runner = Runner::&lt;SimpleLanguage, ()&gt;::default()
+        .with_expr(<span class="kw-2">&amp;</span><span class="string">"(+ 0 x)"</span>.parse().unwrap())
+        .run(<span class="kw-2">&amp;</span>make_rules());
+
+    <span class="macro">assert!</span>(runner.report().total_time &gt; <span class="number">0.0</span>);
 }</code></pre></div></div></details><h2 id="modules" class="section-header">Modules<a href="#modules" class="anchor">§</a></h2><dl class="item-table"><dt><a class="mod" href="tutorials/index.html" title="mod egg::tutorials">tutorials</a></dt><dd>A Guide-level Explanation of <code>egg</code></dd></dl><h2 id="macros" class="section-header">Macros<a href="#macros" class="anchor">§</a></h2><dl class="item-table"><dt><a class="macro" href="macro.define_language.html" title="macro egg::define_language">define_<wbr>language</a></dt><dd>A macro to easily create a <a href="trait.Language.html" title="trait egg::Language"><code>Language</code></a>.</dd><dt><a class="macro" href="macro.multi_rewrite.html" title="macro egg::multi_rewrite">multi_<wbr>rewrite</a></dt><dd>A macro to easily make <a href="type.Rewrite.html" title="type egg::Rewrite"><code>Rewrite</code></a>s using <a href="struct.MultiPattern.html" title="struct egg::MultiPattern"><code>MultiPattern</code></a>s.</dd><dt><a class="macro" href="macro.rewrite.html" title="macro egg::rewrite">rewrite</a></dt><dd>A macro to easily make <a href="type.Rewrite.html" title="type egg::Rewrite"><code>Rewrite</code></a>s.</dd><dt><a class="macro" href="macro.test_fn.html" title="macro egg::test_fn">test_fn</a></dt><dd>Utility to make a test proving expressions equivalent</dd></dl><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.AstDepth.html" title="struct egg::AstDepth">AstDepth</a></dt><dd>A simple <a href="trait.CostFunction.html" title="trait egg::CostFunction"><code>CostFunction</code></a> that counts maximum AST depth.</dd><dt><a class="struct" href="struct.AstSize.html" title="struct egg::AstSize">AstSize</a></dt><dd>A simple <a href="trait.CostFunction.html" title="trait egg::CostFunction"><code>CostFunction</code></a> that counts total AST size.</dd><dt><a class="struct" href="struct.BackoffScheduler.html" title="struct egg::BackoffScheduler">Backoff<wbr>Scheduler</a></dt><dd>A <a href="trait.RewriteScheduler.html" title="trait egg::RewriteScheduler"><code>RewriteScheduler</code></a> that implements exponentional rule backoff.</dd><dt><a class="struct" href="struct.ConditionEqual.html" title="struct egg::ConditionEqual">Condition<wbr>Equal</a></dt><dd>A <a href="trait.Condition.html" title="trait egg::Condition"><code>Condition</code></a> that checks if two terms are equivalent.</dd><dt><a class="struct" href="struct.ConditionalApplier.html" title="struct egg::ConditionalApplier">Conditional<wbr>Applier</a></dt><dd>An <a href="trait.Applier.html" title="trait egg::Applier"><code>Applier</code></a> that checks a <a href="trait.Condition.html" title="trait egg::Condition"><code>Condition</code></a> before applying.</dd><dt><a class="struct" href="struct.DidMerge.html" title="struct egg::DidMerge">DidMerge</a></dt><dd>Result of <a href="trait.Analysis.html#tymethod.merge" title="method egg::Analysis::merge"><code>Analysis::merge</code></a> indicating which of the inputs
 are different from the merged result.</dd><dt><a class="struct" href="struct.Dot.html" title="struct egg::Dot">Dot</a></dt><dd>A wrapper for an <a href="struct.EGraph.html" title="struct egg::EGraph"><code>EGraph</code></a> that can output <a href="https://graphviz.gitlab.io/">GraphViz</a> for
 visualization.</dd><dt><a class="struct" href="struct.EClass.html" title="struct egg::EClass">EClass</a></dt><dd>An equivalence class of enodes.</dd><dt><a class="struct" href="struct.EGraph.html" title="struct egg::EGraph">EGraph</a></dt><dd>A data structure to keep track of equalities between expressions.</dd><dt><a class="struct" href="struct.Explanation.html" title="struct egg::Explanation">Explanation</a></dt><dd>A data structure representing an explanation that two terms are equivalent.</dd><dt><a class="struct" href="struct.Extractor.html" title="struct egg::Extractor">Extractor</a></dt><dd>Extracting a single <a href="struct.RecExpr.html" title="struct egg::RecExpr"><code>RecExpr</code></a> from an <a href="struct.EGraph.html" title="struct egg::EGraph"><code>EGraph</code></a>.</dd><dt><a class="struct" href="struct.FlatTerm.html" title="struct egg::FlatTerm">Flat<wbr>Term</a></dt><dd>A single term in an flattened explanation.
