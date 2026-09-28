@@ -3,6 +3,8 @@ all: test nits
 .PHONY: test
 test:
 	cargo test --release
+	# exercise the standard-library clock separately from the default Quanta clock
+	cargo test --release --no-default-features --features std
 	cargo test --release --features=lp
 	# don't run examples in proof-production mode
 	cargo test --release --features "test-explanations"

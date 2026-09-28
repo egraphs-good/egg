@@ -71,8 +71,11 @@ pub(crate) type IndexSet<K> = indexmap::IndexSet<K, BuildHasher>;
 
 // --- Timing ---
 
-#[cfg(feature = "std")]
+#[cfg(feature = "quanta")]
 pub(crate) type Instant = quanta::Instant;
+
+#[cfg(all(feature = "std", not(feature = "quanta")))]
+pub(crate) type Instant = std::time::Instant;
 
 #[cfg(not(feature = "std"))]
 pub(crate) type Instant = no_std_instant::Instant;

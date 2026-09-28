@@ -37,6 +37,20 @@ egg = "0.11.0"
 
 Make sure to compile with `--release` if you are measuring performance!
 
+### Clock selection
+
+By default, egg uses [Quanta](https://docs.rs/quanta/) for timing.
+Quanta can make clock reads cheaper, but may take up to 200 ms to initialize.
+For faster startup with `std::time::Instant`, set these options on your existing
+`egg` dependency:
+
+```toml
+[dependencies.egg]
+# Keep your existing dependency source here.
+default-features = false
+features = ["std"]
+```
+
 ## Developing
 
 It's written in [Rust](https://www.rust-lang.org/).

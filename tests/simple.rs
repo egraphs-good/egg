@@ -43,3 +43,30 @@ fn simple_tests() {
     assert_eq!(simplify("(* 0 42)"), "0");
     assert_eq!(simplify("(+ 0 (* 1 foo))"), "foo");
 }
+
+#[cfg(feature = "std")]
+#[test]
+fn runner_time_limit() {
+    use std::time::Duration;
+
+    let runner = Runner::<SimpleLanguage, ()>::default()
+        .with_expr(&"(+ 0 x)".parse().unwrap())
+        .with_time_limit(Duration::from_millis(1))
+        .with_hook(|_| {
+            std::thread::sleep(Duration::from_millis(5));
+            Ok(())
+        })
+        .run(&make_rules());
+
+    assert!(matches!(runner.stop_reason, Some(StopReason::TimeLimit(_))));
+}
+
+#[cfg(feature = "std")]
+#[test]
+fn runner_reports_elapsed_time() {
+    let runner = Runner::<SimpleLanguage, ()>::default()
+        .with_expr(&"(+ 0 x)".parse().unwrap())
+        .run(&make_rules());
+
+    assert!(runner.report().total_time > 0.0);
+}

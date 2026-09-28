@@ -39,10 +39,9 @@ serde_json = {version = "1.0.81", optional = true}
 ordered-float = "3.0.0"
 
 [features]
-default = ["std"]
+default = ["std", "quanta"]
 std = [
   "dep:env_logger",
-  "dep:quanta",
   "dep:symbolic_expressions",
   "hashbrown/default",
   "indexmap/std",
@@ -52,6 +51,8 @@ std = [
   "rustc-hash/std",
   "symbol_table/std",
 ]
+# Use Quanta's calibrated clock instead of std::time::Instant.
+quanta = ["std", "dep:quanta"]
 # forces the use of indexmaps over hashmaps
 deterministic = []
 lp = ["std", "good_lp"]
@@ -63,7 +64,7 @@ serde-1 = [
   "symbol_table/serde",
   "vectorize",
 ]
-wasm-bindgen = ["std"]
+wasm-bindgen = ["quanta"]
 
 # private features for testing
 test-explanations = []
